@@ -112,6 +112,7 @@ func createNotification(repository storage.Repository, createdAt time.Time) stri
 		Base: types.Base{
 			ID:        uid.String(),
 			CreatedAt: createdAt,
+			Ready:     true,
 		},
 		Payload:  []byte("{}"),
 		Resource: "empty",

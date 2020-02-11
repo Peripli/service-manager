@@ -24,10 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofrs/uuid"
-
-	"github.com/Peripli/service-manager/test/testutil/service_instance"
-
 	"github.com/Peripli/service-manager/pkg/httpclient"
 	"github.com/Peripli/service-manager/pkg/web"
 
@@ -72,8 +68,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	SupportsAsyncOperations:                true,
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
-	PatchResource:                          test.DefaultResourcePatch,
-	AdditionalTests: func(ctx *common.TestContext) {
+	PatchResource:                          test.APIResourcePatch,
+	AdditionalTests: func(ctx *common.TestContext, t *test.TestCase) {
 		Context("additional non-generic tests", func() {
 			var (
 				brokerServer           *common.BrokerServer
@@ -146,7 +142,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					},
 					"labels": labels,
 				}
-				common.RemoveAllBrokers(ctx.SMWithOAuth)
+				common.RemoveAllBrokers(ctx.SMRepository)
 
 				repository = ctx.SMRepository
 			})
@@ -1178,47 +1174,33 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("when an existing service offering is removed", func() {
 						var serviceOfferingID string
+						var planIDsForService []string
 
 						BeforeEach(func() {
+							planIDsForService = make([]string, 0)
+
 							catalogServiceID := gjson.Get(string(brokerServer.Catalog), "services.0.id").Str
 							Expect(catalogServiceID).ToNot(BeEmpty())
 
-							serviceOfferings := ctx.SMWithOAuth.List(web.ServiceOfferingsURL).Iter()
+							serviceOffering := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL,
+								fmt.Sprintf("fieldQuery=broker_id eq '%s' and catalog_id eq '%s'", brokerID, catalogServiceID))
+							Expect(serviceOffering.Length().Equal(1))
+							serviceOfferingID = serviceOffering.First().Object().Value("id").String().Raw()
+							plans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL,
+								fmt.Sprintf("fieldQuery=service_offering_id eq '%s'", serviceOfferingID)).Iter()
 
-							for _, so := range serviceOfferings {
-								sbID := so.Object().Value("broker_id").String().Raw()
-								Expect(catalogServiceID).ToNot(BeEmpty())
-
-								catalogID := so.Object().Value("catalog_id").String().Raw()
-								Expect(catalogServiceID).ToNot(BeEmpty())
-
-								if catalogID == catalogServiceID && sbID == brokerID {
-									serviceOfferingID = so.Object().Value("id").String().Raw()
-									Expect(catalogServiceID).ToNot(BeEmpty())
-									break
-								}
+							for _, plan := range plans {
+								planID := plan.Object().Value("id").String().Raw()
+								planIDsForService = append(planIDsForService, planID)
 							}
+
 							s, err := sjson.Delete(string(brokerServer.Catalog), "services.0")
 							Expect(err).ShouldNot(HaveOccurred())
 							brokerServer.Catalog = common.SBCatalog(s)
 						})
 
 						Context("with no existing service instances", func() {
-
 							It("is no longer returned by the Services and Plans API", func() {
-								plans := ctx.SMWithOAuth.List(web.ServicePlansURL).Iter()
-
-								var planIDsForService []interface{}
-								for _, plan := range plans {
-									soID := plan.Object().Value("service_offering_id").String().Raw()
-									Expect(soID).ToNot(BeEmpty())
-									if soID == serviceOfferingID {
-										planID := plan.Object().Value("id").String().Raw()
-										Expect(soID).ToNot(BeEmpty())
-
-										planIDsForService = append(planIDsForService, planID)
-									}
-								}
 								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
 									WithJSON(common.Object{}).
 									Expect().
@@ -1236,36 +1218,24 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						Context("with existing service instances", func() {
-							var serviceInstanceIDs []string
+							var serviceInstances []*types.ServiceInstance
+
+							BeforeEach(func() {
+								serviceInstances = make([]*types.ServiceInstance, 0)
+								for _, planID := range planIDsForService {
+									serviceInstance := common.CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, planID)
+									serviceInstances = append(serviceInstances, serviceInstance)
+								}
+							})
 
 							AfterEach(func() {
-								byIDs := query.ByField(query.InOperator, "id", serviceInstanceIDs...)
-								err := ctx.SMRepository.Delete(context.Background(), types.ServiceInstanceType, byIDs)
-								Expect(err).To(Not(HaveOccurred()))
+								for _, serviceInstance := range serviceInstances {
+									err := common.DeleteInstance(ctx, serviceInstance.ID, serviceInstance.ServicePlanID)
+									Expect(err).ToNot(HaveOccurred())
+								}
 							})
 
 							It("should return 400 with user-friendly message", func() {
-								plans := ctx.SMWithOAuth.List(web.ServicePlansURL).Iter()
-
-								var planIDsForService []string
-								for _, plan := range plans {
-									soID := plan.Object().Value("service_offering_id").String().Raw()
-									Expect(soID).ToNot(BeEmpty())
-									if soID == serviceOfferingID {
-										planID := plan.Object().Value("id").String().Raw()
-										Expect(soID).ToNot(BeEmpty())
-
-										planIDsForService = append(planIDsForService, planID)
-									}
-								}
-
-								for _, planID := range planIDsForService {
-									_, serviceInstance := service_instance.Prepare(ctx, ctx.TestPlatform.ID, planID, "{}")
-									ctx.SMRepository.Create(context.Background(), serviceInstance)
-
-									serviceInstanceIDs = append(serviceInstanceIDs, serviceInstance.ID)
-								}
-
 								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
 									WithJSON(common.Object{}).
 									Expect().
@@ -1439,14 +1409,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								removedPlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_id eq '%s'", removedPlanCatalogID)).
 									First().Object().Value("id").String().Raw()
 
-								_, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, removedPlanID, "{}")
-								ctx.SMRepository.Create(context.Background(), serviceInstance)
+								serviceInstance = common.CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, removedPlanID)
+
 							})
 
 							AfterEach(func() {
-								byID := query.ByField(query.EqualsOperator, "id", serviceInstance.ID)
-								err := ctx.SMRepository.Delete(context.Background(), types.ServiceInstanceType, byID)
-								Expect(err).To(Not(HaveOccurred()))
+								err := common.DeleteInstance(ctx, serviceInstance.ID, serviceInstance.ServicePlanID)
+								Expect(err).ToNot(HaveOccurred())
 							})
 
 							It("should return 400 with user-friendly message", func() {
@@ -1753,21 +1722,19 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			})
 
 			Describe("DELETE", func() {
-
-				AfterEach(func() {
-					ctx.CleanupAdditionalResources()
-				})
-
 				Context("with existing service instances to some broker plan", func() {
 					var (
-						brokerID string
+						brokerID        string
+						serviceInstance *types.ServiceInstance
 					)
 
 					BeforeEach(func() {
-						var serviceInstance *types.ServiceInstance
+						brokerID, serviceInstance = common.CreateInstanceInPlatform(ctx, ctx.TestPlatform.ID)
+					})
 
-						brokerID, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", "{}")
-						ctx.SMRepository.Create(context.Background(), serviceInstance)
+					AfterEach(func() {
+						err := common.DeleteInstance(ctx, serviceInstance.ID, serviceInstance.ServicePlanID)
+						Expect(err).ToNot(HaveOccurred())
 					})
 
 					It("should return 400 with user-friendly message", func() {
@@ -1799,12 +1766,6 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *com
 	return func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
 		brokerJSON := common.GenerateRandomBroker()
 
-		brokerID, err := uuid.NewV4()
-		if err != nil {
-			panic(err)
-		}
-		brokerJSON["id"] = brokerID.String()
-
 		if !setNullFieldsValues {
 			delete(brokerJSON, "description")
 		}
@@ -1812,14 +1773,7 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *com
 		var obj map[string]interface{}
 		resp := auth.POST(web.ServiceBrokersURL).WithQuery("async", strconv.FormatBool(async)).WithJSON(brokerJSON).Expect()
 		if async {
-			resp = resp.Status(http.StatusAccepted)
-			if err := test.ExpectOperation(auth, resp, types.SUCCEEDED); err != nil {
-				panic(err)
-			}
-
-			obj = auth.GET(web.ServiceBrokersURL + "/" + brokerID.String()).
-				Expect().JSON().Object().Raw()
-
+			obj = test.ExpectSuccessfulAsyncResourceCreation(resp, auth, web.ServiceBrokersURL)
 		} else {
 			obj = resp.Status(http.StatusCreated).JSON().Object().Raw()
 			delete(obj, "credentials")

@@ -18,6 +18,7 @@ package interceptors
 
 import (
 	"context"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
@@ -47,19 +48,22 @@ type serviceInstanceCreateInterceptor struct {
 func (c *serviceInstanceCreateInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 	return func(ctx context.Context, storage storage.Repository, obj types.Object) (types.Object, error) {
 		serviceInstance := obj.(*types.ServiceInstance)
-
-		tenantID := gjson.GetBytes([]byte(serviceInstance.Context), c.TenantIdentifier)
-		if !tenantID.Exists() {
-			log.D().Debugf("Could not add %s label to service instance with id %s. Label not found in OSB context.", c.TenantIdentifier, serviceInstance.ID)
-			return h(ctx, storage, serviceInstance)
-		}
-
 		labels := serviceInstance.GetLabels()
 		if labels == nil {
 			labels = types.Labels{}
 		}
-		labels[c.TenantIdentifier] = []string{tenantID.String()}
 
+		if _, ok := labels[c.TenantIdentifier]; ok {
+			log.C(ctx).Debugf("Label %s is already set on service instance", c.TenantIdentifier)
+			return h(ctx, storage, serviceInstance)
+		}
+
+		tenantID := gjson.GetBytes(serviceInstance.Context, c.TenantIdentifier)
+		if !tenantID.Exists() {
+			log.C(ctx).Debugf("Could not add %s label to service instance with id %s. Label not found in OSB context.", c.TenantIdentifier, serviceInstance.ID)
+			return h(ctx, storage, serviceInstance)
+		}
+		labels[c.TenantIdentifier] = []string{tenantID.String()}
 		serviceInstance.SetLabels(labels)
 
 		return h(ctx, storage, serviceInstance)

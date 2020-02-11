@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE service_plans ALTER COLUMN plan_updateable DROP NOT NULL;
+ALTER TABLE service_plans ALTER COLUMN bindable DROP NOT NULL;
+
+COMMIT;

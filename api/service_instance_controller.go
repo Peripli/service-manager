@@ -17,6 +17,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -24,40 +25,62 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// ServiceInstanceController implements api.Controller by providing service instances API logic
+// ServiceInstanceController implements api.Controller by providing service Instances API logic
 type ServiceInstanceController struct {
 	*BaseController
 }
 
-func NewServiceInstanceController(options *Options) *ServiceInstanceController {
+func NewServiceInstanceController(ctx context.Context, options *Options) *ServiceInstanceController {
 	return &ServiceInstanceController{
-		BaseController: NewController(options, web.ServiceInstancesURL, types.ServiceInstanceType, func() types.Object {
+		BaseController: NewAsyncController(ctx, options, web.ServiceInstancesURL, types.ServiceInstanceType, true, func() types.Object {
 			return &types.ServiceInstance{}
 		}),
 	}
 }
+
 func (c *ServiceInstanceController) Routes() []web.Route {
 	return []web.Route{
 		{
 			Endpoint: web.Endpoint{
+				Method: http.MethodPost,
+				Path:   c.resourceBaseURL,
+			},
+			Handler: c.CreateObject,
+		},
+		{
+			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}", web.ServiceInstancesURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
 			},
 			Handler: c.GetSingleObject,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, PathParamResourceID, web.OperationsURL, PathParamID),
+				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, web.PathParamResourceID, web.OperationsURL, web.PathParamID),
 			},
 			Handler: c.GetOperation,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   web.ServiceInstancesURL,
+				Path:   c.resourceBaseURL,
 			},
 			Handler: c.ListObjects,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodDelete,
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
+			},
+			Handler: c.DeleteSingleObject,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodPatch,
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
+			},
+			Handler: c.PatchObject,
 		},
 	}
 }

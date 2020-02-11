@@ -493,6 +493,7 @@ func (ssi *StoreServiceInstancePlugin) storeOperation(ctx context.Context, stora
 			CreatedAt: req.GetTimestamp(),
 			UpdatedAt: req.GetTimestamp(),
 			Labels:    make(map[string][]string),
+			Ready:     true,
 		},
 		Type:          category,
 		State:         state,
@@ -526,6 +527,7 @@ func (ssi *StoreServiceInstancePlugin) storeInstance(ctx context.Context, storag
 			CreatedAt: req.Timestamp,
 			UpdatedAt: req.Timestamp,
 			Labels:    make(map[string][]string),
+			Ready:     ready,
 		},
 		Name:            instanceName,
 		ServicePlanID:   planID,
@@ -533,7 +535,6 @@ func (ssi *StoreServiceInstancePlugin) storeInstance(ctx context.Context, storag
 		DashboardURL:    resp.DashboardURL,
 		MaintenanceInfo: req.RawMaintenanceInfo,
 		Context:         req.RawContext,
-		Ready:           ready,
 		Usable:          true,
 	}
 	if _, err := storage.Create(ctx, instance); err != nil {

@@ -19,9 +19,8 @@ package platform_test
 import (
 	"context"
 	"net/http"
+	"sort"
 	"testing"
-
-	"github.com/Peripli/service-manager/test/testutil/service_instance"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -60,43 +59,44 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	SupportsAsyncOperations:                false,
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
-	PatchResource:                          test.DefaultResourcePatch,
-	AdditionalTests: func(ctx *common.TestContext) {
+	PatchResource:                          test.APIResourcePatch,
+	AdditionalTests: func(ctx *common.TestContext, t *test.TestCase) {
 		Context("non-generic tests", func() {
 			BeforeEach(func() {
-				common.RemoveAllPlatforms(ctx.SMWithOAuth)
+				common.RemoveAllPlatforms(ctx.SMRepository)
 			})
 
 			Describe("POST", func() {
 				Context("With 2 platforms", func() {
-					var platform, platform2 *types.Platform
 					BeforeEach(func() {
 						platformJSON := common.GenerateRandomPlatform()
 						platformJSON["name"] = "k"
-						platform = common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, nil)
+						common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, nil)
 
 						platformJSON2 := common.GenerateRandomPlatform()
 						platformJSON2["name"] = "a"
-						platform2 = common.RegisterPlatformInSM(platformJSON2, ctx.SMWithOAuth, nil)
+						common.RegisterPlatformInSM(platformJSON2, ctx.SMWithOAuth, nil)
 					})
 
 					It("should return them ordered by name", func() {
 						result, err := ctx.SMRepository.List(context.Background(), types.PlatformType, query.OrderResultBy("name", query.AscOrder))
 						Expect(err).ShouldNot(HaveOccurred())
-						Expect(result.Len()).To(Equal(2))
-						Expect((result.ItemAt(0).(*types.Platform)).Name).To(Equal(platform2.Name))
-						Expect((result.ItemAt(1).(*types.Platform)).Name).To(Equal(platform.Name))
+						Expect(result.Len()).To(BeNumerically(">=", 2))
+						names := make([]string, 0, result.Len())
+						for i := 0; i < result.Len(); i++ {
+							names = append(names, result.ItemAt(i).(*types.Platform).Name)
+						}
+						Expect(sort.StringsAreSorted(names)).To(BeTrue())
 					})
 
 					It("should limit result to only 1", func() {
 						result, err := ctx.SMRepository.List(context.Background(), types.PlatformType, query.LimitResultBy(1))
 						Expect(err).ShouldNot(HaveOccurred())
 						Expect(result.Len()).To(Equal(1))
-						Expect((result.ItemAt(0).(*types.Platform)).Name).To(Equal(platform.Name))
 					})
 				})
 
-				Context("With invalid content type", func() {
+				Context("when content type is not JSON", func() {
 					It("returns 415", func() {
 						ctx.SMWithOAuth.POST(web.PlatformsURL).
 							WithText("text").
@@ -104,7 +104,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				Context("With invalid content JSON", func() {
+				Context("when request body is not a valid JSON", func() {
 					It("returns 400 if input is not valid JSON", func() {
 						ctx.SMWithOAuth.POST(web.PlatformsURL).
 							WithText("invalid json").
@@ -176,20 +176,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				Context("With async query param", func() {
-					It("fails", func() {
-						platform := common.MakePlatform("", "cf-10", "cf", "descr")
-						delete(platform, "id")
-
-						reply := ctx.SMWithOAuth.POST(web.PlatformsURL).
-							WithQuery("async", "true").
-							WithJSON(platform).
-							Expect().Status(http.StatusBadRequest).JSON().Object()
-
-						reply.Value("description").String().Contains("api doesn't support asynchronous operations")
-					})
-				})
-
 				Context("Without id", func() {
 					It("returns the new platform with generated id and credentials", func() {
 						platform := common.MakePlatform("", "cf-10", "cf", "descr")
@@ -214,6 +200,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect().Status(http.StatusOK).JSON().Object()
 
 						common.MapContains(reply.Raw(), platform)
+					})
+				})
+
+				Context("With async query param", func() {
+					It("fails", func() {
+						platform := common.MakePlatform("", "cf-10", "cf", "descr")
+						delete(platform, "id")
+
+						reply := ctx.SMWithOAuth.POST(web.PlatformsURL).
+							WithQuery("async", "true").
+							WithJSON(platform).
+							Expect().Status(http.StatusBadRequest).JSON().Object()
+
+						reply.Value("description").String().Contains("api doesn't support asynchronous operations")
 					})
 				})
 			})
@@ -360,8 +360,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						WithJSON(platform).
 						Expect().Status(http.StatusCreated)
 
-					_, serviceInstance := service_instance.Prepare(ctx, platformID, "", "{}")
-					ctx.SMRepository.Create(context.Background(), serviceInstance)
+					common.CreateInstanceInPlatform(ctx, platformID)
 				})
 
 				AfterEach(func() {

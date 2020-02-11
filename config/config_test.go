@@ -18,10 +18,11 @@ package config_test
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/health"
 	"testing"
 	"time"
+
+	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/health"
 
 	"github.com/Peripli/service-manager/api"
 	cfg "github.com/Peripli/service-manager/config"
@@ -82,6 +83,7 @@ var _ = Describe("config", func() {
 			fatal = true
 			failuresThreshold = 1
 			interval = 30 * time.Second
+			config.Multitenancy.LabelKey = "tenant"
 		})
 
 		Context("health indicator with negative threshold", func() {
@@ -240,7 +242,7 @@ var _ = Describe("config", func() {
 
 		Context("when operation job timeout is < 0", func() {
 			It("returns an error", func() {
-				config.Operations.JobTimeout = -time.Second
+				config.Operations.ActionTimeout = -time.Second
 				assertErrorDuringValidate()
 			})
 		})
@@ -252,9 +254,23 @@ var _ = Describe("config", func() {
 			})
 		})
 
-		Context("when operation mark orphans interval is < 0", func() {
+		Context("when operation scheduled deletion timeoutt is < 0", func() {
 			It("returns an error", func() {
-				config.Operations.MarkOrphansInterval = -time.Second
+				config.Operations.ReconciliationOperationTimeout = -time.Second
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when operation rescheduling interval < 0", func() {
+			It("returns an error", func() {
+				config.Operations.ReschedulingInterval = -time.Second
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when operation polling interval < 0", func() {
+			It("returns an error", func() {
+				config.Operations.PollingInterval = -time.Second
 				assertErrorDuringValidate()
 			})
 		})
@@ -274,6 +290,13 @@ var _ = Describe("config", func() {
 						Size:     0,
 					},
 				}
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when multitenancy label key is empty", func() {
+			It("returns an error", func() {
+				config.Multitenancy.LabelKey = ""
 				assertErrorDuringValidate()
 			})
 		})

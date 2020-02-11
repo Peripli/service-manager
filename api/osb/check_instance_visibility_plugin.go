@@ -2,15 +2,15 @@ package osb
 
 import (
 	"encoding/json"
-	"net/http"
-
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/tidwall/gjson"
+	"net/http"
 )
 
 const CheckVisibilityPluginName = "CheckVisibilityPlugin"
@@ -112,10 +112,8 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 				if !ok {
 					return next.Handle(req)
 				}
-				for _, orgGUID := range orgGUIDs {
-					if payloadOrgGUID == orgGUID {
-						return next.Handle(req)
-					}
+				if slice.StringsAnyEquals(orgGUIDs, payloadOrgGUID) {
+					return next.Handle(req)
 				}
 			}
 		}

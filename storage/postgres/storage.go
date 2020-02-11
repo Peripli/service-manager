@@ -51,7 +51,6 @@ type Storage struct {
 	state                 *storageState
 	layerOneEncryptionKey []byte
 	scheme                *scheme
-	isLocked              bool
 	mutex                 sync.Mutex
 }
 
@@ -106,6 +105,7 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 		ps.scheme.introduce(&Notification{})
 		ps.scheme.introduce(&Operation{})
 		ps.scheme.introduce(&ServiceInstance{})
+		ps.scheme.introduce(&ServiceBinding{})
 	}
 
 	return nil
@@ -298,6 +298,7 @@ func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteri
 }
 
 func (ps *Storage) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, _ ...query.Criterion) (types.Object, error) {
+	obj.SetUpdatedAt(time.Now().UTC())
 	entity, err := ps.scheme.convert(obj)
 	if err != nil {
 		return nil, err

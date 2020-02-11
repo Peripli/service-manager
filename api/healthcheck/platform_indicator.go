@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/health"
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 )
@@ -51,7 +52,7 @@ func (pi *platformIndicator) Name() string {
 
 // Status returns status of the health check
 func (pi *platformIndicator) Status() (interface{}, error) {
-	objList, err := pi.repository.List(pi.ctx, types.PlatformType)
+	objList, err := pi.repository.List(pi.ctx, types.PlatformType, query.ByField(query.NotEqualsOperator, "id", types.SMPlatform))
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch platforms health from storage: %v", err)
 	}

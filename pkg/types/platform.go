@@ -17,6 +17,7 @@
 package types
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -25,13 +26,16 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-const K8sPlatformType string = "kubernetes"
+const CFPlatformType = "cloudfoundry"
+const K8sPlatformType = "kubernetes"
+const SMPlatform = "service-manager"
 
 //go:generate smgen api Platform
 // Platform platform struct
 type Platform struct {
 	Base
 	Secured     `json:"-"`
+	Strip       `json:"-"`
 	Type        string       `json:"type"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
@@ -58,12 +62,28 @@ func (e *Platform) Equals(obj Object) bool {
 	return true
 }
 
-func (e *Platform) SetCredentials(credentials *Credentials) {
-	e.Credentials = credentials
+func (e *Platform) Sanitize() {
+	e.Credentials = nil
 }
 
-func (e *Platform) GetCredentials() *Credentials {
-	return e.Credentials
+func (e *Platform) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {
+	return e.transform(ctx, encryptionFunc)
+}
+
+func (e *Platform) Decrypt(ctx context.Context, decryptionFunc func(context.Context, []byte) ([]byte, error)) error {
+	return e.transform(ctx, decryptionFunc)
+}
+
+func (e *Platform) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
+	if e.Credentials == nil || e.Credentials.Basic == nil {
+		return nil
+	}
+	transformedPassword, err := transformationFunc(ctx, []byte(e.Credentials.Basic.Password))
+	if err != nil {
+		return err
+	}
+	e.Credentials.Basic.Password = string(transformedPassword)
+	return nil
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

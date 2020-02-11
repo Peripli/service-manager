@@ -2,10 +2,11 @@ package test
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/gavv/httpexpect"
 	"net/http"
 	"strconv"
+
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/gavv/httpexpect"
 
 	. "github.com/onsi/gomega"
 
@@ -35,7 +36,7 @@ func DescribePatchTestsFor(ctx *common.TestContext, t TestCase, responseMode Res
 			case Async:
 				resp.Status(http.StatusAccepted)
 
-				err := ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+				_, err := ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
 				Expect(err).To(BeNil())
 			case Sync:
 				resp.Status(http.StatusOK)
@@ -44,40 +45,10 @@ func DescribePatchTestsFor(ctx *common.TestContext, t TestCase, responseMode Res
 
 		Context(fmt.Sprintf("Existing resource of type %s", t.API), func() {
 			Context("with bearer auth", func() {
-				Context("when the resource is global", func() {
-					BeforeEach(func() {
-						createTestResourceWithAuth(ctx.SMWithOAuth)
-					})
-
-					Context("when authenticating with basic auth", func() {
-						It("returns 401", func() {
-							ctx.SMWithBasic.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).
-								Expect().
-								Status(http.StatusUnauthorized)
-						})
-					})
-
-					Context("when authenticating with global token", func() {
-						It("returns 200", func() {
-							resp := ctx.SMWithOAuth.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).Expect()
-							verifyPatchedResource(resp)
-						})
-					})
-
-					if !t.DisableTenantResources {
-						Context("when authenticating with tenant scoped token", func() {
-							It("returns 404", func() {
-								ctx.SMWithOAuthForTenant.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).
-									Expect().Status(http.StatusNotFound)
-							})
-						})
-					}
-				})
-
-				if !t.DisableTenantResources {
-					Context("when the resource is tenant scoped", func() {
+				if !t.StrictlyTenantScoped {
+					Context("when the resource is global", func() {
 						BeforeEach(func() {
-							createTestResourceWithAuth(ctx.SMWithOAuthForTenant)
+							createTestResourceWithAuth(ctx.SMWithOAuth)
 						})
 
 						Context("when authenticating with basic auth", func() {
@@ -94,6 +65,40 @@ func DescribePatchTestsFor(ctx *common.TestContext, t TestCase, responseMode Res
 								verifyPatchedResource(resp)
 							})
 						})
+
+						if !t.DisableTenantResources {
+							Context("when authenticating with tenant scoped token", func() {
+								It("returns 404", func() {
+									ctx.SMWithOAuthForTenant.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).
+										Expect().Status(http.StatusNotFound)
+								})
+							})
+						}
+					})
+				}
+
+				if !t.DisableTenantResources {
+					Context("when the resource is tenant scoped", func() {
+						BeforeEach(func() {
+							createTestResourceWithAuth(ctx.SMWithOAuthForTenant)
+						})
+
+						Context("when authenticating with basic auth", func() {
+							It("returns 401", func() {
+								ctx.SMWithBasic.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).
+									Expect().
+									Status(http.StatusUnauthorized)
+							})
+						})
+
+						if !t.StrictlyTenantScoped {
+							Context("when authenticating with global token", func() {
+								It("returns 200", func() {
+									resp := ctx.SMWithOAuth.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).Expect()
+									verifyPatchedResource(resp)
+								})
+							})
+						}
 
 						Context("when authenticating with tenant scoped token", func() {
 							It("returns 200", func() {
@@ -120,10 +125,17 @@ func DescribePatchTestsFor(ctx *common.TestContext, t TestCase, responseMode Res
 			})
 
 			Context("when authenticating with global token", func() {
-				It("returns 404", func() {
-					ctx.SMWithOAuth.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).
-						Expect().Status(http.StatusNotFound)
-				})
+				if t.StrictlyTenantScoped {
+					It("returns 400", func() {
+						ctx.SMWithOAuth.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).
+							Expect().Status(http.StatusBadRequest)
+					})
+				} else {
+					It("returns 404", func() {
+						ctx.SMWithOAuth.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).
+							Expect().Status(http.StatusNotFound)
+					})
+				}
 			})
 		})
 	})

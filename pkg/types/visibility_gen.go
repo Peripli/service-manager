@@ -6,9 +6,10 @@ import (
 	"encoding/json"
 
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const VisibilityType ObjectType = "types.Visibility"
+const VisibilityType ObjectType = web.VisibilitiesURL
 
 type Visibilities struct {
 	Visibilities []*Visibility `json:"visibilities"`

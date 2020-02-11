@@ -35,7 +35,8 @@ var _ = Describe("Encrypting Repository", func() {
 
 		objWithDecryptedPassword = &types.ServiceBroker{
 			Base: types.Base{
-				ID: "id",
+				ID:    "id",
+				Ready: true,
 			},
 			Credentials: &types.Credentials{
 				Basic: &types.Basic{
@@ -47,12 +48,13 @@ var _ = Describe("Encrypting Repository", func() {
 
 		objWithEncryptedPassword = &types.ServiceBroker{
 			Base: types.Base{
-				ID: "id",
+				ID:    "id",
+				Ready: true,
 			},
 			Credentials: &types.Credentials{
 				Basic: &types.Basic{
 					Username: "admin",
-					Password: "encrypt" + objWithDecryptedPassword.(types.Secured).GetCredentials().Basic.Password,
+					Password: "encrypt" + objWithDecryptedPassword.(*types.ServiceBroker).Credentials.Basic.Password,
 				},
 			},
 		}
@@ -144,7 +146,7 @@ var _ = Describe("Encrypting Repository", func() {
 			It("invokes the delegate repository with object with encrypted credentials", func() {
 				Expect(fakeRepository.CreateCallCount() - delegateCreateCallsCountBeforeOp).To(Equal(1))
 				_, objectArg := fakeRepository.CreateArgsForCall(0)
-				isPassEncrypted := strings.HasPrefix(objectArg.(types.Secured).GetCredentials().Basic.Password, "encrypt")
+				isPassEncrypted := strings.HasPrefix(objectArg.(*types.ServiceBroker).Credentials.Basic.Password, "encrypt")
 				Expect(isPassEncrypted).To(BeTrue())
 			})
 
@@ -153,7 +155,7 @@ var _ = Describe("Encrypting Repository", func() {
 			})
 
 			It("returns an object with decrypted credentials", func() {
-				isPassEncrypted := strings.HasPrefix(returnedObj.(types.Secured).GetCredentials().Basic.Password, "encrypt")
+				isPassEncrypted := strings.HasPrefix(returnedObj.(*types.ServiceBroker).Credentials.Basic.Password, "encrypt")
 				Expect(isPassEncrypted).To(BeFalse())
 			})
 		})
@@ -197,7 +199,7 @@ var _ = Describe("Encrypting Repository", func() {
 
 			It("returns an object with decrypted credentials", func() {
 				for i := 0; i < returnedObjList.Len(); i++ {
-					isPassEncrypted := strings.HasPrefix(returnedObjList.ItemAt(i).(types.Secured).GetCredentials().Basic.Password, "encrypt")
+					isPassEncrypted := strings.HasPrefix(returnedObjList.ItemAt(i).(*types.ServiceBroker).Credentials.Basic.Password, "encrypt")
 					Expect(isPassEncrypted).To(BeFalse())
 				}
 			})
@@ -244,7 +246,7 @@ var _ = Describe("Encrypting Repository", func() {
 			})
 
 			It("returns an object with decrypted credentials", func() {
-				isPassEncrypted := strings.HasPrefix(returnedObj.(types.Secured).GetCredentials().Basic.Password, "encrypt")
+				isPassEncrypted := strings.HasPrefix(returnedObj.(*types.ServiceBroker).Credentials.Basic.Password, "encrypt")
 				Expect(isPassEncrypted).To(BeFalse())
 			})
 		})
@@ -296,7 +298,7 @@ var _ = Describe("Encrypting Repository", func() {
 			It("invokes the delegate repository with object with encrypted credentials", func() {
 				Expect(fakeRepository.UpdateCallCount() - delegateUpdateCallsCountBeforeOp).To(Equal(1))
 				_, objectArg, _, _ := fakeRepository.UpdateArgsForCall(0)
-				isPassEncrypted := strings.HasPrefix(objectArg.(types.Secured).GetCredentials().Basic.Password, "encrypt")
+				isPassEncrypted := strings.HasPrefix(objectArg.(*types.ServiceBroker).Credentials.Basic.Password, "encrypt")
 				Expect(isPassEncrypted).To(BeTrue())
 			})
 
@@ -305,7 +307,7 @@ var _ = Describe("Encrypting Repository", func() {
 			})
 
 			It("returns an object with decrypted credentials", func() {
-				isPassEncrypted := strings.HasPrefix(returnedObj.(types.Secured).GetCredentials().Basic.Password, "encrypt")
+				isPassEncrypted := strings.HasPrefix(returnedObj.(*types.ServiceBroker).Credentials.Basic.Password, "encrypt")
 				Expect(isPassEncrypted).To(BeFalse())
 			})
 		})
@@ -349,7 +351,7 @@ var _ = Describe("Encrypting Repository", func() {
 
 			It("returns an object with decrypted credentials", func() {
 				for i := 0; i < returnedObjList.Len(); i++ {
-					isPassEncrypted := strings.HasPrefix(returnedObjList.ItemAt(i).(types.Secured).GetCredentials().Basic.Password, "encrypt")
+					isPassEncrypted := strings.HasPrefix(returnedObjList.ItemAt(i).(*types.ServiceBroker).Credentials.Basic.Password, "encrypt")
 					Expect(isPassEncrypted).To(BeFalse())
 				}
 			})
@@ -365,9 +367,9 @@ var _ = Describe("Encrypting Repository", func() {
 					returnedObj, err := repository.Create(ctx, objWithDecryptedPassword)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(fakeRepository.CreateCallCount() - delegateCreateCallsCountBeforeOp).To(Equal(1))
-					Expect(strings.HasPrefix(returnedObj.(types.Secured).GetCredentials().Basic.Password, "encrypt")).To(BeFalse())
+					Expect(strings.HasPrefix(returnedObj.(*types.ServiceBroker).Credentials.Basic.Password, "encrypt")).To(BeFalse())
 					_, objectArg := fakeRepository.CreateArgsForCall(0)
-					Expect(strings.HasPrefix(objectArg.(types.Secured).GetCredentials().Basic.Password, "encrypt")).To(BeTrue())
+					Expect(strings.HasPrefix(objectArg.(*types.ServiceBroker).Credentials.Basic.Password, "encrypt")).To(BeTrue())
 
 					// verify list
 					delegateListCallsCountBeforeOp := fakeRepository.ListCallCount()
@@ -375,7 +377,7 @@ var _ = Describe("Encrypting Repository", func() {
 					Expect(err).To(HaveOccurred())
 					Expect(fakeRepository.ListCallCount() - delegateListCallsCountBeforeOp).To(Equal(1))
 					for i := 0; i < returnedObjList.Len(); i++ {
-						isPassEncrypted := strings.HasPrefix(returnedObjList.ItemAt(i).(types.Secured).GetCredentials().Basic.Password, "encrypt")
+						isPassEncrypted := strings.HasPrefix(returnedObjList.ItemAt(i).(*types.ServiceBroker).Credentials.Basic.Password, "encrypt")
 						Expect(isPassEncrypted).To(BeFalse())
 					}
 
@@ -385,8 +387,8 @@ var _ = Describe("Encrypting Repository", func() {
 					Expect(err).ToNot(HaveOccurred())
 					Expect(fakeRepository.UpdateCallCount() - delegateUpdateCallsCountBeforeOp).To(Equal(1))
 					_, objectArg, _, _ = fakeRepository.UpdateArgsForCall(0)
-					Expect(strings.HasPrefix(objectArg.(types.Secured).GetCredentials().Basic.Password, "encrypt")).To(BeTrue())
-					Expect(strings.HasPrefix(returnedObj.(types.Secured).GetCredentials().Basic.Password, "encrypt")).To(BeFalse())
+					Expect(strings.HasPrefix(objectArg.(*types.ServiceBroker).Credentials.Basic.Password, "encrypt")).To(BeTrue())
+					Expect(strings.HasPrefix(returnedObj.(*types.ServiceBroker).Credentials.Basic.Password, "encrypt")).To(BeFalse())
 
 					// verify get
 					delegateGetCallsCountBeforeOp := fakeRepository.GetCallCount()
@@ -394,7 +396,7 @@ var _ = Describe("Encrypting Repository", func() {
 					returnedObj, err = repository.Get(ctx, types.ServiceBrokerType, byID)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(fakeRepository.GetCallCount() - delegateGetCallsCountBeforeOp).To(Equal(1))
-					Expect(strings.HasPrefix(returnedObj.(types.Secured).GetCredentials().Basic.Password, "encrypt")).To(BeFalse())
+					Expect(strings.HasPrefix(returnedObj.(*types.ServiceBroker).Credentials.Basic.Password, "encrypt")).To(BeFalse())
 
 					// verify delete
 					delegateDeleteCallsCountBeforeOp := fakeRepository.DeleteCallCount()
@@ -402,7 +404,7 @@ var _ = Describe("Encrypting Repository", func() {
 					Expect(err).ToNot(HaveOccurred())
 					Expect(fakeRepository.DeleteCallCount() - delegateDeleteCallsCountBeforeOp).To(Equal(1))
 					for i := 0; i < returnedObjList.Len(); i++ {
-						isPassEncrypted := strings.HasPrefix(returnedObjList.ItemAt(i).(types.Secured).GetCredentials().Basic.Password, "encrypt")
+						isPassEncrypted := strings.HasPrefix(returnedObjList.ItemAt(i).(*types.ServiceBroker).Credentials.Basic.Password, "encrypt")
 						Expect(isPassEncrypted).To(BeFalse())
 					}
 

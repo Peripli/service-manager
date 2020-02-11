@@ -18,6 +18,7 @@ package interceptors
 
 import (
 	"context"
+	"errors"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/storage"
@@ -26,31 +27,35 @@ import (
 )
 
 const (
-	generateCredentialsInterceptorName = "CreateCredentialsInterceptor"
+	generatePlatformCredentialsInterceptorName = "CreatePlatformCredentialsInterceptor"
 )
 
-type GenerateCredentialsInterceptorProvider struct {
+type GeneratePlatformCredentialsInterceptorProvider struct {
 }
 
-func (c *GenerateCredentialsInterceptorProvider) Provide() storage.CreateAroundTxInterceptor {
-	return &generateCredentialsInterceptor{}
+func (c *GeneratePlatformCredentialsInterceptorProvider) Provide() storage.CreateAroundTxInterceptor {
+	return &generatePlatformCredentialsInterceptor{}
 }
 
-func (c *GenerateCredentialsInterceptorProvider) Name() string {
-	return generateCredentialsInterceptorName
+func (c *GeneratePlatformCredentialsInterceptorProvider) Name() string {
+	return generatePlatformCredentialsInterceptorName
 }
 
-type generateCredentialsInterceptor struct{}
+type generatePlatformCredentialsInterceptor struct{}
 
 // AroundTxCreate generates new credentials for the secured object
-func (c *generateCredentialsInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
+func (c *generatePlatformCredentialsInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
+		platform, ok := obj.(*types.Platform)
+		if !ok {
+			return nil, errors.New("created object is not a platform")
+		}
 		credentials, err := types.GenerateCredentials()
 		if err != nil {
 			log.C(ctx).Error("Could not generate credentials for platform")
 			return nil, err
 		}
-		(obj.(types.Secured)).SetCredentials(credentials)
+		platform.Credentials = credentials
 
 		return h(ctx, obj)
 	}

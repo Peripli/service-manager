@@ -68,7 +68,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				},
 				queryTemplate: "%s ne '%v'",
 				queryArgs: func() common.Object {
-					return r[0]
+					return common.RemoveBooleanArgs(r[0])
 				},
 				resourcesToExpectAfterOp: func() []common.Object {
 					return []common.Object{r[0]}
@@ -115,7 +115,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				},
 				queryTemplate: "%[1]s notin ('%[2]v','%[2]v','%[2]v')",
 				queryArgs: func() common.Object {
-					return r[0]
+					return common.RemoveBooleanArgs(r[0])
 				},
 				resourcesToExpectAfterOp: func() []common.Object {
 					return []common.Object{r[0]}
@@ -130,7 +130,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				},
 				queryTemplate: "%s notin ('%v')",
 				queryArgs: func() common.Object {
-					return r[0]
+					return common.RemoveBooleanArgs(r[0])
 				},
 				resourcesToExpectAfterOp: func() []common.Object {
 					return []common.Object{r[0]}
@@ -366,7 +366,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 	attachLabel := func(obj common.Object, i int) common.Object {
 		patchLabelsBody := make(map[string]interface{})
-		patchLabels := []query.LabelChange{
+		patchLabels := []*query.LabelChange{
 			{
 				Operation: query.AddLabelOperation,
 				Key:       "labelKey1",
@@ -386,9 +386,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		patchLabelsBody["labels"] = patchLabels
 
 		By(fmt.Sprintf("Attempting to patch resource of %s with labels as labels are declared supported", t.API))
-		ctx.SMWithOAuth.PATCH(t.API + "/" + obj["id"].(string)).WithJSON(patchLabelsBody).
-			Expect().
-			Status(http.StatusOK)
+		t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, obj["id"].(string), t.ResourceType, patchLabels, false)
 
 		result := ctx.SMWithOAuth.GET(t.API + "/" + obj["id"].(string)).
 			Expect().
@@ -406,8 +404,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		for i := 0; i < 2; i++ {
 			gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth, false)
 			gen = attachLabel(gen, i)
-			delete(gen, "created_at")
-			delete(gen, "updated_at")
+			stripObject(gen, t.ResourcePropertiesToIgnore...)
 			r = append(r, gen)
 		}
 		By(fmt.Sprintf("[BEFOREEACH]: Successfully finished preparing and creating test resources"))
@@ -446,13 +443,11 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 			for _, v := range beforeOpArray.Iter() {
 				obj := v.Object().Raw()
-				delete(obj, "created_at")
-				delete(obj, "updated_at")
+				stripObject(obj, t.ResourcePropertiesToIgnore...)
 			}
 
 			for _, entity := range deleteListOpEntry.resourcesToExpectBeforeOp() {
-				delete(entity, "created_at")
-				delete(entity, "updated_at")
+				stripObject(entity, t.ResourcePropertiesToIgnore...)
 				beforeOpArray.Contains(entity)
 			}
 		}
@@ -475,15 +470,13 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 			for _, v := range afterOpArray.Iter() {
 				obj := v.Object().Raw()
-				delete(obj, "created_at")
-				delete(obj, "updated_at")
+				stripObject(obj, t.ResourcePropertiesToIgnore...)
 			}
 
 			if deleteListOpEntry.resourcesToExpectAfterOp != nil {
 				By(fmt.Sprintf("[TEST]: Verifying expected %s are returned after operation", t.API))
 				for _, entity := range deleteListOpEntry.resourcesToExpectAfterOp() {
-					delete(entity, "created_at")
-					delete(entity, "updated_at")
+					stripObject(entity, t.ResourcePropertiesToIgnore...)
 					afterOpArray.Contains(entity)
 				}
 			}
@@ -491,15 +484,18 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			if deleteListOpEntry.resourcesNotToExpectAfterOp != nil {
 				By(fmt.Sprintf("[TEST]: Verifying unexpected %s are NOT returned after operation", t.API))
 				for _, entity := range deleteListOpEntry.resourcesNotToExpectAfterOp() {
-					delete(entity, "created_at")
-					delete(entity, "updated_at")
+					stripObject(entity, t.ResourcePropertiesToIgnore...)
 					afterOpArray.NotContains(entity)
 				}
 			}
 		}
 	}
 	verifyDeleteListOpHelper := func(deleteListOpEntry deleteOpEntry, query string) {
-		verifyDeleteListOpHelperWithAuth(deleteListOpEntry, query, ctx.SMWithOAuth)
+		if t.StrictlyTenantScoped {
+			verifyDeleteListOpHelperWithAuth(deleteListOpEntry, query, ctx.SMWithOAuthForTenant)
+		} else {
+			verifyDeleteListOpHelperWithAuth(deleteListOpEntry, query, ctx.SMWithOAuth)
+		}
 	}
 
 	verifyDeleteListOp := func(entry deleteOpEntry) {
@@ -587,7 +583,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 								},
 							}
 							resourceID := rForTenant["id"].(string)
-							t.PatchResource(ctx, t.API, resourceID, t.ResourceType, patchLabels, false)
+							t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, resourceID, t.ResourceType, patchLabels, false)
 							rForTenant = ctx.SMWithOAuth.GET(t.API + "/" + resourceID).
 								Expect().
 								Status(http.StatusOK).JSON().Object().Raw()

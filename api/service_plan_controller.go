@@ -17,6 +17,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -29,9 +30,9 @@ type ServicePlanController struct {
 	*BaseController
 }
 
-func NewServicePlanController(options *Options) *ServicePlanController {
+func NewServicePlanController(ctx context.Context, options *Options) *ServicePlanController {
 	return &ServicePlanController{
-		BaseController: NewController(options, web.ServicePlansURL, types.ServicePlanType, func() types.Object {
+		BaseController: NewController(ctx, options, web.ServicePlansURL, types.ServicePlanType, func() types.Object {
 			return &types.ServicePlan{}
 		}),
 	}
@@ -42,7 +43,7 @@ func (c *ServicePlanController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}", web.ServicePlansURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", web.ServicePlansURL, web.PathParamResourceID),
 			},
 			Handler: c.GetSingleObject,
 		},
@@ -56,7 +57,7 @@ func (c *ServicePlanController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPatch,
-				Path:   fmt.Sprintf("%s/{%s}", web.ServicePlansURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", web.ServicePlansURL, web.PathParamResourceID),
 			},
 			Handler: c.PatchObject,
 		},

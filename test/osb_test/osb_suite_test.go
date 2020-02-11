@@ -20,14 +20,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/Peripli/service-manager/pkg/multitenancy"
-	"github.com/Peripli/service-manager/pkg/sm"
-	"github.com/tidwall/gjson"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/multitenancy"
+	"github.com/Peripli/service-manager/pkg/sm"
+	"github.com/tidwall/gjson"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -60,7 +61,7 @@ const (
 	organizationGUID            = "1113aa0-124e-4af2-1526-6bfacf61b111"
 	SID                         = "12345"
 	timeoutDuration             = time.Millisecond * 500
-	additionalDelayAfterTimeout = time.Second
+	additionalDelayAfterTimeout = time.Millisecond * 200
 
 	brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
 	brokerAPIVersionHeaderValue = "2.13"
@@ -155,7 +156,8 @@ var _ = BeforeEach(func() {
 
 var _ = JustAfterEach(func() {
 	common.RemoveAllOperations(ctx.SMRepository)
-	common.RemoveAllInstances(ctx.SMRepository)
+	common.RemoveAllInstances(ctx)
+	common.RemoveAllOperations(ctx.SMRepository)
 })
 
 var _ = AfterSuite(func() {
@@ -362,7 +364,7 @@ type operationExpectations struct {
 	Type         types.OperationCategory
 	State        types.OperationState
 	ResourceID   string
-	ResourceType string
+	ResourceType types.ObjectType
 	Errors       json.RawMessage
 	ExternalID   string
 }
@@ -370,10 +372,9 @@ type operationExpectations struct {
 func verifyOperationExists(operationExpectations operationExpectations) {
 	byResourceID := query.ByField(query.EqualsOperator, "resource_id", operationExpectations.ResourceID)
 	byType := query.ByField(query.EqualsOperator, "type", string(operationExpectations.Type))
-	orderByCreation := query.OrderResultBy("created_at", query.AscOrder)
-	limitToOne := query.LimitResultBy(1)
+	orderByCreation := query.OrderResultBy("paging_sequence", query.DescOrder)
 
-	objectList, err := ctx.SMRepository.List(context.TODO(), types.OperationType, byType, byResourceID, orderByCreation, limitToOne)
+	objectList, err := ctx.SMRepository.List(context.TODO(), types.OperationType, byType, byResourceID, orderByCreation)
 	Expect(err).ToNot(HaveOccurred())
 	operation := objectList.ItemAt(0).(*types.Operation)
 	Expect(operation.Type).To(Equal(operationExpectations.Type))
@@ -386,7 +387,7 @@ func verifyOperationExists(operationExpectations operationExpectations) {
 
 func verifyOperationDoesNotExist(resourceID string, operationTypes ...string) {
 	byResourceID := query.ByField(query.EqualsOperator, "resource_id", resourceID)
-	orderByCreation := query.OrderResultBy("created_at", query.AscOrder)
+	orderByCreation := query.OrderResultBy("paging_sequence", query.DescOrder)
 	criterias := append([]query.Criterion{}, byResourceID, orderByCreation)
 	if len(operationTypes) != 0 {
 		byOperationTypes := query.ByField(query.InOperator, "type", fmt.Sprintf("(%s)", strings.Join(operationTypes, ",")))

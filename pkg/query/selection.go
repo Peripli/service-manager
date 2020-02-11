@@ -268,6 +268,16 @@ func Parse(criterionType CriterionType, expression string) ([]Criterion, error) 
 	return criteria, nil
 }
 
+// RetrieveFromCriteria searches for the value (rightOp) of a given key (leftOp) in a set of criteria
+func RetrieveFromCriteria(key string, criteria ...Criterion) string {
+	for _, criterion := range criteria {
+		if criterion.LeftOp == key {
+			return criterion.RightOp[0]
+		}
+	}
+	return ""
+}
+
 func isNumeric(str string) bool {
 	_, err := strconv.Atoi(str)
 	if err == nil {

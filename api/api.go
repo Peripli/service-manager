@@ -93,19 +93,22 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
-			NewAsyncController(ctx, options, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
+			NewAsyncController(ctx, options, web.ServiceBrokersURL, types.ServiceBrokerType, false, func() types.Object {
 				return &types.ServiceBroker{}
 			}),
-			NewController(options, web.PlatformsURL, types.PlatformType, func() types.Object {
+			NewController(ctx, options, web.PlatformsURL, types.PlatformType, func() types.Object {
 				return &types.Platform{}
 			}),
-			NewController(options, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
+			NewController(ctx, options, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
 			}),
+			NewServiceInstanceController(ctx, options),
+			NewServiceBindingController(ctx, options),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
-			NewServiceOfferingController(options),
-			NewServicePlanController(options),
-			NewServiceInstanceController(options),
+
+			NewServiceOfferingController(ctx, options),
+			NewServicePlanController(ctx, options),
+
 			&info.Controller{
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,
@@ -130,6 +133,10 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			&filters.Logging{},
 			&filters.SelectionCriteria{},
 			filters.NewProtectedLabelsFilter(options.APISettings.ProtectedLabels),
+			&filters.ProtectedSMPlatformFilter{},
+			&filters.ServiceInstanceFilter{},
+			&filters.ServiceInstanceStripFilter{},
+			&filters.ServiceBindingStripFilter{},
 			&filters.PlatformAwareVisibilityFilter{},
 			&filters.PatchOnlyLabelsFilter{},
 			filters.NewPlansFilterByVisibility(options.Repository),

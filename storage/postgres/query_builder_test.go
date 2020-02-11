@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -344,7 +343,6 @@ FROM visibilities ;`)))
 					WithCriteria(query.ByLabel(query.EqualsOperator, "labelKey", "labelValue")).
 					Count(ctx)
 				Expect(err).ShouldNot(HaveOccurred())
-				fmt.Println(executedQuery)
 				Expect(executedQuery).Should(Equal(trim(`
 SELECT COUNT(DISTINCT visibilities.id)
 FROM visibilities

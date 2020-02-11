@@ -19,6 +19,8 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/util/slice"
+	"github.com/tidwall/gjson"
 	"reflect"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -34,8 +36,8 @@ type ServicePlan struct {
 	CatalogID     string `json:"catalog_id"`
 	CatalogName   string `json:"catalog_name"`
 	Free          bool   `json:"free"`
-	Bindable      bool   `json:"bindable"`
-	PlanUpdatable bool   `json:"plan_updateable"`
+	Bindable      *bool  `json:"bindable,omitempty"`
+	PlanUpdatable *bool  `json:"plan_updateable,omitempty"`
 
 	Metadata               json.RawMessage `json:"metadata,omitempty"`
 	Schemas                json.RawMessage `json:"schemas,omitempty"`
@@ -52,10 +54,14 @@ func (e *ServicePlan) Equals(obj Object) bool {
 
 	plan := obj.(*ServicePlan)
 	if e.Name != plan.Name ||
-		e.PlanUpdatable != plan.PlanUpdatable ||
-		e.Bindable != plan.Bindable ||
 		e.ServiceOfferingID != plan.ServiceOfferingID ||
 		e.Free != plan.Free ||
+		(e.Bindable == nil && plan.Bindable != nil) ||
+		(e.Bindable != nil && plan.Bindable == nil) ||
+		(e.Bindable != nil && plan.Bindable != nil && *e.Bindable != *plan.Bindable) ||
+		(e.PlanUpdatable == nil && plan.PlanUpdatable != nil) ||
+		(e.PlanUpdatable != nil && plan.PlanUpdatable == nil) ||
+		(e.PlanUpdatable != nil && plan.PlanUpdatable != nil && *e.PlanUpdatable != *plan.PlanUpdatable) ||
 		e.CatalogID != plan.CatalogID ||
 		e.CatalogName != plan.CatalogName ||
 		e.Description != plan.Description ||
@@ -97,4 +103,26 @@ func (e *ServicePlan) Validate() error {
 	}
 
 	return nil
+}
+
+// SupportedPlatforms returns the supportedPlatforms provided in a plan's metadata (if a value is provided at all).
+// If there are no supported platforms, an empty array is returned denoting that the plan is available to platforms of all types.
+func (e *ServicePlan) SupportedPlatforms() []string {
+	supportedPlatforms := gjson.GetBytes(e.Metadata, "supportedPlatforms")
+	if !supportedPlatforms.IsArray() {
+		return []string{}
+	}
+	array := supportedPlatforms.Array()
+	platforms := make([]string, len(array))
+	for i, p := range supportedPlatforms.Array() {
+		platforms[i] = p.String()
+	}
+	return platforms
+}
+
+// SupportsPlatform determines whether a specific platform is among the ones that a plan supports
+func (e *ServicePlan) SupportsPlatform(platform string) bool {
+	platforms := e.SupportedPlatforms()
+
+	return len(platforms) == 0 || slice.StringsAnyEquals(platforms, platform)
 }

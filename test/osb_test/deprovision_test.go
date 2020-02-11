@@ -18,8 +18,9 @@ package osb_test
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/test/common"
 	"net/http"
+
+	"github.com/Peripli/service-manager/test/common"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -305,7 +306,7 @@ var _ = Describe("Deprovision", func() {
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
-			verifyOperationDoesNotExist(SID)
+			verifyOperationDoesNotExist(SID, "delete")
 		})
 	})
 
@@ -326,7 +327,7 @@ var _ = Describe("Deprovision", func() {
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
-			verifyOperationDoesNotExist(SID)
+			verifyOperationDoesNotExist(SID, "delete")
 		})
 	})
 
@@ -337,7 +338,7 @@ var _ = Describe("Deprovision", func() {
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
-			verifyOperationDoesNotExist(SID)
+			verifyOperationDoesNotExist(SID, "delete")
 		})
 	})
 
@@ -348,7 +349,7 @@ var _ = Describe("Deprovision", func() {
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
-			verifyOperationDoesNotExist(SID)
+			verifyOperationDoesNotExist(SID, "delete")
 		})
 	})
 

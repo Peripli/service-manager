@@ -75,3 +75,21 @@ func StringsAnySuffix(stringSlice []string, suffix string) bool {
 	}
 	return false
 }
+
+// StringsDistinct returns the distinct strings among two string arrays.
+func StringsDistinct(str1, str2 []string) []string {
+	distinct := make([]string, 0)
+	for _, s1 := range str1 {
+		if StringsAnyEquals(str2, s1) {
+			continue
+		} else {
+			distinct = append(distinct, s1)
+		}
+	}
+
+	if len(str2) > len(str1) {
+		distinct = append(distinct, str2[len(str1):]...)
+	}
+
+	return distinct
+}

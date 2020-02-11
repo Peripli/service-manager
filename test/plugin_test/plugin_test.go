@@ -63,6 +63,8 @@ var _ = Describe("Service Manager Plugins", func() {
 
 			var brokerID string
 			brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
+			brokerServer.ShouldRecordRequests(true)
+
 			common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
 			osbURL = "/v1/osb/" + brokerID
 		})
@@ -104,6 +106,7 @@ var _ = Describe("Service Manager Plugins", func() {
 
 			var brokerID string
 			brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
+			brokerServer.ShouldRecordRequests(true)
 			common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
 			osbURL = "/v1/osb/" + brokerID
 		})

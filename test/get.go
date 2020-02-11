@@ -22,8 +22,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Peripli/service-manager/api"
-
 	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -47,6 +45,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 			Context(fmt.Sprintf("Existing resource of type %s", t.API), func() {
 				createTestResourceWithAuth := func(auth *common.SMExpect) (common.Object, string) {
 					testResource = t.ResourceBlueprint(ctx, auth, bool(responseMode))
+					stripObject(testResource)
 
 					By(fmt.Sprintf("[SETUP]: Verifying that test resource %v is not empty", testResource))
 					Expect(testResource).ToNot(BeEmpty())
@@ -58,66 +57,69 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 					return testResource, testResourceID
 				}
 
-				Context("when the resource is global", func() {
-					BeforeEach(func() {
-						testResource, testResourceID = createTestResourceWithAuth(ctx.SMWithOAuth)
-					})
-
-					Context("when authenticating with global token", func() {
-						It("returns 200", func() {
-							ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-								Expect().
-								Status(http.StatusOK).JSON().Object().ContainsMap(testResource)
+				if !t.StrictlyTenantScoped {
+					Context("when the resource is global", func() {
+						BeforeEach(func() {
+							testResource, testResourceID = createTestResourceWithAuth(ctx.SMWithOAuth)
+							stripObject(testResource, t.ResourcePropertiesToIgnore...)
 						})
 
-						if t.SupportsAsyncOperations && responseMode == Async {
-							Context("when resource is created async and query param last_op is true", func() {
-								It("returns last operation with the resource", func() {
-									response := ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-										WithQuery(api.QueryParamLastOp, "true").
-										Expect().
-										Status(http.StatusOK).JSON().Object()
-									result := response.Raw()
-									if _, found := result["last_operation"]; found {
-										response.Value("last_operation").Object().ValueEqual("state", "succeeded")
-									}
-								})
-							})
-						}
-
-						if !t.SupportsAsyncOperations {
-							Context("when resource does not support async and query param last_op is true", func() {
-								It("returns error", func() {
-									ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-										WithQuery(api.QueryParamLastOp, "true").
-										Expect().
-										Status(http.StatusBadRequest).JSON().Object().Value("description").String().Match("last operation is not supported for type *")
-								})
-							})
-						}
-					})
-
-					if !t.DisableTenantResources {
-						Context("when authenticating with tenant scoped token", func() {
-							It("returns 404", func() {
-								ctx.SMWithOAuthForTenant.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+						Context("when authenticating with global token", func() {
+							It("returns 200", func() {
+								ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
 									Expect().
-									Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+									Status(http.StatusOK).JSON().Object().ContainsMap(testResource)
 							})
 
 							if t.SupportsAsyncOperations && responseMode == Async {
 								Context("when resource is created async and query param last_op is true", func() {
-									It("returns 404", func() {
-										ctx.SMWithOAuthForTenant.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-											WithQuery(api.QueryParamLastOp, "true").
+									It("returns last operation with the resource", func() {
+										response := ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+											WithQuery(web.QueryParamLastOp, "true").
 											Expect().
-											Status(http.StatusNotFound)
+											Status(http.StatusOK).JSON().Object()
+										result := response.Raw()
+										if _, found := result["last_operation"]; found {
+											response.Value("last_operation").Object().ValueEqual("state", "succeeded")
+										}
+									})
+								})
+							}
+
+							if !t.SupportsAsyncOperations {
+								Context("when resource does not support async and query param last_op is true", func() {
+									It("returns error", func() {
+										ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+											WithQuery(web.QueryParamLastOp, "true").
+											Expect().
+											Status(http.StatusBadRequest).JSON().Object().Value("description").String().Match("last operation is not supported for type *")
 									})
 								})
 							}
 						})
-					}
-				})
+
+						if !t.DisableTenantResources {
+							Context("when authenticating with tenant scoped token", func() {
+								It("returns 404", func() {
+									ctx.SMWithOAuthForTenant.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+										Expect().
+										Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+								})
+
+								if t.SupportsAsyncOperations && responseMode == Async {
+									Context("when resource is created async and query param last_op is true", func() {
+										It("returns 404", func() {
+											ctx.SMWithOAuthForTenant.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+												WithQuery(web.QueryParamLastOp, "true").
+												Expect().
+												Status(http.StatusNotFound)
+										})
+									})
+								}
+							})
+						}
+					})
+				}
 
 				if !t.DisableTenantResources {
 					Context("when the resource is tenant scoped", func() {
@@ -144,7 +146,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 								Context("when resource is created async and query param last_op is true", func() {
 									It("returns last operation with the resource", func() {
 										response := ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-											WithQuery(api.QueryParamLastOp, "true").
+											WithQuery(web.QueryParamLastOp, "true").
 											Expect().
 											Status(http.StatusOK).JSON().Object()
 										result := response.Raw()
@@ -167,7 +169,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 								Context("when resource is created async and query param last_op is true", func() {
 									It("returns last operation with the resource", func() {
 										response := ctx.SMWithOAuthForTenant.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-											WithQuery(api.QueryParamLastOp, "true").
+											WithQuery(web.QueryParamLastOp, "true").
 											Expect().
 											Status(http.StatusOK).JSON().Object()
 										result := response.Raw()
@@ -224,12 +226,13 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 							CreatedAt: time.Now(),
 							UpdatedAt: time.Now(),
 							Labels:    labels,
+							Ready:     true,
 						},
 						Description:   "test",
 						Type:          types.CREATE,
 						State:         types.IN_PROGRESS,
 						ResourceID:    resourceID,
-						ResourceType:  t.API,
+						ResourceType:  types.ObjectType(t.API),
 						CorrelationID: id.String(),
 					})
 

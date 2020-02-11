@@ -291,7 +291,7 @@ func (pq *pgQuery) limitSQL() string {
 }
 
 // joinSQL is a performance improvement - queries can work with LEFT JOIN always but are slower
-// JOIN is used when a label quert is present, LEFT JOIN is used when no label query is present so that resultset includes
+// JOIN is used when a label query is present, LEFT JOIN is used when no label query is present so that resultset includes
 // unlabelled resources
 func (pq *pgQuery) joinSQL() string {
 	if len(pq.labelsWhereClause.children) == 0 {

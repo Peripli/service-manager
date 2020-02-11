@@ -24,10 +24,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Peripli/service-manager/pkg/util"
+
+	"time"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 	"github.com/gavv/httpexpect"
-	"time"
+	"github.com/gofrs/uuid"
 
 	"github.com/tidwall/gjson"
 
@@ -57,7 +62,20 @@ const (
 
 	Sync  ResponseMode = false
 	Async ResponseMode = true
+
+	JobTimeout          = 15 * time.Second
+	cleanupInterval     = 60 * time.Second
+	operationExpiration = 60 * time.Second
 )
+
+func postHookWithOperationsConfig() func(e env.Environment, servers map[string]common.FakeServer) {
+	return func(e env.Environment, servers map[string]common.FakeServer) {
+		e.Set("operations.action_timeout", JobTimeout)
+		e.Set("operations.cleanup_interval", cleanupInterval)
+		e.Set("operations.lifespan", operationExpiration)
+		e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)
+	}
+}
 
 type MultitenancySettings struct {
 	ClientID           string
@@ -69,76 +87,160 @@ type MultitenancySettings struct {
 }
 
 type TestCase struct {
-	API                     string
-	SupportsAsyncOperations bool
-	SupportedOps            []Op
-	ResourceType            types.ObjectType
+	API                        string
+	SupportsAsyncOperations    bool
+	SupportedOps               []Op
+	ResourceType               types.ObjectType
+	ResourcePropertiesToIgnore []string
 
 	MultitenancySettings   *MultitenancySettings
 	DisableTenantResources bool
+	StrictlyTenantScoped   bool
 
 	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
 	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
-	PatchResource                          func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, async bool)
+	PatchResource                          func(ctx *common.TestContext, tenantScoped bool, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, async bool)
 
-	AdditionalTests func(ctx *common.TestContext)
+	AdditionalTests func(ctx *common.TestContext, t *TestCase)
+	ContextBuilder  *common.TestContextBuilder
 }
 
-func DefaultResourcePatch(ctx *common.TestContext, apiPath string, objID string, _ types.ObjectType, patchLabels []*query.LabelChange, async bool) {
+func stripObject(obj common.Object, properties ...string) {
+	delete(obj, "created_at")
+	delete(obj, "updated_at")
+
+	for _, prop := range properties {
+		delete(obj, prop)
+	}
+}
+
+func APIResourcePatch(ctx *common.TestContext, tenantScoped bool, apiPath string, objID string, _ types.ObjectType, patchLabels []*query.LabelChange, async bool) {
 	patchLabelsBody := make(map[string]interface{})
 	patchLabelsBody["labels"] = patchLabels
 
 	By(fmt.Sprintf("Attempting to patch resource of %s with labels as labels are declared supported", apiPath))
-	resp := ctx.SMWithOAuth.PATCH(apiPath+"/"+objID).WithQuery("async", strconv.FormatBool(async)).WithJSON(patchLabelsBody).Expect()
+	var resp *httpexpect.Response
+
+	if tenantScoped {
+		resp = ctx.SMWithOAuthForTenant.PATCH(apiPath+"/"+objID).WithQuery("async", strconv.FormatBool(async)).WithJSON(patchLabelsBody).Expect()
+	} else {
+		resp = ctx.SMWithOAuth.PATCH(apiPath+"/"+objID).WithQuery("async", strconv.FormatBool(async)).WithJSON(patchLabelsBody).Expect()
+	}
 
 	if async {
 		resp = resp.Status(http.StatusAccepted)
-		err := ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+		_, err := ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
 		if err != nil {
 			panic(err)
 		}
 	} else {
 		resp.Status(http.StatusOK)
 	}
-
 }
 
-func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState) error {
+func StorageResourcePatch(ctx *common.TestContext, _ bool, _ string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, _ bool) {
+	byID := query.ByField(query.EqualsOperator, "id", objID)
+	sb, err := ctx.SMRepository.Get(context.Background(), resourceType, byID)
+	if err != nil {
+		Fail(fmt.Sprintf("unable to retrieve resource %s: %s", resourceType, err))
+	}
+
+	_, err = ctx.SMRepository.Update(context.Background(), sb, patchLabels)
+	if err != nil {
+		Fail(fmt.Sprintf("unable to update resource %s: %s", resourceType, err))
+	}
+}
+
+func ExpectSuccessfulAsyncResourceCreation(resp *httpexpect.Response, SM *common.SMExpect, resourceURL string) map[string]interface{} {
+	resp = resp.Status(http.StatusAccepted)
+
+	op, err := ExpectOperation(SM, resp, types.SUCCEEDED)
+	if err != nil {
+		panic(err)
+	}
+
+	obj := SM.GET(resourceURL + "/" + op.Value("resource_id").String().Raw()).
+		Expect().Status(http.StatusOK).JSON().Object().Raw()
+
+	return obj
+}
+
+func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState) (*httpexpect.Object, error) {
 	return ExpectOperationWithError(auth, asyncResp, expectedState, "")
 }
 
-func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState, expectedErrMsg string) error {
+//TODO this should be replaced as it does not verify enough
+func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState, expectedErrMsg string) (*httpexpect.Object, error) {
 	operationURL := asyncResp.Header("Location").Raw()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := fmt.Errorf("unable to verify operation state (expected state = %s)", string(expectedState))
-	var operation *httpexpect.Object
+	var state string
+	expectedStateStr := string(expectedState)
 	for {
 		select {
 		case <-ctx.Done():
+			return nil, fmt.Errorf("unable to verify operation state (expected state = %s, last state = %s)", expectedStateStr, state)
 		default:
-			operation = auth.GET(operationURL).
+			operation := auth.GET(operationURL).
 				Expect().Status(http.StatusOK).JSON().Object()
-			state := operation.Value("state").String().Raw()
-			if state == string(expectedState) {
-				errs := operation.Value("errors")
-				if expectedState == types.SUCCEEDED {
-					errs.Null()
-				} else {
-					errs.NotNull()
-					errMsg := errs.Object().Value("message").String().Raw()
-
-					if !strings.Contains(errMsg, expectedErrMsg) {
-						err = fmt.Errorf("unable to verify operation - expected error message (%s), but got (%s)", expectedErrMsg, errs.String().Raw())
-					}
+			state = operation.Value("state").String().Raw()
+			if state == expectedStateStr {
+				if expectedState == types.SUCCEEDED || len(expectedStateStr) == 0 {
+					return operation, nil
 				}
-				return nil
+				errs := operation.Value("errors")
+				errs.NotNull()
+				errMsg := errs.Object().Value("description").String().Raw()
+
+				if !strings.Contains(errMsg, expectedErrMsg) {
+					return operation, fmt.Errorf("unable to verify operation - expected error message (%s), but got (%s)", expectedErrMsg, errMsg)
+				} else {
+					return operation, nil
+				}
 			}
 		}
 	}
-	return err
+}
+
+func EnsurePublicPlanVisibility(repository storage.Repository, planID string) {
+	EnsurePlanVisibility(repository, "", "", planID, "")
+}
+
+func EnsurePlanVisibility(repository storage.Repository, tenantIdentifier, platformID, planID, tenantID string) {
+	byPlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
+	byPlatformID := query.ByField(query.EqualsOperator, "platform_id", platformID)
+	if err := repository.Delete(context.TODO(), types.VisibilityType, byPlanID, byPlatformID); err != nil {
+		if err != util.ErrNotFoundInStorage {
+			panic(err)
+		}
+	}
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Errorf("could not generate GUID for visibility: %s", err))
+	}
+
+	var labels types.Labels = nil
+	if tenantID != "" {
+		labels = types.Labels{
+			tenantIdentifier: {tenantID},
+		}
+	}
+	currentTime := time.Now().UTC()
+	_, err = repository.Create(context.TODO(), &types.Visibility{
+		Base: types.Base{
+			ID:        UUID.String(),
+			UpdatedAt: currentTime,
+			CreatedAt: currentTime,
+			Labels:    labels,
+		},
+		ServicePlanID: planID,
+		PlatformID:    platformID,
+	})
+	if err != nil {
+		panic(err)
+	}
 }
 
 func DescribeTestsFor(t TestCase) bool {
@@ -149,11 +251,8 @@ func DescribeTestsFor(t TestCase) bool {
 			ctx.Cleanup()
 		})
 
-		func() {
-			By("==== Preparation for SM tests... ====")
-
-			defer GinkgoRecover()
-			ctxBuilder := common.NewTestContextBuilderWithSecurity()
+		ctxBuilder := func() *common.TestContextBuilder {
+			ctxBuilder := common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHookWithOperationsConfig())
 
 			if t.MultitenancySettings != nil {
 				ctxBuilder.
@@ -180,7 +279,16 @@ func DescribeTestsFor(t TestCase) bool {
 						return nil
 					})
 			}
-			ctx = ctxBuilder.Build()
+			return ctxBuilder
+		}
+
+		t.ContextBuilder = ctxBuilder()
+
+		func() {
+			By("==== Preparation for SM tests... ====")
+
+			defer GinkgoRecover()
+			ctx = ctxBuilder().Build()
 
 			// A panic outside of Ginkgo's primitives (during test setup) would be recovered
 			// by the deferred GinkgoRecover() and the error will be associated with the first
@@ -219,7 +327,7 @@ func DescribeTestsFor(t TestCase) bool {
 			}
 
 			if t.AdditionalTests != nil {
-				t.AdditionalTests(ctx)
+				t.AdditionalTests(ctx, &t)
 			}
 
 			By("==== Successfully finished preparation for SM tests. Running API tests suite... ====")

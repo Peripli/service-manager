@@ -18,6 +18,7 @@
 package types
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,6 +33,7 @@ const maxNameLength = 255
 type ServiceBroker struct {
 	Base
 	Secured     `json:"-"`
+	Strip       `json:"-"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
 	BrokerURL   string       `json:"broker_url"`
@@ -43,12 +45,28 @@ type ServiceBroker struct {
 	LastOperation *Operation `json:"last_operation,omitempty"`
 }
 
-func (e *ServiceBroker) SetCredentials(credentials *Credentials) {
-	e.Credentials = credentials
+func (e *ServiceBroker) Sanitize() {
+	e.Credentials = nil
 }
 
-func (e *ServiceBroker) GetCredentials() *Credentials {
-	return e.Credentials
+func (e *ServiceBroker) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {
+	return e.transform(ctx, encryptionFunc)
+}
+
+func (e *ServiceBroker) Decrypt(ctx context.Context, decryptionFunc func(context.Context, []byte) ([]byte, error)) error {
+	return e.transform(ctx, decryptionFunc)
+}
+
+func (e *ServiceBroker) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
+	if e.Credentials == nil || e.Credentials.Basic == nil {
+		return nil
+	}
+	transformedPassword, err := transformationFunc(ctx, []byte(e.Credentials.Basic.Password))
+	if err != nil {
+		return err
+	}
+	e.Credentials.Basic.Password = string(transformedPassword)
+	return nil
 }
 
 func (e *ServiceBroker) SetLastOperation(lastOp *Operation) {

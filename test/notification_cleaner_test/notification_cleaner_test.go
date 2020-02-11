@@ -59,6 +59,7 @@ var _ = Describe("Notification cleaner", func() {
 				ID:        idBytes.String(),
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
+				Ready:     true,
 			},
 			Resource:   "resource",
 			Type:       "CREATED",

@@ -48,7 +48,6 @@ func TestOperations(t *testing.T) {
 }
 
 var _ = Describe("Operations", func() {
-
 	var ctx *common.TestContext
 
 	AfterEach(func() {
@@ -58,7 +57,7 @@ var _ = Describe("Operations", func() {
 	Context("Scheduler", func() {
 		BeforeEach(func() {
 			postHook := func(e env.Environment, servers map[string]common.FakeServer) {
-				e.Set("operations.job_timeout", 2*time.Nanosecond)
+				e.Set("operations.action_timeout", 5*time.Nanosecond)
 				e.Set("operations.mark_orphans_interval", 1*time.Hour)
 			}
 
@@ -68,7 +67,9 @@ var _ = Describe("Operations", func() {
 		When("job timeout runs out", func() {
 			It("marks operation as failed", func() {
 				brokerServer := common.NewBrokerServer()
+				ctx.Servers[common.BrokerServerPrefix+"123"] = brokerServer
 				postBrokerRequestWithNoLabels := common.Object{
+					"id":         "123",
 					"name":       "test-broker",
 					"broker_url": brokerServer.URL(),
 					"credentials": common.Object{
@@ -83,7 +84,7 @@ var _ = Describe("Operations", func() {
 					WithQuery("async", "true").
 					Expect().
 					Status(http.StatusAccepted)
-				err := test.ExpectOperationWithError(ctx.SMWithOAuth, resp, types.FAILED, "job timed out")
+				_, err := test.ExpectOperationWithError(ctx.SMWithOAuth, resp, types.FAILED, "could not reach service broker")
 				Expect(err).To(BeNil())
 			})
 		})
@@ -140,18 +141,22 @@ var _ = Describe("Operations", func() {
 					CreatedAt: time.Now(),
 					UpdatedAt: time.Now(),
 					Labels:    make(map[string][]string),
+					Ready:     true,
 				},
-				Type:          types.CREATE,
-				State:         types.IN_PROGRESS,
-				ResourceID:    "test-resource-id",
-				ResourceType:  web.ServiceBrokersURL,
-				CorrelationID: "test-correlation-id",
+				Description:       "",
+				Type:              types.CREATE,
+				State:             types.IN_PROGRESS,
+				ResourceID:        "test-resource-id",
+				ResourceType:      web.ServiceBrokersURL,
+				CorrelationID:     "test-correlation-id",
+				Reschedule:        false,
+				DeletionScheduled: time.Time{},
 			}
 
 			ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 				testController := panicController{
 					operation: operation,
-					scheduler: operations.NewScheduler(ctx, smb.Storage, 10*time.Minute, 10, &sync.WaitGroup{}),
+					scheduler: operations.NewScheduler(ctx, smb.Storage, operations.DefaultSettings(), 10, &sync.WaitGroup{}),
 				}
 
 				smb.RegisterControllers(testController)
@@ -173,14 +178,14 @@ var _ = Describe("Operations", func() {
 					return respBody.Value("state").String().Raw()
 				}, 2*time.Second).Should(Equal("failed"))
 
-				Expect(respBody.Value("errors").Object().Value("message").String().Raw()).To(ContainSubstring("job interrupted"))
+				Expect(respBody.Value("errors").Object().Value("description").String().Raw()).To(ContainSubstring("job interrupted"))
 			})
 		})
 	})
 
 	Context("Maintainer", func() {
 		const (
-			jobTimeout          = 1 * time.Second
+			actionTimeout       = 1 * time.Second
 			cleanupInterval     = 2 * time.Second
 			operationExpiration = 2 * time.Second
 		)
@@ -189,10 +194,10 @@ var _ = Describe("Operations", func() {
 
 		postHookWithOperationsConfig := func() func(e env.Environment, servers map[string]common.FakeServer) {
 			return func(e env.Environment, servers map[string]common.FakeServer) {
-				e.Set("operations.job_timeout", jobTimeout)
-				e.Set("operations.mark_orphans_interval", jobTimeout)
+				e.Set("operations.action_timeout", actionTimeout)
 				e.Set("operations.cleanup_interval", cleanupInterval)
-				e.Set("operations.expiration_time", operationExpiration)
+				e.Set("operations.lifespan", operationExpiration)
+				e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)
 			}
 		}
 
@@ -210,17 +215,20 @@ var _ = Describe("Operations", func() {
 
 		When("Specified cleanup interval passes", func() {
 			Context("operation platform is service Manager", func() {
-
-				It("Does not delete operations older than that interval", func() {
+				It("Deletes operations older than that interval", func() {
 					ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
 						Expect().
 						Status(http.StatusAccepted)
 
-					byPlatformID := query.ByField(query.EqualsOperator, "platform_id", types.SERVICE_MANAGER_PLATFORM)
-					assertOperationCount(1, byPlatformID)
+					byPlatformID := query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform)
+					assertOperationCount(2, byPlatformID)
 
-					time.Sleep(cleanupInterval + time.Second)
-					assertOperationCount(1, byPlatformID)
+					Eventually(func() int {
+						count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
+						Expect(err).To(BeNil())
+
+						return count
+					}, cleanupInterval*2).Should(Equal(0))
 				})
 			})
 
@@ -264,14 +272,13 @@ var _ = Describe("Operations", func() {
 				})
 
 				AfterEach(func() {
-					common.RemoveAllInstances(ctx.SMRepository)
+					common.RemoveAllInstances(ctx)
 					ctx.CleanupBroker(brokerID)
 				})
 
 				It("Deletes operations older than that interval", func() {
 					asyncProvision()
-
-					byPlatformID := query.ByField(query.NotEqualsOperator, "platform_id", types.SERVICE_MANAGER_PLATFORM)
+					byPlatformID := query.ByField(query.NotEqualsOperator, "platform_id", types.SMPlatform)
 
 					assertOperationCount(1, byPlatformID)
 
@@ -283,6 +290,40 @@ var _ = Describe("Operations", func() {
 					}, cleanupInterval*2).Should(Equal(0))
 				})
 			})
+
+			Context("with external operations for Service Manager", func() {
+				BeforeEach(func() {
+					operation := &types.Operation{
+						Base: types.Base{
+							ID:        defaultOperationID,
+							UpdatedAt: time.Now().Add(-cleanupInterval + time.Second),
+							Labels:    make(map[string][]string),
+							Ready:     true,
+						},
+						Reschedule:    false,
+						Type:          types.CREATE,
+						State:         types.IN_PROGRESS,
+						ResourceID:    "test-resource-id",
+						ResourceType:  web.ServiceBrokersURL,
+						PlatformID:    "cloudfoundry",
+						CorrelationID: "test-correlation-id",
+					}
+					object, err := ctx.SMRepository.Create(context.Background(), operation)
+					Expect(err).To(BeNil())
+					Expect(object).To(Not(BeNil()))
+				})
+
+				It("should cleanup external old ones", func() {
+					byPlatformID := query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform)
+					assertOperationCount(1, byPlatformID)
+					Eventually(func() int {
+						count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
+						Expect(err).To(BeNil())
+
+						return count
+					}, operationExpiration*2).Should(Equal(0))
+				})
+			})
 		})
 
 		When("Specified job timeout passes", func() {
@@ -290,14 +331,16 @@ var _ = Describe("Operations", func() {
 				operation := &types.Operation{
 					Base: types.Base{
 						ID:        defaultOperationID,
-						CreatedAt: time.Now(),
 						UpdatedAt: time.Now(),
 						Labels:    make(map[string][]string),
+						Ready:     true,
 					},
+					Reschedule:    false,
 					Type:          types.CREATE,
 					State:         types.IN_PROGRESS,
 					ResourceID:    "test-resource-id",
 					ResourceType:  web.ServiceBrokersURL,
+					PlatformID:    types.SMPlatform,
 					CorrelationID: "test-correlation-id",
 				}
 
@@ -312,7 +355,7 @@ var _ = Describe("Operations", func() {
 
 					op := object.(*types.Operation)
 					return op.State
-				}, jobTimeout*5).Should(Equal(types.FAILED))
+				}, actionTimeout*5).Should(Equal(types.FAILED))
 			})
 		})
 	})
@@ -346,16 +389,9 @@ func (pc panicController) Routes() []web.Route {
 				Path:   testControllerURL,
 			},
 			Handler: func(req *web.Request) (resp *web.Response, err error) {
-				job := operations.Job{
-					ReqCtx:     context.Background(),
-					ObjectType: "test-type",
-					Operation:  pc.operation,
-					OperationFunc: func(ctx context.Context, repository storage.Repository) (object types.Object, e error) {
-						panic("test panic")
-					},
-				}
-
-				pc.scheduler.Schedule(job)
+				pc.scheduler.ScheduleAsyncStorageAction(context.TODO(), pc.operation, func(ctx context.Context, repository storage.Repository) (object types.Object, e error) {
+					panic("test panic")
+				})
 				return
 			},
 		},

@@ -103,62 +103,145 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 	for _, serviceOffering := range broker.Services {
 		for _, servicePlan := range serviceOffering.Plans {
 			planID := servicePlan.ID
-			isPublic, err := isCatalogPlanPublicFunc(broker, serviceOffering, servicePlan)
+
+			isPlanPublic, err := isCatalogPlanPublicFunc(broker, serviceOffering, servicePlan)
 			if err != nil {
 				return err
 			}
 
-			hasPublicVisibility := false
 			byServicePlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
-			visibilitiesForPlan, err := txStorage.List(ctx, types.VisibilityType, byServicePlanID)
+			planVisibilities, err := txStorage.List(ctx, types.VisibilityType, byServicePlanID)
 			if err != nil {
 				return err
 			}
-			for i := 0; i < visibilitiesForPlan.Len(); i++ {
-				visibility := visibilitiesForPlan.ItemAt(i).(*types.Visibility)
-				byVisibilityID := query.ByField(query.EqualsOperator, "id", visibility.ID)
-				if isPublic {
-					if visibility.PlatformID == "" {
-						hasPublicVisibility = true
-						continue
-					} else {
-						if err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
-							return err
-						}
-					}
-				} else {
-					if visibility.PlatformID == "" {
-						if err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
-							return err
-						}
-					} else {
-						continue
-					}
-				}
+
+			supportedPlatformTypes := servicePlan.SupportedPlatforms()
+			if len(supportedPlatformTypes) == 0 { // all platforms are supported -> create single visibility with empty platform ID
+				err = resyncPublicPlanVisibilities(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker.ID)
+			} else { // not all platforms are supported -> create single visibility for each supported platform
+				err = resyncPlanVisibilitiesWithSupportedPlatforms(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker.ID, supportedPlatformTypes)
 			}
 
-			if isPublic && !hasPublicVisibility {
-				UUID, err := uuid.NewV4()
-				if err != nil {
-					return fmt.Errorf("could not generate GUID for visibility: %s", err)
-				}
-
-				currentTime := time.Now().UTC()
-				planID, err := txStorage.Create(ctx, &types.Visibility{
-					Base: types.Base{
-						ID:        UUID.String(),
-						UpdatedAt: currentTime,
-						CreatedAt: currentTime,
-					},
-					ServicePlanID: servicePlan.ID,
-				})
-				if err != nil {
-					return err
-				}
-
-				log.C(ctx).Debugf("Created new public visibility for broker with id %s and plan with id %s", broker.ID, planID)
+			if err != nil {
+				return err
 			}
 		}
 	}
+	return nil
+}
+
+func resyncPublicPlanVisibilities(ctx context.Context, txStorage storage.Repository, planVisibilities types.ObjectList, isPlanPublic bool, planID, brokerID string) error {
+	publicVisibilityExists := false
+
+	for i := 0; i < planVisibilities.Len(); i++ {
+		visibility := planVisibilities.ItemAt(i).(*types.Visibility)
+		byVisibilityID := query.ByField(query.EqualsOperator, "id", visibility.ID)
+
+		shouldDeleteVisibility := true
+		if isPlanPublic {
+			if visibility.PlatformID == "" {
+				publicVisibilityExists = true
+				shouldDeleteVisibility = false
+			}
+		} else {
+			if visibility.PlatformID != "" {
+				shouldDeleteVisibility = false
+			}
+		}
+
+		if shouldDeleteVisibility {
+			if err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
+				return err
+			}
+		}
+	}
+
+	if isPlanPublic && !publicVisibilityExists {
+		if err := persistVisibility(ctx, txStorage, "", planID, brokerID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage storage.Repository, planVisibilities types.ObjectList, isPlanPublic bool, planID, brokerID string, supportedPlatformTypes []string) error {
+	bySupportedPlatformTypes := query.ByField(query.InOperator, "type", supportedPlatformTypes...)
+	platformList, err := txStorage.List(ctx, types.PlatformType, bySupportedPlatformTypes)
+	if err != nil {
+		return err
+	}
+
+	supportedPlatforms := platformList.(*types.Platforms).Platforms
+
+	for i := 0; i < planVisibilities.Len(); i++ {
+		visibility := planVisibilities.ItemAt(i).(*types.Visibility)
+
+		shouldDeleteVisibility := true
+
+		idx, matches := platformsAnyMatchesVisibility(supportedPlatforms, visibility)
+		if isPlanPublic { // trying to match the current visibility to one of the supported platforms that should have visibilities
+			if matches && len(visibility.Labels) == 0 { // visibility is present, no need to create a new one or delete this one
+				supportedPlatforms = append(supportedPlatforms[:idx], supportedPlatforms[idx+1:]...)
+				shouldDeleteVisibility = false
+			}
+		} else { // trying to match the current visibility to one of the supported platforms - if match is found and it has no labels - it's a public visibility and it has to be deleted
+			if matches && len(visibility.Labels) != 0 { // visibility is present, but has labels -> visibility for paid so don't delete it
+				shouldDeleteVisibility = false
+			}
+		}
+
+		if shouldDeleteVisibility {
+			byVisibilityID := query.ByField(query.EqualsOperator, "id", visibility.ID)
+			if err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
+				return err
+			}
+		}
+	}
+
+	if isPlanPublic {
+		for _, platform := range supportedPlatforms {
+			if err := persistVisibility(ctx, txStorage, platform.ID, planID, brokerID); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// platformsAnyMatchesVisibility checks whether any of the platforms matches the provided visibility
+func platformsAnyMatchesVisibility(platforms []*types.Platform, visibility *types.Visibility) (int, bool) {
+	for i, platform := range platforms {
+		if visibility.PlatformID == platform.ID {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+func persistVisibility(ctx context.Context, txStorage storage.Repository, platformID, planID, brokerID string) error {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		return fmt.Errorf("could not generate GUID for visibility: %s", err)
+	}
+
+	currentTime := time.Now().UTC()
+	visibility := &types.Visibility{
+		Base: types.Base{
+			ID:        UUID.String(),
+			UpdatedAt: currentTime,
+			CreatedAt: currentTime,
+		},
+		ServicePlanID: planID,
+		PlatformID:    platformID,
+	}
+
+	_, err = txStorage.Create(ctx, visibility)
+	if err != nil {
+		return err
+	}
+
+	log.C(ctx).Debugf("Created new public visibility for broker with id (%s), plan with id (%s) and platform with id (%s)", brokerID, planID, platformID)
 	return nil
 }

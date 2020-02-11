@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/util/slice"
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -31,8 +32,8 @@ type ObjectPayload struct {
 type objectDetails map[string]util.InputValidator
 
 type NotificationsInterceptor struct {
-	PlatformIdProviderFunc func(ctx context.Context, object types.Object) string
-	AdditionalDetailsFunc  func(ctx context.Context, objects types.ObjectList, repository storage.Repository) (objectDetails, error)
+	PlatformIDsProviderFunc func(ctx context.Context, object types.Object, repository storage.Repository) ([]string, error)
+	AdditionalDetailsFunc   func(ctx context.Context, objects types.ObjectList, repository storage.Repository) (objectDetails, error)
 }
 
 func (ni *NotificationsInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
@@ -47,22 +48,41 @@ func (ni *NotificationsInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc
 			return nil, err
 		}
 
-		platformID := ni.PlatformIdProviderFunc(ctx, newObj)
+		platformIDs, err := ni.PlatformIDsProviderFunc(ctx, obj, repository)
+		if err != nil {
+			return nil, err
+		}
 
-		return newObj, CreateNotification(ctx, repository, types.CREATED, newObj.GetType(), platformID, &Payload{
-			New: &ObjectPayload{
-				Resource:   newObj,
-				Additional: additionalDetails[obj.GetID()],
-			},
-		})
+		for _, platformID := range platformIDs {
+			if err := CreateNotification(ctx, repository, types.CREATED, newObj.GetType(), platformID, &Payload{
+				New: &ObjectPayload{
+					Resource:   newObj,
+					Additional: additionalDetails[obj.GetID()],
+				},
+			}); err != nil {
+				return nil, err
+			}
+		}
+
+		return newObj, nil
 	}
 }
 
 func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
 	return func(ctx context.Context, repository storage.Repository, oldObject, newObject types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+		oldPlatformIDs, err := ni.PlatformIDsProviderFunc(ctx, oldObject, repository)
+		if err != nil {
+			return nil, err
+		}
+
 		updatedObject, err := h(ctx, repository, oldObject, newObject, labelChanges...)
 		if err != nil {
 			return nil, err
+		}
+
+		// Scheduler updates the `ready` property of resources once an operation has ended - we should not create MODIFIED notifications in these cases
+		if oldObject.GetReady() != updatedObject.GetReady() {
+			return updatedObject, nil
 		}
 
 		detailsMap, err := ni.AdditionalDetailsFunc(ctx, types.NewObjectArray(updatedObject), repository)
@@ -71,8 +91,12 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 		}
 		additionalDetails := detailsMap[updatedObject.GetID()]
 
-		oldPlatformID := ni.PlatformIdProviderFunc(ctx, oldObject)
-		updatedPlatformID := ni.PlatformIdProviderFunc(ctx, updatedObject)
+		updatedPlatformIDs, err := ni.PlatformIDsProviderFunc(ctx, updatedObject, repository)
+		if err != nil {
+			return nil, err
+		}
+
+		preexistingPlatformIDs, addedPlatformIDs, removedPlatformIDs := determinePlatformIDs(oldPlatformIDs, updatedPlatformIDs)
 
 		oldObjectLabels := oldObject.GetLabels()
 		updatedObjectLabels := updatedObject.GetLabels()
@@ -82,10 +106,8 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 		}
 		oldObject.SetLabels(nil)
 
-		// if the resource update contains change in the platform ID field this means that the notification would be processed by
-		// two platforms - one needs to perform a delete operation and the other needs to perform a create operation.
-		if oldPlatformID != updatedPlatformID {
-			if err := CreateNotification(ctx, repository, types.CREATED, updatedObject.GetType(), updatedPlatformID, &Payload{
+		for _, platformID := range addedPlatformIDs {
+			if err := CreateNotification(ctx, repository, types.CREATED, updatedObject.GetType(), platformID, &Payload{
 				New: &ObjectPayload{
 					Resource:   updatedObject,
 					Additional: additionalDetails,
@@ -93,7 +115,10 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			}); err != nil {
 				return nil, err
 			}
-			if err := CreateNotification(ctx, repository, types.DELETED, updatedObject.GetType(), oldPlatformID, &Payload{
+		}
+
+		for _, platformID := range removedPlatformIDs {
+			if err := CreateNotification(ctx, repository, types.DELETED, updatedObject.GetType(), platformID, &Payload{
 				Old: &ObjectPayload{
 					Resource:   oldObject,
 					Additional: additionalDetails,
@@ -103,18 +128,21 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			}
 		}
 
-		if err := CreateNotification(ctx, repository, types.MODIFIED, updatedObject.GetType(), updatedPlatformID, &Payload{
-			New: &ObjectPayload{
-				Resource:   updatedObject,
-				Additional: additionalDetails,
-			},
-			Old: &ObjectPayload{
-				Resource:   oldObject,
-				Additional: additionalDetails,
-			},
-			LabelChanges: labelChanges,
-		}); err != nil {
-			return nil, err
+		modifiedPlatformIDs := append(preexistingPlatformIDs, addedPlatformIDs...)
+		for _, platformID := range modifiedPlatformIDs {
+			if err := CreateNotification(ctx, repository, types.MODIFIED, updatedObject.GetType(), platformID, &Payload{
+				New: &ObjectPayload{
+					Resource:   updatedObject,
+					Additional: additionalDetails,
+				},
+				Old: &ObjectPayload{
+					Resource:   oldObject,
+					Additional: additionalDetails,
+				},
+				LabelChanges: labelChanges,
+			}); err != nil {
+				return nil, err
+			}
 		}
 
 		oldObject.SetLabels(oldObjectLabels)
@@ -126,6 +154,18 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 
 func (ni *NotificationsInterceptor) OnTxDelete(h storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
 	return func(ctx context.Context, repository storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) error {
+		objectIDPlatformsMap := make(map[string][]string)
+		for i := 0; i < objects.Len(); i++ {
+			oldObject := objects.ItemAt(i)
+
+			platformIDs, err := ni.PlatformIDsProviderFunc(ctx, oldObject, repository)
+			if err != nil {
+				return err
+			}
+
+			objectIDPlatformsMap[oldObject.GetID()] = platformIDs
+		}
+
 		additionalDetails, err := ni.AdditionalDetailsFunc(ctx, objects, repository)
 		if err != nil {
 			return err
@@ -138,15 +178,17 @@ func (ni *NotificationsInterceptor) OnTxDelete(h storage.InterceptDeleteOnTxFunc
 		for i := 0; i < objects.Len(); i++ {
 			oldObject := objects.ItemAt(i)
 
-			platformID := ni.PlatformIdProviderFunc(ctx, oldObject)
+			platformIDs := objectIDPlatformsMap[oldObject.GetID()]
 
-			if err := CreateNotification(ctx, repository, types.DELETED, oldObject.GetType(), platformID, &Payload{
-				Old: &ObjectPayload{
-					Resource:   oldObject,
-					Additional: additionalDetails[oldObject.GetID()],
-				},
-			}); err != nil {
-				return err
+			for _, platformID := range platformIDs {
+				if err := CreateNotification(ctx, repository, types.DELETED, oldObject.GetType(), platformID, &Payload{
+					Old: &ObjectPayload{
+						Resource:   oldObject,
+						Additional: additionalDetails[oldObject.GetID()],
+					},
+				}); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -183,6 +225,7 @@ func CreateNotification(ctx context.Context, repository storage.Repository, op t
 			CreatedAt: currentTime,
 			UpdatedAt: currentTime,
 			Labels:    map[string][]string{},
+			Ready:     true,
 		},
 		Resource:      resource,
 		Type:          op,
@@ -198,4 +241,12 @@ func CreateNotification(ctx context.Context, repository storage.Repository, op t
 	log.C(ctx).Debugf("Successfully created notification with id %s of type %s for resource type %s", createdNotification.GetID(), notification.Type, notification.Resource)
 
 	return nil
+}
+
+func determinePlatformIDs(oldPlatformIDs, updatedPlatformIDs []string) ([]string, []string, []string) {
+	preexistingPlatformIDs := slice.StringsIntersection(oldPlatformIDs, updatedPlatformIDs)
+	addedPlatformIDs := slice.StringsDistinct(updatedPlatformIDs, preexistingPlatformIDs)
+	removedPlatformIDs := slice.StringsDistinct(oldPlatformIDs, preexistingPlatformIDs)
+
+	return preexistingPlatformIDs, addedPlatformIDs, removedPlatformIDs
 }

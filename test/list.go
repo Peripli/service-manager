@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/gavv/httpexpect"
 
 	. "github.com/onsi/ginkgo/extensions/table"
 
@@ -71,24 +72,32 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 			},
 		}
 
-		t.PatchResource(ctx, t.API, obj["id"].(string), t.ResourceType, patchLabels, bool(responseMode))
-		result := ctx.SMWithOAuth.GET(t.API + "/" + obj["id"].(string)).
-			Expect().
-			Status(http.StatusOK).JSON().Object()
+		t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, obj["id"].(string), t.ResourceType, patchLabels, bool(responseMode))
+		var result *httpexpect.Object
+		if t.StrictlyTenantScoped {
+			result = ctx.SMWithOAuthForTenant.GET(t.API + "/" + obj["id"].(string)).
+				Expect().
+				Status(http.StatusOK).JSON().Object()
+		} else {
+			result = ctx.SMWithOAuth.GET(t.API + "/" + obj["id"].(string)).
+				Expect().
+				Status(http.StatusOK).JSON().Object()
+		}
 		result.ContainsKey("labels")
+		resultObject := result.Raw()
+		delete(resultObject, "credentials")
 
-		return result.Raw()
+		return resultObject
 	}
 
 	By(fmt.Sprintf("Attempting to create a random resource of %s with mandatory fields only", t.API))
 	rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 5; i++ {
 		By(fmt.Sprintf("Attempting to create a random resource of %s", t.API))
 
 		gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
 		gen = attachLabel(gen)
-		delete(gen, "created_at")
-		delete(gen, "updated_at")
+		stripObject(gen, t.ResourcePropertiesToIgnore...)
 		r = append(r, gen)
 	}
 
@@ -320,13 +329,11 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 
 		for _, v := range beforeOpArray.Iter() {
 			obj := v.Object().Raw()
-			delete(obj, "created_at")
-			delete(obj, "updated_at")
+			stripObject(obj, t.ResourcePropertiesToIgnore...)
 		}
 
 		for _, entity := range listOpEntry.resourcesToExpectBeforeOp {
-			delete(entity, "created_at")
-			delete(entity, "updated_at")
+			stripObject(entity, t.ResourcePropertiesToIgnore...)
 			beforeOpArray.Contains(entity)
 		}
 
@@ -353,15 +360,14 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 			array := auth.ListWithQuery(t.API, query)
 			for _, v := range array.Iter() {
 				obj := v.Object().Raw()
-				delete(obj, "created_at")
-				delete(obj, "updated_at")
+				stripObject(obj, t.ResourcePropertiesToIgnore...)
 			}
 
 			if listOpEntry.resourcesToExpectAfterOp != nil {
 				By(fmt.Sprintf("[TEST]: Verifying expected %s are returned after list operation", t.API))
 				for _, entity := range listOpEntry.resourcesToExpectAfterOp {
-					delete(entity, "created_at")
-					delete(entity, "updated_at")
+					Expect(entity["ready"].(bool)).To(BeTrue())
+					stripObject(entity, t.ResourcePropertiesToIgnore...)
 					array.Contains(entity)
 				}
 			}
@@ -370,8 +376,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 				By(fmt.Sprintf("[TEST]: Verifying unexpected %s are NOT returned after list operation", t.API))
 
 				for _, entity := range listOpEntry.resourcesNotToExpectAfterOp {
-					delete(entity, "created_at")
-					delete(entity, "updated_at")
+					stripObject(entity, t.ResourcePropertiesToIgnore...)
 					array.NotContains(entity)
 				}
 			}
@@ -420,7 +425,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 						Values:    []string{labelValue},
 					},
 				}
-				t.PatchResource(ctx, t.API, obj["id"].(string), t.ResourceType, patchLabels, bool(responseMode))
+				t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, obj["id"].(string), t.ResourceType, patchLabels, bool(responseMode))
 			})
 
 			It("returns 200", func() {
@@ -432,6 +437,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 		Context("with bearer auth", func() {
 			if !t.DisableTenantResources {
 				Context("when authenticating with tenant scoped token", func() {
+					const resourceSpecificLabel = "resourceSpecificLabel"
 					var rForTenant common.Object
 
 					BeforeEach(func() {
@@ -442,20 +448,26 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 								Key:       commonLabelKey,
 								Values:    []string{commonLabelValue},
 							},
+							{
+								Operation: query.AddLabelOperation,
+								Key:       resourceSpecificLabel,
+								Values:    []string{commonLabelValue},
+							},
 						}
 						resourceID := rForTenant["id"].(string)
-						t.PatchResource(ctx, t.API, resourceID, t.ResourceType, patchLabels, bool(responseMode))
+						t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, resourceID, t.ResourceType, patchLabels, bool(responseMode))
+
 						rForTenant = ctx.SMWithOAuth.GET(t.API + "/" + resourceID).
 							Expect().
 							Status(http.StatusOK).JSON().Object().Raw()
 					})
 
-					It("returns only tenant specific resources with common label query", func() {
+					It("returns only resources with specific label", func() {
 						verifyListOpWithAuth(listOpEntry{
 							resourcesToExpectAfterOp:    []common.Object{rForTenant},
 							resourcesNotToExpectAfterOp: r,
 							expectedStatusCode:          http.StatusOK,
-						}, fmt.Sprintf("labelQuery=%s eq %s", commonLabelKey, commonLabelValue), ctx.SMWithOAuthForTenant)
+						}, fmt.Sprintf("labelQuery=%[1]s eq %[3]s and %[2]s eq %[3]s", commonLabelKey, resourceSpecificLabel, commonLabelValue), ctx.SMWithOAuthForTenant)
 					})
 
 					It("returns only tenant specific resources without label query", func() {
@@ -507,7 +519,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 						}
 
 						By(fmt.Sprintf("Attempting add one additional %s label with value %v to resoucre of type %s with id %s", labelKey, []string{objID}, t.API, objID))
-						t.PatchResource(ctx, t.API, objID, t.ResourceType, patchLabels, bool(responseMode))
+						t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, objID, t.ResourceType, patchLabels, bool(responseMode))
 
 						object := ctx.SMWithOAuth.GET(t.API + "/" + objID).
 							Expect().

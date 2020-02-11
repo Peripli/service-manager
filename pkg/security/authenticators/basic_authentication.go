@@ -45,26 +45,21 @@ func (a *Basic) Authenticate(request *http.Request) (*web.UserContext, httpsec.D
 
 	ctx := request.Context()
 	byUsername := query.ByField(query.EqualsOperator, "username", username)
-	objectList, err := a.Repository.List(ctx, types.PlatformType, byUsername)
+	platformList, err := a.Repository.List(ctx, types.PlatformType, byUsername)
 	if err != nil {
 		return nil, httpsec.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
 	}
 
-	if objectList.Len() != 1 {
+	if platformList.Len() != 1 {
 		return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
 	}
 
-	obj := objectList.ItemAt(0)
-	securedObj, isSecured := obj.(types.Secured)
-	if !isSecured {
-		return nil, httpsec.Abstain, fmt.Errorf("object of type %s is used in authentication and must be secured", obj.GetType())
-	}
-
-	if securedObj.GetCredentials().Basic.Password != password {
+	platform := platformList.ItemAt(0).(*types.Platform)
+	if platform.Credentials.Basic.Password != password {
 		return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
 	}
 
-	bytes, err := json.Marshal(obj)
+	bytes, err := json.Marshal(platform)
 	if err != nil {
 		return nil, httpsec.Abstain, err
 	}

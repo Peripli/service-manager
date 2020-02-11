@@ -47,8 +47,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	DisableTenantResources:                 true,
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
-	PatchResource:                          test.DefaultResourcePatch,
-	AdditionalTests: func(ctx *common.TestContext) {
+	PatchResource:                          test.APIResourcePatch,
+	AdditionalTests: func(ctx *common.TestContext, t *test.TestCase) {
 		Context("non-generic tests", func() {
 			var (
 				existingPlatformID string
@@ -90,7 +90,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					"labels":          labels,
 				}
 
-				common.RemoveAllVisibilities(ctx.SMWithOAuth)
+				common.RemoveAllVisibilities(ctx.SMRepository)
 
 			})
 
@@ -744,9 +744,9 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *com
 		cService := common.GenerateTestServiceWithPlans(cPaidPlan)
 		catalog := common.NewEmptySBCatalog()
 		catalog.AddService(cService)
-		id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
+		brokerID, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-		so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", id)).First()
+		so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
 
 		servicePlanID := auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).
 			First().Object().Value("id").String().Raw()

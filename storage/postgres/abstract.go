@@ -232,7 +232,30 @@ func checkSQLNoRows(err error) error {
 }
 
 func toNullString(s string) sql.NullString {
-	return sql.NullString{String: s, Valid: s != ""}
+	return sql.NullString{
+		String: s,
+		Valid:  s != "",
+	}
+}
+
+func toNullBool(b *bool) sql.NullBool {
+	bFalse := false
+	isValid := b != nil
+	if b == nil {
+		b = &bFalse
+	}
+	return sql.NullBool{
+		Bool:  *b,
+		Valid: isValid,
+	}
+}
+
+func toBoolPointer(nullBool sql.NullBool) *bool {
+	if !nullBool.Valid {
+		return nil
+	}
+
+	return &nullBool.Bool
 }
 
 func getJSONText(item json.RawMessage) sqlxtypes.JSONText {
@@ -243,6 +266,20 @@ func getJSONText(item json.RawMessage) sqlxtypes.JSONText {
 	return sqlxtypes.JSONText(item)
 }
 
+func getNullJSONText(item json.RawMessage) sqlxtypes.NullJSONText {
+	itemLen := len(item)
+	if itemLen == 0 || itemLen == len("null") && string(item) == "null" {
+		return sqlxtypes.NullJSONText{
+			JSONText: nil,
+			Valid:    false,
+		}
+	}
+	return sqlxtypes.NullJSONText{
+		JSONText: getJSONText(item),
+		Valid:    true,
+	}
+}
+
 func getJSONRawMessage(item sqlxtypes.JSONText) json.RawMessage {
 	if len(item) <= len("null") {
 		itemStr := string(item)
@@ -251,4 +288,15 @@ func getJSONRawMessage(item sqlxtypes.JSONText) json.RawMessage {
 		}
 	}
 	return json.RawMessage(item)
+}
+
+func getJSONRawMessageFromString(str string) json.RawMessage {
+	if len(str) == 0 {
+		return nil
+	}
+	return json.RawMessage(str)
+}
+
+func getStringFromJSONRawMessage(message json.RawMessage) string {
+	return string(message)
 }

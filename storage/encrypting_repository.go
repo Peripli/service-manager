@@ -14,14 +14,23 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-// KeyStore interface for encryption key operations
-type KeyStore interface {
+// LockerCreatorFunc is a function building a storage.Locker with a specific advisory index
+type LockerCreatorFunc func(advisoryIndex int) Locker
+
+// Locker provides basic Lock/Unlock functionality
+type Locker interface {
 	// Lock locks the storage so that only one process can manipulate the encryption key. Returns an error if the process has already acquired the lock
 	Lock(ctx context.Context) error
 
+	// TryLock tries to lock the storage so that only one process can manipulate the encryption key. Returns an error if the process has already acquired the lock
+	TryLock(ctx context.Context) error
+
 	// Unlock releases the acquired lock.
 	Unlock(ctx context.Context) error
+}
 
+// KeyStore interface for encryption key operations
+type KeyStore interface {
 	// GetEncryptionKey returns the encryption key from the storage after applying the specified transformation function
 	GetEncryptionKey(ctx context.Context, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) ([]byte, error)
 
@@ -30,16 +39,16 @@ type KeyStore interface {
 }
 
 // EncryptingDecorator creates a TransactionalRepositoryDecorator that can be used to add encrypting/decrypting logic to a TransactionalRepository
-func EncryptingDecorator(ctx context.Context, encrypter security.Encrypter, keyStore KeyStore) TransactionalRepositoryDecorator {
+func EncryptingDecorator(ctx context.Context, encrypter security.Encrypter, keyStore KeyStore, locker Locker) TransactionalRepositoryDecorator {
 	return func(next TransactionalRepository) (TransactionalRepository, error) {
 		ctx, cancelFunc := context.WithTimeout(ctx, 2*time.Second)
 		defer cancelFunc()
 
-		if err := keyStore.Lock(ctx); err != nil {
+		if err := locker.Lock(ctx); err != nil {
 			return nil, err
 		}
 		defer func() {
-			if err := keyStore.Unlock(ctx); err != nil {
+			if err := locker.Unlock(ctx); err != nil {
 				log.C(ctx).WithError(err).Error("error while unlocking keystore")
 			}
 		}()
@@ -98,7 +107,7 @@ type TransactionalEncryptingRepository struct {
 }
 
 func (er *encryptingRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
-	if err := er.transformCredentials(ctx, obj, er.encrypter.Encrypt); err != nil {
+	if err := er.encrypt(ctx, obj); err != nil {
 		return nil, err
 	}
 
@@ -107,7 +116,7 @@ func (er *encryptingRepository) Create(ctx context.Context, obj types.Object) (t
 		return nil, err
 	}
 
-	if err := er.transformCredentials(ctx, newObj, er.encrypter.Decrypt); err != nil {
+	if err := er.decrypt(ctx, newObj); err != nil {
 		return nil, err
 	}
 
@@ -120,7 +129,7 @@ func (er *encryptingRepository) Get(ctx context.Context, objectType types.Object
 		return nil, err
 	}
 
-	if err := er.transformCredentials(ctx, obj, er.encrypter.Decrypt); err != nil {
+	if err := er.decrypt(ctx, obj); err != nil {
 		return nil, err
 	}
 
@@ -134,7 +143,7 @@ func (er *encryptingRepository) List(ctx context.Context, objectType types.Objec
 	}
 
 	for i := 0; i < objList.Len(); i++ {
-		if err := er.transformCredentials(ctx, objList.ItemAt(i), er.encrypter.Decrypt); err != nil {
+		if err := er.decrypt(ctx, objList.ItemAt(i)); err != nil {
 			return nil, err
 		}
 	}
@@ -146,8 +155,8 @@ func (er *encryptingRepository) Count(ctx context.Context, objectType types.Obje
 	return er.repository.Count(ctx, objectType, criteria...)
 }
 
-func (er *encryptingRepository) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
-	if err := er.transformCredentials(ctx, obj, er.encrypter.Encrypt); err != nil {
+func (er *encryptingRepository) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, _ ...query.Criterion) (types.Object, error) {
+	if err := er.encrypt(ctx, obj); err != nil {
 		return nil, err
 	}
 
@@ -156,7 +165,7 @@ func (er *encryptingRepository) Update(ctx context.Context, obj types.Object, la
 		return nil, err
 	}
 
-	if err := er.transformCredentials(ctx, updatedObj, er.encrypter.Decrypt); err != nil {
+	if err := er.decrypt(ctx, updatedObj); err != nil {
 		return nil, err
 	}
 
@@ -170,7 +179,7 @@ func (er *encryptingRepository) DeleteReturning(ctx context.Context, objectType 
 	}
 
 	for i := 0; i < objList.Len(); i++ {
-		if err := er.transformCredentials(ctx, objList.ItemAt(i), er.encrypter.Decrypt); err != nil {
+		if err := er.decrypt(ctx, objList.ItemAt(i)); err != nil {
 			return nil, err
 		}
 	}
@@ -186,20 +195,21 @@ func (er *encryptingRepository) Delete(ctx context.Context, objectType types.Obj
 	return nil
 }
 
-func (er *encryptingRepository) transformCredentials(ctx context.Context, obj types.Object, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error {
-	securedObj, isSecured := obj.(types.Secured)
-	if isSecured {
-		credentials := securedObj.GetCredentials()
-		if credentials != nil {
-			transformedPassword, err := transformationFunc(ctx, []byte(credentials.Basic.Password), er.encryptionKey)
-			if err != nil {
-				return err
-			}
-			credentials.Basic.Password = string(transformedPassword)
-			securedObj.SetCredentials(credentials)
-		}
+func (er *encryptingRepository) encrypt(ctx context.Context, obj types.Object) error {
+	if securedObject, isSecured := obj.(types.Secured); isSecured {
+		return securedObject.Encrypt(ctx, func(ctx context.Context, bytes []byte) ([]byte, error) {
+			return er.encrypter.Encrypt(ctx, bytes, er.encryptionKey)
+		})
 	}
+	return nil
+}
 
+func (er *encryptingRepository) decrypt(ctx context.Context, obj types.Object) error {
+	if securedObject, isSecured := obj.(types.Secured); isSecured {
+		return securedObject.Decrypt(ctx, func(ctx context.Context, bytes []byte) ([]byte, error) {
+			return er.encrypter.Decrypt(ctx, bytes, er.encryptionKey)
+		})
+	}
 	return nil
 }
 

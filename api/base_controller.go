@@ -39,13 +39,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const (
-	PathParamID         = "id"
-	PathParamResourceID = "resource_id"
-	QueryParamAsync     = "async"
-	QueryParamLastOp    = "last_op"
-)
-
 // pagingLimitOffset is a constant which is needed to identify if there are more items in the DB.
 // If there is 1 more item than requested, we need to generate a token for the next page.
 // The last item is omitted.
@@ -53,31 +46,22 @@ const pagingLimitOffset = 1
 
 // BaseController provides common CRUD handlers for all object types in the service manager
 type BaseController struct {
-	scheduler       *operations.Scheduler
+	scheduler *operations.Scheduler
+
 	resourceBaseURL string
 	objectType      types.ObjectType
 	repository      storage.Repository
 	objectBlueprint func() types.Object
+
 	DefaultPageSize int
 	MaxPageSize     int
+
+	supportsAsync  bool
+	isAsyncDefault bool
 }
 
 // NewController returns a new base controller
-func NewController(options *Options, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object) *BaseController {
-	return &BaseController{
-		repository:      options.Repository,
-		resourceBaseURL: resourceBaseURL,
-		objectBlueprint: objectBlueprint,
-		objectType:      objectType,
-		DefaultPageSize: options.APISettings.DefaultPageSize,
-		MaxPageSize:     options.APISettings.MaxPageSize,
-	}
-}
-
-// NewAsyncController returns a new base controller with a scheduler making it effectively an async controller
-func NewAsyncController(ctx context.Context, options *Options, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object) *BaseController {
-	controller := NewController(options, resourceBaseURL, objectType, objectBlueprint)
-
+func NewController(ctx context.Context, options *Options, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object) *BaseController {
 	poolSize := options.OperationSettings.DefaultPoolSize
 	for _, pool := range options.OperationSettings.Pools {
 		if pool.Resource == objectType.String() {
@@ -85,8 +69,24 @@ func NewAsyncController(ctx context.Context, options *Options, resourceBaseURL s
 			break
 		}
 	}
+	controller := &BaseController{
+		repository:      options.Repository,
+		resourceBaseURL: resourceBaseURL,
+		objectBlueprint: objectBlueprint,
+		objectType:      objectType,
+		DefaultPageSize: options.APISettings.DefaultPageSize,
+		MaxPageSize:     options.APISettings.MaxPageSize,
+		scheduler:       operations.NewScheduler(ctx, options.Repository, options.OperationSettings, poolSize, options.WaitGroup),
+	}
 
-	controller.scheduler = operations.NewScheduler(ctx, options.Repository, options.OperationSettings.JobTimeout, poolSize, options.WaitGroup)
+	return controller
+}
+
+// NewAsyncController returns a new base controller with a scheduler making it effectively an async controller
+func NewAsyncController(ctx context.Context, options *Options, resourceBaseURL string, objectType types.ObjectType, isAsyncDefault bool, objectBlueprint func() types.Object) *BaseController {
+	controller := NewController(ctx, options, resourceBaseURL, objectType, objectBlueprint)
+	controller.supportsAsync = true
+	controller.isAsyncDefault = isAsyncDefault
 
 	return controller
 }
@@ -104,14 +104,14 @@ func (c *BaseController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
 			},
 			Handler: c.GetSingleObject,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, PathParamResourceID, web.OperationsURL, PathParamID),
+				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, web.PathParamResourceID, web.OperationsURL, web.PathParamID),
 			},
 			Handler: c.GetOperation,
 		},
@@ -132,14 +132,14 @@ func (c *BaseController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
-				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
 			},
 			Handler: c.DeleteSingleObject,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPatch,
-				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
 			},
 			Handler: c.PatchObject,
 		},
@@ -164,40 +164,51 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		result.SetID(UUID.String())
 	}
 	currentTime := time.Now().UTC()
+	// override ready provide from the request body
 	result.SetCreatedAt(currentTime)
 	result.SetUpdatedAt(currentTime)
+	result.SetReady(false)
 
-	operationFunc := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-		return repository.Create(ctx, result)
+	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+		object, err := repository.Create(ctx, result)
+		return object, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	isAsync := r.URL.Query().Get(QueryParamAsync)
-	if isAsync == "true" {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
+	}
+	operation := &types.Operation{
+		Base: types.Base{
+			ID:        UUID.String(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Labels:    make(map[string][]string),
+			Ready:     true,
+		},
+		Type:          types.CREATE,
+		State:         types.IN_PROGRESS,
+		ResourceID:    result.GetID(),
+		ResourceType:  c.objectType,
+		PlatformID:    types.SMPlatform,
+		CorrelationID: log.CorrelationIDFromContext(ctx),
+	}
+
+	if c.shouldExecuteAsync(r) {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
 		if err := c.checkAsyncSupport(); err != nil {
 			return nil, err
 		}
 
-		operation, err := c.buildOperation(ctx, c.repository, types.IN_PROGRESS, types.CREATE, result.GetID(), log.CorrelationIDFromContext(ctx))
-		if err != nil {
+		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
 			return nil, err
 		}
 
-		operationID, err := c.scheduler.Schedule(operations.Job{
-			ReqCtx:        ctx,
-			ObjectType:    c.objectType,
-			Operation:     operation,
-			OperationFunc: operationFunc,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		return newAsyncResponse(operationID, result.GetID(), c.resourceBaseURL)
+		return newAsyncResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
-	createdObj, err := operationFunc(ctx, c.repository)
+	createdObj, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
 	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
@@ -210,50 +221,19 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting %ss...", c.objectType)
 
+	isAsync := r.URL.Query().Get(web.QueryParamAsync)
+	if isAsync == "true" {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "Only one resource can be deleted asynchronously at a time",
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
 	criteria := query.CriteriaForContext(ctx)
 
-	operationFunc := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-		return nil, repository.Delete(ctx, c.objectType, criteria...)
-	}
-
-	isAsync := r.URL.Query().Get(QueryParamAsync)
-	if isAsync == "true" {
-		log.C(ctx).Debugf("Request will be executed asynchronously")
-		if err := c.checkAsyncSupport(); err != nil {
-			return nil, err
-		}
-
-		resourceIDs := getResourceIDsFromCriteria(criteria)
-		if len(resourceIDs) != 1 {
-			return nil, &util.HTTPError{
-				ErrorType:   "BadRequest",
-				Description: "Only one resource can be deleted asynchronously at a time",
-				StatusCode:  http.StatusBadRequest,
-			}
-		}
-
-		resourceID := resourceIDs[0]
-
-		operation, err := c.buildOperation(ctx, c.repository, types.IN_PROGRESS, types.DELETE, resourceID, log.CorrelationIDFromContext(ctx))
-		if err != nil {
-			return nil, err
-		}
-
-		operationID, err := c.scheduler.Schedule(operations.Job{
-			ReqCtx:        ctx,
-			ObjectType:    c.objectType,
-			Operation:     operation,
-			OperationFunc: operationFunc,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		return newAsyncResponse(operationID, resourceID, c.resourceBaseURL)
-	}
-
 	log.C(ctx).Debugf("Request will be executed synchronously")
-	if _, err := operationFunc(ctx, c.repository); err != nil {
+	if err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
@@ -262,7 +242,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 
 // DeleteSingleObject handles the deletion of the object with the id specified in the request
 func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[PathParamResourceID]
+	objectID := r.PathParams[web.PathParamResourceID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting %s with id %s", c.objectType, objectID)
 
@@ -272,13 +252,57 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		return nil, err
 	}
 	r.Request = r.WithContext(ctx)
+	criteria := query.CriteriaForContext(ctx)
 
-	return c.DeleteObjects(r)
+	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+		err := repository.Delete(ctx, c.objectType, criteria...)
+		return nil, util.HandleStorageError(err, c.objectType.String())
+	}
+
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
+	}
+	operation := &types.Operation{
+		Base: types.Base{
+			ID:        UUID.String(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Labels:    make(map[string][]string),
+			Ready:     true,
+		},
+		Type:          types.DELETE,
+		State:         types.IN_PROGRESS,
+		ResourceID:    objectID,
+		ResourceType:  c.objectType,
+		PlatformID:    types.SMPlatform,
+		CorrelationID: log.CorrelationIDFromContext(ctx),
+	}
+
+	if c.shouldExecuteAsync(r) {
+		log.C(ctx).Debugf("Request will be executed asynchronously")
+		if err := c.checkAsyncSupport(); err != nil {
+			return nil, err
+		}
+
+		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
+			return nil, err
+		}
+
+		return newAsyncResponse(operation.ID, objectID, c.resourceBaseURL)
+	}
+
+	log.C(ctx).Debugf("Request will be executed synchronously")
+	if _, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action); err != nil {
+		return nil, util.HandleStorageError(err, c.objectType.String())
+	}
+
+	return util.NewJSONResponse(http.StatusOK, map[string]string{})
 }
 
 // GetSingleObject handles the fetching of a single object with the id specified in the request
 func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[PathParamResourceID]
+	objectID := r.PathParams[web.PathParamResourceID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting %s with id %s", c.objectType, objectID)
 
@@ -289,8 +313,8 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	stripCredentials(ctx, object)
-	displayOp := r.URL.Query().Get(QueryParamLastOp)
+	cleanObject(ctx, object)
+	displayOp := r.URL.Query().Get(web.QueryParamLastOp)
 	if displayOp == "true" {
 		if err := attachLastOperation(ctx, objectID, object, r, c.repository); err != nil {
 			return nil, err
@@ -302,8 +326,8 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 
 // GetOperation handles the fetching of a single operation with the id specified for the specified resource
 func (c *BaseController) GetOperation(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[PathParamResourceID]
-	operationID := r.PathParams[PathParamID]
+	objectID := r.PathParams[web.PathParamResourceID]
+	operationID := r.PathParams[web.PathParamID]
 
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting operation with id %s for object of type %s with id %s", operationID, c.objectType, objectID)
@@ -385,7 +409,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 
 // PatchObject handles the update of the object with the id specified in the request
 func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[PathParamResourceID]
+	objectID := r.PathParams[web.PathParamResourceID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Updating %s with id %s", c.objectType, objectID)
 
@@ -418,47 +442,65 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	objFromDB.SetID(objectID)
 	objFromDB.SetCreatedAt(createdAt)
 	objFromDB.SetUpdatedAt(updatedAt)
+	objFromDB.SetReady(true)
 
 	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
 	objFromDB.SetLabels(labels)
 
-	operationFunc := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-		return repository.Update(ctx, objFromDB, labelChanges, criteria...)
+	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+		object, err := repository.Update(ctx, objFromDB, labelChanges, criteria...)
+		return object, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	isAsync := r.URL.Query().Get(QueryParamAsync)
-	if isAsync == "true" {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
+	}
+	operation := &types.Operation{
+		Base: types.Base{
+			ID:        UUID.String(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Labels:    make(map[string][]string),
+			Ready:     true,
+		},
+		Type:          types.UPDATE,
+		State:         types.IN_PROGRESS,
+		ResourceID:    objFromDB.GetID(),
+		ResourceType:  c.objectType,
+		PlatformID:    types.SMPlatform,
+		CorrelationID: log.CorrelationIDFromContext(ctx),
+	}
+
+	if c.shouldExecuteAsync(r) {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
 		if err := c.checkAsyncSupport(); err != nil {
 			return nil, err
 		}
 
-		operation, err := c.buildOperation(ctx, c.repository, types.IN_PROGRESS, types.UPDATE, objFromDB.GetID(), log.CorrelationIDFromContext(ctx))
-		if err != nil {
+		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
 			return nil, err
 		}
 
-		operationID, err := c.scheduler.Schedule(operations.Job{
-			ReqCtx:        ctx,
-			ObjectType:    c.objectType,
-			Operation:     operation,
-			OperationFunc: operationFunc,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		return newAsyncResponse(operationID, objFromDB.GetID(), c.resourceBaseURL)
+		return newAsyncResponse(operation.GetID(), objFromDB.GetID(), c.resourceBaseURL)
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
-	object, err := operationFunc(ctx, c.repository)
+	object, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
 	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	stripCredentials(ctx, object)
+	cleanObject(ctx, object)
 	return util.NewJSONResponse(http.StatusOK, object)
+}
+
+func cleanObject(ctx context.Context, object types.Object) {
+	if secured, ok := object.(types.Strip); ok {
+		secured.Sanitize()
+	} else {
+		log.C(ctx).Debugf("Object of type %s with id %s is not secured, so no credentials are cleaned up on response", object.GetType(), object.GetID())
+	}
 }
 
 func attachLastOperation(ctx context.Context, objectID string, object types.Object, r *web.Request, repository storage.Repository) error {
@@ -484,14 +526,6 @@ func attachLastOperation(ctx context.Context, objectID string, object types.Obje
 		ErrorType:   "LastOperationNotSupported",
 		Description: fmt.Sprintf("last operation is not supported for type %s", object.GetType().String()),
 		StatusCode:  http.StatusBadRequest,
-	}
-}
-
-func stripCredentials(ctx context.Context, object types.Object) {
-	if secured, ok := object.(types.Secured); ok {
-		secured.SetCredentials(nil)
-	} else {
-		log.C(ctx).Debugf("Object of type %s with id %s is not secured, so no credentials are cleaned up on response", object.GetType(), object.GetID())
 	}
 }
 
@@ -555,8 +589,17 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 	return targetPageSequence, nil
 }
 
+func (c *BaseController) shouldExecuteAsync(r *web.Request) bool {
+	async := r.URL.Query().Get(web.QueryParamAsync)
+	if async == "" {
+		return c.isAsyncDefault
+	}
+
+	return async == "true"
+}
+
 func (c *BaseController) checkAsyncSupport() error {
-	if c.scheduler == nil {
+	if !c.supportsAsync {
 		return &util.HTTPError{
 			ErrorType:   "InvalidRequest",
 			Description: fmt.Sprintf("requested %s api doesn't support asynchronous operations", c.objectType),
@@ -564,29 +607,6 @@ func (c *BaseController) checkAsyncSupport() error {
 		}
 	}
 	return nil
-}
-
-func (c *BaseController) buildOperation(ctx context.Context, storage storage.Repository, state types.OperationState, category types.OperationCategory, resourceID, correlationID string) (*types.Operation, error) {
-	UUID, err := uuid.NewV4()
-	if err != nil {
-		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
-	}
-	operation := &types.Operation{
-		Base: types.Base{
-			ID:        UUID.String(),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-			Labels:    make(map[string][]string),
-		},
-		Type:          category,
-		State:         state,
-		ResourceID:    resourceID,
-		PlatformID:    types.SERVICE_MANAGER_PLATFORM,
-		ResourceType:  c.resourceBaseURL,
-		CorrelationID: correlationID,
-	}
-
-	return operation, nil
 }
 
 func generateTokenForItem(obj types.Object) string {
@@ -602,7 +622,7 @@ func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count,
 
 	for i := 0; i < objectList.Len(); i++ {
 		obj := objectList.ItemAt(i)
-		stripCredentials(ctx, obj)
+		cleanObject(ctx, obj)
 		page.Items = append(page.Items, obj)
 	}
 
@@ -611,15 +631,6 @@ func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count,
 		page.Token = generateTokenForItem(page.Items[len(page.Items)-1])
 	}
 	return page
-}
-
-func getResourceIDsFromCriteria(criteria []query.Criterion) []string {
-	for _, criterion := range criteria {
-		if criterion.LeftOp == "id" {
-			return criterion.RightOp
-		}
-	}
-	return []string{}
 }
 
 func newAsyncResponse(operationID, resourceID, resourceBaseURL string) (*web.Response, error) {

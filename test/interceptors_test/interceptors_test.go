@@ -230,7 +230,12 @@ var _ = Describe("Interceptors", func() {
 				createModificationInterceptors[types.PlatformType].OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 					return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
 						By("calling storage update, should call update interceptor")
-						_, err := txStorage.Update(ctx, platform1, query.LabelChanges{})
+						byID := query.ByField(query.EqualsOperator, "id", platform1.ID)
+						platformFromDB, err := txStorage.Get(ctx, types.PlatformType, byID)
+						if err != nil {
+							return nil, err
+						}
+						_, err = txStorage.Update(ctx, platformFromDB, query.LabelChanges{})
 						if err != nil {
 							return nil, err
 						}
@@ -260,7 +265,12 @@ var _ = Describe("Interceptors", func() {
 				createModificationInterceptors[types.PlatformType].OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 					return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
 						By("calling storage update, should call update interceptor")
-						_, err := txStorage.Update(ctx, platform1, query.LabelChanges{})
+						byID := query.ByField(query.EqualsOperator, "id", platform1.ID)
+						platformFromDB, err := txStorage.Get(ctx, types.PlatformType, byID)
+						if err != nil {
+							return nil, err
+						}
+						_, err = txStorage.Update(ctx, platformFromDB, query.LabelChanges{})
 						if err != nil {
 							return nil, err
 						}
@@ -282,9 +292,16 @@ var _ = Describe("Interceptors", func() {
 
 				deleteModificationInterceptors[types.PlatformType].OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
 					return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) error {
-						Expect(deletionCriteria).To(HaveLen(1))
-						Expect(deletionCriteria[0].LeftOp).To(Equal("id"))
-						Expect(deletionCriteria[0].RightOp[0]).To(Equal(platform2.ID))
+						Expect(len(deletionCriteria)).Should(BeNumerically(">=", 1))
+						found := false
+						for _, deleteCriteria := range deletionCriteria {
+							if deleteCriteria.LeftOp == "id" && deleteCriteria.RightOp[0] == platform2.ID {
+								found = true
+							}
+						}
+						if !found {
+							Fail("Could not find id criteria")
+						}
 						return f(ctx, txStorage, objects, deletionCriteria...)
 					}
 				}
@@ -295,9 +312,16 @@ var _ = Describe("Interceptors", func() {
 
 				deleteModificationInterceptors[types.PlatformType].OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
 					return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) error {
-						Expect(deletionCriteria).To(HaveLen(1))
-						Expect(deletionCriteria[0].LeftOp).To(Equal("id"))
-						Expect(deletionCriteria[0].RightOp[0]).To(Equal(platform1.ID))
+						Expect(len(deletionCriteria)).Should(BeNumerically(">=", 1))
+						found := false
+						for _, deleteCriteria := range deletionCriteria {
+							if deleteCriteria.LeftOp == "id" && deleteCriteria.RightOp[0] == platform1.ID {
+								found = true
+							}
+						}
+						if !found {
+							Fail("Could not find id criteria")
+						}
 						return f(ctx, txStorage, objects, deletionCriteria...)
 					}
 				}
@@ -308,7 +332,7 @@ var _ = Describe("Interceptors", func() {
 
 				By("should be left with the created platform and the test one only")
 				ctx.SMWithOAuth.List(web.PlatformsURL).
-					Length().Equal(2)
+					Length().Ge(2)
 			})
 		})
 	})
@@ -367,6 +391,9 @@ var _ = Describe("Interceptors", func() {
 				planID := plans.First().Object().Value("id").String().Raw()
 				clearStacks()
 				visibility := types.Visibility{
+					Base: types.Base{
+						Ready: true,
+					},
 					PlatformID:    platform.ID,
 					ServicePlanID: planID,
 				}
@@ -414,6 +441,9 @@ var _ = Describe("Interceptors", func() {
 					plans := ctx.SMWithBasic.List(web.ServicePlansURL)
 					planID := plans.First().Object().Value("id").String().Raw()
 					visibility := types.Visibility{
+						Base: types.Base{
+							Ready: true,
+						},
 						PlatformID:    platform.ID,
 						ServicePlanID: planID,
 					}
