@@ -37,25 +37,25 @@ type storageAction func(ctx context.Context, repository storage.Repository) (typ
 // Scheduler is responsible for storing Operation entities in the DB
 // and also for spawning goroutines to execute the respective DB transaction asynchronously
 type Scheduler struct {
-	smCtx             context.Context
-	repository        storage.TransactionalRepository
-	workers           chan struct{}
-	jobTimeout        time.Duration
-	deletionTimeout   time.Duration // TODO: do we want to rename this to the general reconciliationOperationTimeout or keep it the more specific deletionTimeout?
-	reschedulingDelay time.Duration
-	wg                *sync.WaitGroup
+	smCtx                          context.Context
+	repository                     storage.TransactionalRepository
+	workers                        chan struct{}
+	actionTimeout                  time.Duration
+	reconciliationOperationTimeout time.Duration
+	reschedulingDelay              time.Duration
+	wg                             *sync.WaitGroup
 }
 
 // NewScheduler constructs a Scheduler
 func NewScheduler(smCtx context.Context, repository storage.TransactionalRepository, settings *Settings, poolSize int, wg *sync.WaitGroup) *Scheduler {
 	return &Scheduler{
-		smCtx:             smCtx,
-		repository:        repository,
-		workers:           make(chan struct{}, poolSize),
-		jobTimeout:        settings.JobTimeout,
-		deletionTimeout:   settings.ReconciliationOperationTimeout,
-		reschedulingDelay: settings.ReschedulingInterval,
-		wg:                wg,
+		smCtx:                          smCtx,
+		repository:                     repository,
+		workers:                        make(chan struct{}, poolSize),
+		actionTimeout:                  settings.ActionTimeout,
+		reconciliationOperationTimeout: settings.ReconciliationOperationTimeout,
+		reschedulingDelay:              settings.ReschedulingInterval,
+		wg:                             wg,
 	}
 }
 
@@ -125,7 +125,7 @@ func (s *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *t
 				return
 			}
 
-			stateCtxWithOpAndTimeout, timeoutCtxCancel := context.WithTimeout(stateCtxWithOp, s.jobTimeout)
+			stateCtxWithOpAndTimeout, timeoutCtxCancel := context.WithTimeout(stateCtxWithOp, s.actionTimeout)
 			defer timeoutCtxCancel()
 			go func() {
 				select {
@@ -180,7 +180,7 @@ func (s *Scheduler) checkForConcurrentOperations(ctx context.Context, operation 
 
 	// for the outside world job timeout would have expired if the last update happened > job timeout time ago (this is worst case)
 	// an "old" updated_at means that for a while nobody was processing this operation
-	isLastOpInProgress := lastOperation.State == types.IN_PROGRESS && time.Now().Before(lastOperation.UpdatedAt.Add(s.jobTimeout))
+	isLastOpInProgress := lastOperation.State == types.IN_PROGRESS && time.Now().Before(lastOperation.UpdatedAt.Add(s.actionTimeout))
 
 	isAReschedule := lastOperation.Reschedule && operation.Reschedule
 
@@ -420,7 +420,7 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 
 	// we want to schedule deletion if the operation is marked for deletion and the deletion timeout is not yet reached
 	isDeleteRescheduleRequired := !opAfterJob.DeletionScheduled.IsZero() &&
-		time.Now().UTC().Before(opAfterJob.DeletionScheduled.Add(s.deletionTimeout)) &&
+		time.Now().UTC().Before(opAfterJob.DeletionScheduled.Add(s.reconciliationOperationTimeout)) &&
 		opAfterJob.State != types.SUCCEEDED
 
 	if isDeleteRescheduleRequired {

@@ -70,10 +70,10 @@ const (
 
 func postHookWithOperationsConfig() func(e env.Environment, servers map[string]common.FakeServer) {
 	return func(e env.Environment, servers map[string]common.FakeServer) {
-		e.Set("operations.job_timeout", JobTimeout)
+		e.Set("operations.action_timeout", JobTimeout)
 		e.Set("operations.mark_orphans_interval", JobTimeout)
 		e.Set("operations.cleanup_interval", cleanupInterval)
-		e.Set("operations.expiration_time", operationExpiration)
+		e.Set("operations.lifespan", operationExpiration)
 		e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)
 	}
 }
@@ -177,31 +177,32 @@ func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Respo
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := fmt.Errorf("unable to verify operation state (expected state = %s)", string(expectedState))
-	var operation *httpexpect.Object
+	var state string
+	expectedStateStr := string(expectedState)
 	for {
 		select {
 		case <-ctx.Done():
+			return nil, fmt.Errorf("unable to verify operation state (expected state = %s, last state = %s)", expectedStateStr, state)
 		default:
-			operation = auth.GET(operationURL).
+			operation := auth.GET(operationURL).
 				Expect().Status(http.StatusOK).JSON().Object()
-			state := operation.Value("state").String().Raw()
-			if state == string(expectedState) {
-				if expectedState == types.SUCCEEDED {
-				} else {
-					errs := operation.Value("errors")
-					errs.NotNull()
-					errMsg := errs.Object().Value("description").String().Raw()
-
-					if !strings.Contains(errMsg, expectedErrMsg) {
-						err = fmt.Errorf("unable to verify operation - expected error message (%s), but got (%s)", expectedErrMsg, errs.String().Raw())
-					}
+			state = operation.Value("state").String().Raw()
+			if state == expectedStateStr {
+				if expectedState == types.SUCCEEDED || len(expectedStateStr) == 0 {
+					return operation, nil
 				}
-				return operation, nil
+				errs := operation.Value("errors")
+				errs.NotNull()
+				errMsg := errs.Object().Value("description").String().Raw()
+
+				if !strings.Contains(errMsg, expectedErrMsg) {
+					return operation, fmt.Errorf("unable to verify operation - expected error message (%s), but got (%s)", expectedErrMsg, errMsg)
+				} else {
+					return operation, nil
+				}
 			}
 		}
 	}
-	return nil, err
 }
 
 func EnsurePublicPlanVisibility(repository storage.Repository, planID string) {

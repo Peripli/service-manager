@@ -206,13 +206,15 @@ var _ = DescribeTestsFor(TestCase{
 			}
 
 			BeforeEach(func() {
+				ID, err := uuid.NewV4()
+				Expect(err).ToNot(HaveOccurred())
 				var plans *httpexpect.Array
 				brokerID, brokerServer, plans = prepareBrokerWithCatalog(ctx, ctx.SMWithOAuth)
 				brokerServer.ShouldRecordRequests(false)
 				servicePlanID = plans.Element(0).Object().Value("id").String().Raw()
 				anotherServicePlanID = plans.Element(1).Object().Value("id").String().Raw()
 				postInstanceRequest = Object{
-					"name":             "test-instance",
+					"name":             "test-instance" + ID.String(),
 					"service_plan_id":  servicePlanID,
 					"maintenance_info": "{}",
 				}
@@ -427,6 +429,41 @@ var _ = DescribeTestsFor(TestCase{
 									createInstanceWithAsync(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
 								})
 							})
+
+							When("creating instance with same name", func() {
+								BeforeEach(func() {
+									EnsurePublicPlanVisibility(ctx.SMRepository, servicePlanID)
+									postInstanceRequest["name"] = "same-instance-name"
+									resp := createInstanceWithAsync(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+									if testCase.async {
+										_, err := ExpectOperation(ctx.SMWithOAuthForTenant, resp, types.SUCCEEDED)
+										Expect(err).ToNot(HaveOccurred())
+									}
+								})
+
+								When("for the same tenant", func() {
+									It("should reject", func() {
+										if testCase.async {
+											resp := createInstanceWithAsync(ctx.SMWithOAuthForTenant, true, testCase.expectedCreateSuccessStatusCode)
+											_, err := ExpectOperationWithError(ctx.SMWithOAuthForTenant, resp, types.FAILED, "instance with same name exists for the current tenant")
+											Expect(err).ToNot(HaveOccurred())
+										} else {
+											createInstanceWithAsync(ctx.SMWithOAuthForTenant, false, http.StatusConflict)
+										}
+									})
+								})
+
+								When("for other tenant", func() {
+									It("should accept", func() {
+										otherTenantExpect := ctx.NewTenantExpect("other-tenant")
+										resp := createInstanceWithAsync(otherTenantExpect, testCase.async, testCase.expectedCreateSuccessStatusCode)
+										if testCase.async {
+											_, err := ExpectOperation(otherTenantExpect, resp, types.SUCCEEDED)
+											Expect(err).ToNot(HaveOccurred())
+										}
+									})
+								})
+							})
 						})
 
 						Context("broker scenarios", func() {
@@ -603,7 +640,7 @@ var _ = DescribeTestsFor(TestCase{
 										BeforeEach(func() {
 											oldCtx = ctx
 											ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-												Expect(set.Set("operations.job_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
+												Expect(set.Set("operations.action_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 
 											brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
@@ -1215,6 +1252,55 @@ var _ = DescribeTestsFor(TestCase{
 								Expect().Status(http.StatusAccepted)
 
 							ExpectSuccessfulAsyncResourceCreation(resp, ctx.SMWithOAuth, web.ServiceInstancesURL)
+						})
+					})
+
+					When("changing instance name to existing instance name", func() {
+						Context("same tenant", func() {
+							It("fails to update", func() {
+								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+
+								postInstanceRequest["name"] = "instance1"
+								resp := createInstance(ctx.SMWithOAuthForTenant, http.StatusAccepted)
+								instance := ExpectSuccessfulAsyncResourceCreation(resp, ctx.SMWithOAuth, web.ServiceInstancesURL)
+
+								postInstanceRequest["name"] = "instance2"
+								resp = createInstance(ctx.SMWithOAuthForTenant, http.StatusAccepted)
+								instance = ExpectSuccessfulAsyncResourceCreation(resp, ctx.SMWithOAuth, web.ServiceInstancesURL)
+								instanceID2 := instance["id"].(string)
+
+								resp = ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID2).
+									WithJSON(Object{"name": "instance1"}).
+									Expect().Status(http.StatusAccepted)
+
+								_, err := ExpectOperationWithError(ctx.SMWithOAuthForTenant, resp, types.FAILED, "instance with same name exists for the current tenant")
+								Expect(err).ToNot(HaveOccurred())
+								ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL+"/"+instanceID2).Expect().Status(http.StatusOK).JSON().Object().ValueEqual("name", "instance2")
+							})
+						})
+
+						Context("different tenants", func() {
+							It("succeeds to update", func() {
+								EnsurePublicPlanVisibility(ctx.SMRepository, servicePlanID)
+
+								postInstanceRequest["name"] = "instance1"
+								otherTenant := ctx.NewTenantExpect("other-tenant")
+								resp := createInstance(otherTenant, http.StatusAccepted)
+								instance := ExpectSuccessfulAsyncResourceCreation(resp, ctx.SMWithOAuth, web.ServiceInstancesURL)
+
+								postInstanceRequest["name"] = "instance2"
+								resp = createInstance(ctx.SMWithOAuthForTenant, http.StatusAccepted)
+								instance = ExpectSuccessfulAsyncResourceCreation(resp, ctx.SMWithOAuth, web.ServiceInstancesURL)
+								instanceID2 := instance["id"].(string)
+
+								resp = ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID2).
+									WithJSON(Object{"name": "instance1"}).
+									Expect().Status(http.StatusAccepted)
+
+								_, err := ExpectOperation(ctx.SMWithOAuthForTenant, resp, types.SUCCEEDED)
+								Expect(err).ToNot(HaveOccurred())
+								ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL+"/"+instanceID2).Expect().Status(http.StatusOK).JSON().Object().ValueEqual("name", "instance1")
+							})
 						})
 					})
 				})

@@ -88,16 +88,18 @@ func NewQueryBuilder(db pgDB) *QueryBuilder {
 // NewQuery constructs new queries for the current query builder db
 func (qb *QueryBuilder) NewQuery(entity PostgresEntity) *pgQuery {
 	return &pgQuery{
-		labelEntity:     entity.LabelEntity(),
-		entityTableName: entity.TableName(),
-		entityTags:      getDBTags(entity, nil),
-		labelEntityTags: getDBTags(entity.LabelEntity(), nil),
-		db:              qb.db,
-		fieldsWhereClause: &whereClauseTree{
-			operator: AND,
-		},
+		labelEntity:       entity.LabelEntity(),
+		entityTableName:   entity.TableName(),
+		entityTags:        getDBTags(entity, nil),
+		labelEntityTags:   getDBTags(entity.LabelEntity(), nil),
+		db:                qb.db,
+		fieldsWhereClause: &whereClauseTree{},
 		labelsWhereClause: &whereClauseTree{
-			operator: OR,
+			sqlBuilder: &treeSqlBuilder{
+				buildSQL: func(childrenSQL []string) string {
+					return fmt.Sprintf("(%s IN (%s))", entity.LabelEntity().ReferenceColumn(), strings.Join(childrenSQL, fmt.Sprintf(" %s ", INTERSECT)))
+				},
+			},
 		},
 	}
 }
@@ -219,6 +221,11 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 	if pq.err != nil {
 		return pq
 	}
+	labelQueryCount := 0
+	var builder = *defaultTreeSqlBuilder
+	var subSelectStatementFunc = func(childrenSQL []string) string {
+		return fmt.Sprintf("(SELECT %s FROM %s WHERE (%s))", pq.labelEntity.ReferenceColumn(), pq.labelEntity.LabelsTableName(), strings.Join(childrenSQL, fmt.Sprintf(" %s ", AND)))
+	}
 	for _, criterion := range criteria {
 		if err := criterion.Validate(); err != nil {
 			pq.err = err
@@ -240,8 +247,11 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 				tableName: pq.entityTableName,
 			})
 		case query.LabelQuery:
+			labelQueryCount++
+			if labelQueryCount > 1 { // 2 or more labelQueries need to be intersected
+				builder.buildSQL = subSelectStatementFunc
+			}
 			pq.labelsWhereClause.children = append(pq.labelsWhereClause.children, &whereClauseTree{
-				operator: AND,
 				children: []*whereClauseTree{
 					{
 						criterion: query.ByField(query.EqualsOperator, "key", criterion.LeftOp),
@@ -252,6 +262,7 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 						dbTags:    pq.labelEntityTags,
 					},
 				},
+				sqlBuilder: &builder,
 			})
 		case query.ResultQuery:
 			pq.processResultCriteria(criterion)
@@ -280,7 +291,7 @@ func (pq *pgQuery) limitSQL() string {
 }
 
 // joinSQL is a performance improvement - queries can work with LEFT JOIN always but are slower
-// JOIN is used when a label quert is present, LEFT JOIN is used when no label query is present so that resultset includes
+// JOIN is used when a label query is present, LEFT JOIN is used when no label query is present so that resultset includes
 // unlabelled resources
 func (pq *pgQuery) joinSQL() string {
 	if len(pq.labelsWhereClause.children) == 0 {
@@ -291,7 +302,6 @@ func (pq *pgQuery) joinSQL() string {
 
 func (pq *pgQuery) whereSQL() string {
 	whereClause := &whereClauseTree{
-		operator: AND,
 		children: []*whereClauseTree{
 			pq.fieldsWhereClause,
 			pq.labelsWhereClause,
@@ -381,6 +391,10 @@ func (pq *pgQuery) orderBySQL() string {
 			sql += fmt.Sprintf(" %s %s,", orderRule.field, orderRule.orderType)
 		}
 		sql = sql[:len(sql)-1]
+	}
+
+	if sql == "" {
+		sql = fmt.Sprintf("ORDER BY %s.paging_sequence ASC", pq.entityTableName)
 	}
 	return sql
 }

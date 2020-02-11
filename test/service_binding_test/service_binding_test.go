@@ -27,6 +27,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/gofrs/uuid"
+
 	"github.com/spf13/pflag"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -120,8 +122,10 @@ var _ = DescribeTestsFor(TestCase{
 			}
 
 			createInstance := func(smClient *SMExpect, async bool, expectedStatusCode int) *httpexpect.Response {
+				ID, err := uuid.NewV4()
+				Expect(err).ToNot(HaveOccurred())
 				postInstanceRequest := Object{
-					"name":             "test-instance",
+					"name":             "test-instance" + ID.String(),
 					"service_plan_id":  servicePlanID,
 					"maintenance_info": "{}",
 				}
@@ -709,7 +713,7 @@ var _ = DescribeTestsFor(TestCase{
 										BeforeEach(func() {
 											oldCtx = ctx
 											ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-												Expect(set.Set("operations.job_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
+												Expect(set.Set("operations.action_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 
 											brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
@@ -1107,6 +1111,46 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+								})
+							})
+						})
+
+						When("creating binding with same name", func() {
+							JustBeforeEach(func() {
+								postBindingRequest["name"] = "same-binding-name"
+								resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+								if testCase.async {
+									_, err := ExpectOperation(ctx.SMWithOAuthForTenant, resp, types.SUCCEEDED)
+									Expect(err).ToNot(HaveOccurred())
+								}
+							})
+
+							When("for the same service instance", func() {
+								It("should reject", func() {
+									if testCase.async {
+										resp := createBinding(ctx.SMWithOAuthForTenant, true, testCase.expectedCreateSuccessStatusCode)
+										_, err := ExpectOperationWithError(ctx.SMWithOAuthForTenant, resp, types.FAILED, "binding with same name exists for instance with id")
+										Expect(err).ToNot(HaveOccurred())
+									} else {
+										createBinding(ctx.SMWithOAuthForTenant, false, http.StatusConflict)
+									}
+								})
+							})
+
+							When("for other service instance", func() {
+								var otherInstanceID string
+
+								JustBeforeEach(func() {
+									otherInstanceID = createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated).JSON().Object().Value("id").String().Raw()
+									postBindingRequest["service_instance_id"] = otherInstanceID
+								})
+
+								It("should accept", func() {
+									resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+									if testCase.async {
+										_, err := ExpectOperation(ctx.SMWithOAuthForTenant, resp, types.SUCCEEDED)
+										Expect(err).ToNot(HaveOccurred())
+									}
 								})
 							})
 						})
@@ -1685,10 +1729,14 @@ var _ = DescribeTestsFor(TestCase{
 func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
 	_, _, servicePlanID := newServicePlan(ctx, true)
 	EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+	ID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
 	resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 		WithQuery("async", strconv.FormatBool(async)).
 		WithJSON(Object{
-			"name":             "test-service-instance",
+			"name":             "test-service-instance" + ID.String(),
 			"service_plan_id":  servicePlanID,
 			"maintenance_info": "{}",
 		}).Expect()

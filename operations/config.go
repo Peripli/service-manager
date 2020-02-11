@@ -24,50 +24,46 @@ import (
 const (
 	minTimePeriod = time.Nanosecond
 
-	defaultJobTimeout     = 7*24*time.Hour - 1*time.Hour
-	defaultExpirationTime = 7 * 24 * time.Hour
+	defaultActionTimeout     = 12 * time.Hour
+	defaultOperationLifespan = 7 * 24 * time.Hour
 
-	defaultMarkOrphansInterval = 24 * time.Hour
-	defaultCleanupInterval     = 24 * time.Hour
+	defaultCleanupInterval = 24 * time.Hour
 )
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	// TODO: rename this to actionTimeout
-	JobTimeout          time.Duration  `mapstructure:"job_timeout" description:"timeout for async operations"`
-	MarkOrphansInterval time.Duration  `mapstructure:"mark_orphans_interval" description:"interval denoting how often to mark orphan operations as failed"`
-	CleanupInterval     time.Duration  `mapstructure:"cleanup_interval" description:"cleanup interval of old operations"`
-	ExpirationTime      time.Duration  `mapstructure:"expiration_time" description:"after that time is passed since its creation, the operation can be cleaned up by the maintainer"`
-	DefaultPoolSize     int            `mapstructure:"default_pool_size" description:"default worker pool size"`
-	Pools               []PoolSettings `mapstructure:"pools" description:"defines the different available worker pools"`
-
+	ActionTimeout                  time.Duration `mapstructure:"action_timeout" description:"timeout for async operations"`
 	ReconciliationOperationTimeout time.Duration `mapstructure:"reconciliation_operation_timeout" description:"the maximum allowed timeout for auto rescheduling of operation actions"`
-	ReschedulingInterval           time.Duration `mapstructure:"rescheduling_interval" description:"the interval between auto rescheduling of operation actions"`
-	PollingInterval                time.Duration `mapstructure:"polling_interval" description:"the interval between polls for async requests"`
+
+	CleanupInterval time.Duration `mapstructure:"cleanup_interval" description:"cleanup interval of old operations"`
+	Lifespan        time.Duration `mapstructure:"lifespan" description:"after that time is passed since its creation, the operation can be cleaned up by the maintainer"`
+
+	ReschedulingInterval time.Duration `mapstructure:"rescheduling_interval" description:"the interval between auto rescheduling of operation actions"`
+	PollingInterval      time.Duration `mapstructure:"polling_interval" description:"the interval between polls for async requests"`
+
+	DefaultPoolSize int            `mapstructure:"default_pool_size" description:"default worker pool size"`
+	Pools           []PoolSettings `mapstructure:"pools" description:"defines the different available worker pools"`
 }
 
 // DefaultSettings returns default values for API settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		JobTimeout:                     defaultJobTimeout,
-		MarkOrphansInterval:            defaultMarkOrphansInterval,
+		ActionTimeout:                  defaultActionTimeout,
 		CleanupInterval:                defaultCleanupInterval,
-		ExpirationTime:                 defaultExpirationTime,
+		Lifespan:                       defaultOperationLifespan,
 		DefaultPoolSize:                20,
 		Pools:                          []PoolSettings{},
-		ReconciliationOperationTimeout: 12 * time.Hour,
-		ReschedulingInterval:           1 * time.Second,
-		PollingInterval:                1 * time.Second,
+		ReconciliationOperationTimeout: defaultOperationLifespan,
+
+		ReschedulingInterval: 1 * time.Second,
+		PollingInterval:      1 * time.Second,
 	}
 }
 
 // Validate validates the Operations settings
 func (s *Settings) Validate() error {
-	if s.JobTimeout <= minTimePeriod {
-		return fmt.Errorf("validate Settings: JobTimeout must be larger than %s", minTimePeriod)
-	}
-	if s.MarkOrphansInterval <= minTimePeriod {
-		return fmt.Errorf("validate Settings: MarkOrphanscInterval must be larger than %s", minTimePeriod)
+	if s.ActionTimeout <= minTimePeriod {
+		return fmt.Errorf("validate Settings: ActionTimeout must be larger than %s", minTimePeriod)
 	}
 	if s.CleanupInterval <= minTimePeriod {
 		return fmt.Errorf("validate Settings: CleanupInterval must be larger than %s", minTimePeriod)

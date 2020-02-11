@@ -57,7 +57,7 @@ var _ = Describe("Operations", func() {
 	Context("Scheduler", func() {
 		BeforeEach(func() {
 			postHook := func(e env.Environment, servers map[string]common.FakeServer) {
-				e.Set("operations.job_timeout", 5*time.Nanosecond)
+				e.Set("operations.action_timeout", 5*time.Nanosecond)
 				e.Set("operations.mark_orphans_interval", 1*time.Hour)
 			}
 
@@ -194,10 +194,10 @@ var _ = Describe("Operations", func() {
 
 		postHookWithOperationsConfig := func() func(e env.Environment, servers map[string]common.FakeServer) {
 			return func(e env.Environment, servers map[string]common.FakeServer) {
-				e.Set("operations.job_timeout", jobTimeout)
+				e.Set("operations.action_timeout", jobTimeout)
 				e.Set("operations.mark_orphans_interval", jobTimeout)
 				e.Set("operations.cleanup_interval", cleanupInterval)
-				e.Set("operations.expiration_time", operationExpiration)
+				e.Set("operations.lifespan", operationExpiration)
 				e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)
 			}
 		}
@@ -334,7 +334,6 @@ var _ = Describe("Operations", func() {
 
 				It("Deletes operations older than that interval", func() {
 					asyncProvision()
-
 					byPlatformID := query.ByField(query.NotEqualsOperator, "platform_id", types.SMPlatform)
 
 					assertOperationCount(1, byPlatformID)

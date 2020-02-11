@@ -50,13 +50,15 @@ type listOpEntry struct {
 func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode ResponseMode) bool {
 	var r []common.Object
 	var rWithMandatoryFields common.Object
+	commonLabelKey := "labelKey1"
+	commonLabelValue := "1"
 
 	attachLabel := func(obj common.Object) common.Object {
 		patchLabels := []*query.LabelChange{
 			{
 				Operation: query.AddLabelOperation,
-				Key:       "labelKey1",
-				Values:    []string{"1"},
+				Key:       commonLabelKey,
+				Values:    []string{commonLabelValue},
 			},
 			{
 				Operation: query.AddLabelOperation,
@@ -224,7 +226,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 				queryTemplate: "%s en '%v'",
 				queryArgs: common.Object{
 					"labels": map[string]interface{}{
-						"labelKey1": []interface{}{
+						commonLabelKey: []interface{}{
 							"str",
 						},
 					}},
@@ -323,7 +325,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 		unexpectedAfterOpIDs = common.ExtractResourceIDs(listOpEntry.resourcesNotToExpectAfterOp)
 
 		By(fmt.Sprintf("[TEST]: Verifying expected %s before operation after present", t.API))
-		beforeOpArray := ctx.SMWithOAuth.List(t.API)
+		beforeOpArray := auth.List(t.API)
 
 		for _, v := range beforeOpArray.Iter() {
 			obj := v.Object().Raw()
@@ -349,13 +351,13 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 
 		if listOpEntry.expectedStatusCode != http.StatusOK {
 			By(fmt.Sprintf("[TEST]: Verifying error and description fields are returned after list operation"))
-			req := ctx.SMWithOAuth.GET(t.API)
+			req := auth.GET(t.API)
 			if query != "" {
 				req = req.WithQueryString(query)
 			}
 			req.Expect().Status(listOpEntry.expectedStatusCode).JSON().Object().Keys().Contains("error", "description")
 		} else {
-			array := ctx.SMWithOAuth.ListWithQuery(t.API, query)
+			array := auth.ListWithQuery(t.API, query)
 			for _, v := range array.Iter() {
 				obj := v.Object().Raw()
 				stripObject(obj, t.ResourcePropertiesToIgnore...)
@@ -412,7 +414,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 
 		Context("when query contains special symbols", func() {
 			var obj common.Object
-			labelKey := "labelKey1"
+			labelKey := commonLabelKey
 			labelValue := "symbols!that@are#url$encoded%when^making a*request("
 			BeforeEach(func() {
 				obj = t.ResourceBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
@@ -435,15 +437,42 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 		Context("with bearer auth", func() {
 			if !t.DisableTenantResources {
 				Context("when authenticating with tenant scoped token", func() {
+					const resourceSpecificLabel = "resourceSpecificLabel"
 					var rForTenant common.Object
 
 					BeforeEach(func() {
 						rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant, bool(responseMode))
+						patchLabels := []*query.LabelChange{
+							{
+								Operation: query.AddLabelOperation,
+								Key:       commonLabelKey,
+								Values:    []string{commonLabelValue},
+							},
+							{
+								Operation: query.AddLabelOperation,
+								Key:       resourceSpecificLabel,
+								Values:    []string{commonLabelValue},
+							},
+						}
+						resourceID := rForTenant["id"].(string)
+						t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, resourceID, t.ResourceType, patchLabels, bool(responseMode))
+
+						rForTenant = ctx.SMWithOAuth.GET(t.API + "/" + resourceID).
+							Expect().
+							Status(http.StatusOK).JSON().Object().Raw()
 					})
 
-					It("returns only tenant specific resources", func() {
+					It("returns only resources with specific label", func() {
 						verifyListOpWithAuth(listOpEntry{
-							resourcesToExpectBeforeOp: []common.Object{r[0], r[1], rForTenant},
+							resourcesToExpectAfterOp:    []common.Object{rForTenant},
+							resourcesNotToExpectAfterOp: r,
+							expectedStatusCode:          http.StatusOK,
+						}, fmt.Sprintf("labelQuery=%[1]s eq %[3]s and %[2]s eq %[3]s", commonLabelKey, resourceSpecificLabel, commonLabelValue), ctx.SMWithOAuthForTenant)
+					})
+
+					It("returns only tenant specific resources without label query", func() {
+						verifyListOpWithAuth(listOpEntry{
+							resourcesToExpectBeforeOp: []common.Object{rForTenant},
 							resourcesToExpectAfterOp:  []common.Object{rForTenant},
 							expectedStatusCode:        http.StatusOK,
 						}, "", ctx.SMWithOAuthForTenant)

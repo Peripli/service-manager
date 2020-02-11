@@ -27,7 +27,7 @@ api:
   client_id: cf
 operations:
   cleanup_interval: 30m
-  job_timeout: 12m
+  action_timeout: 12m
   reconciliation_operation_timeout: 12h
   polling_interval: 5s
   rescheduling_interval: 5s

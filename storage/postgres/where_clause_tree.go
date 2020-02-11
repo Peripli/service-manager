@@ -26,9 +26,20 @@ import (
 type logicalOperator string
 
 const (
-	AND logicalOperator = "AND"
-	OR  logicalOperator = "OR"
+	AND       logicalOperator = "AND"
+	INTERSECT logicalOperator = "INTERSECT"
 )
+
+// treeSqlBuilder is a helper struct to allow for dynamic changing of the function that builds the sql template statements
+type treeSqlBuilder struct {
+	buildSQL func(childrenSQL []string) string
+}
+
+var defaultTreeSqlBuilder = &treeSqlBuilder{
+	buildSQL: func(childrenSQL []string) string {
+		return fmt.Sprintf("(%s)", strings.Join(childrenSQL, fmt.Sprintf(" %s ", AND)))
+	},
+}
 
 // whereClauseTree represents an sql where clause as tree structure with AND/OR on the nodes
 type whereClauseTree struct {
@@ -36,8 +47,8 @@ type whereClauseTree struct {
 	dbTags    []tagType
 	tableName string
 
-	operator logicalOperator
-	children []*whereClauseTree
+	children   []*whereClauseTree
+	sqlBuilder *treeSqlBuilder
 }
 
 func (t *whereClauseTree) isLeaf() bool {
@@ -73,7 +84,10 @@ func (t *whereClauseTree) compileSQL() (string, []interface{}) {
 	case 1:
 		sql = childrenSQL[0]
 	default:
-		sql = fmt.Sprintf("(%s)", strings.Join(childrenSQL, fmt.Sprintf(" %s ", t.operator)))
+		if t.sqlBuilder == nil {
+			t.sqlBuilder = defaultTreeSqlBuilder
+		}
+		sql = t.sqlBuilder.buildSQL(childrenSQL)
 	}
 
 	return sql, queryParams

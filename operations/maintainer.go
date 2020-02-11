@@ -17,6 +17,7 @@
 package operations
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -25,7 +26,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -78,22 +78,22 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 		{
 			name:     "cleanupInternalFailedOperations",
 			execute:  maintainer.cleanupInternalFailedOperations,
-			interval: 2 * options.CleanupInterval,
-		},
-		{
-			name:     "rescheduleUnprocessedOperations",
-			execute:  maintainer.rescheduleUnprocessedOperations,
-			interval: options.JobTimeout / 2,
-		},
-		{
-			name:     "rescheduleOrphanMitigationOperations",
-			execute:  maintainer.rescheduleOrphanMitigationOperations,
-			interval: options.JobTimeout / 2,
+			interval: options.CleanupInterval,
 		},
 		{
 			name:     "markOrphanOperationsFailed",
 			execute:  maintainer.markOrphanOperationsFailed,
-			interval: options.MarkOrphansInterval,
+			interval: options.CleanupInterval,
+		},
+		{
+			name:     "rescheduleUnprocessedOperations",
+			execute:  maintainer.rescheduleUnprocessedOperations,
+			interval: options.ActionTimeout / 2,
+		},
+		{
+			name:     "rescheduleOrphanMitigationOperations",
+			execute:  maintainer.rescheduleOrphanMitigationOperations,
+			interval: options.ActionTimeout / 2,
 		},
 	}
 
@@ -157,7 +157,8 @@ func (om *Maintainer) processOperations(functor func(), functorName string, inte
 func (om *Maintainer) cleanupExternalOperations() {
 	criteria := []query.Criterion{
 		query.ByField(query.NotEqualsOperator, "platform_id", types.SMPlatform),
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ExpirationTime))),
+		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.Lifespan))),
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
@@ -172,7 +173,8 @@ func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "state", string(types.SUCCEEDED)),
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ExpirationTime))),
+		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.Lifespan))),
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
@@ -189,7 +191,8 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 		query.ByField(query.EqualsOperator, "state", string(types.FAILED)),
 		query.ByField(query.EqualsOperator, "reschedule", "false"),
 		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ExpirationTime))),
+		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.Lifespan))),
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
@@ -206,8 +209,10 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
 		query.ByField(query.EqualsOperator, "reschedule", "true"),
 		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.JobTimeout))),
-		query.ByField(query.GreaterThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ReconciliationOperationTimeout))),
+		// check if operation hasn't been updated for the operation's maximum allowed time to execute
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ActionTimeout))),
+		// check if operation is still eligible for processing
+		query.ByField(query.GreaterThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ReconciliationOperationTimeout))),
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
@@ -270,8 +275,10 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.NotEqualsOperator, "deletion_scheduled", ZeroTime),
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.JobTimeout))),
-		query.ByField(query.GreaterThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ReconciliationOperationTimeout))),
+		// check if operation hasn't been updated for the operation's maximum allowed time to execute
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ActionTimeout))),
+		// check if operation is still eligible for processing
+		query.ByField(query.GreaterThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ReconciliationOperationTimeout))),
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
@@ -313,7 +320,8 @@ func (om *Maintainer) markOrphanOperationsFailed() {
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
 		query.ByField(query.EqualsOperator, "reschedule", "false"),
 		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.JobTimeout))),
+		// check if operation hasn't been updated for the operation's maximum allowed time to execute
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ActionTimeout))),
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
