@@ -18,12 +18,13 @@ package operations
 
 import (
 	"context"
+	"time"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
-	"time"
 )
 
 // Maintainer ensures that operations old enough are deleted

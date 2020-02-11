@@ -275,7 +275,6 @@ var _ = Describe("Operations", func() {
 
 				It("Deletes operations older than that interval", func() {
 					asyncProvision()
-
 					byPlatformID := query.ByField(query.NotEqualsOperator, "platform_id", types.SMPlatform)
 
 					assertOperationCount(1, byPlatformID)
