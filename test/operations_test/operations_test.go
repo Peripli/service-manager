@@ -271,8 +271,7 @@ var _ = Describe("Operations", func() {
 
 		When("Specified cleanup interval passes", func() {
 			Context("operation platform is service Manager", func() {
-
-				It("Does not delete operations older than that interval", func() {
+				It("Deletes operations older than that interval", func() {
 					ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
 						Expect().
 						Status(http.StatusAccepted)
@@ -280,8 +279,12 @@ var _ = Describe("Operations", func() {
 					byPlatformID := query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform)
 					assertOperationCount(2, byPlatformID)
 
-					time.Sleep(cleanupInterval + time.Second)
-					assertOperationCount(2, byPlatformID)
+					Eventually(func() int {
+						count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
+						Expect(err).To(BeNil())
+
+						return count
+					}, cleanupInterval*2).Should(Equal(0))
 				})
 			})
 
@@ -344,6 +347,40 @@ var _ = Describe("Operations", func() {
 					}, cleanupInterval*2).Should(Equal(0))
 				})
 			})
+
+			Context("with external operations for Service Manager", func() {
+				BeforeEach(func() {
+					operation := &types.Operation{
+						Base: types.Base{
+							ID:        defaultOperationID,
+							UpdatedAt: time.Now().Add(-cleanupInterval + time.Second),
+							Labels:    make(map[string][]string),
+							Ready:     true,
+						},
+						Reschedule:    false,
+						Type:          types.CREATE,
+						State:         types.IN_PROGRESS,
+						ResourceID:    "test-resource-id",
+						ResourceType:  web.ServiceBrokersURL,
+						PlatformID:    "cloudfoundry",
+						CorrelationID: "test-correlation-id",
+					}
+					object, err := ctx.SMRepository.Create(context.Background(), operation)
+					Expect(err).To(BeNil())
+					Expect(object).To(Not(BeNil()))
+				})
+
+				It("should cleanup external old ones", func() {
+					byPlatformID := query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform)
+					assertOperationCount(1, byPlatformID)
+					Eventually(func() int {
+						count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
+						Expect(err).To(BeNil())
+
+						return count
+					}, operationExpiration*2).Should(Equal(0))
+				})
+			})
 		})
 
 		When("Specified job timeout passes", func() {
@@ -355,6 +392,7 @@ var _ = Describe("Operations", func() {
 						Labels:    make(map[string][]string),
 						Ready:     true,
 					},
+					Reschedule:    false,
 					Type:          types.CREATE,
 					State:         types.IN_PROGRESS,
 					ResourceID:    "test-resource-id",
