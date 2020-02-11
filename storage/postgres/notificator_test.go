@@ -358,6 +358,31 @@ var _ = Describe("Notificator", func() {
 		})
 	})
 
+	Describe ("IsRevisionValid", func() {
+		It("Should return true and no error", func() {
+			fakeNotificationStorage.GetNotificationByRevisionReturns(nil, nil)
+			result, err := testNotificator.IsRevisionValid(defaultLastRevision)
+			Expect(result).To(BeTrue())
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("Should return an error", func() {
+			fakeNotificationStorage.GetNotificationByRevisionReturns(nil, expectedError)
+			_, err := testNotificator.IsRevisionValid(defaultLastRevision)
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(Equal(expectedError))
+		})
+
+		It("Should return false if revision is not found in db", func() {
+			Expect(testNotificator.Start(ctx, wg)).ToNot(HaveOccurred())
+
+			fakeNotificationStorage.GetNotificationByRevisionReturns(nil, util.ErrNotFoundInStorage)
+			result, err := testNotificator.IsRevisionValid(defaultLastRevision)
+			Expect(result).To(BeFalse())
+			Expect(err).ToNot(HaveOccurred())
+		})
+	})
+
 	Describe("RegisterConsumer", func() {
 
 		BeforeEach(func() {
@@ -392,6 +417,7 @@ var _ = Describe("Notificator", func() {
 			})
 		})
 
+		// TODO: With our newly introduced logic this test will be a duplication of those in ws_notification_test.go that check for 410 status code
 		Context("When notification revision is grater than the the one SM knows", func() {
 			It("Should return error", func() {
 				expectRegisterConsumerFail(util.ErrInvalidNotificationRevision.Error(), defaultLastRevision+1)
@@ -400,6 +426,7 @@ var _ = Describe("Notificator", func() {
 
 		Context("When registering with 0 < revision < sm_revision", func() {
 			Context("When storage returns error when getting notification with revision", func() {
+				// TODO: With our newly introduced logic this test will be a duplication of those in ws_notification_test.go that check for 410 status code
 				It("Should return the error", func() {
 					unlistenCalled := make(chan struct{}, 1)
 					fakeNotificationConnection.UnlistenStub = func(s string) error {
@@ -414,6 +441,7 @@ var _ = Describe("Notificator", func() {
 			})
 
 			Context("When storage returns error and unlisten returns error when getting notification with revision", func() {
+				// TODO: With our newly introduced logic this test will be a duplication of those in ws_notification_test.go that check for 410 status code
 				It("Should return the storage error", func() {
 					unlistenCalled := make(chan struct{}, 1)
 					fakeNotificationConnection.UnlistenStub = func(s string) error {
@@ -428,6 +456,7 @@ var _ = Describe("Notificator", func() {
 			})
 
 			Context("When storage returns \"not found\" error when getting notification with revision", func() {
+				// TODO: With our newly introduced logic this test will be a duplication of those in ws_notification_test.go that check for 410 status code
 				It("Should return ErrInvalidNotificationRevision", func() {
 					fakeNotificationStorage.GetNotificationByRevisionReturns(nil, util.ErrNotFoundInStorage)
 					expectRegisterConsumerFail(util.ErrInvalidNotificationRevision.Error(), defaultLastRevision-1)
@@ -492,6 +521,7 @@ var _ = Describe("Notificator", func() {
 			})
 		})
 
+		// TODO: With our newly introduced logic this test will be a duplication of those in ws_notification_test.go that check for 410 status code
 		Context("When revision is not valid", func() {
 			It("Should return error", func() {
 				expectRegisterConsumerFail(util.ErrInvalidNotificationRevision.Error(), 987654321)

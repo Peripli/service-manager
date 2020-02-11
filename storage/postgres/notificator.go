@@ -194,6 +194,13 @@ func (n *Notificator) RegisterConsumer(consumer *types.Platform, lastKnownRevisi
 		}
 	}()
 
+	// TODO: With our newly introduced logic this test will be a duplication of those in ws_notification_test.go that check for 410 status code
+	if lastKnownRevisionToProxy > lastKnownRevisionToSM {
+		log.C(n.ctx).Debug("lastKnownRevision is grater than the one SM knows")
+		err = util.ErrInvalidNotificationRevision // important for defer logic
+		return nil, err
+	}
+
 	var queueWithMissedNotifications storage.NotificationQueue
 	queueWithMissedNotifications, err = n.replaceQueueWithMissingNotificationsQueue(queue, lastKnownRevisionToProxy, lastKnownRevisionToSM, consumer)
 	if err != nil {
@@ -212,8 +219,16 @@ func (n *Notificator) filterRecipients(recipients []*types.Platform, notificatio
 	return recipients
 }
 
-func (n *Notificator) replaceQueueWithMissingNotificationsQueue(queue storage.NotificationQueue, lastKnownRevision, lastKnownRevisionToSM int64, platform *types.Platform) (storage.NotificationQueue, error) {
-	missedNotifications, err := n.storage.ListNotifications(n.ctx, platform.ID, lastKnownRevision, lastKnownRevisionToSM)
+func (n *Notificator) replaceQueueWithMissingNotificationsQueue(queue storage.NotificationQueue, lastKnownRevisionToProxy, lastKnownRevisionToSM int64, platform *types.Platform) (storage.NotificationQueue, error) {
+	// TODO: With our newly introduced logic this test will be a duplication of those in ws_notification_test.go that check for 410 status code
+	if _, err := n.storage.GetNotificationByRevision(n.ctx, lastKnownRevisionToProxy); err != nil {
+		if err == util.ErrNotFoundInStorage {
+			log.C(n.ctx).WithError(err).Debugf("Notification with revision %d not found in storage", lastKnownRevisionToProxy)
+			return nil, util.ErrInvalidNotificationRevision
+		}
+		return nil, err
+	}
+	missedNotifications, err := n.storage.ListNotifications(n.ctx, platform.ID, lastKnownRevisionToProxy, lastKnownRevisionToSM)
 	if err != nil {
 		return nil, err
 	}

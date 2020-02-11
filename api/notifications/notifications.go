@@ -43,6 +43,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		}
 	}
 
+	// We check that a revision is valid only if its value is not types.InvalidRevision since in that case is never valid
 	if revisionKnownToProxy != types.InvalidRevision {
 		isProxyRevisionValid, err := c.notificator.IsRevisionValid(revisionKnownToProxy)
 		if err != nil {
@@ -68,11 +69,6 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	if revisionKnownToProxy > revisionKnownToSM {
-		logger.Debug("lastKnownRevision is grater than the one SM knows")
-		return util.NewJSONResponse(http.StatusGone, nil)
-	}
-
 	correlationID := logger.Data[log.FieldCorrelationID].(string)
 	childCtx, childCtxCancel := newContextWithCorrelationID(c.baseCtx, correlationID)
 
@@ -90,7 +86,6 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 
 	conn, err := c.upgrade(childCtx, c.repository, platform, rw, req.Request, responseHeaders)
 	if err != nil {
-		//c.unregisterConsumer(ctx, notificationQueue)
 		return nil, err
 	}
 
