@@ -1458,9 +1458,9 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										It("should restart polling through maintainer and eventually deletes the instance", func() {
-											resp := deleteInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+											resp := deleteInstance(newCtx.SMWithOAuthForTenant, true, http.StatusAccepted)
 
-											operationExpectation := OperationExpectations{
+											operationExpectations := OperationExpectations{
 												Category:          types.DELETE,
 												State:             types.IN_PROGRESS,
 												ResourceType:      types.ServiceInstanceType,
@@ -1468,18 +1468,17 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											}
 
-											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectation)
-
+											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectations)
 											verifyInstanceExists(newCtx, instanceID, true)
 
 											newCtx.CleanupAll(false)
 
 											isDeprovisioned = true
 
-											operationExpectation.State = types.SUCCEEDED
-											operationExpectation.Reschedulable = false
+											operationExpectations.State = types.SUCCEEDED
+											operationExpectations.Reschedulable = false
 
-											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectation)
+											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectations)
 											verifyInstanceDoesNotExist(instanceID)
 
 										})

@@ -18,6 +18,7 @@ package service_binding_test
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/env"
 	"net/http"
 	"strconv"
 	"time"
@@ -661,6 +662,57 @@ var _ = DescribeTestsFor(TestCase{
 											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, false)
 										})
 									})
+
+									When("SM crashes while polling", func() {
+										var newCtx *TestContext
+										var isBound = false
+
+										postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
+											return func(e env.Environment, servers map[string]FakeServer) {
+												e.Set("server.shutdown_timeout", 1*time.Second)
+											}
+										}
+
+										BeforeEach(func() {
+											ctxMaintainerBuilder := t.ContextBuilder.WithEnvPostExtensions(postHookWithShutdownTimeout())
+											newCtx = ctxMaintainerBuilder.BuildWithoutCleanup()
+
+											brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+											brokerServer.BindingLastOpHandlerFunc(http.MethodPut+"1", func(_ *http.Request) (int, map[string]interface{}) {
+												if isBound {
+													return http.StatusOK, Object{"state": types.SUCCEEDED}
+												} else {
+													return http.StatusOK, Object{"state": types.IN_PROGRESS}
+												}
+											})
+
+										})
+
+										It("should start restart polling through maintainer and eventually binding is set to ready", func() {
+											resp := createBinding(newCtx.SMWithOAuthForTenant, true, http.StatusAccepted)
+
+											operationExpectations := OperationExpectations{
+												Category:          types.CREATE,
+												State:             types.IN_PROGRESS,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     true,
+												DeletionScheduled: false,
+											}
+
+											bindingID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectations)
+											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, false)
+
+											newCtx.CleanupAll(false)
+
+											isBound = true
+
+											operationExpectations.State = types.SUCCEEDED
+											operationExpectations.Reschedulable = false
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectations)
+											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+										})
+									})
 								}
 
 								When("polling responds with unexpected state and eventually with success state", func() {
@@ -1108,6 +1160,59 @@ var _ = DescribeTestsFor(TestCase{
 
 									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
 								})
+
+								if testCase.async {
+									When("SM crashes while polling", func() {
+										var newCtx *TestContext
+										var isBound = false
+
+										postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
+											return func(e env.Environment, servers map[string]FakeServer) {
+												e.Set("server.shutdown_timeout", 1*time.Second)
+											}
+										}
+
+										BeforeEach(func() {
+											ctxMaintainerBuilder := t.ContextBuilder.WithEnvPostExtensions(postHookWithShutdownTimeout())
+											newCtx = ctxMaintainerBuilder.BuildWithoutCleanup()
+
+											brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+											brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"1", func(_ *http.Request) (int, map[string]interface{}) {
+												if isBound {
+													return http.StatusOK, Object{"state": types.SUCCEEDED}
+												} else {
+													return http.StatusOK, Object{"state": types.IN_PROGRESS}
+												}
+											})
+
+										})
+
+										It("should start restart polling through maintainer and eventually binding is set to ready", func() {
+											resp := deleteBinding(newCtx.SMWithOAuthForTenant, true, http.StatusAccepted)
+
+											operationExpectations := OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.IN_PROGRESS,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     true,
+												DeletionScheduled: false,
+											}
+
+											bindingID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectations)
+											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+
+											newCtx.CleanupAll(false)
+
+											isBound = true
+
+											operationExpectations.State = types.SUCCEEDED
+											operationExpectations.Reschedulable = false
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectations)
+											verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+										})
+									})
+								}
 
 								When("polling responds 410 GONE", func() {
 									BeforeEach(func() {

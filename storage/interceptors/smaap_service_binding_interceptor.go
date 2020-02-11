@@ -200,13 +200,13 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				log.C(ctx).Infof("Successful synchronous bind %s to broker %s returned response %s",
 					logBindRequest(bindRequest), broker.Name, logBindResponse(bindResponse))
 			}
-		}
 
-		object, err := f(ctx, obj)
-		if err != nil {
-			return nil, err
+			object, err := f(ctx, obj)
+			if err != nil {
+				return nil, err
+			}
+			binding = object.(*types.ServiceBinding)
 		}
-		binding = object.(*types.ServiceBinding)
 
 		if operation.Reschedule {
 			if err := i.pollServiceBinding(ctx, osbClient, binding, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
