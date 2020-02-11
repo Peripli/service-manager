@@ -245,7 +245,13 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 
 			action = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
 				err := repository.Delete(ctx, operation.ResourceType, byID)
-				return nil, util.HandleStorageError(err, operation.ResourceType.String())
+				if err != nil {
+					if err == util.ErrNotFoundInStorage {
+						return nil, nil
+					}
+					return nil, util.HandleStorageError(err, operation.ResourceType.String())
+				}
+				return nil, nil
 			}
 		}
 
@@ -281,7 +287,13 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 
 		action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
 			err := repository.Delete(ctx, operation.ResourceType, byID)
-			return nil, util.HandleStorageError(err, operation.ResourceType.String())
+			if err != nil {
+				if err == util.ErrNotFoundInStorage {
+					return nil, nil
+				}
+				return nil, util.HandleStorageError(err, operation.ResourceType.String())
+			}
+			return nil, nil
 		}
 
 		if err := om.scheduler.ScheduleAsyncStorageAction(om.smCtx, operation, action); err != nil {
