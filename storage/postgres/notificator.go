@@ -182,11 +182,7 @@ func (n *Notificator) RegisterConsumer(consumer *types.Platform, lastKnownRevisi
 			}
 		}
 	}()
-	if lastKnownRevisionToProxy > lastKnownRevisionToSM {
-		log.C(n.ctx).Debug("lastKnownRevision is grater than the one SM knows")
-		err = util.ErrInvalidNotificationRevision // important for defer logic
-		return nil, err
-	}
+
 	var queueWithMissedNotifications storage.NotificationQueue
 	queueWithMissedNotifications, err = n.replaceQueueWithMissingNotificationsQueue(queue, lastKnownRevisionToProxy, lastKnownRevisionToSM, consumer)
 	if err != nil {

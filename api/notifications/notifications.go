@@ -58,12 +58,9 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	notificationQueue, err := c.notificator.RegisterConsumer(platform, revisionKnownToProxy, revisionKnownToSM)
-	if err != nil {
-		if err == util.ErrInvalidNotificationRevision {
-			return util.NewJSONResponse(http.StatusGone, nil)
-		}
-		return nil, err
+	if revisionKnownToProxy > revisionKnownToSM {
+		logger.Debug("lastKnownRevision is grater than the one SM knows")
+		return util.NewJSONResponse(http.StatusGone, nil)
 	}
 
 	correlationID := logger.Data[log.FieldCorrelationID].(string)
@@ -83,7 +80,15 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 
 	conn, err := c.upgrade(childCtx, c.repository, platform, rw, req.Request, responseHeaders)
 	if err != nil {
-		c.unregisterConsumer(ctx, notificationQueue)
+		//c.unregisterConsumer(ctx, notificationQueue)
+		return nil, err
+	}
+
+	notificationQueue, err := c.notificator.RegisterConsumer(platform, revisionKnownToProxy, revisionKnownToSM)
+	if err != nil {
+		if err == util.ErrInvalidNotificationRevision {
+			return util.NewJSONResponse(http.StatusGone, nil)
+		}
 		return nil, err
 	}
 
