@@ -58,7 +58,11 @@ func (l *Locker) Lock(ctx context.Context) error {
 		log.C(ctx).Infof("Failed to lock locker with advisory index (%d)", l.AdvisoryIndex)
 		return err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.C(ctx).WithError(err).Error("Could not close rows")
+		}
+	}()
 
 	l.isLocked = true
 
@@ -89,7 +93,11 @@ func (l *Locker) TryLock(ctx context.Context) error {
 		log.C(ctx).Infof("Failed to try_lock locker with advisory index (%d)", l.AdvisoryIndex)
 		return err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.C(ctx).WithError(err).Error("Could not close rows")
+		}
+	}()
 
 	var locked bool
 	for rows.Next() {
@@ -128,7 +136,11 @@ func (l *Locker) Unlock(ctx context.Context) error {
 		log.C(ctx).Infof("Failed to unlock locker with advisory index (%d)", l.AdvisoryIndex)
 		return err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.C(ctx).WithError(err).Error("Could not close rows")
+		}
+	}()
 
 	var unlocked bool
 	for rows.Next() {
@@ -149,6 +161,8 @@ func (l *Locker) Unlock(ctx context.Context) error {
 }
 
 func (l *Locker) release() {
-	l.lockerCon.Close()
+	if err := l.lockerCon.Close(); err != nil {
+		log.C(ctx).WithError(err).Error("Could not release connection")
+	}
 	l.lockerCon = nil
 }
