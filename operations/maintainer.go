@@ -224,7 +224,6 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 		case types.CREATE:
 			object, err := om.repository.Get(om.smCtx, operation.ResourceType, query.ByField(query.EqualsOperator, "id", operation.ResourceID))
 			if err != nil {
-				// TODO: Configure logger with correlation ID of the operation
 				logger.Warnf("Failed to fetch resource with ID (%s) for operation with ID (%s): %s", operation.ResourceID, operation.ID, err)
 				return
 			}
