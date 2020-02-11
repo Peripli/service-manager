@@ -52,13 +52,6 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	notificationQueue, lastKnownToSMRevision, err := c.notificator.RegisterConsumer(platform, revisionKnownToProxy)
-	if err != nil {
-		if err == util.ErrInvalidNotificationRevision {
-			return util.NewJSONResponse(http.StatusGone, nil)
-		}
-		return nil, err
-	}
 
 	correlationID := logger.Data[log.FieldCorrelationID].(string)
 	childCtx, childCtxCancel := newContextWithCorrelationID(c.baseCtx, correlationID)
@@ -69,15 +62,32 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		}
 	}()
 
+	revisionKnownToSM, err := c.notificator.GetLastRevision()
+	if err != nil {
+		return nil, err
+	}
+
 	rw := req.HijackResponseWriter()
 	responseHeaders := http.Header{}
-	if lastKnownToSMRevision != types.InvalidRevision {
-		responseHeaders.Add(LastKnownRevisionHeader, strconv.FormatInt(lastKnownToSMRevision, 10))
+	if revisionKnownToSM != types.InvalidRevision {
+		responseHeaders.Add(LastKnownRevisionHeader, strconv.FormatInt(revisionKnownToSM, 10))
 	}
 
 	conn, err := c.upgrade(childCtx, c.repository, platform, rw, req.Request, responseHeaders)
 	if err != nil {
-		c.unregisterConsumer(ctx, notificationQueue)
+		return nil, err
+	}
+
+	//c.ensureHealthyWsConnection(childCtx, conn)
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	notificationQueue, err := c.notificator.RegisterConsumer(platform, revisionKnownToProxy, revisionKnownToSM)
+	if err != nil {
+		if err == util.ErrInvalidNotificationRevision {
+			return util.NewJSONResponse(http.StatusGone, nil)
+		}
 		return nil, err
 	}
 
@@ -88,6 +98,23 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	go c.readLoop(childCtx, c.repository, platform, conn, done)
 
 	return &web.Response{}, nil
+}
+
+func (c *Controller) ensureHealthyWsConnection(ctx context.Context, conn *websocket.Conn) error {
+	ch := make(chan error)
+	conn.SetPingHandler(func(message string) error {
+		if err := conn.SetReadDeadline(time.Now().Add(c.wsSettings.PingTimeout)); err != nil {
+			return err
+		}
+		err := conn.WriteControl(websocket.PongMessage, []byte(message), time.Now().Add(c.wsSettings.WriteTimeout))
+		if err != nil {
+			log.C(ctx).Errorf("initial pong failed: %s", err)
+		}
+		ch <- err
+		return err
+	})
+	e := <- ch
+	return e
 }
 
 func (c *Controller) writeLoop(ctx context.Context, conn *websocket.Conn, q storage.NotificationQueue, done chan<- struct{}) {

@@ -10,21 +10,42 @@ import (
 )
 
 type FakeNotificator struct {
-	RegisterConsumerStub        func(*types.Platform, int64) (storage.NotificationQueue, int64, error)
+	GetLastRevisionStub        func() (int64, error)
+	getLastRevisionMutex       sync.RWMutex
+	getLastRevisionArgsForCall []struct {
+	}
+	getLastRevisionReturns struct {
+		result1 int64
+		result2 error
+	}
+	getLastRevisionReturnsOnCall map[int]struct {
+		result1 int64
+		result2 error
+	}
+	ListenStub        func() error
+	listenMutex       sync.RWMutex
+	listenArgsForCall []struct {
+	}
+	listenReturns struct {
+		result1 error
+	}
+	listenReturnsOnCall map[int]struct {
+		result1 error
+	}
+	RegisterConsumerStub        func(*types.Platform, int64, int64) (storage.NotificationQueue, error)
 	registerConsumerMutex       sync.RWMutex
 	registerConsumerArgsForCall []struct {
 		arg1 *types.Platform
 		arg2 int64
+		arg3 int64
 	}
 	registerConsumerReturns struct {
 		result1 storage.NotificationQueue
-		result2 int64
-		result3 error
+		result2 error
 	}
 	registerConsumerReturnsOnCall map[int]struct {
 		result1 storage.NotificationQueue
-		result2 int64
-		result3 error
+		result2 error
 	}
 	RegisterFilterStub        func(storage.ReceiversFilterFunc)
 	registerFilterMutex       sync.RWMutex
@@ -43,6 +64,10 @@ type FakeNotificator struct {
 	startReturnsOnCall map[int]struct {
 		result1 error
 	}
+	UnlistenStub        func()
+	unlistenMutex       sync.RWMutex
+	unlistenArgsForCall []struct {
+	}
 	UnregisterConsumerStub        func(storage.NotificationQueue) error
 	unregisterConsumerMutex       sync.RWMutex
 	unregisterConsumerArgsForCall []struct {
@@ -58,23 +83,131 @@ type FakeNotificator struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeNotificator) RegisterConsumer(arg1 *types.Platform, arg2 int64) (storage.NotificationQueue, int64, error) {
+func (fake *FakeNotificator) GetLastRevision() (int64, error) {
+	fake.getLastRevisionMutex.Lock()
+	ret, specificReturn := fake.getLastRevisionReturnsOnCall[len(fake.getLastRevisionArgsForCall)]
+	fake.getLastRevisionArgsForCall = append(fake.getLastRevisionArgsForCall, struct {
+	}{})
+	fake.recordInvocation("GetLastRevision", []interface{}{})
+	fake.getLastRevisionMutex.Unlock()
+	if fake.GetLastRevisionStub != nil {
+		return fake.GetLastRevisionStub()
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.getLastRevisionReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeNotificator) GetLastRevisionCallCount() int {
+	fake.getLastRevisionMutex.RLock()
+	defer fake.getLastRevisionMutex.RUnlock()
+	return len(fake.getLastRevisionArgsForCall)
+}
+
+func (fake *FakeNotificator) GetLastRevisionCalls(stub func() (int64, error)) {
+	fake.getLastRevisionMutex.Lock()
+	defer fake.getLastRevisionMutex.Unlock()
+	fake.GetLastRevisionStub = stub
+}
+
+func (fake *FakeNotificator) GetLastRevisionReturns(result1 int64, result2 error) {
+	fake.getLastRevisionMutex.Lock()
+	defer fake.getLastRevisionMutex.Unlock()
+	fake.GetLastRevisionStub = nil
+	fake.getLastRevisionReturns = struct {
+		result1 int64
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeNotificator) GetLastRevisionReturnsOnCall(i int, result1 int64, result2 error) {
+	fake.getLastRevisionMutex.Lock()
+	defer fake.getLastRevisionMutex.Unlock()
+	fake.GetLastRevisionStub = nil
+	if fake.getLastRevisionReturnsOnCall == nil {
+		fake.getLastRevisionReturnsOnCall = make(map[int]struct {
+			result1 int64
+			result2 error
+		})
+	}
+	fake.getLastRevisionReturnsOnCall[i] = struct {
+		result1 int64
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeNotificator) Listen() error {
+	fake.listenMutex.Lock()
+	ret, specificReturn := fake.listenReturnsOnCall[len(fake.listenArgsForCall)]
+	fake.listenArgsForCall = append(fake.listenArgsForCall, struct {
+	}{})
+	fake.recordInvocation("Listen", []interface{}{})
+	fake.listenMutex.Unlock()
+	if fake.ListenStub != nil {
+		return fake.ListenStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.listenReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeNotificator) ListenCallCount() int {
+	fake.listenMutex.RLock()
+	defer fake.listenMutex.RUnlock()
+	return len(fake.listenArgsForCall)
+}
+
+func (fake *FakeNotificator) ListenCalls(stub func() error) {
+	fake.listenMutex.Lock()
+	defer fake.listenMutex.Unlock()
+	fake.ListenStub = stub
+}
+
+func (fake *FakeNotificator) ListenReturns(result1 error) {
+	fake.listenMutex.Lock()
+	defer fake.listenMutex.Unlock()
+	fake.ListenStub = nil
+	fake.listenReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeNotificator) ListenReturnsOnCall(i int, result1 error) {
+	fake.listenMutex.Lock()
+	defer fake.listenMutex.Unlock()
+	fake.ListenStub = nil
+	if fake.listenReturnsOnCall == nil {
+		fake.listenReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.listenReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeNotificator) RegisterConsumer(arg1 *types.Platform, arg2 int64, arg3 int64) (storage.NotificationQueue, error) {
 	fake.registerConsumerMutex.Lock()
 	ret, specificReturn := fake.registerConsumerReturnsOnCall[len(fake.registerConsumerArgsForCall)]
 	fake.registerConsumerArgsForCall = append(fake.registerConsumerArgsForCall, struct {
 		arg1 *types.Platform
 		arg2 int64
-	}{arg1, arg2})
-	fake.recordInvocation("RegisterConsumer", []interface{}{arg1, arg2})
+		arg3 int64
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("RegisterConsumer", []interface{}{arg1, arg2, arg3})
 	fake.registerConsumerMutex.Unlock()
 	if fake.RegisterConsumerStub != nil {
-		return fake.RegisterConsumerStub(arg1, arg2)
+		return fake.RegisterConsumerStub(arg1, arg2, arg3)
 	}
 	if specificReturn {
-		return ret.result1, ret.result2, ret.result3
+		return ret.result1, ret.result2
 	}
 	fakeReturns := fake.registerConsumerReturns
-	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeNotificator) RegisterConsumerCallCount() int {
@@ -83,46 +216,43 @@ func (fake *FakeNotificator) RegisterConsumerCallCount() int {
 	return len(fake.registerConsumerArgsForCall)
 }
 
-func (fake *FakeNotificator) RegisterConsumerCalls(stub func(*types.Platform, int64) (storage.NotificationQueue, int64, error)) {
+func (fake *FakeNotificator) RegisterConsumerCalls(stub func(*types.Platform, int64, int64) (storage.NotificationQueue, error)) {
 	fake.registerConsumerMutex.Lock()
 	defer fake.registerConsumerMutex.Unlock()
 	fake.RegisterConsumerStub = stub
 }
 
-func (fake *FakeNotificator) RegisterConsumerArgsForCall(i int) (*types.Platform, int64) {
+func (fake *FakeNotificator) RegisterConsumerArgsForCall(i int) (*types.Platform, int64, int64) {
 	fake.registerConsumerMutex.RLock()
 	defer fake.registerConsumerMutex.RUnlock()
 	argsForCall := fake.registerConsumerArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
-func (fake *FakeNotificator) RegisterConsumerReturns(result1 storage.NotificationQueue, result2 int64, result3 error) {
+func (fake *FakeNotificator) RegisterConsumerReturns(result1 storage.NotificationQueue, result2 error) {
 	fake.registerConsumerMutex.Lock()
 	defer fake.registerConsumerMutex.Unlock()
 	fake.RegisterConsumerStub = nil
 	fake.registerConsumerReturns = struct {
 		result1 storage.NotificationQueue
-		result2 int64
-		result3 error
-	}{result1, result2, result3}
+		result2 error
+	}{result1, result2}
 }
 
-func (fake *FakeNotificator) RegisterConsumerReturnsOnCall(i int, result1 storage.NotificationQueue, result2 int64, result3 error) {
+func (fake *FakeNotificator) RegisterConsumerReturnsOnCall(i int, result1 storage.NotificationQueue, result2 error) {
 	fake.registerConsumerMutex.Lock()
 	defer fake.registerConsumerMutex.Unlock()
 	fake.RegisterConsumerStub = nil
 	if fake.registerConsumerReturnsOnCall == nil {
 		fake.registerConsumerReturnsOnCall = make(map[int]struct {
 			result1 storage.NotificationQueue
-			result2 int64
-			result3 error
+			result2 error
 		})
 	}
 	fake.registerConsumerReturnsOnCall[i] = struct {
 		result1 storage.NotificationQueue
-		result2 int64
-		result3 error
-	}{result1, result2, result3}
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *FakeNotificator) RegisterFilter(arg1 storage.ReceiversFilterFunc) {
@@ -217,6 +347,29 @@ func (fake *FakeNotificator) StartReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
+func (fake *FakeNotificator) Unlisten() {
+	fake.unlistenMutex.Lock()
+	fake.unlistenArgsForCall = append(fake.unlistenArgsForCall, struct {
+	}{})
+	fake.recordInvocation("Unlisten", []interface{}{})
+	fake.unlistenMutex.Unlock()
+	if fake.UnlistenStub != nil {
+		fake.UnlistenStub()
+	}
+}
+
+func (fake *FakeNotificator) UnlistenCallCount() int {
+	fake.unlistenMutex.RLock()
+	defer fake.unlistenMutex.RUnlock()
+	return len(fake.unlistenArgsForCall)
+}
+
+func (fake *FakeNotificator) UnlistenCalls(stub func()) {
+	fake.unlistenMutex.Lock()
+	defer fake.unlistenMutex.Unlock()
+	fake.UnlistenStub = stub
+}
+
 func (fake *FakeNotificator) UnregisterConsumer(arg1 storage.NotificationQueue) error {
 	fake.unregisterConsumerMutex.Lock()
 	ret, specificReturn := fake.unregisterConsumerReturnsOnCall[len(fake.unregisterConsumerArgsForCall)]
@@ -280,12 +433,18 @@ func (fake *FakeNotificator) UnregisterConsumerReturnsOnCall(i int, result1 erro
 func (fake *FakeNotificator) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
+	fake.getLastRevisionMutex.RLock()
+	defer fake.getLastRevisionMutex.RUnlock()
+	fake.listenMutex.RLock()
+	defer fake.listenMutex.RUnlock()
 	fake.registerConsumerMutex.RLock()
 	defer fake.registerConsumerMutex.RUnlock()
 	fake.registerFilterMutex.RLock()
 	defer fake.registerFilterMutex.RUnlock()
 	fake.startMutex.RLock()
 	defer fake.startMutex.RUnlock()
+	fake.unlistenMutex.RLock()
+	defer fake.unlistenMutex.RUnlock()
 	fake.unregisterConsumerMutex.RLock()
 	defer fake.unregisterConsumerMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

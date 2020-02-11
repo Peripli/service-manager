@@ -82,6 +82,7 @@ var _ = Describe("WS", func() {
 	JustBeforeEach(func() {
 		var err error
 		wsconn, resp, err = ctx.ConnectWebSocket(platform, queryParams)
+		//wsconn.WriteMessage(websocket.PingMessage, []byte("pingping"))
 		Expect(err).ShouldNot(HaveOccurred())
 	})
 
