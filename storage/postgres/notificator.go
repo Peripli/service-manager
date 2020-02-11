@@ -166,22 +166,21 @@ func (n *Notificator) GetLastRevision() (int64, error) {
 	return fetchedLastKnownRevision, nil
 }
 
-func (n *Notificator) RegisterConsumer(consumer *types.Platform, lastKnownRevision int64) (storage.NotificationQueue, int64, error) {
+func (n *Notificator) RegisterConsumer(consumer *types.Platform, lastKnownRevisionToProxy int64, lastKnownRevisionToSM int64) (storage.NotificationQueue, error) {
 	if atomic.LoadInt32(&n.isConnected) == aFalse {
-		return nil, types.InvalidRevision, errors.New("cannot register consumer - Notificator is not running")
+		return nil, errors.New("cannot register consumer - Notificator is not running")
 	}
 	queue, err := storage.NewNotificationQueue(n.queueSize)
 	if err != nil {
-		return nil, types.InvalidRevision, err
+		return nil, err
 	}
 
-	var lastKnownRevisionToSM int64
-	lastKnownRevisionToSM, err = n.addConsumer(consumer, queue)
+	_, err = n.addConsumer(consumer, queue)
 	if err != nil {
-		return nil, types.InvalidRevision, err
+		return nil, err
 	}
-	if lastKnownRevision == types.InvalidRevision || lastKnownRevision == lastKnownRevisionToSM {
-		return queue, lastKnownRevisionToSM, nil
+	if lastKnownRevisionToProxy == types.InvalidRevision || lastKnownRevisionToProxy == lastKnownRevisionToSM {
+		return queue, nil
 	}
 	defer func() {
 		if err != nil {
@@ -190,17 +189,17 @@ func (n *Notificator) RegisterConsumer(consumer *types.Platform, lastKnownRevisi
 			}
 		}
 	}()
-	if lastKnownRevision > lastKnownRevisionToSM {
+	if lastKnownRevisionToProxy > lastKnownRevisionToSM {
 		log.C(n.ctx).Debug("lastKnownRevision is grater than the one SM knows")
 		err = util.ErrInvalidNotificationRevision // important for defer logic
-		return nil, types.InvalidRevision, err
+		return nil, err
 	}
 	var queueWithMissedNotifications storage.NotificationQueue
-	queueWithMissedNotifications, err = n.replaceQueueWithMissingNotificationsQueue(queue, lastKnownRevision, lastKnownRevisionToSM, consumer)
+	queueWithMissedNotifications, err = n.replaceQueueWithMissingNotificationsQueue(queue, lastKnownRevisionToProxy, lastKnownRevisionToSM, consumer)
 	if err != nil {
-		return nil, types.InvalidRevision, err
+		return nil, err
 	}
-	return queueWithMissedNotifications, lastKnownRevisionToSM, nil
+	return queueWithMissedNotifications, nil
 }
 
 func (n *Notificator) filterRecipients(recipients []*types.Platform, notification *types.Notification) []*types.Platform {

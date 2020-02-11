@@ -65,17 +65,15 @@ var _ = Describe("Notificator", func() {
 	expectedError := errors.New("*Expected*")
 
 	expectRegisterConsumerFail := func(errorMessage string, revision int64) {
-		q, smRevision, err := testNotificator.RegisterConsumer(defaultPlatform, revision)
+		q, err := testNotificator.RegisterConsumer(defaultPlatform, revision, defaultLastRevision)
 		Expect(q).To(BeNil())
-		Expect(smRevision).To(Equal(types.InvalidRevision))
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring(errorMessage))
 	}
 
 	expectRegisterConsumerSuccess := func(platform *types.Platform, revision int64) storage.NotificationQueue {
-		q, smRevision, err := testNotificator.RegisterConsumer(platform, revision)
+		q, err := testNotificator.RegisterConsumer(platform, revision, defaultLastRevision)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(smRevision).To(Equal(defaultLastRevision))
 		Expect(q).ToNot(BeNil())
 		return q
 	}

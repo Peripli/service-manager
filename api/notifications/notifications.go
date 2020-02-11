@@ -53,12 +53,12 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	_, err = c.notificator.GetLastRevision()
+	revisionKnownToSM, err := c.notificator.GetLastRevision()
 	if err != nil {
 		return nil, err
 	}
 
-	notificationQueue, lastKnownToSMRevision, err := c.notificator.RegisterConsumer(platform, revisionKnownToProxy)
+	notificationQueue, err := c.notificator.RegisterConsumer(platform, revisionKnownToProxy, revisionKnownToSM)
 	if err != nil {
 		if err == util.ErrInvalidNotificationRevision {
 			return util.NewJSONResponse(http.StatusGone, nil)
@@ -77,8 +77,8 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 
 	rw := req.HijackResponseWriter()
 	responseHeaders := http.Header{}
-	if lastKnownToSMRevision != types.InvalidRevision {
-		responseHeaders.Add(LastKnownRevisionHeader, strconv.FormatInt(lastKnownToSMRevision, 10))
+	if revisionKnownToSM != types.InvalidRevision {
+		responseHeaders.Add(LastKnownRevisionHeader, strconv.FormatInt(revisionKnownToSM, 10))
 	}
 
 	conn, err := c.upgrade(childCtx, c.repository, platform, rw, req.Request, responseHeaders)
