@@ -192,60 +192,6 @@ var _ = Describe("Secured Storage", func() {
 				Expect(err).To(HaveOccurred())
 			})
 		})
-	})
 
-	Describe("Lock", func() {
-		AfterEach(func() {
-			s.Unlock(context.TODO())
-		})
-
-		Context("When lock is already acquired", func() {
-			BeforeEach(func() {
-				mock.ExpectExec("SELECT pg_advisory_lock*").WillReturnResult(sqlmock.NewResult(1, 1))
-			})
-
-			It("Should return an error", func() {
-				err := s.Lock(context.TODO())
-				Expect(err).ToNot(HaveOccurred())
-
-				err = s.Lock(context.TODO())
-				Expect(err).To(HaveOccurred())
-			})
-		})
-
-		Context("When lock is not yet acquired", func() {
-			BeforeEach(func() {
-				mock.ExpectExec("SELECT").WillReturnResult(sqlmock.NewResult(int64(1), int64(1)))
-			})
-
-			It("Should acquire lock", func() {
-				err := s.Lock(context.TODO())
-				Expect(err).ToNot(HaveOccurred())
-			})
-		})
-	})
-
-	Describe("Unlock", func() {
-		Context("When lock is not acquired", func() {
-			It("Should return nil", func() {
-				err := s.Unlock(context.TODO())
-				Expect(err).ToNot(HaveOccurred())
-			})
-		})
-
-		Context("When lock is acquired", func() {
-			BeforeEach(func() {
-				mock.ExpectExec("SELECT pg_advisory_lock*").WillReturnResult(sqlmock.NewResult(1, 1))
-				mock.ExpectExec("SELECT pg_advisory_unlock*").WithArgs(sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
-			})
-
-			It("Should release lock", func() {
-				err := s.Lock(context.TODO())
-				Expect(err).ToNot(HaveOccurred())
-
-				err = s.Unlock(context.TODO())
-				Expect(err).To(BeNil())
-			})
-		})
 	})
 })

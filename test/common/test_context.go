@@ -168,7 +168,7 @@ func NewTestContextBuilder() *TestContextBuilder {
 		Environment: TestEnv,
 		envPostHooks: []func(env env.Environment, servers map[string]FakeServer){
 			func(env env.Environment, servers map[string]FakeServer) {
-				env.Set("api.token_issuer_url", servers["oauth-server"].URL())
+				env.Set("api.token_issuer_url", servers[OauthServer].URL())
 			},
 			func(env env.Environment, servers map[string]FakeServer) {
 				flag.VisitAll(func(flag *flag.Flag) {
@@ -183,9 +183,7 @@ func NewTestContextBuilder() *TestContextBuilder {
 		smExtensions:       []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error{},
 		defaultTokenClaims: make(map[string]interface{}, 0),
 		tenantTokenClaims:  make(map[string]interface{}, 0),
-		Servers: map[string]FakeServer{
-			"oauth-server": NewOAuthServer(),
-		},
+		Servers:            map[string]FakeServer{},
 		HttpClient: &http.Client{
 			Transport: &http.Transport{
 				Proxy: http.ProxyFromEnvironment,
@@ -315,6 +313,7 @@ func (tcb *TestContextBuilder) BuildWithoutCleanup() *TestContext {
 func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup bool) *TestContext {
 	environment := tcb.Environment(tcb.envPreHooks...)
 
+	tcb.Servers[OauthServer] = NewOAuthServer()
 	for _, envPostHook := range tcb.envPostHooks {
 		envPostHook(environment, tcb.Servers)
 	}
@@ -538,11 +537,17 @@ func (ctx *TestContext) CleanupBroker(id string) {
 }
 
 func (ctx *TestContext) Cleanup() {
+	ctx.CleanupAll(true)
+}
+
+func (ctx *TestContext) CleanupAll(cleanupResources bool) {
 	if ctx == nil {
 		return
 	}
 
-	ctx.CleanupAdditionalResources()
+	if cleanupResources {
+		ctx.CleanupAdditionalResources()
+	}
 
 	for _, server := range ctx.Servers {
 		server.Close()

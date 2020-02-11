@@ -14,7 +14,7 @@ websocket:
   ping_timeout: 6000ms
   write_timeout: 6000ms
 log:
-  level: error
+  level: debug
   format: kibana
 storage:
   #  name: sm-postgres
@@ -27,8 +27,8 @@ api:
   client_id: cf
 operations:
   cleanup_interval: 30m
-  job_timeout: 12m
-  scheduled_deletion_timeout: 12h
+  action_timeout: 12m
+  reconciliation_operation_timeout: 12h
   polling_interval: 5s
   rescheduling_interval: 5s
   pools:

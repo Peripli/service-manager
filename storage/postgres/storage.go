@@ -51,7 +51,6 @@ type Storage struct {
 	state                 *storageState
 	layerOneEncryptionKey []byte
 	scheme                *scheme
-	isLocked              bool
 	mutex                 sync.Mutex
 }
 

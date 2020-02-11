@@ -106,7 +106,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	// Decorate the storage with credentials encryption/decryption
-	encryptingDecorator := storage.EncryptingDecorator(ctx, &security.AESEncrypter{}, smStorage)
+	encryptingDecorator := storage.EncryptingDecorator(ctx, &security.AESEncrypter{}, smStorage, postgres.EncryptingLocker(smStorage))
 
 	// Initialize the storage with graceful termination
 	var transactionalRepository storage.TransactionalRepository
@@ -155,7 +155,11 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		Settings: *cfg.Storage,
 	}
 
-	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, cfg.Operations)
+	postgresLockerCreatorFunc := func(advisoryIndex int) storage.Locker {
+		return &postgres.Locker{Storage: smStorage, AdvisoryIndex: advisoryIndex}
+	}
+
+	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, postgresLockerCreatorFunc, cfg.Operations, waitGroup)
 	osbClientProvider := osb.NewBrokerClientProvider(cfg.HTTPClient.SkipSSLValidation, int(cfg.HTTPClient.ResponseHeaderTimeout.Seconds()))
 
 	smb := &ServiceManagerBuilder{

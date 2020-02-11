@@ -17,7 +17,12 @@
 package service_test
 
 import (
+	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/query"
+	"sync/atomic"
 	"time"
 
 	"github.com/tidwall/gjson"
@@ -80,7 +85,7 @@ var _ = DescribeTestsFor(TestCase{
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
 	ResourcePropertiesToIgnore:             []string{"platform_id"},
 	PatchResource:                          APIResourcePatch,
-	AdditionalTests: func(ctx *TestContext) {
+	AdditionalTests: func(ctx *TestContext, t *TestCase) {
 		Context("additional non-generic tests", func() {
 			var (
 				postInstanceRequest Object
@@ -97,6 +102,7 @@ var _ = DescribeTestsFor(TestCase{
 				expectedCreateSuccessStatusCode int
 				expectedDeleteSuccessStatusCode int
 				expectedBrokerFailureStatusCode int
+				expectedSMCrashStatusCode       int
 			}
 
 			testCases := []testCase{
@@ -105,12 +111,14 @@ var _ = DescribeTestsFor(TestCase{
 					expectedCreateSuccessStatusCode: http.StatusCreated,
 					expectedDeleteSuccessStatusCode: http.StatusOK,
 					expectedBrokerFailureStatusCode: http.StatusBadGateway,
+					expectedSMCrashStatusCode:       http.StatusBadGateway,
 				},
 				{
 					async:                           true,
 					expectedCreateSuccessStatusCode: http.StatusAccepted,
 					expectedDeleteSuccessStatusCode: http.StatusAccepted,
 					expectedBrokerFailureStatusCode: http.StatusAccepted,
+					expectedSMCrashStatusCode:       http.StatusAccepted,
 				},
 			}
 
@@ -144,7 +152,7 @@ var _ = DescribeTestsFor(TestCase{
 					Status(expectedStatusCode)
 			}
 
-			verifyInstanceExists := func(instanceID string, ready bool) {
+			verifyInstanceExists := func(ctx *TestContext, instanceID string, ready bool) {
 				timeoutDuration := 15 * time.Second
 				tickerInterval := 100 * time.Millisecond
 				ticker := time.NewTicker(tickerInterval)
@@ -325,7 +333,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyInstanceExists(instanceID, true)
+									verifyInstanceExists(ctx, instanceID, true)
 								})
 							}
 
@@ -482,7 +490,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyInstanceExists(instanceID, false)
+									verifyInstanceExists(ctx, instanceID, false)
 								})
 
 								AfterEach(func() {
@@ -520,6 +528,71 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 
+							XWhen("SM crashes after storing operation before storing resource", func() {
+								var newCtx *TestContext
+
+								postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
+									return func(e env.Environment, servers map[string]FakeServer) {
+										e.Set("server.shutdown_timeout", 1*time.Second)
+										e.Set("httpclient.response_header_timeout", 1*time.Second)
+									}
+								}
+
+								BeforeEach(func() {
+									ctxMaintainerBuilder := t.ContextBuilder.WithEnvPostExtensions(postHookWithShutdownTimeout())
+									newCtx = ctxMaintainerBuilder.BuildWithoutCleanup()
+
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", func(_ *http.Request) (int, map[string]interface{}) {
+										defer newCtx.CleanupAll(false)
+										return http.StatusOK, Object{"state": "in progress"}
+									})
+
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", func(_ *http.Request) (int, map[string]interface{}) {
+										return http.StatusOK, Object{"state": "succeeded"}
+									})
+								})
+
+								It("Should mark operation as failed and trigger orphan mitigation", func() {
+									opChan := make(chan *types.Operation)
+									defer close(opChan)
+
+									opCriteria := []query.Criterion{
+										query.ByField(query.EqualsOperator, "type", string(types.CREATE)),
+										query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
+										query.ByField(query.EqualsOperator, "resource_type", string(types.ServiceInstanceType)),
+										query.ByField(query.EqualsOperator, "reschedule", "false"),
+										query.ByField(query.EqualsOperator, "deletion_scheduled", operations.ZeroTime),
+									}
+
+									go func() {
+										for {
+											object, err := ctx.SMRepository.Get(context.TODO(), types.OperationType, opCriteria...)
+											if err == nil {
+												opChan <- object.(*types.Operation)
+												break
+											}
+										}
+									}()
+
+									createInstanceWithAsync(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedSMCrashStatusCode)
+									operation := <-opChan
+
+									verifyInstanceDoesNotExist(operation.ResourceID)
+
+									operationExpectation := OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.FAILED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									}
+
+									instanceID, _ = VerifyOperationExists(ctx, fmt.Sprintf("%s/%s%s/%s", web.ServiceInstancesURL, operation.ResourceID, web.OperationsURL, operation.ID), operationExpectation)
+									verifyInstanceDoesNotExist(instanceID)
+								})
+							})
+
 							When("broker responds with synchronous success", func() {
 								BeforeEach(func() {
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusCreated, Object{"async": false}))
@@ -536,7 +609,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyInstanceExists(instanceID, true)
+									verifyInstanceExists(ctx, instanceID, true)
 								})
 							})
 
@@ -557,17 +630,17 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyInstanceExists(instanceID, true)
+									verifyInstanceExists(ctx, instanceID, true)
 								})
 
 								if testCase.async {
-									When("job timeout is reached while polling", func() {
+									When("action timeout is reached while polling", func() {
 										var oldCtx *TestContext
 
 										BeforeEach(func() {
 											oldCtx = ctx
 											ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-												Expect(set.Set("operations.job_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
+												Expect(set.Set("operations.action_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 
 											brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
@@ -589,7 +662,56 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											})
 
-											verifyInstanceExists(instanceID, false)
+											verifyInstanceExists(ctx, instanceID, false)
+										})
+									})
+
+									XWhen("SM crashes while polling", func() {
+										var newCtx *TestContext
+										var isProvisioned atomic.Value
+
+										postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
+											return func(e env.Environment, servers map[string]FakeServer) {
+												e.Set("server.shutdown_timeout", 1*time.Second)
+											}
+										}
+
+										BeforeEach(func() {
+											ctxMaintainerBuilder := t.ContextBuilder.WithEnvPostExtensions(postHookWithShutdownTimeout())
+											newCtx = ctxMaintainerBuilder.BuildWithoutCleanup()
+
+											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", func(_ *http.Request) (int, map[string]interface{}) {
+												if isProvisioned.Load() != nil {
+													return http.StatusOK, Object{"state": types.SUCCEEDED}
+												} else {
+													return http.StatusOK, Object{"state": types.IN_PROGRESS}
+												}
+											})
+										})
+
+										It("should start restart polling through maintainer and eventually instance is set to ready", func() {
+											resp := createInstanceWithAsync(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+											operationExpectation := OperationExpectations{
+												Category:          types.CREATE,
+												State:             types.IN_PROGRESS,
+												ResourceType:      types.ServiceInstanceType,
+												Reschedulable:     true,
+												DeletionScheduled: false,
+											}
+
+											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectation)
+											verifyInstanceExists(newCtx, instanceID, false)
+
+											newCtx.CleanupAll(false)
+
+											isProvisioned.Store(true)
+
+											operationExpectation.State = types.SUCCEEDED
+											operationExpectation.Reschedulable = false
+
+											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectation)
+											verifyInstanceExists(ctx, instanceID, true)
 										})
 									})
 								}
@@ -610,7 +732,7 @@ var _ = DescribeTestsFor(TestCase{
 											Reschedulable:     false,
 											DeletionScheduled: false,
 										})
-										verifyInstanceExists(instanceID, true)
+										verifyInstanceExists(ctx, instanceID, true)
 									})
 								})
 
@@ -660,7 +782,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											verifyInstanceExists(instanceID, false)
+											verifyInstanceExists(ctx, instanceID, false)
 										})
 									})
 
@@ -705,7 +827,7 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										})
 
-										verifyInstanceExists(instanceID, false)
+										verifyInstanceExists(ctx, instanceID, false)
 									})
 								})
 							})
@@ -785,7 +907,7 @@ var _ = DescribeTestsFor(TestCase{
 										BeforeEach(func() {
 											oldCtx = ctx
 											ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-												Expect(set.Set("operations.scheduled_deletion_timeout", (2 * time.Millisecond).String())).ToNot(HaveOccurred())
+												Expect(set.Set("operations.reconciliation_operation_timeout", (2 * time.Millisecond).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 										})
 
@@ -804,7 +926,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											verifyInstanceExists(instanceID, false)
+											verifyInstanceExists(ctx, instanceID, false)
 										})
 									})
 								})
@@ -827,10 +949,60 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											verifyInstanceExists(instanceID, false)
+											verifyInstanceExists(ctx, instanceID, false)
 										})
 									})
 								}
+
+								XWhen("SM crashes while orphan mitigating", func() {
+									var newCtx *TestContext
+									var isDeprovisioned atomic.Value
+
+									postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
+										return func(e env.Environment, servers map[string]FakeServer) {
+											e.Set("server.shutdown_timeout", 1*time.Second)
+										}
+									}
+
+									BeforeEach(func() {
+										ctxMaintainerBuilder := t.ContextBuilder.WithEnvPostExtensions(postHookWithShutdownTimeout())
+										newCtx = ctxMaintainerBuilder.BuildWithoutCleanup()
+
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", func(_ *http.Request) (int, map[string]interface{}) {
+											if isDeprovisioned.Load() != nil {
+												return http.StatusOK, Object{"state": "succeeded"}
+											} else {
+												return http.StatusOK, Object{"state": "in progress"}
+											}
+										})
+									})
+
+									It("should restart orphan mitigation through maintainer and eventually succeeds", func() {
+										resp := createInstanceWithAsync(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+										operationExpectations := OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.FAILED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     true,
+											DeletionScheduled: true,
+										}
+
+										instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectations)
+
+										newCtx.CleanupAll(false)
+
+										isDeprovisioned.Store(true)
+
+										operationExpectations.DeletionScheduled = false
+										operationExpectations.Reschedulable = false
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectations)
+
+										verifyInstanceDoesNotExist(instanceID)
+									})
+
+								})
 
 								When("broker orphan mitigation deprovision asynchronously fails with an error that will continue further orphan mitigation and eventually succeed", func() {
 									BeforeEach(func() {
@@ -858,7 +1030,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 
-							When("provision responds with error due to times out", func() {
+							When("provision responds with error due to time out", func() {
 								var doneChannel chan interface{}
 								var oldCtx *TestContext
 
@@ -1213,7 +1385,7 @@ var _ = DescribeTestsFor(TestCase{
 									DeletionScheduled: false,
 								})
 
-								verifyInstanceExists(instanceID, true)
+								verifyInstanceExists(ctx, instanceID, true)
 							})
 
 							When("a delete operation is already in progress", func() {
@@ -1234,7 +1406,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyInstanceExists(instanceID, true)
+									verifyInstanceExists(ctx, instanceID, true)
 								})
 
 								AfterEach(func() {
@@ -1284,7 +1456,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyInstanceExists(instanceID, true)
+									verifyInstanceExists(ctx, instanceID, true)
 								})
 							})
 
@@ -1348,13 +1520,65 @@ var _ = DescribeTestsFor(TestCase{
 									verifyInstanceDoesNotExist(instanceID)
 								})
 
+								if testCase.async {
+									XWhen("SM crashes while polling", func() {
+										var newCtx *TestContext
+										var isDeprovisioned atomic.Value
+
+										postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
+											return func(e env.Environment, servers map[string]FakeServer) {
+												e.Set("server.shutdown_timeout", 1*time.Second)
+											}
+										}
+
+										BeforeEach(func() {
+											ctxMaintainerBuilder := t.ContextBuilder.WithEnvPostExtensions(postHookWithShutdownTimeout())
+											newCtx = ctxMaintainerBuilder.BuildWithoutCleanup()
+
+											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", func(_ *http.Request) (int, map[string]interface{}) {
+												if isDeprovisioned.Load() != nil {
+													return http.StatusOK, Object{"state": "succeeded"}
+												} else {
+													return http.StatusOK, Object{"state": "in progress"}
+												}
+											})
+										})
+
+										It("should restart polling through maintainer and eventually deletes the instance", func() {
+											resp := deleteInstance(newCtx.SMWithOAuthForTenant, true, http.StatusAccepted)
+
+											operationExpectations := OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.IN_PROGRESS,
+												ResourceType:      types.ServiceInstanceType,
+												Reschedulable:     true,
+												DeletionScheduled: false,
+											}
+
+											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectations)
+											verifyInstanceExists(newCtx, instanceID, true)
+
+											newCtx.CleanupAll(false)
+
+											isDeprovisioned.Store(true)
+
+											operationExpectations.State = types.SUCCEEDED
+											operationExpectations.Reschedulable = false
+
+											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectations)
+											verifyInstanceDoesNotExist(instanceID)
+
+										})
+									})
+								}
+
 								When("polling responds 410 GONE", func() {
 									BeforeEach(func() {
 										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
 										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", ParameterizedHandler(http.StatusGone, Object{}))
 									})
 
-									It("keeps polling and eventually deletes the binding and marks the operation as success", func() {
+									It("keeps polling and eventually deletes the instance and marks the operation as success", func() {
 										resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
 
 										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -1444,7 +1668,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											verifyInstanceExists(instanceID, true)
+											verifyInstanceExists(ctx, instanceID, true)
 										})
 									})
 
@@ -1482,7 +1706,7 @@ var _ = DescribeTestsFor(TestCase{
 										BeforeEach(func() {
 											oldCtx = ctx
 											ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-												Expect(set.Set("operations.scheduled_deletion_timeout", (2 * time.Millisecond).String())).ToNot(HaveOccurred())
+												Expect(set.Set("operations.reconciliation_operation_timeout", (2 * time.Millisecond).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 										})
 
@@ -1501,7 +1725,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											verifyInstanceExists(instanceID, true)
+											verifyInstanceExists(ctx, instanceID, true)
 										})
 									})
 								})
@@ -1523,7 +1747,7 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										})
 
-										verifyInstanceExists(instanceID, true)
+										verifyInstanceExists(ctx, instanceID, true)
 									})
 								})
 							})
@@ -1545,7 +1769,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyInstanceExists(instanceID, true)
+									verifyInstanceExists(ctx, instanceID, true)
 								})
 							})
 
@@ -1564,7 +1788,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyInstanceExists(instanceID, true)
+									verifyInstanceExists(ctx, instanceID, true)
 								})
 							})
 
@@ -1624,7 +1848,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											verifyInstanceExists(instanceID, true)
+											verifyInstanceExists(ctx, instanceID, true)
 										})
 									})
 								}
@@ -1661,25 +1885,29 @@ var _ = DescribeTestsFor(TestCase{
 							})
 
 							When("deprovision responds with error due to times out", func() {
+								var newCtx *TestContext
 								var doneChannel chan interface{}
 
 								BeforeEach(func() {
 									doneChannel = make(chan interface{})
 
-									ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+									newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
 										Expect(set.Set("httpclient.response_header_timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
 									}).BuildWithoutCleanup()
 
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", DelayingHandler(doneChannel))
+								})
 
+								AfterEach(func() {
+									newCtx.CleanupAll(false)
 								})
 
 								It("orphan mitigates the instance", func() {
-									resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+									resp := deleteInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 									<-time.After(1100 * time.Millisecond)
 									close(doneChannel)
 
-									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.DELETE,
 										State:             types.FAILED,
 										ResourceType:      types.ServiceInstanceType,
@@ -1689,7 +1917,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusOK, Object{"async": false}))
 
-									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.DELETE,
 										State:             types.SUCCEEDED,
 										ResourceType:      types.ServiceInstanceType,

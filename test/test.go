@@ -62,7 +62,20 @@ const (
 
 	Sync  ResponseMode = false
 	Async ResponseMode = true
+
+	JobTimeout          = 15 * time.Second
+	cleanupInterval     = 60 * time.Second
+	operationExpiration = 60 * time.Second
 )
+
+func postHookWithOperationsConfig() func(e env.Environment, servers map[string]common.FakeServer) {
+	return func(e env.Environment, servers map[string]common.FakeServer) {
+		e.Set("operations.action_timeout", JobTimeout)
+		e.Set("operations.cleanup_interval", cleanupInterval)
+		e.Set("operations.lifespan", operationExpiration)
+		e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)
+	}
+}
 
 type MultitenancySettings struct {
 	ClientID           string
@@ -88,7 +101,8 @@ type TestCase struct {
 	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
 	PatchResource                          func(ctx *common.TestContext, tenantScoped bool, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, async bool)
 
-	AdditionalTests func(ctx *common.TestContext)
+	AdditionalTests func(ctx *common.TestContext, t *TestCase)
+	ContextBuilder  *common.TestContextBuilder
 }
 
 func stripObject(obj common.Object, properties ...string) {
@@ -237,11 +251,8 @@ func DescribeTestsFor(t TestCase) bool {
 			ctx.Cleanup()
 		})
 
-		func() {
-			By("==== Preparation for SM tests... ====")
-
-			defer GinkgoRecover()
-			ctxBuilder := common.NewTestContextBuilderWithSecurity()
+		ctxBuilder := func() *common.TestContextBuilder {
+			ctxBuilder := common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHookWithOperationsConfig())
 
 			if t.MultitenancySettings != nil {
 				ctxBuilder.
@@ -268,7 +279,16 @@ func DescribeTestsFor(t TestCase) bool {
 						return nil
 					})
 			}
-			ctx = ctxBuilder.Build()
+			return ctxBuilder
+		}
+
+		t.ContextBuilder = ctxBuilder()
+
+		func() {
+			By("==== Preparation for SM tests... ====")
+
+			defer GinkgoRecover()
+			ctx = ctxBuilder().Build()
 
 			// A panic outside of Ginkgo's primitives (during test setup) would be recovered
 			// by the deferred GinkgoRecover() and the error will be associated with the first
@@ -307,7 +327,7 @@ func DescribeTestsFor(t TestCase) bool {
 			}
 
 			if t.AdditionalTests != nil {
-				t.AdditionalTests(ctx)
+				t.AdditionalTests(ctx, &t)
 			}
 
 			By("==== Successfully finished preparation for SM tests. Running API tests suite... ====")
