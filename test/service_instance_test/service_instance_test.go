@@ -86,7 +86,7 @@ var _ = DescribeTestsFor(TestCase{
 	ResourcePropertiesToIgnore:             []string{"platform_id"},
 	PatchResource:                          APIResourcePatch,
 	AdditionalTests: func(ctx *TestContext, t *TestCase) {
-		Context("additional non-generic tests", func() {
+		FContext("additional non-generic tests", func() {
 			var (
 				postInstanceRequest Object
 

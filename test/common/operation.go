@@ -19,6 +19,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/test"
 	"net/http"
 	"strconv"
 	"time"
@@ -91,7 +92,7 @@ func VerifyResourceDoesNotExist(smClient *SMExpect, expectations ResourceExpecta
 }
 
 func VerifyOperationExists(ctx *TestContext, operationURL string, expectations OperationExpectations) (string, string) {
-	timeoutDuration := 15 * time.Second
+	timeoutDuration := test.JobTimeout
 	timeout := time.After(timeoutDuration)
 	ticker := time.Tick(100 * time.Millisecond)
 	for {
