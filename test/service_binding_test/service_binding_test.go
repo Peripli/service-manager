@@ -24,6 +24,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"net/http"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -736,7 +737,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									When("SM crashes while polling", func() {
 										var newCtx *TestContext
-										var isBound = false
+										var isBound atomic.Value
 
 										postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
 											return func(e env.Environment, servers map[string]FakeServer) {
@@ -750,7 +751,7 @@ var _ = DescribeTestsFor(TestCase{
 
 											brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
 											brokerServer.BindingLastOpHandlerFunc(http.MethodPut+"1", func(_ *http.Request) (int, map[string]interface{}) {
-												if isBound {
+												if isBound.Load() != nil {
 													return http.StatusOK, Object{"state": types.SUCCEEDED}
 												} else {
 													return http.StatusOK, Object{"state": types.IN_PROGRESS}
@@ -775,7 +776,7 @@ var _ = DescribeTestsFor(TestCase{
 
 											newCtx.CleanupAll(false)
 
-											isBound = true
+											isBound.Store(true)
 
 											operationExpectations.State = types.SUCCEEDED
 											operationExpectations.Reschedulable = false
@@ -1002,7 +1003,7 @@ var _ = DescribeTestsFor(TestCase{
 
 								When("SM crashes while orphan mitigating", func() {
 									var newCtx *TestContext
-									var isUnbound = false
+									var isUnbound atomic.Value
 
 									postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
 										return func(e env.Environment, servers map[string]FakeServer) {
@@ -1016,7 +1017,7 @@ var _ = DescribeTestsFor(TestCase{
 
 										brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
 										brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"3", func(_ *http.Request) (int, map[string]interface{}) {
-											if isUnbound {
+											if isUnbound.Load() != nil {
 												return http.StatusOK, Object{"state": types.SUCCEEDED}
 											} else {
 												return http.StatusOK, Object{"state": types.IN_PROGRESS}
@@ -1038,7 +1039,7 @@ var _ = DescribeTestsFor(TestCase{
 										bindingID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectations)
 
 										newCtx.CleanupAll(false)
-										isUnbound = true
+										isUnbound.Store(true)
 
 										operationExpectations.DeletionScheduled = false
 										operationExpectations.Reschedulable = false
@@ -1284,7 +1285,7 @@ var _ = DescribeTestsFor(TestCase{
 								if testCase.async {
 									When("SM crashes while polling", func() {
 										var newCtx *TestContext
-										var isBound = false
+										var isBound atomic.Value
 
 										postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
 											return func(e env.Environment, servers map[string]FakeServer) {
@@ -1298,7 +1299,7 @@ var _ = DescribeTestsFor(TestCase{
 
 											brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
 											brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"1", func(_ *http.Request) (int, map[string]interface{}) {
-												if isBound {
+												if isBound.Load() != nil {
 													return http.StatusOK, Object{"state": types.SUCCEEDED}
 												} else {
 													return http.StatusOK, Object{"state": types.IN_PROGRESS}
@@ -1322,7 +1323,7 @@ var _ = DescribeTestsFor(TestCase{
 											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
 
 											newCtx.CleanupAll(false)
-											isBound = true
+											isBound.Store(true)
 
 											operationExpectations.State = types.SUCCEEDED
 											operationExpectations.Reschedulable = false

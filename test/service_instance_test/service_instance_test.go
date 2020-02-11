@@ -22,6 +22,7 @@ import (
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/query"
+	"sync/atomic"
 	"time"
 
 	"github.com/tidwall/gjson"
@@ -630,7 +631,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									When("SM crashes while polling", func() {
 										var newCtx *TestContext
-										var isProvisioned = false
+										var isProvisioned atomic.Value
 
 										postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
 											return func(e env.Environment, servers map[string]FakeServer) {
@@ -643,10 +644,10 @@ var _ = DescribeTestsFor(TestCase{
 											newCtx = ctxMaintainerBuilder.BuildWithoutCleanup()
 
 											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", func(_ *http.Request) (int, map[string]interface{}) {
-												if isProvisioned {
-													return http.StatusOK, Object{"state": "succeeded"}
+												if isProvisioned.Load() != nil {
+													return http.StatusOK, Object{"state": types.SUCCEEDED}
 												} else {
-													return http.StatusOK, Object{"state": "in progress"}
+													return http.StatusOK, Object{"state": types.IN_PROGRESS}
 												}
 											})
 										})
@@ -667,7 +668,7 @@ var _ = DescribeTestsFor(TestCase{
 
 											newCtx.CleanupAll(false)
 
-											isProvisioned = true
+											isProvisioned.Store(true)
 
 											operationExpectation.State = types.SUCCEEDED
 											operationExpectation.Reschedulable = false
@@ -918,7 +919,7 @@ var _ = DescribeTestsFor(TestCase{
 
 								When("SM crashes while orphan mitigating", func() {
 									var newCtx *TestContext
-									var isDeprovisioned = false
+									var isDeprovisioned atomic.Value
 
 									postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
 										return func(e env.Environment, servers map[string]FakeServer) {
@@ -932,7 +933,7 @@ var _ = DescribeTestsFor(TestCase{
 
 										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
 										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", func(_ *http.Request) (int, map[string]interface{}) {
-											if isDeprovisioned {
+											if isDeprovisioned.Load() != nil {
 												return http.StatusOK, Object{"state": "succeeded"}
 											} else {
 												return http.StatusOK, Object{"state": "in progress"}
@@ -955,7 +956,7 @@ var _ = DescribeTestsFor(TestCase{
 
 										newCtx.CleanupAll(false)
 
-										isDeprovisioned = true
+										isDeprovisioned.Store(true)
 
 										operationExpectations.DeletionScheduled = false
 										operationExpectations.Reschedulable = false
@@ -1436,7 +1437,7 @@ var _ = DescribeTestsFor(TestCase{
 								if testCase.async {
 									When("SM crashes while polling", func() {
 										var newCtx *TestContext
-										var isDeprovisioned = false
+										var isDeprovisioned atomic.Value
 
 										postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
 											return func(e env.Environment, servers map[string]FakeServer) {
@@ -1449,7 +1450,7 @@ var _ = DescribeTestsFor(TestCase{
 											newCtx = ctxMaintainerBuilder.BuildWithoutCleanup()
 
 											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", func(_ *http.Request) (int, map[string]interface{}) {
-												if isDeprovisioned {
+												if isDeprovisioned.Load() != nil {
 													return http.StatusOK, Object{"state": "succeeded"}
 												} else {
 													return http.StatusOK, Object{"state": "in progress"}
@@ -1473,7 +1474,7 @@ var _ = DescribeTestsFor(TestCase{
 
 											newCtx.CleanupAll(false)
 
-											isDeprovisioned = true
+											isDeprovisioned.Store(true)
 
 											operationExpectations.State = types.SUCCEEDED
 											operationExpectations.Reschedulable = false
