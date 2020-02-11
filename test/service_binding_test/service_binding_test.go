@@ -708,7 +708,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								if testCase.async {
-									When("job timeout is reached while polling", func() {
+									When("action timeout is reached while polling", func() {
 										var oldCtx *TestContext
 										BeforeEach(func() {
 											oldCtx = ctx

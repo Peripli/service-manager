@@ -185,7 +185,7 @@ var _ = Describe("Operations", func() {
 
 	Context("Maintainer", func() {
 		const (
-			jobTimeout          = 1 * time.Second
+			actionTimeout       = 1 * time.Second
 			cleanupInterval     = 2 * time.Second
 			operationExpiration = 2 * time.Second
 		)
@@ -194,8 +194,7 @@ var _ = Describe("Operations", func() {
 
 		postHookWithOperationsConfig := func() func(e env.Environment, servers map[string]common.FakeServer) {
 			return func(e env.Environment, servers map[string]common.FakeServer) {
-				e.Set("operations.action_timeout", jobTimeout)
-				e.Set("operations.mark_orphans_interval", jobTimeout)
+				e.Set("operations.action_timeout", actionTimeout)
 				e.Set("operations.cleanup_interval", cleanupInterval)
 				e.Set("operations.lifespan", operationExpiration)
 				e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)
@@ -212,61 +211,6 @@ var _ = Describe("Operations", func() {
 			postHook := postHookWithOperationsConfig()
 			ctxBuilder = common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook)
 			ctx = ctxBuilder.Build()
-		})
-
-		Context("Staled operations", func() {
-			BeforeEach(func() {
-				resource := &types.Platform{
-					Base: types.Base{
-						ID:        "resource_id",
-						CreatedAt: time.Now(),
-						UpdatedAt: time.Now(),
-						Labels:    map[string][]string{},
-						Ready:     false,
-					},
-					Type: "cloudfoundry",
-					Name: "platform-name",
-					Credentials: &types.Credentials{
-						Basic: &types.Basic{
-							Username: "",
-							Password: "",
-						},
-					},
-					Active: false,
-				}
-				object, err := ctx.SMRepository.Create(context.Background(), resource)
-				Expect(err).To(BeNil())
-				Expect(object).To(Not(BeNil()))
-
-				operation := &types.Operation{
-					Base: types.Base{
-						ID:        defaultOperationID,
-						UpdatedAt: time.Now().Add(-time.Hour),
-						Labels:    make(map[string][]string),
-						Ready:     false,
-					},
-					Type:          types.CREATE,
-					Reschedule:    true,
-					State:         types.IN_PROGRESS,
-					ResourceID:    resource.GetID(),
-					ResourceType:  resource.GetType(),
-					PlatformID:    types.SMPlatform,
-					CorrelationID: "test-correlation-id",
-				}
-
-				object, err = ctx.SMRepository.Create(context.Background(), operation)
-				Expect(err).To(BeNil())
-				Expect(object).To(Not(BeNil()))
-			})
-
-			It("should reschedule them", func() {
-				Eventually(func() bool {
-					byID := query.ByField(query.EqualsOperator, "id", defaultOperationID)
-					object, err := ctx.SMRepository.Get(context.Background(), types.OperationType, byID)
-					Expect(err).To(BeNil())
-					return object.GetUpdatedAt().After(time.Now().Add(-time.Hour))
-				}, jobTimeout*5).Should(BeTrue())
-			})
 		})
 
 		When("Specified cleanup interval passes", func() {
@@ -411,7 +355,7 @@ var _ = Describe("Operations", func() {
 
 					op := object.(*types.Operation)
 					return op.State
-				}, jobTimeout*5).Should(Equal(types.FAILED))
+				}, actionTimeout*5).Should(Equal(types.FAILED))
 			})
 		})
 	})
