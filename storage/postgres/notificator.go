@@ -118,7 +118,7 @@ func (n *Notificator) Start(ctx context.Context, group *sync.WaitGroup) error {
 	return nil
 }
 
-func (n *Notificator) addConsumer(platform *types.Platform, queue storage.NotificationQueue) (int64, error) {
+func (n *Notificator) addConsumer(platform *types.Platform, queue storage.NotificationQueue) error {
 	// must listen and add consumer under connectionMutex lock as UnregisterConsumer
 	// might stop notification processing if no other consumers are present
 	n.connectionMutex.Lock()
@@ -127,16 +127,9 @@ func (n *Notificator) addConsumer(platform *types.Platform, queue storage.Notifi
 		log.C(n.ctx).Debugf("Start listening notification channel %s", postgresChannel)
 		err := n.connection.Listen(postgresChannel)
 		if err != nil && err != pq.ErrChannelAlreadyOpen {
-			return types.InvalidRevision, fmt.Errorf("listen to %s channel failed %v", postgresChannel, err)
+			return fmt.Errorf("listen to %s channel failed %v", postgresChannel, err)
 		}
-		lastKnownRevision, err := n.storage.GetLastRevision(n.ctx)
-		if err != nil {
-			if errUnlisten := n.connection.Unlisten(postgresChannel); errUnlisten != nil {
-				log.C(n.ctx).WithError(errUnlisten).Errorf("could not unlisten %s channel", postgresChannel)
-			}
-			return types.InvalidRevision, fmt.Errorf("getting last revision failed %v", err)
-		}
-		atomic.StoreInt64(&n.lastKnownRevision, lastKnownRevision)
+
 		n.isListening = true
 		notificationProcessingContext, stopProcessing := context.WithCancel(n.ctx)
 		n.stopProcessing = stopProcessing
@@ -147,7 +140,7 @@ func (n *Notificator) addConsumer(platform *types.Platform, queue storage.Notifi
 	n.consumersMutex.Lock()
 	defer n.consumersMutex.Unlock()
 	n.consumers.Add(platform, queue)
-	return atomic.LoadInt64(&n.lastKnownRevision), nil
+	return nil
 }
 
 func (n *Notificator) GetLastRevision() (int64, error) {
@@ -175,7 +168,7 @@ func (n *Notificator) RegisterConsumer(consumer *types.Platform, lastKnownRevisi
 		return nil, err
 	}
 
-	_, err = n.addConsumer(consumer, queue)
+	err = n.addConsumer(consumer, queue)
 	if err != nil {
 		return nil, err
 	}

@@ -365,13 +365,13 @@ var _ = Describe("Notificator", func() {
 			runningFunc(true, nil)
 		})
 
-		Context("When storage GetLastRevision fails", func() {
+		Context("When connection Listen fails", func() {
 			BeforeEach(func() {
-				fakeNotificationStorage.GetLastRevisionReturns(types.InvalidRevision, expectedError)
+				fakeNotificationConnection.ListenReturns(expectedError)
 			})
 
 			It("Should return error", func() {
-				expectRegisterConsumerFail("getting last revision failed "+expectedError.Error(), types.InvalidRevision)
+				expectRegisterConsumerFail("listen to notifications channel failed "+expectedError.Error(), types.InvalidRevision)
 			})
 		})
 
