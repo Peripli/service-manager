@@ -54,7 +54,7 @@ func (l *Locker) Lock(ctx context.Context) error {
 	log.C(ctx).Infof("Executing lock of locker with advisory index (%d)", l.AdvisoryIndex)
 	rows, err := l.lockerCon.QueryContext(ctx, "SELECT pg_advisory_lock($1)", l.AdvisoryIndex)
 	if err != nil {
-		l.release()
+		l.release(ctx)
 		log.C(ctx).Infof("Failed to lock locker with advisory index (%d)", l.AdvisoryIndex)
 		return err
 	}
@@ -89,7 +89,7 @@ func (l *Locker) TryLock(ctx context.Context) error {
 	log.C(ctx).Infof("Executing try_lock of locker with advisory index (%d)", l.AdvisoryIndex)
 	rows, err := l.lockerCon.QueryContext(ctx, "SELECT pg_try_advisory_lock($1)", l.AdvisoryIndex)
 	if err != nil {
-		l.release()
+		l.release(ctx)
 		log.C(ctx).Infof("Failed to try_lock locker with advisory index (%d)", l.AdvisoryIndex)
 		return err
 	}
@@ -102,13 +102,13 @@ func (l *Locker) TryLock(ctx context.Context) error {
 	var locked bool
 	for rows.Next() {
 		if err = rows.Scan(&locked); err != nil {
-			l.release()
+			l.release(ctx)
 			return err
 		}
 	}
 
 	if !locked {
-		l.release()
+		l.release(ctx)
 		log.C(ctx).Infof("Failed to try_lock locker with advisory index (%d) - either already locked or failed to lock", l.AdvisoryIndex)
 		return ErrLockAcquisition
 	}
@@ -128,7 +128,7 @@ func (l *Locker) Unlock(ctx context.Context) error {
 		log.C(ctx).Infof("Locker with advisory index (%d) is not locked, so no attempt to unlock it", l.AdvisoryIndex)
 		return nil
 	}
-	defer l.release()
+	defer l.release(ctx)
 
 	log.C(ctx).Infof("Executing unlock of locker with advisory index (%d)", l.AdvisoryIndex)
 	rows, err := l.lockerCon.QueryContext(ctx, "SELECT pg_advisory_unlock($1)", l.AdvisoryIndex)
@@ -160,7 +160,7 @@ func (l *Locker) Unlock(ctx context.Context) error {
 	return nil
 }
 
-func (l *Locker) release() {
+func (l *Locker) release(ctx context.Context) {
 	if err := l.lockerCon.Close(); err != nil {
 		log.C(ctx).WithError(err).Error("Could not release connection")
 	}
