@@ -63,7 +63,7 @@ const (
 	Sync  ResponseMode = false
 	Async ResponseMode = true
 
-	JobTimeout          = 15 * time.Second
+	JobTimeout          = 30 * time.Second
 	cleanupInterval     = 60 * time.Second
 	operationExpiration = 60 * time.Second
 )
