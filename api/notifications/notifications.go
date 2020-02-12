@@ -89,6 +89,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
+	// TODO: If the check annotated with 'TODO' in the func RegisterConsumer is removed then the error handling here will be obsolete
 	notificationQueue, err := c.notificator.RegisterConsumer(platform, revisionKnownToProxy, revisionKnownToSM)
 	if err != nil {
 		if err == util.ErrInvalidNotificationRevision {

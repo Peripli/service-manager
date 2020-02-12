@@ -349,7 +349,7 @@ var _ = Describe("Notificator", func() {
 				fakeNotificationStorage.GetLastRevisionReturns(defaultLastRevision, nil)
 			})
 
-			It ("Should return the newly fetched revision", func() {
+			It("Should return the newly fetched revision", func() {
 				notificator := newNotificator(defaultQueueSize, types.InvalidRevision)
 				lastRevision, err := notificator.GetLastRevision()
 				Expect(err).ToNot(HaveOccurred())
@@ -358,7 +358,7 @@ var _ = Describe("Notificator", func() {
 		})
 	})
 
-	Describe ("IsRevisionValid", func() {
+	Describe("IsRevisionValid", func() {
 		It("Should return true and no error", func() {
 			fakeNotificationStorage.GetNotificationByRevisionReturns(nil, nil)
 			result, err := testNotificator.IsRevisionValid(defaultLastRevision)
