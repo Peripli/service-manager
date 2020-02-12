@@ -33,8 +33,8 @@ const (
 	ZeroTime                   = "0001-01-01 00:00:00+00"
 )
 
-// MaintainerFunctor represents a named maintainer function which runs over a pre-defined period
-type MaintainerFunctor struct {
+// maintainerFunctor represents a named maintainer function which runs over a pre-defined period
+type maintainerFunctor struct {
 	name     string
 	interval time.Duration
 	execute  func()
@@ -50,7 +50,7 @@ type Maintainer struct {
 	settings *Settings
 	wg       *sync.WaitGroup
 
-	functors         []MaintainerFunctor
+	functors         []maintainerFunctor
 	operationLockers map[string]storage.Locker
 }
 
@@ -64,7 +64,7 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 		wg:         wg,
 	}
 
-	maintainer.functors = []MaintainerFunctor{
+	maintainer.functors = []maintainerFunctor{
 		{
 			name:     "cleanupExternalOperations",
 			execute:  maintainer.cleanupExternalOperations,
@@ -236,7 +236,7 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 			object, err := om.repository.Get(om.smCtx, operation.ResourceType, query.ByField(query.EqualsOperator, "id", operation.ResourceID))
 			if err != nil {
 				logger.Warnf("Failed to fetch resource with ID (%s) for operation with ID (%s): %s", operation.ResourceID, operation.ID, err)
-				return
+				break
 			}
 
 			action = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
