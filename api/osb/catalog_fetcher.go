@@ -46,11 +46,6 @@ func CatalogFetcher(doRequestFunc util.DoRequestFunc, brokerAPIVersion string) f
 			}
 		}
 
-		var responseBytes []byte
-		if responseBytes, err = util.BodyToBytes(response.Body); err != nil {
-			return nil, fmt.Errorf("error getting content from body of response with status %s: %s", response.Status, err)
-		}
-
 		if response.StatusCode != http.StatusOK {
 			log.C(ctx).WithError(err).Errorf("error fetching catalog for broker with name %s: %s", broker.Name, util.HandleResponseError(response))
 			return nil, &util.HTTPError{
@@ -59,6 +54,12 @@ func CatalogFetcher(doRequestFunc util.DoRequestFunc, brokerAPIVersion string) f
 				StatusCode:  http.StatusBadRequest,
 			}
 		}
+
+		var responseBytes []byte
+		if responseBytes, err = util.BodyToBytes(response.Body); err != nil {
+			return nil, fmt.Errorf("error getting content from body of response with status %s: %s", response.Status, err)
+		}
+
 		log.C(ctx).Debugf("Successfully fetched catalog from broker with name %s and URL %s", broker.Name, broker.BrokerURL)
 
 		return responseBytes, nil

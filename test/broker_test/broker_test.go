@@ -274,6 +274,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
+				Context("when the broker returns 404 for catalog", func() {
+					BeforeEach(func() {
+						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
+							common.SetResponse(rw, http.StatusNotFound, common.Object{})
+						}
+					})
+
+					It("returns 400", func() {
+						ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithNoLabels).
+							Expect().
+							Status(http.StatusBadRequest)
+					})
+				})
+
 				Context("when the broker call for catalog times out", func() {
 					const (
 						timeoutDuration             = time.Millisecond * 500
