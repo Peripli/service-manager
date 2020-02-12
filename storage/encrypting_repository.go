@@ -19,10 +19,10 @@ type LockerCreatorFunc func(advisoryIndex int) Locker
 
 // Locker provides basic Lock/Unlock functionality
 type Locker interface {
-	// Lock locks the storage so that only one process can manipulate the encryption key. Returns an error if the process has already acquired the lock
+	// Lock locks the storage so that only one process can acquire it. Returns an error if the process has already acquired the lock, but waits if the lock is acquired by different connection
 	Lock(ctx context.Context) error
 
-	// TryLock tries to lock the storage so that only one process can manipulate the encryption key. Returns an error if the process has already acquired the lock
+	// TryLock tries to lock the storage, if it is already locked it returns an error, that it is already locked and does not wait
 	TryLock(ctx context.Context) error
 
 	// Unlock releases the acquired lock.
