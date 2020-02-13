@@ -89,12 +89,16 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
+	c.ensureHealthyWsConnection(childCtx, c.repository, platform, conn)
+
 	// TODO: If the check annotated with 'TODO' in the func RegisterConsumer is removed then the error handling here will be obsolete
 	notificationQueue, err := c.notificator.RegisterConsumer(platform, revisionKnownToProxy, revisionKnownToSM)
 	if err != nil {
 		if err == util.ErrInvalidNotificationRevision {
+			conn.Close()
 			return util.NewJSONResponse(http.StatusGone, nil)
 		}
+		conn.Close()
 		return nil, err
 	}
 
@@ -105,6 +109,35 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	go c.readLoop(childCtx, c.repository, platform, conn, done)
 
 	return &web.Response{}, nil
+}
+
+func (c *Controller) ensureHealthyWsConnection(ctx context.Context, repository storage.TransactionalRepository, platform *types.Platform, conn *websocket.Conn) error {
+	ch := make(chan error)
+	conn.SetPingHandler(func(message string) error {
+
+		if err := conn.SetReadDeadline(time.Now().Add(c.wsSettings.PingTimeout)); err != nil {
+			ch <- err
+			return err
+		}
+
+		if err := updatePlatformStatus(ctx, repository, platform.ID, true); err != nil {
+			return err
+		}
+
+		err := conn.WriteControl(websocket.PongMessage, []byte(message), time.Now().Add(c.wsSettings.WriteTimeout))
+		if err != nil {
+			log.C(ctx).Errorf("initial pong failed: %s", err)
+			ch <- err
+			return err
+		}
+		return nil
+	})
+	go func() {
+		<-ch
+		<-ctx.Done()
+		log.C(ctx).Info("Context cancelled. Terminating notifications handler")
+	}()
+	return nil
 }
 
 func (c *Controller) writeLoop(ctx context.Context, conn *websocket.Conn, q storage.NotificationQueue, done chan<- struct{}) {

@@ -83,6 +83,8 @@ var _ = Describe("WS", func() {
 		var err error
 		wsconn, resp, err = ctx.ConnectWebSocket(platform, queryParams)
 		Expect(err).ShouldNot(HaveOccurred())
+		err = wsconn.WriteMessage(websocket.PingMessage, []byte("pingping"))
+		Expect(err).ShouldNot(HaveOccurred())
 	})
 
 	AfterEach(func() {
@@ -121,8 +123,6 @@ var _ = Describe("WS", func() {
 		})
 
 		It("should respond with pong", func(done Done) {
-			err := wsconn.WriteMessage(websocket.PingMessage, []byte("pingping"))
-			Expect(err).ShouldNot(HaveOccurred())
 			Eventually(pongCh).Should(BeClosed())
 			close(done)
 		})
