@@ -341,11 +341,17 @@ var _ = Describe("Notifications Suite", func() {
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
+				SupportedPlatforms: func(plan *types.ServicePlan) []string {
+					return plan.SupportedPlatforms()
+				},
 			}).OnTxBefore(interceptors.BrokerCreateNotificationInterceptorName).Register()
 
 			smb.WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanUpdateInterceptorProvider{
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
+				},
+				SupportedPlatforms: func(plan *types.ServicePlan) []string {
+					return plan.SupportedPlatforms()
 				},
 			}).OnTxBefore(interceptors.BrokerUpdateNotificationInterceptorName).Register()
 

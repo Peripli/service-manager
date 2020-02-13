@@ -37,11 +37,13 @@ type publicPlanProcessor func(broker *types.ServiceBroker, catalogService *types
 
 type PublicPlanCreateInterceptorProvider struct {
 	IsCatalogPlanPublicFunc publicPlanProcessor
+	SupportedPlatforms      func(plan *types.ServicePlan) []string
 }
 
 func (p *PublicPlanCreateInterceptorProvider) Provide() storage.CreateInterceptor {
 	return &publicPlanCreateInterceptor{
 		isCatalogPlanPublicFunc: p.IsCatalogPlanPublicFunc,
+		supportedPlatforms:      p.SupportedPlatforms,
 	}
 }
 
@@ -51,6 +53,7 @@ func (p *PublicPlanCreateInterceptorProvider) Name() string {
 
 type PublicPlanUpdateInterceptorProvider struct {
 	IsCatalogPlanPublicFunc publicPlanProcessor
+	SupportedPlatforms      func(plan *types.ServicePlan) []string
 }
 
 func (p *PublicPlanUpdateInterceptorProvider) Name() string {
@@ -60,11 +63,13 @@ func (p *PublicPlanUpdateInterceptorProvider) Name() string {
 func (p *PublicPlanUpdateInterceptorProvider) Provide() storage.UpdateInterceptor {
 	return &publicPlanUpdateInterceptor{
 		isCatalogPlanPublicFunc: p.IsCatalogPlanPublicFunc,
+		supportedPlatforms:      p.SupportedPlatforms,
 	}
 }
 
 type publicPlanCreateInterceptor struct {
 	isCatalogPlanPublicFunc publicPlanProcessor
+	supportedPlatforms      func(plan *types.ServicePlan) []string
 }
 
 func (p *publicPlanCreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
@@ -77,12 +82,13 @@ func (p *publicPlanCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFu
 		if err != nil {
 			return nil, err
 		}
-		return newObject, resync(ctx, obj.(*types.ServiceBroker), txStorage, p.isCatalogPlanPublicFunc)
+		return newObject, resync(ctx, obj.(*types.ServiceBroker), txStorage, p.isCatalogPlanPublicFunc, p.supportedPlatforms)
 	}
 }
 
 type publicPlanUpdateInterceptor struct {
 	isCatalogPlanPublicFunc publicPlanProcessor
+	supportedPlatforms      func(plan *types.ServicePlan) []string
 }
 
 func (p *publicPlanUpdateInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
@@ -95,11 +101,11 @@ func (p *publicPlanUpdateInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFu
 		if err != nil {
 			return nil, err
 		}
-		return result, resync(ctx, result.(*types.ServiceBroker), txStorage, p.isCatalogPlanPublicFunc)
+		return result, resync(ctx, result.(*types.ServiceBroker), txStorage, p.isCatalogPlanPublicFunc, p.supportedPlatforms)
 	}
 }
 
-func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.Repository, isCatalogPlanPublicFunc publicPlanProcessor) error {
+func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.Repository, isCatalogPlanPublicFunc publicPlanProcessor, supportedPlatforms func(*types.ServicePlan) []string) error {
 	for _, serviceOffering := range broker.Services {
 		for _, servicePlan := range serviceOffering.Plans {
 			planID := servicePlan.ID
@@ -115,7 +121,7 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 				return err
 			}
 
-			supportedPlatformTypes := servicePlan.SupportedPlatforms()
+			supportedPlatformTypes := supportedPlatforms(servicePlan)
 			if len(supportedPlatformTypes) == 0 { // all platforms are supported -> create single visibility with empty platform ID
 				err = resyncPublicPlanVisibilities(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker.ID)
 			} else { // not all platforms are supported -> create single visibility for each supported platform
