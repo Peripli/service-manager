@@ -103,11 +103,17 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
+				SupportedPlatforms: func(plan *types.ServicePlan) []string {
+					return plan.SupportedPlatforms()
+				},
 			}).OnTxBefore(interceptors.BrokerCreateCatalogInterceptorName).Register()
 
 			smb.WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanUpdateInterceptorProvider{
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
+				},
+				SupportedPlatforms: func(plan *types.ServicePlan) []string {
+					return plan.SupportedPlatforms()
 				},
 			}).OnTxBefore(interceptors.BrokerUpdateCatalogInterceptorName).Register()
 			return nil
