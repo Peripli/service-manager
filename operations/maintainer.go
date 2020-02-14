@@ -222,7 +222,7 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
 	if err != nil {
-		log.D().Debugf("Failed to fetch unprocessed operations: %s", err)
+		log.C(om.smCtx).Errorf("Failed to fetch unprocessed operations: %s", err)
 		return
 	}
 
