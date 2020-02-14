@@ -31,7 +31,7 @@ import (
 )
 
 func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode ResponseMode) bool {
-	return Describe(fmt.Sprintf("DELETE %s", t.API), func() {
+	return XDescribe(fmt.Sprintf("DELETE %s", t.API), func() {
 		const notFoundMsg = "could not find"
 
 		var (

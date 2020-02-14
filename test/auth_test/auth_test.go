@@ -43,7 +43,7 @@ func expectUnauthorizedRequest(ctx *common.TestContext, method, path, authHeader
 		JSON().Object().Keys().Contains("error", "description")
 }
 
-var _ = Describe("Service Manager Authentication", func() {
+var _ = XDescribe("Service Manager Authentication", func() {
 	var (
 		ctx *common.TestContext
 	)

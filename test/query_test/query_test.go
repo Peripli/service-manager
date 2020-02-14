@@ -26,7 +26,7 @@ func TestQuery(t *testing.T) {
 	RunSpecs(t, "Query Tests Suite")
 }
 
-var _ = Describe("Service Manager Query", func() {
+var _ = XDescribe("Service Manager Query", func() {
 	var ctx *common.TestContext
 	var repository storage.Repository
 

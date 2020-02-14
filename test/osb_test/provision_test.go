@@ -30,7 +30,7 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 )
 
-var _ = Describe("Provision", func() {
+var _ = XDescribe("Provision", func() {
 	DescribeTable("call to broker with invalid request",
 		func(serviceInstanceFunc func() map[string]interface{}, expectedStatusCode, expectedGetInstanceStatusCode int) {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)

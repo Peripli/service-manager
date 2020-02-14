@@ -58,7 +58,7 @@ type notificationTypeEntry struct {
 	ProcessNotificationPayload              func(payload string) string
 }
 
-var _ = Describe("Notifications Suite", func() {
+var _ = XDescribe("Notifications Suite", func() {
 	var ctx *common.TestContext
 	var c context.Context
 	var objAfterOp common.Object

@@ -70,7 +70,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
 	PatchResource:                          test.APIResourcePatch,
 	AdditionalTests: func(ctx *common.TestContext, t *test.TestCase) {
-		Context("additional non-generic tests", func() {
+		XContext("additional non-generic tests", func() {
 			var (
 				brokerServer           *common.BrokerServer
 				brokerWithLabelsServer *common.BrokerServer

@@ -84,7 +84,7 @@ var _ = DescribeTestsFor(TestCase{
 	ResourcePropertiesToIgnore:             []string{"volume_mounts", "endpoints", "bind_resource", "credentials"},
 	PatchResource:                          StorageResourcePatch,
 	AdditionalTests: func(ctx *TestContext, t *TestCase) {
-		Context("additional non-generic tests", func() {
+		XContext("additional non-generic tests", func() {
 			var (
 				postBindingRequest  Object
 				instanceID          string

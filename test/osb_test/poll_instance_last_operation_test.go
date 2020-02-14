@@ -32,7 +32,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Get Service Instance Last Operation", func() {
+var _ = XDescribe("Get Service Instance Last Operation", func() {
 	const brokerLastOperationStateFailed = `{"state":"failed", "description": "an error happened"}`
 	BeforeEach(func() {
 		brokerServer.ServiceInstanceLastOpHandler = parameterizedHandler(http.StatusOK, `{}`)

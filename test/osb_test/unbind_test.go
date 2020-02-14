@@ -25,7 +25,7 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-var _ = Describe("Unbind", func() {
+var _ = XDescribe("Unbind", func() {
 	Context("when trying to delete binding", func() {
 		It("should be successful", func() {
 			brokerServer.BindingHandler = parameterizedHandler(http.StatusOK, `{}`)

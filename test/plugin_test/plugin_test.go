@@ -30,7 +30,7 @@ func TestPlugins(t *testing.T) {
 	RunSpecs(t, "Plugin Tests Suite")
 }
 
-var _ = Describe("Service Manager Plugins", func() {
+var _ = XDescribe("Service Manager Plugins", func() {
 	var ctx *common.TestContext
 	var brokerServer *common.BrokerServer
 	var osbURL string

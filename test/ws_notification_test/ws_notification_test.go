@@ -52,7 +52,7 @@ func TestWsConn(t *testing.T) {
 
 var pingTimeout = 1 * time.Second
 
-var _ = Describe("WS", func() {
+var _ = XDescribe("WS", func() {
 	var ctx *common.TestContext
 	var wsconn *websocket.Conn
 	queryParams := map[string]string{}

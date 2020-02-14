@@ -33,7 +33,7 @@ func TestInfo(t *testing.T) {
 	RunSpecs(t, "Info Suite")
 }
 
-var _ = Describe("Info API", func() {
+var _ = XDescribe("Info API", func() {
 	cases := []struct {
 		description     string
 		configBasicAuth bool

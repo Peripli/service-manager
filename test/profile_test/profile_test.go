@@ -37,7 +37,7 @@ func TestProfile(t *testing.T) {
 	RunSpecs(t, "Profile Suite")
 }
 
-var _ = Describe("Profile API", func() {
+var _ = XDescribe("Profile API", func() {
 
 	var ctx *common.TestContext
 

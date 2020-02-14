@@ -387,7 +387,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 		verifyListOpWithAuth(listOpEntry, query, ctx.SMWithOAuth)
 	}
 
-	return Describe("List", func() {
+	return XDescribe("List", func() {
 		Context("with basic auth", func() {
 			It("returns 200", func() {
 				ctx.SMWithBasic.GET(t.API).

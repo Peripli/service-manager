@@ -23,7 +23,7 @@ func TestStorage(t *testing.T) {
 	RunSpecs(t, "Storage Suite")
 }
 
-var _ = Describe("Test", func() {
+var _ = XDescribe("Test", func() {
 	var ctx *common.TestContext
 	var platform types.Object
 	var err error

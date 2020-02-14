@@ -41,7 +41,7 @@ func TestInterceptors(t *testing.T) {
 	RunSpecs(t, "Interceptor Suite")
 }
 
-var _ = Describe("Interceptors", func() {
+var _ = XDescribe("Interceptors", func() {
 	var ctx *common.TestContext
 
 	var createStack *callStack

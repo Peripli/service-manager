@@ -666,7 +666,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 									})
 
-									XWhen("SM crashes while polling", func() {
+									FWhen("SM crashes while polling", func() {
 										var newCtx *TestContext
 										var isProvisioned atomic.Value
 

@@ -23,7 +23,7 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-var _ = Describe("Post Binding Adapt Credentials", func() {
+var _ = XDescribe("Post Binding Adapt Credentials", func() {
 	Context("when call to working service broker", func() {
 		It("should succeed", func() {
 			brokerServer.BindingAdaptCredentialsHandler = parameterizedHandler(http.StatusOK, `{}`)

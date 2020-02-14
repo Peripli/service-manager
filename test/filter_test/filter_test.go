@@ -24,7 +24,7 @@ func TestFilters(t *testing.T) {
 	RunSpecs(t, "Filter Tests Suite")
 }
 
-var _ = Describe("Service Manager Filters", func() {
+var _ = XDescribe("Service Manager Filters", func() {
 	var ctx *common.TestContext
 	var osbURL string
 

@@ -48,7 +48,7 @@ func TestPublicPlansInterceptor(t *testing.T) {
 	RunSpecs(t, "Public plans Interceptor Tests Suite")
 }
 
-var _ = Describe("Service Manager Public Plans Interceptor", func() {
+var _ = XDescribe("Service Manager Public Plans Interceptor", func() {
 	var ctx *common.TestContext
 	var existingBrokerID string
 	var existingBrokerServer *common.BrokerServer

@@ -31,7 +31,7 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 )
 
-var _ = Describe("Update", func() {
+var _ = XDescribe("Update", func() {
 	Context("when instance is unknown to SM", func() {
 		It("does not fail", func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)

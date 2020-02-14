@@ -46,7 +46,7 @@ func TestServiceManager(t *testing.T) {
 	RunSpecs(t, "Service Manager Suite")
 }
 
-var _ = Describe("SM", func() {
+var _ = XDescribe("SM", func() {
 	var (
 		ctx         context.Context
 		cancel      context.CancelFunc

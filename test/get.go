@@ -37,7 +37,7 @@ import (
 )
 
 func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode ResponseMode) bool {
-	return Describe("GET", func() {
+	return XDescribe("GET", func() {
 		Context("Resource", func() {
 			var testResource common.Object
 			var testResourceID string

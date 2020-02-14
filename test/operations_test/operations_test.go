@@ -47,7 +47,7 @@ func TestOperations(t *testing.T) {
 	RunSpecs(t, "Operations Tests Suite")
 }
 
-var _ = Describe("Operations", func() {
+var _ = XDescribe("Operations", func() {
 	var ctx *common.TestContext
 
 	AfterEach(func() {

@@ -26,7 +26,7 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-var _ = Describe("Bind", func() {
+var _ = XDescribe("Bind", func() {
 	Context("call to working service broker", func() {
 		It("should succeed", func() {
 			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)

@@ -55,7 +55,7 @@ const simpleCatalog = `
 }
 `
 
-var _ = Describe("Catalog", func() {
+var _ = XDescribe("Catalog", func() {
 	Context("when call to working service broker", func() {
 		It("should succeed", func() {
 			ctx.SMWithBasic.GET(smBrokerURL+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).

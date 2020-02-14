@@ -15,7 +15,7 @@ import (
 )
 
 func DescribePatchTestsFor(ctx *common.TestContext, t TestCase, responseMode ResponseMode) bool {
-	return Describe("Patch", func() {
+	return XDescribe("Patch", func() {
 		var testResource common.Object
 		var testResourceID string
 

@@ -34,7 +34,7 @@ func TestHealth(t *testing.T) {
 	RunSpecs(t, "Healthcheck Suite")
 }
 
-var _ = Describe("Healthcheck API", func() {
+var _ = XDescribe("Healthcheck API", func() {
 
 	var (
 		ctxBuilder *common.TestContextBuilder

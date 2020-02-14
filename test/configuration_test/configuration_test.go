@@ -27,7 +27,7 @@ func TestConfiguration(t *testing.T) {
 	RunSpecs(t, "Configuration API Tests Suite")
 }
 
-var _ = Describe("Service Manager Config API", func() {
+var _ = XDescribe("Service Manager Config API", func() {
 	var (
 		ctx                *common.TestContext
 		initialLogSettings *log.Settings

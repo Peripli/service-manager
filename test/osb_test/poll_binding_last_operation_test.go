@@ -26,7 +26,7 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-var _ = Describe("Get Binding Last Operation", func() {
+var _ = XDescribe("Get Binding Last Operation", func() {
 	Context("when call to working service broker", func() {
 		It("should succeed", func() {
 			brokerServer.BindingLastOpHandler = parameterizedHandler(http.StatusOK, `{}`)

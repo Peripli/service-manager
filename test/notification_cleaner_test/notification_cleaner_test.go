@@ -40,7 +40,7 @@ func TestNotificationCleaner(t *testing.T) {
 	RunSpecs(t, "Notification Cleaner Tests Suite")
 }
 
-var _ = Describe("Notification cleaner", func() {
+var _ = XDescribe("Notification cleaner", func() {
 	const (
 		defaultKeepFor    = time.Hour * 6
 		eventuallyTimeout = time.Second * 20

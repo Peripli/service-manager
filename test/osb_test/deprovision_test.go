@@ -29,7 +29,7 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 )
 
-var _ = Describe("Deprovision", func() {
+var _ = XDescribe("Deprovision", func() {
 	Context("when instance is unknown to SM", func() {
 		It("does not fail", func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)

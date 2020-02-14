@@ -30,7 +30,7 @@ type testCase struct {
 	bearerAuthRequestExpectedStatus int
 }
 
-var _ = Describe("Service Manager Security Tests", func() {
+var _ = XDescribe("Service Manager Security Tests", func() {
 
 	var (
 		ctx            *common.TestContext

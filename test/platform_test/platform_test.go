@@ -36,7 +36,7 @@ import (
 )
 
 // TestPlatforms tests for platform API
-func TestPlatforms(t *testing.T) {
+func XTestPlatforms(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Platform API Tests Suite")
 }

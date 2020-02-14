@@ -554,7 +554,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		}
 	}
 
-	return Describe("DELETE LIST", func() {
+	return XDescribe("DELETE LIST", func() {
 		Context("with no filtering", func() {
 			BeforeEach(beforeEachHelper)
 

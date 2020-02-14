@@ -53,7 +53,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
 	PatchResource:                          test.APIResourcePatch,
 	AdditionalTests: func(ctx *common.TestContext, t *test.TestCase) {
-		Context("additional non-generic tests", func() {
+		XContext("additional non-generic tests", func() {
 			Describe("PATCH", func() {
 				var id string
 
