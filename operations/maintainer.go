@@ -123,7 +123,9 @@ func (om *Maintainer) Run() {
 			}
 			defer func() {
 				err := om.operationLockers[functor.name].Unlock(om.smCtx)
-				log.C(om.smCtx).Warnf("Could not unlock for maintainer functor (%s): %s", functor.name, err)
+				if err != nil {
+					log.C(om.smCtx).Warnf("Could not unlock for maintainer functor (%s): %s", functor.name, err)
+				}
 			}()
 			log.C(om.smCtx).Infof("Successfully retrieved lock for maintainer functor (%s)", functor.name)
 
@@ -227,6 +229,7 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 	operations := objectList.(*types.Operations)
 	for i := 0; i < operations.Len(); i++ {
 		operation := operations.ItemAt(i).(*types.Operation)
+		log.C(om.smCtx).Infof("Starting rescheduleUnprocessedOperations for operation id %s", operation.ID)
 		logger := log.ForContext(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
 
 		var action storageAction
