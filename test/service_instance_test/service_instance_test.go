@@ -298,20 +298,20 @@ var _ = DescribeTestsFor(TestCase{
 						})
 
 						When("a request body field is missing", func() {
-							assertPOSTReturns400WhenFieldIsMissing := func(field string) {
+							assertPOSTWhenFieldIsMissing := func(field string, expectedStatusCode int) {
 								var servicePlanID string
 								BeforeEach(func() {
 									servicePlanID = postInstanceRequest["service_plan_id"].(string)
 									delete(postInstanceRequest, field)
 								})
 
-								It("returns 400", func() {
-									EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, "")
-									ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
+								It("returns 4xx", func() {
+									EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+									ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 										WithJSON(postInstanceRequest).
 										WithQuery("async", testCase.async).
 										Expect().
-										Status(http.StatusBadRequest).
+										Status(expectedStatusCode).
 										JSON().Object().
 										Keys().Contains("error", "description")
 								})
@@ -342,11 +342,11 @@ var _ = DescribeTestsFor(TestCase{
 							})
 
 							Context("when name field is missing", func() {
-								assertPOSTReturns400WhenFieldIsMissing("name")
+								assertPOSTWhenFieldIsMissing("name", http.StatusBadRequest)
 							})
 
 							Context("when service_plan_id field is missing", func() {
-								assertPOSTReturns400WhenFieldIsMissing("service_plan_id")
+								assertPOSTWhenFieldIsMissing("service_plan_id", http.StatusBadRequest)
 							})
 
 							Context("when maintenance_info field is missing", func() {

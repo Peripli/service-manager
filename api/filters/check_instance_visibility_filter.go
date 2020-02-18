@@ -17,7 +17,6 @@
 package filters
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -64,6 +63,11 @@ func (*serviceInstanceVisibilityFilter) Name() string {
 func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 
+	visibilityMetadata, err := f.getInstanceVisibilityMetadata(req, f.repository)
+	if err != nil {
+		return nil, err
+	}
+
 	if req.Method == http.MethodDelete {
 		return next.Handle(req)
 	}
@@ -75,10 +79,6 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		return next.Handle(req)
 	}
 
-	visibilityMetadata, err := f.getInstanceVisibilityMetadata(req, f.repository)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract platform ID for instance, error: %s", err)
-	}
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOrNilOperator, platformIDProperty, visibilityMetadata.PlatformID),
 		query.ByField(query.EqualsOperator, planIDProperty, planID),

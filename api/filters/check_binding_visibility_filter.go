@@ -18,7 +18,6 @@ package filters
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -62,7 +61,7 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 
 	visibilityMetadata, err := f.getInstanceVisibilityMetadata(req, f.repository)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract platform ID for instance, error: %s", err)
+		return nil, err
 	}
 
 	switch req.Method {
