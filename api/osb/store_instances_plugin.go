@@ -585,7 +585,7 @@ func (ssi *StoreServiceInstancePlugin) updateInstance(ctx context.Context, stora
 		serviceInstance.Context = req.RawContext
 	}
 
-	serviceInstance.PreviousValues = previousValuesBytes
+	serviceInstance.NewState = previousValuesBytes
 	if _, err := storage.Update(ctx, serviceInstance, query.LabelChanges{}); err != nil {
 		return util.HandleStorageError(err, string(serviceInstance.GetType()))
 	}
@@ -609,7 +609,7 @@ func (ssi *StoreServiceInstancePlugin) rollbackInstance(ctx context.Context, req
 	serviceInstance.Usable = usable
 
 	if _, ok := req.(*lastOperationRequest); ok {
-		previousValues := serviceInstance.PreviousValues
+		previousValues := serviceInstance.NewState
 		oldCatalogPlanID := gjson.GetBytes(previousValues, smServicePlanIDKey).String()
 		if len(oldCatalogPlanID) != 0 {
 			serviceInstance.ServicePlanID = oldCatalogPlanID

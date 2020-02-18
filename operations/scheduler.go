@@ -541,7 +541,7 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 func initialLogMessage(ctx context.Context, operation *types.Operation, async bool) {
 	var logPrefix string
 	if operation.Reschedule {
-		logPrefix = "Reschduling (reschedule=true)"
+		logPrefix = "Rescheduling (reschedule=true)"
 	} else if !operation.DeletionScheduled.IsZero() {
 		logPrefix = "Scheduling orphan mitigation"
 	} else {

@@ -36,7 +36,7 @@ type ServiceInstance struct {
 	DashboardURL    string                 `json:"dashboard_url,omitempty"`
 	MaintenanceInfo json.RawMessage        `json:"maintenance_info,omitempty"`
 	Context         json.RawMessage        `json:"context,omitempty"`
-	PreviousValues  json.RawMessage        `json:"-"`
+	NewState        json.RawMessage        `json:"-"`
 	Parameters      map[string]interface{} `json:"parameters,omitempty"`
 	Usable          bool                   `json:"usable"`
 
@@ -54,7 +54,7 @@ func (e *ServiceInstance) Equals(obj Object) bool {
 		e.ServicePlanID != instance.ServicePlanID ||
 		e.DashboardURL != instance.DashboardURL ||
 		e.Ready != instance.Ready ||
-		!reflect.DeepEqual(e.PreviousValues, instance.PreviousValues) ||
+		!reflect.DeepEqual(e.NewState, instance.NewState) ||
 		!reflect.DeepEqual(e.Context, instance.Context) ||
 		!reflect.DeepEqual(e.MaintenanceInfo, instance.MaintenanceInfo) {
 		return false

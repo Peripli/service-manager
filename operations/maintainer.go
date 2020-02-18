@@ -122,8 +122,9 @@ func (om *Maintainer) Run() {
 				return
 			}
 			defer func() {
-				err := om.operationLockers[functor.name].Unlock(om.smCtx)
-				log.C(om.smCtx).Warnf("Could not unlock for maintainer functor (%s): %s", functor.name, err)
+				if err := om.operationLockers[functor.name].Unlock(om.smCtx); err != nil {
+					log.C(om.smCtx).Warnf("Could not unlock for maintainer functor (%s): %s", functor.name, err)
+				}
 			}()
 			log.C(om.smCtx).Infof("Successfully retrieved lock for maintainer functor (%s)", functor.name)
 
