@@ -539,9 +539,10 @@ func DefaultInstanceVisibilityFunc(labelKey string) func(req *web.Request, repos
 		}
 
 		return &filters.InstanceVisibilityMetadata{
-			PlatformID: types.SMPlatform,
-			LabelKey:   labelKey,
-			LabelValue: tenantID,
+			PlatformID:   types.SMPlatform,
+			PlatformType: types.SMPlatform,
+			LabelKey:     labelKey,
+			LabelValue:   tenantID,
 		}, nil
 	}
 }
