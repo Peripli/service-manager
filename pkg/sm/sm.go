@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/query"
 	"net/http"
 	"sync"
 	"time"
@@ -504,8 +505,8 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 	multitenancyFilters := filters.NewMultitenancyFilters(labelKey, extractTenantFunc)
 	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
 	smb.RegisterFilters(
-		filters.NewServiceInstanceVisibilityFilter(smb.Storage, labelKey),
-		filters.NewServiceBindingVisibilityFilter(smb.Storage, labelKey),
+		filters.NewServiceInstanceVisibilityFilter(smb.Storage, getDefaultInstanceVisibilityFunc(labelKey)),
+		filters.NewServiceBindingVisibilityFilter(smb.Storage, getDefaultInstanceVisibilityFunc(labelKey)),
 	)
 
 	smb.RegisterPlugins(osb.NewCheckInstanceOwnershipPlugin(smb.Storage, labelKey))
@@ -523,4 +524,24 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 // Security provides mechanism to apply authentication and authorization with a builder pattern
 func (smb *ServiceManagerBuilder) Security() *SecurityBuilder {
 	return smb.securityBuilder.Reset()
+}
+
+func getDefaultInstanceVisibilityFunc(labelKey string) func(req *web.Request, repository storage.Repository) (metadata *filters.InstanceVisibilityMetadata, err error) {
+	return func(req *web.Request, repository storage.Repository) (metadata *filters.InstanceVisibilityMetadata, err error) {
+		tenantID := query.RetrieveFromCriteria(labelKey, query.CriteriaForContext(req.Context())...)
+		if tenantID == "" {
+			log.C(req.Context()).Errorf("Tenant identifier not found in request criteria. Not able to create instance without tenant")
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: "no tenant identifier provided",
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+
+		return &filters.InstanceVisibilityMetadata{
+			PlatformID: types.SMPlatform,
+			LabelKey:   labelKey,
+			LabelValue: tenantID,
+		}, nil
+	}
 }
