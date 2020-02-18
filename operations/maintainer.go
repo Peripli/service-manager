@@ -244,13 +244,17 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 				object, err := repository.Create(ctx, object)
 				return object, util.HandleStorageError(err, operation.ResourceType.String())
 			}
-			/* TODO: Uncomment and adapt once update flow is enabled
-			case types.UPDATE:
-				action = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-					object, err := repository.Update(ctx, objFromDB, labelChanges, criteria...)
-					return object, util.HandleStorageError(err, operation.ResourceType.String())
-				}
-			*/
+		case types.UPDATE:
+			byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
+			object, err := om.repository.Get(om.smCtx, operation.ResourceType, byID)
+			if err != nil {
+				logger.Warnf("Failed to fetch resource with ID (%s) for operation with ID (%s): %s", operation.ResourceID, operation.ID, err)
+				break
+			}
+			action = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+				object, err := repository.Update(ctx, object, nil, byID)
+				return object, util.HandleStorageError(err, operation.ResourceType.String())
+			}
 		case types.DELETE:
 			byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
 

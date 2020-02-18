@@ -19,11 +19,12 @@ package service_test
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
+	"time"
+
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/query"
-	"sync/atomic"
-	"time"
 
 	"github.com/tidwall/gjson"
 
@@ -1168,6 +1169,37 @@ var _ = DescribeTestsFor(TestCase{
 								ValueEqual("platform_id", types.SMPlatform)
 
 						})
+					})
+				})
+
+				When("dashboard_url is changed from broker", func() {
+					It("should update it", func() {
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
+						resp := createInstance(ctx.SMWithOAuthForTenant, http.StatusAccepted)
+						instance := ExpectSuccessfulAsyncResourceCreation(resp, ctx.SMWithOAuth, web.ServiceInstancesURL)
+						instanceID := instance["id"].(string)
+						var expectedDashboardURL = "http://new_dashboard_url"
+
+						brokerServer.ServiceInstanceHandlerFunc(http.MethodPatch, http.MethodPatch+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+						brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPatch+"1", ParameterizedHandler(http.StatusOK, Object{
+							"state":         "succeeded",
+							"dashboard_url": expectedDashboardURL,
+						}))
+						// Get instance should return {"dasboard_url": expectedDashboardURL}
+
+						resp = ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
+							WithJSON(Object{}).
+							Expect().
+							Status(http.StatusAccepted)
+
+						instance = ExpectSuccessfulAsyncResourceCreation(resp, ctx.SMWithOAuth, web.ServiceInstancesURL)
+						Expect(instance["dasboard_url"].(string)).To(Equal(expectedDashboardURL))
+
+						ctx.SMWithOAuth.GET(web.ServiceInstancesURL+"/"+instanceID).
+							Expect().
+							Status(http.StatusOK).JSON().Object().
+							ContainsKey("dasboard_url").
+							ValueNotEqual("dasboard_url", expectedDashboardURL)
 					})
 				})
 

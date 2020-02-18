@@ -327,6 +327,7 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 
 		if operation.Reschedule {
 			if err := i.pollServiceInstance(ctx, osbClient, newInstance, operation, service.CatalogID, plan.CatalogID, false); err != nil {
+				oldInstance.NewState = json.RawMessage{} // empty json?
 				oldInstance.Ready = readyStateBeforeUpdate
 				return f(ctx, oldInstance)
 			} else {
