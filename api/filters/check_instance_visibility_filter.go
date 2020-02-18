@@ -36,9 +36,10 @@ const ServiceInstanceVisibilityFilterName = "ServiceInstanceVisibilityFilter"
 
 // InstanceVisibilityMetadata contains metadata required for visibility checks during instance creation
 type InstanceVisibilityMetadata struct {
-	PlatformID string
-	LabelKey   string
-	LabelValue string
+	PlatformID   string
+	PlatformType string
+	LabelKey     string
+	LabelValue   string
 }
 
 // serviceInstanceVisibilityFilter ensures that the tenant making the provisioning/update request
