@@ -469,7 +469,9 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.Ser
 		instance.Context = contextBytes
 	}
 
-	if _, err := sjson.SetBytes(instance.Context, "instance_name", instance.Name); err != nil {
+	var err error
+	instance.Context, err = sjson.SetBytes(instance.Context, "instance_name", instance.Name)
+	if err != nil {
 		return nil, err
 	}
 

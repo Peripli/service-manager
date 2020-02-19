@@ -285,7 +285,6 @@ var _ = DescribeTestsFor(TestCase{
 							JSON().
 							Object().Value("context").Object().Equal(map[string]interface{}{
 							"platform":       types.SMPlatform,
-							"instance_name":  instanceName,
 							TenantIdentifier: TenantIDValue,
 						})
 					})
