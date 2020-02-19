@@ -381,8 +381,7 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceIn
 		}
 	} else {
 		context = map[string]interface{}{
-			"platform":      types.SMPlatform,
-			"instance_name": instance.Name,
+			"platform": types.SMPlatform,
 		}
 
 		if len(i.tenantKey) != 0 {

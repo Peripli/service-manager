@@ -134,9 +134,9 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 
 		var provisionResponse *osbc.ProvisionResponse
 		if !operation.Reschedule {
-			provisionRequest, err := i.prepareProvisionRequest(ctx, instance, service.CatalogID, plan.CatalogID)
+			provisionRequest, err := i.prepareProvisionRequest(instance, service.CatalogID, plan.CatalogID)
 			if err != nil {
-				return nil, fmt.Errorf("faied to prepare provision request: %s", err)
+				return nil, fmt.Errorf("failed to prepare provision request: %s", err)
 			}
 			log.C(ctx).Infof("Sending provision request %s to broker with name %s", logProvisionRequest(provisionRequest), broker.Name)
 			provisionResponse, err = osbClient.ProvisionInstance(provisionRequest)
@@ -445,31 +445,32 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 	return osbClient, broker, service, plan, nil
 }
 
-func (i *ServiceInstanceInterceptor) prepareProvisionRequest(ctx context.Context, instance *types.ServiceInstance, serviceCatalogID, planCatalogID string) (*osbc.ProvisionRequest, error) {
-	instanceContext := make(map[string]interface{})
+func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string) (*osbc.ProvisionRequest, error) {
+	context := make(map[string]interface{})
 	if len(instance.Context) != 0 {
-		// if instanceContext exists we only need to verify that the instance name is up to date
-		log.C(ctx).Debug("Instance instanceContext found on request, enriching with instance_name")
-		if _, err := sjson.SetBytes(instance.Context, "instance_name", instance.Name); err != nil {
-			return nil, err
+		if err := json.Unmarshal(instance.Context, &context); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal already present OSB context: %s", err)
 		}
 	} else {
-		instanceContext = map[string]interface{}{
-			"platform":      types.SMPlatform,
-			"instance_name": instance.Name,
+		context = map[string]interface{}{
+			"platform": types.SMPlatform,
 		}
 
 		if len(i.tenantKey) != 0 {
 			if tenantValue, ok := instance.GetLabels()[i.tenantKey]; ok {
-				instanceContext[i.tenantKey] = tenantValue[0]
+				context[i.tenantKey] = tenantValue[0]
 			}
 		}
 
-		contextBytes, err := json.Marshal(instanceContext)
+		contextBytes, err := json.Marshal(context)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal OSB instanceContext %+v: %s", instanceContext, err)
+			return nil, fmt.Errorf("failed to marshal OSB context %+v: %s", context, err)
 		}
 		instance.Context = contextBytes
+	}
+
+	if _, err := sjson.SetBytes(instance.Context, "instance_name", instance.Name); err != nil {
+		return nil, err
 	}
 
 	provisionRequest := &osbc.ProvisionRequest{
@@ -480,7 +481,7 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(ctx context.Context
 		OrganizationGUID:  "-",
 		SpaceGUID:         "-",
 		Parameters:        instance.Parameters,
-		Context:           instanceContext,
+		Context:           context,
 		//TODO no OI for SM platform yet
 		OriginatingIdentity: nil,
 	}
