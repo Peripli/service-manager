@@ -37,15 +37,15 @@ const ServiceBindingVisibilityFilterName = "ServiceBindingVisibilityFilter"
 // serviceBindingVisibilityFilter ensures that the tenant making the create/delete bind request
 // is the actual owner of the service instance and that the bind request is for an instance created in the SM platform.
 type serviceBindingVisibilityFilter struct {
-	repository                    storage.Repository
-	getInstanceVisibilityMetadata func(req *web.Request, repository storage.Repository) (*InstanceVisibilityMetadata, error)
+	repository       storage.Repository
+	tenantIdentifier string
 }
 
 // NewServiceBindingVisibilityFilter creates a new serviceInstanceVisibilityFilter filter
-func NewServiceBindingVisibilityFilter(repository storage.Repository, getInstanceVisibilityMetadata func(req *web.Request, repository storage.Repository) (*InstanceVisibilityMetadata, error)) *serviceBindingVisibilityFilter {
+func NewServiceBindingVisibilityFilter(repository storage.Repository, tenantIdentifier string) *serviceBindingVisibilityFilter {
 	return &serviceBindingVisibilityFilter{
-		repository:                    repository,
-		getInstanceVisibilityMetadata: getInstanceVisibilityMetadata,
+		repository:       repository,
+		tenantIdentifier: tenantIdentifier,
 	}
 }
 
@@ -56,13 +56,18 @@ func (*serviceBindingVisibilityFilter) Name() string {
 func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 
+	tenantID := query.RetrieveFromCriteria(f.tenantIdentifier, query.CriteriaForContext(ctx)...)
+	if tenantID == "" {
+		log.C(ctx).Errorf("Tenant identifier not found in request criteria.")
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "no tenant identifier provided",
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
 	var err error
 	var instanceID string
-
-	visibilityMetadata, err := f.getInstanceVisibilityMetadata(req, f.repository)
-	if err != nil {
-		return nil, err
-	}
 
 	switch req.Method {
 	case http.MethodPost:
@@ -77,19 +82,16 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 			log.C(ctx).Info("Service Binding ID is not provided in the request. Proceeding with the next handler...")
 			return next.Handle(req)
 		}
-		instanceID, err = f.fetchInstanceID(ctx, visibilityMetadata.LabelKey, visibilityMetadata.LabelValue, bindingID)
+		instanceID, err = f.fetchInstanceID(ctx, tenantID, bindingID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, platformIDProperty, visibilityMetadata.PlatformID),
+		query.ByField(query.EqualsOperator, platformIDProperty, types.SMPlatform),
 		query.ByField(query.EqualsOperator, "id", instanceID),
-	}
-
-	if visibilityMetadata.LabelKey != "" {
-		criteria = append(criteria, query.ByLabel(query.EqualsOperator, visibilityMetadata.LabelKey, visibilityMetadata.LabelValue))
+		query.ByLabel(query.EqualsOperator, f.tenantIdentifier, tenantID),
 	}
 
 	count, err := f.repository.Count(ctx, types.ServiceInstanceType, criteria...)
@@ -119,10 +121,10 @@ func (*serviceBindingVisibilityFilter) FilterMatchers() []web.FilterMatcher {
 	}
 }
 
-func (f *serviceBindingVisibilityFilter) fetchInstanceID(ctx context.Context, labelKey, labelValue, bindingID string) (string, error) {
+func (f *serviceBindingVisibilityFilter) fetchInstanceID(ctx context.Context, tenantID string, bindingID string) (string, error) {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "id", bindingID),
-		query.ByLabel(query.EqualsOperator, labelKey, labelValue),
+		query.ByLabel(query.EqualsOperator, f.tenantIdentifier, tenantID),
 	}
 
 	object, err := f.repository.Get(ctx, types.ServiceBindingType, criteria...)
