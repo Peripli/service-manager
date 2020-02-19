@@ -86,7 +86,10 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, platformIDProperty, visibilityMetadata.PlatformID),
 		query.ByField(query.EqualsOperator, "id", instanceID),
-		query.ByLabel(query.EqualsOperator, visibilityMetadata.LabelKey, visibilityMetadata.LabelValue),
+	}
+
+	if visibilityMetadata.LabelKey != "" {
+		criteria = append(criteria, query.ByLabel(query.EqualsOperator, visibilityMetadata.LabelKey, visibilityMetadata.LabelValue))
 	}
 
 	count, err := f.repository.Count(ctx, types.ServiceInstanceType, criteria...)

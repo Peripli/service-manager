@@ -104,6 +104,11 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 	if len(visibility.PlatformID) == 0 { // public visibility
 		return next.Handle(req)
 	}
+
+	if visibilityMetadata.LabelKey == "" {
+		return next.Handle(req)
+	}
+
 	tenantLabels, ok := visibility.Labels[visibilityMetadata.LabelKey]
 	if ok && slice.StringsAnyEquals(tenantLabels, visibilityMetadata.LabelValue) {
 		return next.Handle(req)
