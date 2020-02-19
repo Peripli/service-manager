@@ -54,6 +54,13 @@ func (e *ServiceBinding) Decrypt(ctx context.Context, decryptionFunc func(contex
 	return e.transform(ctx, decryptionFunc)
 }
 
+func (e *ServiceBinding) ValidateIntegrity(hashFunc func(data []byte) [32]byte) bool {
+	return true
+}
+
+func (e *ServiceBinding) SetChecksum(hashFunc func(data []byte) [32]byte) {
+}
+
 func (e *ServiceBinding) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
 	if len(e.Credentials) == 0 {
 		return nil

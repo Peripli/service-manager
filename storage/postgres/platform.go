@@ -34,6 +34,7 @@ type Platform struct {
 	Description sql.NullString `db:"description"`
 	Username    string         `db:"username"`
 	Password    string         `db:"password"`
+	Checksum    []byte         `db:"checksum"`
 	Active      bool           `db:"active"`
 	LastActive  time.Time      `db:"last_active"`
 }
@@ -64,11 +65,14 @@ func (p *Platform) FromObject(object types.Object) (storage.Entity, bool) {
 	if platform.Credentials != nil && platform.Credentials.Basic != nil {
 		result.Username = platform.Credentials.Basic.Username
 		result.Password = platform.Credentials.Basic.Password
+		result.Checksum = platform.Credentials.Checksum[:]
 	}
 	return result, true
 }
 
 func (p *Platform) ToObject() types.Object {
+	var checksum [32]byte
+	copy(checksum[:], p.Checksum)
 	return &types.Platform{
 		Base: types.Base{
 			ID:             p.ID,
@@ -85,6 +89,7 @@ func (p *Platform) ToObject() types.Object {
 				Username: p.Username,
 				Password: p.Password,
 			},
+			Checksum: checksum,
 		},
 		Active:     p.Active,
 		LastActive: p.LastActive,

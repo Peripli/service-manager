@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE brokers ADD COLUMN IF NOT EXISTS checksum bytea;
+ALTER TABLE platforms ADD COLUMN IF NOT EXISTS checksum bytea;
+
+COMMIT;

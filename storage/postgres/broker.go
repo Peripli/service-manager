@@ -34,6 +34,7 @@ type Broker struct {
 	BrokerURL   string             `db:"broker_url"`
 	Username    string             `db:"username"`
 	Password    string             `db:"password"`
+	Checksum    []byte             `db:"checksum"`
 	Catalog     sqlxtypes.JSONText `db:"catalog"`
 
 	Services []*ServiceOffering `db:"-"`
@@ -44,6 +45,8 @@ func (e *Broker) ToObject() types.Object {
 	for _, service := range e.Services {
 		services = append(services, service.ToObject().(*types.ServiceOffering))
 	}
+	var checksum [32]byte
+	copy(checksum[:], e.Checksum)
 	broker := &types.ServiceBroker{
 		Base: types.Base{
 			ID:             e.ID,
@@ -61,6 +64,7 @@ func (e *Broker) ToObject() types.Object {
 				Username: e.Username,
 				Password: e.Password,
 			},
+			Checksum: checksum,
 		},
 		Catalog:  getJSONRawMessage(e.Catalog),
 		Services: services,
@@ -97,6 +101,7 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, bool) {
 	if broker.Credentials != nil && broker.Credentials.Basic != nil {
 		b.Username = broker.Credentials.Basic.Username
 		b.Password = broker.Credentials.Basic.Password
+		b.Checksum = broker.Credentials.Checksum[:]
 	}
 	return b, true
 }

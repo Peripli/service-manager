@@ -42,6 +42,8 @@ type Strip interface {
 type Secured interface {
 	Encrypt(context.Context, func(context.Context, []byte) ([]byte, error)) error
 	Decrypt(context.Context, func(context.Context, []byte) ([]byte, error)) error
+	ValidateIntegrity(hashFunc func(data []byte) [32]byte) bool
+	SetChecksum(hashFunc func(data []byte) [32]byte)
 }
 
 // Operatable is implemented by resources which have last operation associated

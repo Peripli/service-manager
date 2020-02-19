@@ -93,7 +93,7 @@ var _ = Describe("Encrypting Repository", func() {
 			},
 		}, nil)
 
-		repository, err = storage.NewEncryptingRepository(fakeRepository, fakeEncrypter, []byte{})
+		repository, err = storage.NewEncryptingRepository(fakeRepository, fakeEncrypter, []byte{}, nil)
 		Expect(err).ToNot(HaveOccurred())
 
 		encryptCallsCountBeforeOp = fakeEncrypter.EncryptCallCount()

@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE brokers DROP COLUMN IF EXISTS checksum;
+ALTER TABLE platforms DROP COLUMN IF EXISTS checksum;
+
+COMMIT;

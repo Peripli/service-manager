@@ -39,7 +39,7 @@ type KeyStore interface {
 }
 
 // EncryptingDecorator creates a TransactionalRepositoryDecorator that can be used to add encrypting/decrypting logic to a TransactionalRepository
-func EncryptingDecorator(ctx context.Context, encrypter security.Encrypter, keyStore KeyStore, locker Locker) TransactionalRepositoryDecorator {
+func EncryptingDecorator(ctx context.Context, encrypter security.Encrypter, keyStore KeyStore, locker Locker, hashFunc func(data []byte) [32]byte) TransactionalRepositoryDecorator {
 	return func(next TransactionalRepository) (TransactionalRepository, error) {
 		ctx, cancelFunc := context.WithTimeout(ctx, 2*time.Second)
 		defer cancelFunc()
@@ -73,17 +73,18 @@ func EncryptingDecorator(ctx context.Context, encrypter security.Encrypter, keyS
 			logger.Info("Successfully generated new encryption key")
 		}
 
-		return NewEncryptingRepository(next, encrypter, encryptionKey)
+		return NewEncryptingRepository(next, encrypter, encryptionKey, hashFunc)
 	}
 }
 
 //NewEncryptingRepository creates a new TransactionalEncryptingRepository using the specified encrypter and encryption key
-func NewEncryptingRepository(repository TransactionalRepository, encrypter security.Encrypter, key []byte) (*TransactionalEncryptingRepository, error) {
+func NewEncryptingRepository(repository TransactionalRepository, encrypter security.Encrypter, key []byte, hashFunc func(data []byte) [32]byte) (*TransactionalEncryptingRepository, error) {
 	encryptingRepository := &TransactionalEncryptingRepository{
 		encryptingRepository: &encryptingRepository{
 			repository:    repository,
 			encrypter:     encrypter,
 			encryptionKey: key,
+			hashFunc:      hashFunc,
 		},
 		repository: repository,
 	}
@@ -96,6 +97,7 @@ type encryptingRepository struct {
 	encrypter  security.Encrypter
 
 	encryptionKey []byte
+	hashFunc      func(data []byte) [32]byte
 }
 
 //TransactionalEncryptingRepository is a TransactionalRepository with that also encrypts credentials of Secured objects
@@ -107,6 +109,7 @@ type TransactionalEncryptingRepository struct {
 }
 
 func (er *encryptingRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
+	er.setCheckSum(obj)
 	if err := er.encrypt(ctx, obj); err != nil {
 		return nil, err
 	}
@@ -132,6 +135,9 @@ func (er *encryptingRepository) Get(ctx context.Context, objectType types.Object
 	if err := er.decrypt(ctx, obj); err != nil {
 		return nil, err
 	}
+	if err := er.validateChecksum(obj); err != nil {
+		return nil, err
+	}
 
 	return obj, nil
 }
@@ -143,7 +149,11 @@ func (er *encryptingRepository) List(ctx context.Context, objectType types.Objec
 	}
 
 	for i := 0; i < objList.Len(); i++ {
-		if err := er.decrypt(ctx, objList.ItemAt(i)); err != nil {
+		item := objList.ItemAt(i)
+		if err := er.decrypt(ctx, item); err != nil {
+			return nil, err
+		}
+		if err := er.validateChecksum(item); err != nil {
 			return nil, err
 		}
 	}
@@ -213,6 +223,21 @@ func (er *encryptingRepository) decrypt(ctx context.Context, obj types.Object) e
 	return nil
 }
 
+func (er *encryptingRepository) setCheckSum(obj types.Object) {
+	if securedObject, isSecured := obj.(types.Secured); isSecured {
+		securedObject.SetChecksum(er.hashFunc)
+	}
+}
+
+func (er *encryptingRepository) validateChecksum(obj types.Object) error {
+	if securedObject, isSecured := obj.(types.Secured); isSecured {
+		if !securedObject.ValidateIntegrity(er.hashFunc) {
+			return fmt.Errorf("invalid checksum for %s with ID %s", obj.GetType(), obj.GetID())
+		}
+	}
+	return nil
+}
+
 // InTransaction wraps repository passed in the transaction to also encypt/decrypt credentials
 func (er *TransactionalEncryptingRepository) InTransaction(ctx context.Context, f func(ctx context.Context, storage Repository) error) error {
 	return er.repository.InTransaction(ctx, func(ctx context.Context, storage Repository) error {
@@ -220,6 +245,7 @@ func (er *TransactionalEncryptingRepository) InTransaction(ctx context.Context, 
 			repository:    storage,
 			encrypter:     er.encrypter,
 			encryptionKey: er.encryptionKey,
+			hashFunc:      er.hashFunc,
 		})
 	})
 }

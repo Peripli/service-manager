@@ -19,6 +19,7 @@ package storage
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"path"
@@ -57,6 +58,7 @@ type Settings struct {
 	SkipSSLValidation  bool                  `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when connecting to the storage"`
 	MaxIdleConnections int                   `mapstructure:"max_idle_connections" description:"sets the maximum number of connections in the idle connection pool"`
 	Notification       *NotificationSettings `mapstructure:"notification"`
+	HashingFunc        func(data []byte) [32]byte
 }
 
 // DefaultSettings returns default values for storage settings
@@ -68,6 +70,7 @@ func DefaultSettings() *Settings {
 		SkipSSLValidation:  false,
 		MaxIdleConnections: 5,
 		Notification:       DefaultNotificationSettings(),
+		HashingFunc:        sha256.Sum256,
 	}
 }
 
@@ -81,6 +84,9 @@ func (s *Settings) Validate() error {
 	}
 	if len(s.EncryptionKey) != 32 {
 		return fmt.Errorf("validate Settings: StorageEncryptionKey must be exactly 32 symbols long but was %d symbols long", len(s.EncryptionKey))
+	}
+	if s.HashingFunc == nil {
+		return fmt.Errorf("validate Settings: StorageHashingFunc must not be nil")
 	}
 	return s.Notification.Validate()
 }
