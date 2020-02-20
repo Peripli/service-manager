@@ -24,6 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/operations"
 
 	"github.com/Peripli/service-manager/pkg/env"
@@ -106,7 +108,8 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	// Decorate the storage with credentials encryption/decryption
-	encryptingDecorator := storage.EncryptingDecorator(ctx, &security.AESEncrypter{}, smStorage, postgres.EncryptingLocker(smStorage), cfg.Storage.HashingFunc)
+	encryptingDecorator := storage.SecuringDecorator(ctx, &security.AESEncrypter{}, smStorage, postgres.EncryptingLocker(smStorage), cfg.Storage.HashingFunc)
+	//checksumDecorator := storage.NewChecksumDecorator(cfg.Storage.HashingFunc)
 
 	// Initialize the storage with graceful termination
 	var transactionalRepository storage.TransactionalRepository
@@ -256,6 +259,10 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	smb.OperationMaintainer.Run()
 
 	if err := smb.registerSMPlatform(); err != nil {
+		log.C(smb.ctx).Panic(err)
+	}
+
+	if err := smb.calculateChecksums(); err != nil {
 		log.C(smb.ctx).Panic(err)
 	}
 
@@ -523,4 +530,25 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 // Security provides mechanism to apply authentication and authorization with a builder pattern
 func (smb *ServiceManagerBuilder) Security() *SecurityBuilder {
 	return smb.securityBuilder.Reset()
+}
+
+func (smb *ServiceManagerBuilder) calculateChecksums() error {
+	// TODO: if you have access to the DB, changing the URL and removing the checksum will make this effort useless.
+	// Probably this should be done in a separate application or removed from the code after the initial setup.
+	return smb.Storage.InTransaction(smb.ctx, func(ctx context.Context, storage storage.Repository) error {
+		emptyChecksumCriteria := query.ByField(query.EqualsOrNilOperator, "checksum", "")
+		brokers, err := storage.List(ctx, types.ServiceBrokerType, emptyChecksumCriteria)
+		if err != nil {
+			return err
+		}
+		log.C(ctx).Info("Found %d brokers that need checksum to be calculated", brokers.Len())
+		for i := 0; i < brokers.Len(); i++ {
+			broker := brokers.ItemAt(i).(*types.ServiceBroker)
+			broker.SetChecksum(smb.cfg.Storage.HashingFunc)
+			if _, err := storage.Update(ctx, broker, query.LabelChanges{}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

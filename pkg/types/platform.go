@@ -17,7 +17,6 @@
 package types
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -87,14 +86,12 @@ func (e *Platform) transform(ctx context.Context, transformationFunc func(contex
 	return nil
 }
 
-func (e *Platform) ValidateIntegrity(hashFunc func(data []byte) [32]byte) bool {
-	hashed := e.calculateChecksum(hashFunc)
-	var empty [32]byte
-	return bytes.Equal(e.Credentials.Checksum[:], empty[:]) || bytes.Equal(e.Credentials.Checksum[:], hashed[:])
+func (e *Platform) ValidateChecksum(_ func(data []byte) [32]byte) bool {
+	return true
 }
 
-func (e *Platform) SetChecksum(hashFunc func(data []byte) [32]byte) {
-	e.Credentials.Checksum = e.calculateChecksum(hashFunc)
+func (e *Platform) SetChecksum(_ func(data []byte) [32]byte) {
+
 }
 
 func (e *Platform) calculateChecksum(hashFunc func(data []byte) [32]byte) [32]byte {

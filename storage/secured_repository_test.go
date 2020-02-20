@@ -2,6 +2,7 @@ package storage_test
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"strings"
 
@@ -20,7 +21,7 @@ var _ = Describe("Encrypting Repository", func() {
 	var fakeEncrypter *securityfakes.FakeEncrypter
 	var fakeRepository *storagefakes.FakeStorage
 
-	var repository *storage.TransactionalEncryptingRepository
+	var repository *storage.TransactionalSecuredRepository
 	var err error
 
 	var ctx context.Context
@@ -30,8 +31,10 @@ var _ = Describe("Encrypting Repository", func() {
 	var encryptCallsCountBeforeOp int
 	var decryptCallsCountBeforeOp int
 
+	var checksumFunc func(data []byte) [32]byte
 	BeforeEach(func() {
 		ctx = context.TODO()
+		checksumFunc = sha256.Sum256
 
 		objWithDecryptedPassword = &types.ServiceBroker{
 			Base: types.Base{
@@ -44,7 +47,10 @@ var _ = Describe("Encrypting Repository", func() {
 					Password: "admin",
 				},
 			},
+			BrokerURL: "https://example.com",
 		}
+
+		objWithDecryptedPassword.(*types.ServiceBroker).SetChecksum(checksumFunc)
 
 		objWithEncryptedPassword = &types.ServiceBroker{
 			Base: types.Base{
@@ -57,7 +63,12 @@ var _ = Describe("Encrypting Repository", func() {
 					Password: "encrypt" + objWithDecryptedPassword.(*types.ServiceBroker).Credentials.Basic.Password,
 				},
 			},
+			BrokerURL: "https://example.com",
 		}
+
+		objWithEncryptedPassword.(*types.ServiceBroker).SetChecksum(func(data []byte) [32]byte {
+			return objWithDecryptedPassword.(*types.ServiceBroker).Credentials.Checksum
+		})
 
 		fakeEncrypter = &securityfakes.FakeEncrypter{}
 		fakeEncrypter.EncryptCalls(func(ctx context.Context, plainText []byte, key []byte) ([]byte, error) {
@@ -93,7 +104,7 @@ var _ = Describe("Encrypting Repository", func() {
 			},
 		}, nil)
 
-		repository, err = storage.NewEncryptingRepository(fakeRepository, fakeEncrypter, []byte{}, nil)
+		repository, err = storage.NewSecuredRepository(fakeRepository, fakeEncrypter, []byte{}, checksumFunc)
 		Expect(err).ToNot(HaveOccurred())
 
 		encryptCallsCountBeforeOp = fakeEncrypter.EncryptCallCount()

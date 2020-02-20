@@ -58,11 +58,9 @@ func (e *ServiceBroker) Decrypt(ctx context.Context, decryptionFunc func(context
 	return e.transform(ctx, decryptionFunc)
 }
 
-func (e *ServiceBroker) ValidateIntegrity(hashFunc func(data []byte) [32]byte) bool {
+func (e *ServiceBroker) ValidateChecksum(hashFunc func(data []byte) [32]byte) bool {
 	hashed := e.calcluateChecksum(hashFunc)
-	// empty check just for testing to not fail for existing brokers
-	var empty [32]byte
-	return bytes.Equal(e.Credentials.Checksum[:], empty[:]) || bytes.Equal(e.Credentials.Checksum[:], hashed[:])
+	return bytes.Equal(e.Credentials.Checksum[:], hashed[:])
 }
 
 func (e *ServiceBroker) calcluateChecksum(hashFunc func(data []byte) [32]byte) [32]byte {
