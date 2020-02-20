@@ -448,12 +448,19 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string) (*osbc.ProvisionRequest, error) {
 	context := make(map[string]interface{})
 	if len(instance.Context) != 0 {
-		if err := json.Unmarshal(instance.Context, &context); err != nil {
+		var err error
+		instance.Context, err = sjson.SetBytes(instance.Context, "instance_name", instance.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		if err = json.Unmarshal(instance.Context, &context); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal already present OSB context: %s", err)
 		}
 	} else {
 		context = map[string]interface{}{
-			"platform": types.SMPlatform,
+			"platform":      types.SMPlatform,
+			"instance_name": instance.Name,
 		}
 
 		if len(i.tenantKey) != 0 {
@@ -467,12 +474,6 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.Ser
 			return nil, fmt.Errorf("failed to marshal OSB context %+v: %s", context, err)
 		}
 		instance.Context = contextBytes
-	}
-
-	var err error
-	instance.Context, err = sjson.SetBytes(instance.Context, "instance_name", instance.Name)
-	if err != nil {
-		return nil, err
 	}
 
 	provisionRequest := &osbc.ProvisionRequest{
