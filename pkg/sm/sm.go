@@ -546,7 +546,7 @@ func (smb *ServiceManagerBuilder) calculateIntegrity() error {
 			if err != nil {
 				return err
 			}
-			log.C(ctx).Infof("Found %d %s that need integrity to be calculated", objectType, objects.Len())
+			log.C(ctx).Infof("Found %d objects of type %s that need integrity to be calculated", objects.Len(), objectType)
 			for i := 0; i < objects.Len(); i++ {
 				obj := objects.ItemAt(i)
 				securedObj := obj.(types.Secured)
