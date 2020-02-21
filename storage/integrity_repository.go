@@ -26,13 +26,14 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-// DataIntegrityDecorator decorates a repository to check the integrity of secured objects upon retrieval
+// DataIntegrityDecorator decorates a repository to process the integrity of secured objects
 func DataIntegrityDecorator(integrityProcessor security.IntegrityProcessor) TransactionalRepositoryDecorator {
 	return func(next TransactionalRepository) (TransactionalRepository, error) {
 		return NewIntegrityRepository(next, integrityProcessor), nil
 	}
 }
 
+// NewIntegrityRepository returns a new TransactionIntegrityRepository using the specified integrity processor
 func NewIntegrityRepository(repository TransactionalRepository, integrityProcessor security.IntegrityProcessor) *TransactionalIntegrityRepository {
 	return &TransactionalIntegrityRepository{
 		integrityRepository: &integrityRepository{
@@ -48,6 +49,8 @@ type integrityRepository struct {
 	integrityProcessor security.IntegrityProcessor
 }
 
+// TransactionalIntegrityRepository is a TransactionalRepository which also processes the integrity of Secured objects
+// before storing and after fetching them from the database
 type TransactionalIntegrityRepository struct {
 	*integrityRepository
 	repository TransactionalRepository

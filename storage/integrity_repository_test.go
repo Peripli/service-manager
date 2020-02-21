@@ -203,7 +203,6 @@ var _ = Describe("Integrity Repository", func() {
 		})
 	})
 
-	// TODO: add case that changes the credentials
 	Describe("Update", func() {
 		Context("when calculate integrity fails", func() {
 			It("returns an error", func() {

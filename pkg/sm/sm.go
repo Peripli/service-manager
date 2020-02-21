@@ -18,6 +18,7 @@ package sm
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -110,7 +111,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 	// Decorate the storage with credentials encryption/decryption
 	encryptingDecorator := storage.EncryptingDecorator(ctx, &security.AESEncrypter{}, smStorage, postgres.EncryptingLocker(smStorage))
-	integrityProcessor := security.SHA256IntegrityProcessor()
+	integrityProcessor := &security.HashingIntegrityProcessor{HashingFunc: sha256.Sum256}
 	integrityDecorator := storage.DataIntegrityDecorator(integrityProcessor)
 
 	// Initialize the storage with graceful termination

@@ -62,6 +62,7 @@ func (e *ServiceBinding) IntegralData() []byte {
 func (e *ServiceBinding) SetIntegrity(integrity [32]byte) {
 	e.Integrity = integrity
 }
+
 func (e *ServiceBinding) GetIntegrity() [32]byte {
 	return e.Integrity
 }

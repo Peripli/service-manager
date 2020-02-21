@@ -18,6 +18,7 @@ package security_test
 
 import (
 	"context"
+	"crypto/sha256"
 
 	"github.com/Peripli/service-manager/pkg/security"
 	. "github.com/onsi/ginkgo"
@@ -55,7 +56,7 @@ var _ = Describe("SHA256 processor", func() {
 	var emptyIntegrity [32]byte
 
 	BeforeEach(func() {
-		processor = security.SHA256IntegrityProcessor()
+		processor = &security.HashingIntegrityProcessor{HashingFunc: sha256.Sum256}
 		securedObject = &obj{
 			integralData: []byte("integral data"),
 		}

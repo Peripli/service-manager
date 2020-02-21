@@ -18,7 +18,6 @@ package security
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -29,11 +28,6 @@ import (
 type IntegrityProcessor interface {
 	ValidateIntegrity(secured types.Secured) bool
 	CalculateIntegrity(secured types.Secured) ([32]byte, error)
-}
-
-// SHA256IntegrityProcessor returns an integrity processor using sha256 to calculate the integrity
-func SHA256IntegrityProcessor() *HashingIntegrityProcessor {
-	return &HashingIntegrityProcessor{HashingFunc: sha256.Sum256}
 }
 
 // HashingIntegrityProcessor is an integrity processor that uses a hashing func to calculate the integrity
