@@ -541,8 +541,8 @@ func (smb *ServiceManagerBuilder) calculateIntegrity() error {
 	return smb.Storage.InTransaction(smb.ctx, func(ctx context.Context, storage storage.Repository) error {
 		objectTypesWithIntegrity := []types.ObjectType{types.PlatformType, types.ServiceBrokerType, types.ServiceBindingType}
 		for _, objectType := range objectTypesWithIntegrity {
-			emptyChecksumCriteria := query.ByField(query.EqualsOrNilOperator, "integrity", "")
-			objects, err := storage.List(ctx, objectType, emptyChecksumCriteria)
+			emptyIntegrityCriteria := query.ByField(query.EqualsOrNilOperator, "integrity", "")
+			objects, err := storage.List(ctx, objectType, emptyIntegrityCriteria)
 			if err != nil {
 				return err
 			}

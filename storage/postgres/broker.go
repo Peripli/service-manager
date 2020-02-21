@@ -45,8 +45,8 @@ func (e *Broker) ToObject() types.Object {
 	for _, service := range e.Services {
 		services = append(services, service.ToObject().(*types.ServiceOffering))
 	}
-	var checksum [32]byte
-	copy(checksum[:], e.Integrity)
+	var integrity [32]byte
+	copy(integrity[:], e.Integrity)
 	broker := &types.ServiceBroker{
 		Base: types.Base{
 			ID:             e.ID,
@@ -64,7 +64,7 @@ func (e *Broker) ToObject() types.Object {
 				Username: e.Username,
 				Password: e.Password,
 			},
-			Integrity: checksum,
+			Integrity: integrity,
 		},
 		Catalog:  getJSONRawMessage(e.Catalog),
 		Services: services,

@@ -98,16 +98,6 @@ func (e *Platform) GetIntegrity() [32]byte {
 	return e.Credentials.Integrity
 }
 
-func (e *Platform) calculateChecksum(hashFunc func(data []byte) [32]byte) [32]byte {
-	if e.Credentials == nil {
-		var empty [32]byte
-		return empty
-	}
-	data := fmt.Sprintf("%s:%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password)
-	hashed := hashFunc([]byte(data))
-	return hashed
-}
-
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (e *Platform) Validate() error {
 	if e.Type == "" {

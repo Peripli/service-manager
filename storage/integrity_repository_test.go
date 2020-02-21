@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"strings"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -33,7 +32,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Encrypting Repository", func() {
+var _ = Describe("Integrity Repository", func() {
 	var fakeIntegrityProcessor *securityfakes.FakeIntegrityProcessor
 	var fakeRepository *storagefakes.FakeStorage
 
@@ -262,11 +261,6 @@ var _ = Describe("Encrypting Repository", func() {
 				Expect(fakeRepository.UpdateCallCount() - delegateUpdateCallsCountBeforeOp).To(Equal(1))
 				_, objectArg, _, _ := fakeRepository.UpdateArgsForCall(0)
 				Expect(objectArg.(types.Secured).GetIntegrity()).To(Equal(randomIntegrity))
-			})
-
-			It("returns an object with decrypted credentials", func() {
-				isPassEncrypted := strings.HasPrefix(returnedObj.(*types.ServiceBroker).Credentials.Basic.Password, "encrypt")
-				Expect(isPassEncrypted).To(BeFalse())
 			})
 		})
 	})

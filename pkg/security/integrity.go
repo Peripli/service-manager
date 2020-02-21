@@ -49,7 +49,7 @@ func (h *HashingIntegrityProcessor) CalculateIntegrity(secured types.Secured) ([
 	}
 	integralData := secured.IntegralData()
 	if len(integralData) == 0 {
-		return empty, fmt.Errorf("cannot calculate integrity of an object with no integral data")
+		return empty, nil
 	}
 	return h.HashingFunc(integralData), nil
 }

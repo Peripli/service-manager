@@ -71,10 +71,10 @@ var _ = Describe("SHA256 processor", func() {
 		})
 
 		Context("when the object has no integral data", func() {
-			It("returns an error", func() {
+			It("returns empty integrity", func() {
 				securedObject.integralData = []byte{}
 				integrity, err := processor.CalculateIntegrity(securedObject)
-				Expect(err).To(HaveOccurred())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(integrity).To(Equal(emptyIntegrity))
 			})
 		})
