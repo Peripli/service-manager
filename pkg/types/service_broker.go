@@ -61,11 +61,11 @@ func (e *ServiceBroker) IntegralData() []byte {
 	return []byte(fmt.Sprintf("%s:%s:%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, e.BrokerURL))
 }
 
-func (e *ServiceBroker) SetIntegrity(integrity [32]byte) {
+func (e *ServiceBroker) SetIntegrity(integrity []byte) {
 	e.Credentials.Integrity = integrity
 }
 
-func (e *ServiceBroker) GetIntegrity() [32]byte {
+func (e *ServiceBroker) GetIntegrity() []byte {
 	return e.Credentials.Integrity
 }
 

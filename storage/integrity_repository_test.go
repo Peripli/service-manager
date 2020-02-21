@@ -44,7 +44,7 @@ var _ = Describe("Integrity Repository", func() {
 
 	var validateCallsCountBeforeOp int
 	var calculateCallsCountBeforeOp int
-	var randomIntegrity [32]byte
+	var randomIntegrity []byte
 
 	BeforeEach(func() {
 		ctx = context.TODO()
@@ -110,7 +110,7 @@ var _ = Describe("Integrity Repository", func() {
 
 		Context("when calculate integrity fails", func() {
 			It("returns an error", func() {
-				fakeIntegrityProcessor.CalculateIntegrityReturns([32]byte{}, fmt.Errorf("error"))
+				fakeIntegrityProcessor.CalculateIntegrityReturns([]byte{}, fmt.Errorf("error"))
 
 				_, err = repository.Create(ctx, object)
 				Expect(err).To(HaveOccurred())
@@ -206,7 +206,7 @@ var _ = Describe("Integrity Repository", func() {
 	Describe("Update", func() {
 		Context("when calculate integrity fails", func() {
 			It("returns an error", func() {
-				fakeIntegrityProcessor.CalculateIntegrityReturns([32]byte{}, fmt.Errorf("error"))
+				fakeIntegrityProcessor.CalculateIntegrityReturns([]byte{}, fmt.Errorf("error"))
 
 				_, err = repository.Update(ctx, object, query.LabelChanges{})
 				Expect(err).To(HaveOccurred())
@@ -228,7 +228,7 @@ var _ = Describe("Integrity Repository", func() {
 				bytes := make([]byte, 32)
 				rand.Read(bytes)
 				copy(newIntegrity[:], bytes[:])
-				fakeIntegrityProcessor.CalculateIntegrityReturns(newIntegrity, nil)
+				fakeIntegrityProcessor.CalculateIntegrityReturns(newIntegrity[:], nil)
 			})
 			It("sets a new integrity", func() {
 				broker := object.(*types.ServiceBroker)
@@ -236,7 +236,7 @@ var _ = Describe("Integrity Repository", func() {
 				Expect(newIntegrity).ToNot(Equal(oldIntegrity))
 				updatedObject, err := repository.Update(ctx, broker, query.LabelChanges{})
 				Expect(err).ToNot(HaveOccurred())
-				Expect(updatedObject.(types.Secured).GetIntegrity()).To(Equal(newIntegrity))
+				Expect(updatedObject.(types.Secured).GetIntegrity()).To(Equal(newIntegrity[:]))
 				Expect(updatedObject.(types.Secured).GetIntegrity()).ToNot(Equal(oldIntegrity))
 			})
 		})

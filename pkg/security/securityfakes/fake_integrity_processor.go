@@ -9,17 +9,17 @@ import (
 )
 
 type FakeIntegrityProcessor struct {
-	CalculateIntegrityStub        func(types.Secured) ([32]byte, error)
+	CalculateIntegrityStub        func(types.Secured) ([]byte, error)
 	calculateIntegrityMutex       sync.RWMutex
 	calculateIntegrityArgsForCall []struct {
 		arg1 types.Secured
 	}
 	calculateIntegrityReturns struct {
-		result1 [32]byte
+		result1 []byte
 		result2 error
 	}
 	calculateIntegrityReturnsOnCall map[int]struct {
-		result1 [32]byte
+		result1 []byte
 		result2 error
 	}
 	ValidateIntegrityStub        func(types.Secured) bool
@@ -37,7 +37,7 @@ type FakeIntegrityProcessor struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeIntegrityProcessor) CalculateIntegrity(arg1 types.Secured) ([32]byte, error) {
+func (fake *FakeIntegrityProcessor) CalculateIntegrity(arg1 types.Secured) ([]byte, error) {
 	fake.calculateIntegrityMutex.Lock()
 	ret, specificReturn := fake.calculateIntegrityReturnsOnCall[len(fake.calculateIntegrityArgsForCall)]
 	fake.calculateIntegrityArgsForCall = append(fake.calculateIntegrityArgsForCall, struct {
@@ -61,7 +61,7 @@ func (fake *FakeIntegrityProcessor) CalculateIntegrityCallCount() int {
 	return len(fake.calculateIntegrityArgsForCall)
 }
 
-func (fake *FakeIntegrityProcessor) CalculateIntegrityCalls(stub func(types.Secured) ([32]byte, error)) {
+func (fake *FakeIntegrityProcessor) CalculateIntegrityCalls(stub func(types.Secured) ([]byte, error)) {
 	fake.calculateIntegrityMutex.Lock()
 	defer fake.calculateIntegrityMutex.Unlock()
 	fake.CalculateIntegrityStub = stub
@@ -74,28 +74,28 @@ func (fake *FakeIntegrityProcessor) CalculateIntegrityArgsForCall(i int) types.S
 	return argsForCall.arg1
 }
 
-func (fake *FakeIntegrityProcessor) CalculateIntegrityReturns(result1 [32]byte, result2 error) {
+func (fake *FakeIntegrityProcessor) CalculateIntegrityReturns(result1 []byte, result2 error) {
 	fake.calculateIntegrityMutex.Lock()
 	defer fake.calculateIntegrityMutex.Unlock()
 	fake.CalculateIntegrityStub = nil
 	fake.calculateIntegrityReturns = struct {
-		result1 [32]byte
+		result1 []byte
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeIntegrityProcessor) CalculateIntegrityReturnsOnCall(i int, result1 [32]byte, result2 error) {
+func (fake *FakeIntegrityProcessor) CalculateIntegrityReturnsOnCall(i int, result1 []byte, result2 error) {
 	fake.calculateIntegrityMutex.Lock()
 	defer fake.calculateIntegrityMutex.Unlock()
 	fake.CalculateIntegrityStub = nil
 	if fake.calculateIntegrityReturnsOnCall == nil {
 		fake.calculateIntegrityReturnsOnCall = make(map[int]struct {
-			result1 [32]byte
+			result1 []byte
 			result2 error
 		})
 	}
 	fake.calculateIntegrityReturnsOnCall[i] = struct {
-		result1 [32]byte
+		result1 []byte
 		result2 error
 	}{result1, result2}
 }

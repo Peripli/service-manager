@@ -65,14 +65,12 @@ func (p *Platform) FromObject(object types.Object) (storage.Entity, bool) {
 	if platform.Credentials != nil && platform.Credentials.Basic != nil {
 		result.Username = platform.Credentials.Basic.Username
 		result.Password = platform.Credentials.Basic.Password
-		result.Integrity = platform.Credentials.Integrity[:]
+		result.Integrity = platform.Credentials.Integrity
 	}
 	return result, true
 }
 
 func (p *Platform) ToObject() types.Object {
-	var integrity [32]byte
-	copy(integrity[:], p.Integrity)
 	return &types.Platform{
 		Base: types.Base{
 			ID:             p.ID,
@@ -89,7 +87,7 @@ func (p *Platform) ToObject() types.Object {
 				Username: p.Username,
 				Password: p.Password,
 			},
-			Integrity: integrity,
+			Integrity: p.Integrity,
 		},
 		Active:     p.Active,
 		LastActive: p.LastActive,

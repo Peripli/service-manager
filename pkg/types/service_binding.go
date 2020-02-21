@@ -42,7 +42,7 @@ type ServiceBinding struct {
 	BindResource      json.RawMessage        `json:"bind_resource,omitempty"`
 	Credentials       json.RawMessage        `json:"credentials,omitempty"`
 	Parameters        map[string]interface{} `json:"parameters,omitempty"`
-	Integrity         [32]byte               `json:"-"`
+	Integrity         []byte                 `json:"-"`
 
 	LastOperation *Operation `json:"last_operation,omitempty"`
 }
@@ -59,11 +59,11 @@ func (e *ServiceBinding) IntegralData() []byte {
 	return e.Credentials
 }
 
-func (e *ServiceBinding) SetIntegrity(integrity [32]byte) {
+func (e *ServiceBinding) SetIntegrity(integrity []byte) {
 	e.Integrity = integrity
 }
 
-func (e *ServiceBinding) GetIntegrity() [32]byte {
+func (e *ServiceBinding) GetIntegrity() []byte {
 	return e.Integrity
 }
 

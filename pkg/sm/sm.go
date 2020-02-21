@@ -111,7 +111,10 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 	// Decorate the storage with credentials encryption/decryption
 	encryptingDecorator := storage.EncryptingDecorator(ctx, &security.AESEncrypter{}, smStorage, postgres.EncryptingLocker(smStorage))
-	integrityProcessor := &security.HashingIntegrityProcessor{HashingFunc: sha256.Sum256}
+	integrityProcessor := &security.HashingIntegrityProcessor{HashingFunc: func(data []byte) []byte {
+		hash := sha256.Sum256(data)
+		return hash[:]
+	}}
 	integrityDecorator := storage.DataIntegrityDecorator(integrityProcessor)
 
 	// Initialize the storage with graceful termination

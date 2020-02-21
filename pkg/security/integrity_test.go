@@ -27,7 +27,7 @@ import (
 
 type obj struct {
 	integralData []byte
-	integrity    [32]byte
+	integrity    []byte
 }
 
 func (o *obj) Encrypt(context.Context, func(context.Context, []byte) ([]byte, error)) error {
@@ -42,21 +42,24 @@ func (o *obj) IntegralData() []byte {
 	return o.integralData
 }
 
-func (o *obj) SetIntegrity(integrity [32]byte) {
+func (o *obj) SetIntegrity(integrity []byte) {
 	o.integrity = integrity
 }
 
-func (o *obj) GetIntegrity() [32]byte {
+func (o *obj) GetIntegrity() []byte {
 	return o.integrity
 }
 
 var _ = Describe("SHA256 processor", func() {
 	var processor security.IntegrityProcessor
 	var securedObject *obj
-	var emptyIntegrity [32]byte
+	emptyIntegrity := []byte{}
 
 	BeforeEach(func() {
-		processor = &security.HashingIntegrityProcessor{HashingFunc: sha256.Sum256}
+		processor = &security.HashingIntegrityProcessor{HashingFunc: func(data []byte) []byte {
+			bytes := sha256.Sum256(data)
+			return bytes[:]
+		}}
 		securedObject = &obj{
 			integralData: []byte("integral data"),
 		}

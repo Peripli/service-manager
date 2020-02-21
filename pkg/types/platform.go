@@ -90,11 +90,11 @@ func (e *Platform) IntegralData() []byte {
 	return []byte(fmt.Sprintf("%s:%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password))
 }
 
-func (e *Platform) SetIntegrity(integrity [32]byte) {
+func (e *Platform) SetIntegrity(integrity []byte) {
 	e.Credentials.Integrity = integrity
 }
 
-func (e *Platform) GetIntegrity() [32]byte {
+func (e *Platform) GetIntegrity() []byte {
 	return e.Credentials.Integrity
 }
 

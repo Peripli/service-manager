@@ -42,8 +42,6 @@ type ServiceBinding struct {
 }
 
 func (sb *ServiceBinding) ToObject() types.Object {
-	var integrity [32]byte
-	copy(integrity[:], sb.Integrity)
 	return &types.ServiceBinding{
 		Base: types.Base{
 			ID:             sb.ID,
@@ -62,7 +60,7 @@ func (sb *ServiceBinding) ToObject() types.Object {
 		Context:           getJSONRawMessage(sb.Context),
 		BindResource:      getJSONRawMessage(sb.BindResource),
 		Credentials:       getJSONRawMessageFromString(sb.Credentials),
-		Integrity:         integrity,
+		Integrity:         sb.Integrity,
 	}
 }
 
@@ -89,7 +87,7 @@ func (*ServiceBinding) FromObject(object types.Object) (storage.Entity, bool) {
 		Context:           getJSONText(serviceBinding.Context),
 		BindResource:      getJSONText(serviceBinding.BindResource),
 		Credentials:       getStringFromJSONRawMessage(serviceBinding.Credentials),
-		Integrity:         serviceBinding.Integrity[:],
+		Integrity:         serviceBinding.Integrity,
 	}
 
 	return sb, true

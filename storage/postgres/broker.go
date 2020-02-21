@@ -45,8 +45,6 @@ func (e *Broker) ToObject() types.Object {
 	for _, service := range e.Services {
 		services = append(services, service.ToObject().(*types.ServiceOffering))
 	}
-	var integrity [32]byte
-	copy(integrity[:], e.Integrity)
 	broker := &types.ServiceBroker{
 		Base: types.Base{
 			ID:             e.ID,
@@ -64,7 +62,7 @@ func (e *Broker) ToObject() types.Object {
 				Username: e.Username,
 				Password: e.Password,
 			},
-			Integrity: integrity,
+			Integrity: e.Integrity,
 		},
 		Catalog:  getJSONRawMessage(e.Catalog),
 		Services: services,
@@ -101,7 +99,7 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, bool) {
 	if broker.Credentials != nil && broker.Credentials.Basic != nil {
 		b.Username = broker.Credentials.Basic.Username
 		b.Password = broker.Credentials.Basic.Password
-		b.Integrity = broker.Credentials.Integrity[:]
+		b.Integrity = broker.Credentials.Integrity
 	}
 	return b, true
 }

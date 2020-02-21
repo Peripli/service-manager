@@ -43,8 +43,8 @@ type Secured interface {
 	Encrypt(context.Context, func(context.Context, []byte) ([]byte, error)) error
 	Decrypt(context.Context, func(context.Context, []byte) ([]byte, error)) error
 	IntegralData() []byte
-	SetIntegrity([32]byte)
-	GetIntegrity() [32]byte
+	SetIntegrity([]byte)
+	GetIntegrity() []byte
 }
 
 // Operatable is implemented by resources which have last operation associated

@@ -27,23 +27,22 @@ import (
 //go:generate counterfeiter . IntegrityProcessor
 type IntegrityProcessor interface {
 	ValidateIntegrity(secured types.Secured) bool
-	CalculateIntegrity(secured types.Secured) ([32]byte, error)
+	CalculateIntegrity(secured types.Secured) ([]byte, error)
 }
 
 // HashingIntegrityProcessor is an integrity processor that uses a hashing func to calculate the integrity
 type HashingIntegrityProcessor struct {
-	HashingFunc func(data []byte) [32]byte
+	HashingFunc func(data []byte) []byte
 }
 
 // CalculateIntegrity calculates the integrity of a secured object using a hashing func
-func (h *HashingIntegrityProcessor) CalculateIntegrity(secured types.Secured) ([32]byte, error) {
-	var empty [32]byte
+func (h *HashingIntegrityProcessor) CalculateIntegrity(secured types.Secured) ([]byte, error) {
 	if secured == nil {
-		return empty, fmt.Errorf("cannot calculate integrity of nil object")
+		return nil, fmt.Errorf("cannot calculate integrity of nil object")
 	}
 	integralData := secured.IntegralData()
 	if len(integralData) == 0 {
-		return empty, nil
+		return []byte{}, nil
 	}
 	return h.HashingFunc(integralData), nil
 }
@@ -59,5 +58,5 @@ func (h *HashingIntegrityProcessor) ValidateIntegrity(secured types.Secured) boo
 	}
 	hashedData := h.HashingFunc(integralData)
 	integrity := secured.GetIntegrity()
-	return bytes.Equal(hashedData[:], integrity[:])
+	return bytes.Equal(hashedData, integrity)
 }
