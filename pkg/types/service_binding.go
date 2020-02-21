@@ -42,6 +42,7 @@ type ServiceBinding struct {
 	BindResource      json.RawMessage        `json:"bind_resource,omitempty"`
 	Credentials       json.RawMessage        `json:"credentials,omitempty"`
 	Parameters        map[string]interface{} `json:"parameters,omitempty"`
+	Integrity         [32]byte               `json:"-"`
 
 	LastOperation *Operation `json:"last_operation,omitempty"`
 }
@@ -54,11 +55,15 @@ func (e *ServiceBinding) Decrypt(ctx context.Context, decryptionFunc func(contex
 	return e.transform(ctx, decryptionFunc)
 }
 
-func (e *ServiceBinding) ValidateChecksum(_ func(data []byte) [32]byte) bool {
-	return true
+func (e *ServiceBinding) IntegralData() []byte {
+	return e.Credentials
 }
 
-func (e *ServiceBinding) SetChecksum(_ func(data []byte) [32]byte) {
+func (e *ServiceBinding) SetIntegrity(integrity [32]byte) {
+	e.Integrity = integrity
+}
+func (e *ServiceBinding) GetIntegrity() [32]byte {
+	return e.Integrity
 }
 
 func (e *ServiceBinding) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {

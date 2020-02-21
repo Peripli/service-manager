@@ -71,6 +71,7 @@ type ServiceManagerBuilder struct {
 	wg                  *sync.WaitGroup
 	cfg                 *config.Settings
 	securityBuilder     *SecurityBuilder
+	integrityProcessor  security.IntegrityProcessor
 }
 
 // ServiceManager  struct
@@ -108,13 +109,14 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	// Decorate the storage with credentials encryption/decryption
-	encryptingDecorator := storage.SecuringDecorator(ctx, &security.AESEncrypter{}, smStorage, postgres.EncryptingLocker(smStorage), cfg.Storage.HashingFunc)
-	//checksumDecorator := storage.NewChecksumDecorator(cfg.Storage.HashingFunc)
+	encryptingDecorator := storage.EncryptingDecorator(ctx, &security.AESEncrypter{}, smStorage, postgres.EncryptingLocker(smStorage))
+	integrityProcessor := security.SHA256IntegrityProcessor()
+	integrityDecorator := storage.DataIntegrityDecorator(integrityProcessor)
 
 	// Initialize the storage with graceful termination
 	var transactionalRepository storage.TransactionalRepository
 	waitGroup := &sync.WaitGroup{}
-	if transactionalRepository, err = storage.InitializeWithSafeTermination(ctx, smStorage, cfg.Storage, waitGroup, encryptingDecorator); err != nil {
+	if transactionalRepository, err = storage.InitializeWithSafeTermination(ctx, smStorage, cfg.Storage, waitGroup, integrityDecorator, encryptingDecorator); err != nil {
 		return nil, fmt.Errorf("error opening storage: %s", err)
 	}
 
@@ -176,6 +178,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		cfg:                 cfg,
 		securityBuilder:     securityBuilder,
 		OSBClientProvider:   osbClientProvider,
+		integrityProcessor:  integrityProcessor,
 	}
 
 	smb.RegisterPlugins(osb.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
@@ -262,7 +265,7 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 		log.C(smb.ctx).Panic(err)
 	}
 
-	if err := smb.calculateChecksums(); err != nil {
+	if err := smb.calculateIntegrity(); err != nil {
 		log.C(smb.ctx).Panic(err)
 	}
 
@@ -532,21 +535,29 @@ func (smb *ServiceManagerBuilder) Security() *SecurityBuilder {
 	return smb.securityBuilder.Reset()
 }
 
-func (smb *ServiceManagerBuilder) calculateChecksums() error {
-	// TODO: if you have access to the DB, changing the URL and removing the checksum will make this effort useless.
+func (smb *ServiceManagerBuilder) calculateIntegrity() error {
+	// TODO: if you have access to the DB, changing the integral data and removing the integrity will make this effort useless.
 	// Probably this should be done in a separate application or removed from the code after the initial setup.
 	return smb.Storage.InTransaction(smb.ctx, func(ctx context.Context, storage storage.Repository) error {
-		emptyChecksumCriteria := query.ByField(query.EqualsOrNilOperator, "checksum", "")
-		brokers, err := storage.List(ctx, types.ServiceBrokerType, emptyChecksumCriteria)
-		if err != nil {
-			return err
-		}
-		log.C(ctx).Info("Found %d brokers that need checksum to be calculated", brokers.Len())
-		for i := 0; i < brokers.Len(); i++ {
-			broker := brokers.ItemAt(i).(*types.ServiceBroker)
-			broker.SetChecksum(smb.cfg.Storage.HashingFunc)
-			if _, err := storage.Update(ctx, broker, query.LabelChanges{}); err != nil {
+		objectTypesWithIntegrity := []types.ObjectType{types.PlatformType, types.ServiceBrokerType, types.ServiceBindingType}
+		for _, objectType := range objectTypesWithIntegrity {
+			emptyChecksumCriteria := query.ByField(query.EqualsOrNilOperator, "integrity", "")
+			objects, err := storage.List(ctx, objectType, emptyChecksumCriteria)
+			if err != nil {
 				return err
+			}
+			log.C(ctx).Infof("Found %d %s that need integrity to be calculated", objectType, objects.Len())
+			for i := 0; i < objects.Len(); i++ {
+				obj := objects.ItemAt(i)
+				securedObj := obj.(types.Secured)
+				integrity, err := smb.integrityProcessor.CalculateIntegrity(securedObj)
+				if err != nil {
+					return err
+				}
+				securedObj.SetIntegrity(integrity)
+				if _, err := storage.Update(ctx, obj, query.LabelChanges{}); err != nil {
+					return err
+				}
 			}
 		}
 		return nil

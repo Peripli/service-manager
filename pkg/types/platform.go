@@ -86,12 +86,16 @@ func (e *Platform) transform(ctx context.Context, transformationFunc func(contex
 	return nil
 }
 
-func (e *Platform) ValidateChecksum(_ func(data []byte) [32]byte) bool {
-	return true
+func (e *Platform) IntegralData() []byte {
+	return []byte(fmt.Sprintf("%s:%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password))
 }
 
-func (e *Platform) SetChecksum(_ func(data []byte) [32]byte) {
+func (e *Platform) SetIntegrity(integrity [32]byte) {
+	e.Credentials.Integrity = integrity
+}
 
+func (e *Platform) GetIntegrity() [32]byte {
+	return e.Credentials.Integrity
 }
 
 func (e *Platform) calculateChecksum(hashFunc func(data []byte) [32]byte) [32]byte {

@@ -18,7 +18,6 @@
 package types
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -58,18 +57,16 @@ func (e *ServiceBroker) Decrypt(ctx context.Context, decryptionFunc func(context
 	return e.transform(ctx, decryptionFunc)
 }
 
-func (e *ServiceBroker) ValidateChecksum(hashFunc func(data []byte) [32]byte) bool {
-	hashed := e.calcluateChecksum(hashFunc)
-	return bytes.Equal(e.Credentials.Checksum[:], hashed[:])
+func (e *ServiceBroker) IntegralData() []byte {
+	return []byte(fmt.Sprintf("%s:%s:%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, e.BrokerURL))
 }
 
-func (e *ServiceBroker) calcluateChecksum(hashFunc func(data []byte) [32]byte) [32]byte {
-	data := fmt.Sprintf("%s:%s:%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, e.BrokerURL)
-	return hashFunc([]byte(data))
+func (e *ServiceBroker) SetIntegrity(integrity [32]byte) {
+	e.Credentials.Integrity = integrity
 }
 
-func (e *ServiceBroker) SetChecksum(hashFunc func(data []byte) [32]byte) {
-	e.Credentials.Checksum = e.calcluateChecksum(hashFunc)
+func (e *ServiceBroker) GetIntegrity() [32]byte {
+	return e.Credentials.Integrity
 }
 
 func (e *ServiceBroker) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
