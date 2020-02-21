@@ -45,6 +45,9 @@ const (
 	// OperationsURL is the URL path fetch operations
 	OperationsURL = "/operations"
 
+	// CredentialsURL is the URL path to manage service broker platform credentials
+	CredentialsURL = "/" + apiVersion + "/credentials"
+
 	// ProfileURL is the Configuration API base URL path
 	ProfileURL = "/" + apiVersion + "/profile"
 )

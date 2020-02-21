@@ -256,7 +256,7 @@
   revision = "2ba0fc60eb4a54030f3a6d73ff0a047349c7eeca"
 
 [[projects]]
-  digest = "1:1d965d8955ca44e9c963e24fdf0517033ca1820b6643ec546106dc2040ed54a0"
+  digest = "1:da22f8cea639e4c5a5df6a1604fe33396ee2cea130b8214ba67cb6ad236b87ff"
   name = "github.com/klauspost/compress"
   packages = [
     "flate",
@@ -264,8 +264,8 @@
     "zlib",
   ]
   pruneopts = "UT"
-  revision = "b9d5dc7bd435c628cb0c658ce7f556409007ea71"
-  version = "v1.10.0"
+  revision = "2a5ec94050832300f2c49529dbab4b3774cbc30a"
+  version = "v1.10.1"
 
 [[projects]]
   digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
@@ -464,15 +464,15 @@
   version = "v1.4.0"
 
 [[projects]]
-  digest = "1:99d32780e5238c2621fff621123997c3e3cca96db8be13179013aea77dfab551"
+  digest = "1:49b1087f45b1e49687da2f8eb49d9e07919d4bad3813344251c722141dcb31d6"
   name = "github.com/stretchr/testify"
   packages = [
     "assert",
     "require",
   ]
   pruneopts = "UT"
-  revision = "221dbe5ed46703ee255b1da0dec05086f5035f62"
-  version = "v1.4.0"
+  revision = "3ebf1ddaeb260c4b1ae502a01c7844fa8c1fa0e9"
+  version = "v1.5.1"
 
 [[projects]]
   digest = "1:13503b1b68ee704913caf452f02968fa313a9934e67d951ed0d39ca8e230d5e0"
@@ -586,7 +586,7 @@
     "pbkdf2",
   ]
   pruneopts = "UT"
-  revision = "86ce3cb696783b739e41e834e2eead3e1b4aa3fb"
+  revision = "bac4c82f69751a6dd76e702d54b3ceb88adab236"
 
 [[projects]]
   branch = "master"
@@ -602,7 +602,7 @@
     "publicsuffix",
   ]
   pruneopts = "UT"
-  revision = "16171245cfb220d5317888b716d69c1fb4e7992b"
+  revision = "46282727080fcf56da5781d0a9ef2fda184be5e6"
 
 [[projects]]
   branch = "master"
@@ -617,11 +617,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:72b7c210f8cfe1431d2f300fbf37f25e52aa77324b05ab6b698483054033803e"
+  digest = "1:f4caa38f81f81dc7832d923b152eddd743c2f088ef0269bcd6cba53ce5851485"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "d101bd2416d505c0448a6ce8a282482678040a89"
+  revision = "cb0a6d8edb6c3528b01a0be84a5fe513dbf880a6"
 
 [[projects]]
   digest = "1:28deae5fe892797ff37a317b5bcda96d11d1c90dadd89f1337651df3bc4c586e"
