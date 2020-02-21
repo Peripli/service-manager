@@ -243,13 +243,11 @@ var _ = Describe("Integrity Repository", func() {
 		})
 
 		Context("when no errors occur", func() {
-			var returnedObj types.Object
-			var err error
 			var delegateUpdateCallsCountBeforeOp int
 
 			BeforeEach(func() {
 				delegateUpdateCallsCountBeforeOp = fakeRepository.UpdateCallCount()
-				returnedObj, err = repository.Update(ctx, object, query.LabelChanges{})
+				_, err := repository.Update(ctx, object, query.LabelChanges{})
 				Expect(err).ToNot(HaveOccurred())
 			})
 
