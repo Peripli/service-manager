@@ -58,7 +58,6 @@ func Register(ctx context.Context, cfg *config.Settings, smb *sm.ServiceManagerB
 		web.NotificationsURL+"/**",
 		web.ServiceInstancesURL+"/**",
 		web.ServiceBindingsURL+"/**",
-		web.BrokerPlatformCredentialsURL+"/**",
 		web.ConfigURL+"/**",
 		web.ProfileURL+"/**",
 	).
