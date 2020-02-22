@@ -15,8 +15,9 @@ import (
 
 // Register adds security configuration to the service manager builder
 func Register(ctx context.Context, cfg *config.Settings, smb *sm.ServiceManagerBuilder) error {
-	basicAuthenticator := &authenticators.Basic{
-		Repository: smb.Storage,
+	basicPlatformAuthenticator := &authenticators.Basic{
+		Repository:             smb.Storage,
+		BasicAuthenticatorFunc: authenticators.BasicPlatformAuthenticator,
 	}
 
 	smb.Security().Path(
@@ -29,17 +30,22 @@ func Register(ctx context.Context, cfg *config.Settings, smb *sm.ServiceManagerB
 		web.ServiceBindingsURL+"/*",
 		web.NotificationsURL+"/*").
 		Method(http.MethodGet).
-		WithAuthentication(basicAuthenticator).Required()
-
-	smb.Security().
-		Path(web.OSBURL+"/**").
-		Method(http.MethodGet, http.MethodPut, http.MethodPatch, http.MethodDelete).
-		WithAuthentication(basicAuthenticator).Required()
+		WithAuthentication(basicPlatformAuthenticator).Required()
 
 	smb.Security().
 		Path(web.BrokerPlatformCredentialsURL+"/**").
 		Method(http.MethodPost, http.MethodPatch).
-		WithAuthentication(basicAuthenticator).Required()
+		WithAuthentication(basicPlatformAuthenticator).Required()
+
+	basicOSBAuthenticator := &authenticators.Basic{
+		Repository:             smb.Storage,
+		BasicAuthenticatorFunc: authenticators.BasicOSBAuthenticator,
+	}
+
+	smb.Security().
+		Path(web.OSBURL+"/**").
+		Method(http.MethodGet, http.MethodPut, http.MethodPatch, http.MethodDelete).
+		WithAuthentication(basicOSBAuthenticator).Required()
 
 	bearerAuthenticator, _, err := authenticators.NewOIDCAuthenticator(ctx, &authenticators.OIDCOptions{
 		IssuerURL: cfg.API.TokenIssuerURL,

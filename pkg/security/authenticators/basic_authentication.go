@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/types"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -29,9 +30,13 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
+//BasicAuthenticatorFunc defines a function which attempts to authenticate a basic auth request
+type BasicAuthenticatorFunc func(request *web.Request, repository storage.Repository, username, password string) (*web.UserContext, httpsec.Decision, error)
+
 // Basic for basic security
 type Basic struct {
-	Repository storage.Repository
+	Repository             storage.Repository
+	BasicAuthenticatorFunc BasicAuthenticatorFunc
 }
 
 // Authenticate authenticates by using the provided Basic credentials
@@ -41,9 +46,14 @@ func (a *Basic) Authenticate(request *web.Request) (*web.UserContext, httpsec.De
 		return nil, httpsec.Abstain, nil
 	}
 
+	return a.BasicAuthenticatorFunc(request, a.Repository, username, password)
+}
+
+//BasicPlatformAuthenticator attempts to authenticate basic auth requests with provided platform credentials
+func BasicPlatformAuthenticator(request *web.Request, repository storage.Repository, username, password string) (*web.UserContext, httpsec.Decision, error) {
 	ctx := request.Context()
 	byUsername := query.ByField(query.EqualsOperator, "username", username)
-	platformList, err := a.Repository.List(ctx, types.PlatformType, byUsername)
+	platformList, err := repository.List(ctx, types.PlatformType, byUsername)
 	if err != nil {
 		return nil, httpsec.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
 	}
@@ -57,7 +67,54 @@ func (a *Basic) Authenticate(request *web.Request) (*web.UserContext, httpsec.De
 		return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
 	}
 
-	bytes, err := json.Marshal(platform)
+	return buildResponse(username, platform)
+}
+
+//BasicOSBAuthenticator attempts to authenticate basic auth requests with provided broker platform credentials
+func BasicOSBAuthenticator(request *web.Request, repository storage.Repository, username, password string) (*web.UserContext, httpsec.Decision, error) {
+	ctx := request.Context()
+
+	brokerID := requestBrokerID(request)
+
+	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", brokerID)
+	byUsername := query.ByField(query.EqualsOperator, "username", username)
+
+	credentialsList, err := repository.List(ctx, types.BrokerPlatformCredentialType, byBrokerID, byUsername)
+	if err != nil {
+		return nil, httpsec.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
+	}
+
+	useOldCredentials := false
+	if credentialsList.Len() != 1 {
+		byUsername.LeftOp = "old_username"
+		credentialsList, err = repository.List(ctx, types.BrokerPlatformCredentialType, byBrokerID, byUsername)
+		if err != nil {
+			return nil, httpsec.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
+		}
+
+		if credentialsList.Len() != 1 {
+			return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
+		}
+
+		useOldCredentials = true
+	}
+
+	credentials := credentialsList.ItemAt(0).(*types.BrokerPlatformCredential)
+
+	passwordHash := credentials.PasswordHash
+	if useOldCredentials {
+		passwordHash = credentials.OldPasswordHash
+	}
+
+	if err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil {
+		return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
+	}
+
+	return buildResponse(username, credentials)
+}
+
+func buildResponse(username string, userData interface{}) (*web.UserContext, httpsec.Decision, error) {
+	bytes, err := json.Marshal(userData)
 	if err != nil {
 		return nil, httpsec.Abstain, err
 	}
@@ -70,4 +127,9 @@ func (a *Basic) Authenticate(request *web.Request) (*web.UserContext, httpsec.De
 		Name:               username,
 		AccessLevel:        web.NoAccess,
 	}, httpsec.Allow, nil
+}
+
+func requestBrokerID(request *web.Request) string {
+	// TODO: extract broker_id from req path or change authenticator interface to acccept web.Request
+	return ""
 }

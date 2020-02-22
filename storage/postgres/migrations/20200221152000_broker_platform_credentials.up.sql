@@ -18,7 +18,8 @@ CREATE TABLE broker_platform_credentials
 
   ready             boolean NOT NULL,
 
-  UNIQUE (platform_id, broker_id)
+  UNIQUE (platform_id, broker_id),
+  UNIQUE (broker_id, username)
 );
 
 CREATE TABLE broker_platform_credential_labels
