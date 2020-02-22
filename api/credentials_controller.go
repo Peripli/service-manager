@@ -60,6 +60,13 @@ func (c *CredentialsController) Routes() []web.Route {
 			},
 			Handler: c.updateCredentials,
 		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodDelete,
+				Path:   c.resourceBaseURL,
+			},
+			Handler: c.deleteCredentials,
+		},
 	}
 }
 
@@ -137,4 +144,30 @@ func (c *BaseController) updateCredentials(r *web.Request) (*web.Response, error
 	}
 
 	return util.NewJSONResponse(http.StatusOK, object)
+}
+
+func (c *BaseController) deleteCredentials(r *web.Request) (*web.Response, error) {
+	ctx := r.Context()
+	log.C(ctx).Debugf("Delete broker platform credentials")
+
+	platform, err := osb.ExtractPlatformFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	credentials := &types.BrokerPlatformCredential{}
+	if err := util.BytesToObject(r.Body, credentials); err != nil {
+		return nil, err
+	}
+
+	criteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, "platform_id", platform.ID),
+		query.ByField(query.EqualsOperator, "broker_id", credentials.BrokerID),
+	}
+
+	if err := c.repository.Delete(ctx, types.BrokerPlatformCredentialType, criteria...); err != nil {
+		return nil, util.HandleStorageError(err, c.objectType.String())
+	}
+
+	return util.NewJSONResponse(http.StatusOK, map[string]string{})
 }
