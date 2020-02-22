@@ -27,10 +27,10 @@ import (
 type BrokerPlatformCredential struct {
 	BaseEntity
 
-	Username    string `db:"username"`
-	Password    string `db:"password"`
-	OldUsername string `db:"old_username"`
-	OldPassword string `db:"old_password"`
+	Username        string `db:"username"`
+	PasswordHash    string `db:"password_hash"`
+	OldUsername     string `db:"old_username"`
+	OldPasswordHash string `db:"old_password_hash"`
 
 	PlatformID string `db:"platform_id"`
 	BrokerID   string `db:"broker_id"`
@@ -46,12 +46,12 @@ func (bpc *BrokerPlatformCredential) ToObject() types.Object {
 			PagingSequence: bpc.PagingSequence,
 			Ready:          bpc.Ready,
 		},
-		Username:    bpc.Username,
-		Password:    bpc.Password,
-		OldUsername: bpc.OldUsername,
-		OldPassword: bpc.OldPassword,
-		PlatformID:  bpc.PlatformID,
-		BrokerID:    bpc.BrokerID,
+		Username:        bpc.Username,
+		PasswordHash:    bpc.PasswordHash,
+		OldUsername:     bpc.OldUsername,
+		OldPasswordHash: bpc.OldPasswordHash,
+		PlatformID:      bpc.PlatformID,
+		BrokerID:        bpc.BrokerID,
 	}
 }
 
@@ -69,12 +69,12 @@ func (*BrokerPlatformCredential) FromObject(object types.Object) (storage.Entity
 			PagingSequence: brokerPlatformCredential.PagingSequence,
 			Ready:          brokerPlatformCredential.Ready,
 		},
-		Username:    brokerPlatformCredential.Username,
-		Password:    brokerPlatformCredential.Password,
-		OldUsername: brokerPlatformCredential.OldUsername,
-		OldPassword: brokerPlatformCredential.OldUsername,
-		PlatformID:  brokerPlatformCredential.PlatformID,
-		BrokerID:    brokerPlatformCredential.BrokerID,
+		Username:        brokerPlatformCredential.Username,
+		PasswordHash:    brokerPlatformCredential.PasswordHash,
+		OldUsername:     brokerPlatformCredential.OldUsername,
+		OldPasswordHash: brokerPlatformCredential.OldPasswordHash,
+		PlatformID:      brokerPlatformCredential.PlatformID,
+		BrokerID:        brokerPlatformCredential.BrokerID,
 	}
 
 	return bpc, true

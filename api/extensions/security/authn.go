@@ -36,6 +36,11 @@ func Register(ctx context.Context, cfg *config.Settings, smb *sm.ServiceManagerB
 		Method(http.MethodGet, http.MethodPut, http.MethodPatch, http.MethodDelete).
 		WithAuthentication(basicAuthenticator).Required()
 
+	smb.Security().
+		Path(web.BrokerPlatformCredentialsURL+"/**").
+		Method(http.MethodPost, http.MethodPatch).
+		WithAuthentication(basicAuthenticator).Required()
+
 	bearerAuthenticator, _, err := authenticators.NewOIDCAuthenticator(ctx, &authenticators.OIDCOptions{
 		IssuerURL: cfg.API.TokenIssuerURL,
 		ClientID:  cfg.API.ClientID,
@@ -53,6 +58,7 @@ func Register(ctx context.Context, cfg *config.Settings, smb *sm.ServiceManagerB
 		web.NotificationsURL+"/**",
 		web.ServiceInstancesURL+"/**",
 		web.ServiceBindingsURL+"/**",
+		web.BrokerPlatformCredentialsURL+"/**",
 		web.ConfigURL+"/**",
 		web.ProfileURL+"/**",
 	).

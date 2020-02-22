@@ -6,9 +6,10 @@ import (
 	"encoding/json"
 
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const BrokerPlatformCredentialType ObjectType = "types.BrokerPlatformCredential"
+const BrokerPlatformCredentialType ObjectType = web.BrokerPlatformCredentialsURL
 
 type BrokerPlatformCredentials struct {
 	BrokerPlatformCredentials []*BrokerPlatformCredential `json:"broker_platform_credentials"`

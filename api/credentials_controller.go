@@ -18,7 +18,14 @@ package api
 
 import (
 	"context"
+	"fmt"
+	"github.com/Peripli/service-manager/api/osb"
+	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/gofrs/uuid"
 	"net/http"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -31,7 +38,7 @@ type CredentialsController struct {
 
 func NewCredentialsController(ctx context.Context, options *Options) *CredentialsController {
 	return &CredentialsController{
-		BaseController: NewController(ctx, options, web.CredentialsURL, types.BrokerPlatformCredentialType, func() types.Object {
+		BaseController: NewController(ctx, options, web.BrokerPlatformCredentialsURL, types.BrokerPlatformCredentialType, func() types.Object {
 			return &types.BrokerPlatformCredential{}
 		}),
 	}
@@ -44,14 +51,90 @@ func (c *CredentialsController) Routes() []web.Route {
 				Method: http.MethodPost,
 				Path:   c.resourceBaseURL,
 			},
-			Handler: c.CreateObject,
+			Handler: c.registerCredentials,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPatch,
 				Path:   c.resourceBaseURL,
 			},
-			Handler: c.PatchObject,
+			Handler: c.updateCredentials,
 		},
 	}
+}
+
+func (c *BaseController) registerCredentials(r *web.Request) (*web.Response, error) {
+	ctx := r.Context()
+	log.C(ctx).Debugf("Creating new broker platform credentials")
+
+	platform, err := osb.ExtractPlatformFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	credentials := &types.BrokerPlatformCredential{}
+	if err := util.BytesToObject(r.Body, credentials); err != nil {
+		return nil, err
+	}
+
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
+	}
+	credentials.SetID(UUID.String())
+
+	currentTime := time.Now().UTC()
+	credentials.SetCreatedAt(currentTime)
+	credentials.SetUpdatedAt(currentTime)
+	credentials.SetReady(true)
+
+	credentials.PlatformID = platform.ID
+	credentials.OldUsername = ""
+	credentials.OldPasswordHash = ""
+
+	createdObj, err := c.repository.Create(ctx, credentials)
+	if err != nil {
+		return nil, util.HandleStorageError(err, c.objectType.String())
+	}
+
+	return util.NewJSONResponse(http.StatusCreated, createdObj)
+}
+
+func (c *BaseController) updateCredentials(r *web.Request) (*web.Response, error) {
+	ctx := r.Context()
+	log.C(ctx).Debugf("Updating broker platform credentials")
+
+	platform, err := osb.ExtractPlatformFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	credentials := &types.BrokerPlatformCredential{}
+	if err := util.BytesToObject(r.Body, credentials); err != nil {
+		return nil, err
+	}
+
+	criteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, "platform_id", platform.ID),
+		query.ByField(query.EqualsOperator, "broker_id", credentials.BrokerID),
+	}
+	objFromDB, err := c.repository.Get(ctx, c.objectType, criteria...)
+	if err != nil {
+		return nil, util.HandleStorageError(err, c.objectType.String())
+	}
+
+	brokerPlatformCredentials := objFromDB.(*types.BrokerPlatformCredential)
+
+	brokerPlatformCredentials.OldUsername = brokerPlatformCredentials.Username
+	brokerPlatformCredentials.OldPasswordHash = brokerPlatformCredentials.PasswordHash
+
+	brokerPlatformCredentials.Username = credentials.Username
+	brokerPlatformCredentials.PasswordHash = credentials.PasswordHash
+
+	object, err := c.repository.Update(ctx, brokerPlatformCredentials, query.LabelChanges{})
+	if err != nil {
+		return nil, util.HandleStorageError(err, c.objectType.String())
+	}
+
+	return util.NewJSONResponse(http.StatusOK, object)
 }

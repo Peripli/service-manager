@@ -24,7 +24,7 @@ func (*BrokerPlatformCredential) TableName() string {
 	return BrokerPlatformCredentialTable
 }
 
-func (bpc *BrokerPlatformCredential) NewLabel(id, key, value string) storage.Label {
+func (e *BrokerPlatformCredential) NewLabel(id, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
@@ -37,11 +37,11 @@ func (bpc *BrokerPlatformCredential) NewLabel(id, key, value string) storage.Lab
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		BrokerPlatformCredentialID: sql.NullString{String: bpc.ID, Valid: bpc.ID != ""},
+		BrokerPlatformCredentialID: sql.NullString{String: e.ID, Valid: e.ID != ""},
 	}
 }
 
-func (bpc *BrokerPlatformCredential) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
+func (e *BrokerPlatformCredential) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 	rowCreator := func() EntityLabelRow {
 		return &struct {
 			*BrokerPlatformCredential

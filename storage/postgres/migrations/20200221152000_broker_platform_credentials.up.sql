@@ -16,7 +16,9 @@ CREATE TABLE broker_platform_credentials
   updated_at        timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
   paging_sequence   BIGSERIAL,
 
-  ready             boolean NOT NULL
+  ready             boolean NOT NULL,
+
+  UNIQUE (platform_id, broker_id)
 );
 
 CREATE TABLE broker_platform_credential_labels

@@ -27,10 +27,10 @@ import (
 type BrokerPlatformCredential struct {
 	Base
 
-	Username    string `json:"username"`
-	Password    string `json:"password"`
-	OldUsername string `json:"old_username"`
-	OldPassword string `json:"old_password"`
+	Username        string `json:"username"`
+	PasswordHash    string `json:"password_hash"`
+	OldUsername     string `json:"old_username"`
+	OldPasswordHash string `json:"old_password_hash"`
 
 	PlatformID string `json:"platform_id"`
 	BrokerID   string `json:"broker_id"`
@@ -43,9 +43,9 @@ func (e *BrokerPlatformCredential) Equals(obj Object) bool {
 
 	instance := obj.(*BrokerPlatformCredential)
 	if e.Username != instance.Username ||
-		e.Password != instance.Password ||
+		e.PasswordHash != instance.PasswordHash ||
 		e.OldUsername != instance.OldUsername ||
-		e.OldPassword != instance.OldPassword ||
+		e.OldPasswordHash != instance.OldPasswordHash ||
 		e.PlatformID != instance.PlatformID ||
 		e.BrokerID != instance.BrokerID {
 		return false
@@ -62,11 +62,8 @@ func (e *BrokerPlatformCredential) Validate() error {
 	if e.Username == "" {
 		return errors.New("missing username")
 	}
-	if e.Password == "" {
-		return errors.New("missing password")
-	}
-	if e.PlatformID == "" {
-		return errors.New("missing platform id")
+	if e.PasswordHash == "" {
+		return errors.New("missing password_hash")
 	}
 	if e.BrokerID == "" {
 		return errors.New("missing broker id")
