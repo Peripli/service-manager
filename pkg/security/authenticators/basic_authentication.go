@@ -19,8 +19,6 @@ package authenticators
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-
 	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -37,7 +35,7 @@ type Basic struct {
 }
 
 // Authenticate authenticates by using the provided Basic credentials
-func (a *Basic) Authenticate(request *http.Request) (*web.UserContext, httpsec.Decision, error) {
+func (a *Basic) Authenticate(request *web.Request) (*web.UserContext, httpsec.Decision, error) {
 	username, password, ok := request.BasicAuth()
 	if !ok {
 		return nil, httpsec.Abstain, nil

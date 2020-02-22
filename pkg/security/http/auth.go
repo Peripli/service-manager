@@ -18,8 +18,6 @@ package http
 
 import (
 	"context"
-	"net/http"
-
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
@@ -51,7 +49,7 @@ func (a Decision) String() string {
 type Authenticator interface {
 	// Authenticate returns information about the user if security is successful, a bool specifying
 	// whether the authenticator ran or not and an error if one occurs
-	Authenticate(req *http.Request) (*web.UserContext, Decision, error)
+	Authenticate(req *web.Request) (*web.UserContext, Decision, error)
 }
 
 // Authorizer extracts the information from the authenticated user and

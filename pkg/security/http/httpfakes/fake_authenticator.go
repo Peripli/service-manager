@@ -2,7 +2,6 @@
 package httpfakes
 
 import (
-	httpa "net/http"
 	"sync"
 
 	"github.com/Peripli/service-manager/pkg/security/http"
@@ -10,10 +9,10 @@ import (
 )
 
 type FakeAuthenticator struct {
-	AuthenticateStub        func(*httpa.Request) (*web.UserContext, http.Decision, error)
+	AuthenticateStub        func(*web.Request) (*web.UserContext, http.Decision, error)
 	authenticateMutex       sync.RWMutex
 	authenticateArgsForCall []struct {
-		arg1 *httpa.Request
+		arg1 *web.Request
 	}
 	authenticateReturns struct {
 		result1 *web.UserContext
@@ -29,11 +28,11 @@ type FakeAuthenticator struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeAuthenticator) Authenticate(arg1 *httpa.Request) (*web.UserContext, http.Decision, error) {
+func (fake *FakeAuthenticator) Authenticate(arg1 *web.Request) (*web.UserContext, http.Decision, error) {
 	fake.authenticateMutex.Lock()
 	ret, specificReturn := fake.authenticateReturnsOnCall[len(fake.authenticateArgsForCall)]
 	fake.authenticateArgsForCall = append(fake.authenticateArgsForCall, struct {
-		arg1 *httpa.Request
+		arg1 *web.Request
 	}{arg1})
 	fake.recordInvocation("Authenticate", []interface{}{arg1})
 	fake.authenticateMutex.Unlock()
@@ -53,13 +52,13 @@ func (fake *FakeAuthenticator) AuthenticateCallCount() int {
 	return len(fake.authenticateArgsForCall)
 }
 
-func (fake *FakeAuthenticator) AuthenticateCalls(stub func(*httpa.Request) (*web.UserContext, http.Decision, error)) {
+func (fake *FakeAuthenticator) AuthenticateCalls(stub func(*web.Request) (*web.UserContext, http.Decision, error)) {
 	fake.authenticateMutex.Lock()
 	defer fake.authenticateMutex.Unlock()
 	fake.AuthenticateStub = stub
 }
 
-func (fake *FakeAuthenticator) AuthenticateArgsForCall(i int) *httpa.Request {
+func (fake *FakeAuthenticator) AuthenticateArgsForCall(i int) *web.Request {
 	fake.authenticateMutex.RLock()
 	defer fake.authenticateMutex.RUnlock()
 	argsForCall := fake.authenticateArgsForCall[i]
