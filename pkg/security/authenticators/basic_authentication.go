@@ -19,10 +19,10 @@ package authenticators
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/api/osb"
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"golang.org/x/crypto/bcrypt"
-
-	"github.com/Peripli/service-manager/pkg/query"
 
 	httpsec "github.com/Peripli/service-manager/pkg/security/http"
 
@@ -74,7 +74,10 @@ func BasicPlatformAuthenticator(request *web.Request, repository storage.Reposit
 func BasicOSBAuthenticator(request *web.Request, repository storage.Repository, username, password string) (*web.UserContext, httpsec.Decision, error) {
 	ctx := request.Context()
 
-	brokerID := requestBrokerID(request)
+	brokerID, ok := request.PathParams[osb.BrokerIDPathParam]
+	if !ok {
+		return nil, httpsec.Abstain, fmt.Errorf("could not get authenticate OSB request: brokerID path parameter not found")
+	}
 
 	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", brokerID)
 	byUsername := query.ByField(query.EqualsOperator, "username", username)
@@ -127,9 +130,4 @@ func buildResponse(username string, userData interface{}) (*web.UserContext, htt
 		Name:               username,
 		AccessLevel:        web.NoAccess,
 	}, httpsec.Allow, nil
-}
-
-func requestBrokerID(request *web.Request) string {
-	// TODO: extract broker_id from req path or change authenticator interface to acccept web.Request
-	return ""
 }
