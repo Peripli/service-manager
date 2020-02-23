@@ -75,11 +75,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				brokerServer           *BrokerServer
 				brokerWithLabelsServer *BrokerServer
 
-				postBrokerRequestWithNoLabels Object
-				expectedBrokerResponse        Object
-
-				labels                      Object
-				postBrokerRequestWithLabels labeledBroker
+				postBrokerRequestWithNoLabels                 Object
+				expectedBrokerResponse                        Object
+				postBrokerRequestWithTls                      Object
+				expectedBrokerResponseTls                     Object
+				postBrokerRequestWithInvalidBase64TlsEncoding Object
+				labels                                        Object
+				postBrokerRequestWithLabels                   labeledBroker
 
 				repository storage.Repository
 			)
@@ -142,6 +144,51 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					},
 					"labels": labels,
 				}
+
+				postBrokerRequestWithTls = Object{
+					"name":        brokerName,
+					"broker_url":  brokerServer.URL(),
+					"description": brokerDescription,
+					"credentials": Object{
+						"basic": Object{
+							"username": brokerServer.Username,
+							"password": brokerServer.Password,
+						},
+						"tls": Object{
+							"client_certificate": `LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUNyRENDQVpRQ0NRQ3ppVTdhdDQ0aXBqQU5CZ2txaGtpRzl3MEJBUVVGQURBWU1SWXdGQVlEVlFRRERBMUcKYVhKemRDQk5MaUJNWVhOME1CNFhEVEl3TURJeU1qRXlORE14TWxvWERUSXdNRE15TXpFeU5ETXhNbG93R0RFVwpNQlFHQTFVRUF3d05SbWx5YzNRZ1RTNGdUR0Z6ZERDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDCkFRb0NnZ0VCQU5vN2RiVXMva3piU3dWK2M4ajZ6ZW1wVkU5dWNkN2xPSjZtQzY0d3Vwd3pnZExwNG5QbjhpS2EKWWd0UjdFSXRuemRabGc1d0FZV3BFMUhNdFN1RnM0ZnJaRXI1VHdtOW9IZ2tEK3NYTmM1RHIzeEVQTUJXanRrVwpHSWNZN2VqVmpidUp4MThYYW16WXhsY0pqcFRFclhIcy9WbGhkMnppQjU4bEJxcUptc2h5N0I5djN2NkVpV0JYCkJpSHFUY0NRRkF5b3ZTQnYrOW1FZjRqWUYwZGtJZ01OTnQ2ZExCNkEvUWdqS2Q2RHZraEFOVkFuSjNOSGlMa20KekJkeVdDaCtrdUxrRHV6OVpjSWlHRDhIazRPVXFsdFQ3T0pYV1d0S2VZUSswOVRwUXFIMklrWnE2UWRza3djVwpqVFBjSFF4OFk1VEdrOFJwWGVmcEdtQm1ud3FURDIwQ0F3RUFBVEFOQmdrcWhraUc5dzBCQVFVRkFBT0NBUUVBClFjTFBhRXdaNkVZb1k3YWE0c096a1Y0QUVORWtkTGN6L0RRT0ZuczVMaXNGdENVYkdvUHVmenM0b3puOUJuZ3kKZlRTclVxVi9JNWw3YlFWMTh2aFdIODZPcUJZaURyeFpNYVRJZ3lTdXpOM2FYSkNwc3c0SlAwckhaanJSakZEeApocEw4cW9ERFI5dkR2anZxRTJqbHFYTVBBZTBEWkVsalJ6RytFQVJPRG5hQ0VGRnB6RWtvc1FMbFBTWHluNTFJCjNmZndOSGNQUVFlWkNrbnFKOUJJOGE0SmRFUDFjWkRkbDZUUHUxcnNha0ZmQ0hTS0N3ckthNmJsQ1pSeFZ2cGQKcVl4SEd0S1pTVTVCQ3N3ZDdjM3I4U0w1cXptQXNjbXU2b3Jxd3pHc3ZMSEF4M1k5T2NGKzd3ZURaZHoyT0IzcApPT3pZOGtHVkluVXM4M3RaT2ZNVmpRPT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQ==`,
+							"client_key":         `LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2Z0lCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktnd2dnU2tBZ0VBQW9JQkFRRGFPM1cxTFA1TTIwc0YKZm5QSStzM3BxVlJQYm5IZTVUaWVwZ3V1TUxxY000SFM2ZUp6NS9JaW1tSUxVZXhDTFo4M1daWU9jQUdGcVJOUgp6TFVyaGJPSDYyUksrVThKdmFCNEpBL3JGelhPUTY5OFJEekFWbzdaRmhpSEdPM28xWTI3aWNkZkYycHMyTVpYCkNZNlV4SzF4N1AxWllYZHM0Z2VmSlFhcWlackljdXdmYjk3K2hJbGdWd1loNmszQWtCUU1xTDBnYi92WmhIK0kKMkJkSFpDSUREVGJlblN3ZWdQMElJeW5lZzc1SVFEVlFKeWR6UjRpNUpzd1hjbGdvZnBMaTVBN3MvV1hDSWhnLwpCNU9EbEtwYlUremlWMWxyU25tRVB0UFU2VUtoOWlKR2F1a0hiSk1IRm8wejNCME1mR09VeHBQRWFWM242UnBnClpwOEtrdzl0QWdNQkFBRUNnZ0VBRG1LYy83UlhqdmxsbUpjZFNzSTlrSWw0NVVPQ2ZnN2VESmNsYmZZSVZ3T08KS3pqL2xHUlZzYkk3aEVPQ0wxcVNoRE9Ea0xBUmFaNGJoK2pXaUdmbnphM1dqcHFnZXlQazBBYVFoZzZoblZjWQoyamdsU1Focm9pT3l1alVLZWE2YUNTS3I0YmpKYXlOZTc1M1JxRHpPc2hQTkgzY3RTQ0FlSUg5d1VRMkJCblZ0CnIra2JEYnJYcjgzNC9Ya09CNzNyODVDWCtkNjkwVEhZdTFDZHFUNk9BanU3NHUrMTlnQzFVaENuOTVGL1NhL3YKZWowVEVDOEVxVU9jc1JwZmpVRUR4Nll3d3I1UnJibHpFYVM5OTdJWDBMWmIyMS84ZzZxVlVicStvS1p0dnlPZQpQL2NxMTdjdXZyM3B2S2hyR2k1dU9sWDFKUGFuOTY5alFxZTd4eEprZ1FLQmdRRHhzUkhBUDR5MXRnak1hYW9NCmRrRkE0V29RK2lsZXZJVnRmeE81YmViODlvb0FOY2psWDdsbkdjQUwxV0Fqb2E1bHIwNU5vMnBIdWRFMWl2ZHQKZUpnRVIxMy9CdGdWano2NUU1Z3pZRWpEcWNsZTJLLzNMVklPc2x2RmswTTl1bWZsWmRqbHowZmwxSWx1dGNNZAo0bFozY1M4ekpQVkNSK0QyQ3lESCtJeER1d0tCZ1FEbkp0cWdQTGp0bFJ4bWpYYVE0ek1jRnBjZFRxWHIwRGRmCkFhREEwaUMrbWloTmZteG1wTWpQbXBpUk9POE10cnZ2UXk5S3pkZzUzcHRsNmUyYWx6Y1dvSjhwNnZEbk1GVWEKUHVJZjMvbHc5UGZMa0ltR0RpUnluNkdjd0dhV2x1SFVYbHBoSnZUaTVBMlFsNUhtVzlYSGx3UngvWkd1cjdibQpsUmhzQUI3Qzl3S0JnUURnekMwU2Z3bEZTZGJOS2NwOFpORTBvM1NmN2Mza3k3dmVxRCtVVE9CM2tHZXk0bFBFCjVFL3gwVVdLdkIvN2hEcE5ZY3lXOGRPOGV0eFh6TFZ1SUtoajhtMCs4d0t3cXRkUUZTV1BRNUxxU2xWOTNsVnMKdGI2STVPUHUxSlhLS0VMU1h2UnFhMjBZRzZMb1VpNzA4THd6eEJaK24zVnUvS1FFdFR6OFFmVlVXUUtCZ1FDQQpoWnJ6a3kramNjLzd1VlllVXlVOHpkYXh4ZVA5VEtVczN3UFprandBbmtnZ1psV3hjSmZ5emx0Y0M1TG10OGVnCnpmTkNuVmRIUGQyYmVjalJ0cGc3clkweHlsNnR2TExreCtnRW53emJZR2xTdHdld0VMYjFRSXFrVkZuMkN1aC8Kb3dLUG1CQjdBeUFEc0RMQUtYbWc0dmZteFgwMTZwOUFiOC9IWlAyMW13S0JnQzhNUmQwWHdWM3NDUjFQbVczTwp2cmxaK1Nzd29OLzdwd1JUUldYL1MwQUhqWUJKK0JuMjVwM3Y0UjFQY2FFU3BZelludURXQWdJbDJ1cW5jZGVBCklsU3pJTWlLZnh1SklPenBKSEVkd2hWbUZyaUVJSXJ3ZEFBMGpQTUxlWEdGVG1JL3ZXQ21jRzlGNVhHd2xSUkoKZ0I5Y2VXd0J2ZjBIaFpZZkozWENKWlhNCi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0=`,
+						},
+					},
+				}
+
+				postBrokerRequestWithInvalidBase64TlsEncoding = Object{
+					"name":        brokerName,
+					"broker_url":  brokerServer.URL(),
+					"description": brokerDescription,
+					"credentials": Object{
+						"basic": Object{
+							"username": brokerServer.Username,
+							"password": brokerServer.Password,
+						},
+						"tls": Object{
+							"client_certificate": "cert",
+							"client_key":         "key",
+						},
+					},
+				}
+
+				expectedBrokerResponseTls = Object{
+					"name":        brokerName,
+					"broker_url":  brokerServer.URL(),
+					"description": brokerDescription,
+					"credentials": Object{
+						"basic": Object{
+							"username": brokerServer.Username,
+							"password": brokerServer.Password,
+						},
+					},
+				}
+
 				RemoveAllBrokers(ctx.SMRepository)
 
 				repository = ctx.SMRepository
@@ -418,6 +465,29 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
 								r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
 							}, "services.0.plans.0.schemas", "{invalid")
+						})
+					})
+
+					Context("when tls credentials are not base64 encoded", func() {
+						It("returns 400", func() {
+							ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithInvalidBase64TlsEncoding).
+								Expect().
+								Status(http.StatusBadRequest).
+								JSON().Object().Keys().Contains("error", "description")
+
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
+						})
+					})
+
+					Context("when tls credentials are valid", func() {
+						It("returns 400", func() {
+							reply := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTls).
+								Expect().
+								Status(http.StatusCreated).
+								JSON().Object()
+							reply.ContainsMap(expectedBrokerResponseTls)
+
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
 					})
 				})

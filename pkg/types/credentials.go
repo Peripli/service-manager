@@ -18,6 +18,7 @@ package types
 
 import (
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -29,9 +30,15 @@ type Basic struct {
 	Password string `json:"password,omitempty"`
 }
 
+type TLS struct {
+	Certificate string `json:"client_certificate,omitempty"`
+	Key         string `json:"client_key,omitempty"`
+}
+
 // Credentials credentials
 type Credentials struct {
 	Basic *Basic `json:"basic,omitempty"`
+	TLS   *TLS   `json:"tls,omitempty"`
 }
 
 func (c *Credentials) MarshalJSON() ([]byte, error) {
@@ -40,19 +47,32 @@ func (c *Credentials) MarshalJSON() ([]byte, error) {
 	if toMarshal.Basic == nil || toMarshal.Basic.Username == "" || toMarshal.Basic.Password == "" {
 		toMarshal.Basic = nil
 	}
+
+	if toMarshal.TLS == nil || toMarshal.TLS.Certificate == "" || toMarshal.TLS.Key == "" {
+		toMarshal.TLS = nil
+	}
+
 	return json.Marshal(toMarshal)
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (c *Credentials) Validate() error {
-	if c.Basic == nil {
-		return errors.New("missing broker credentials")
-	}
-	if c.Basic.Username == "" {
-		return errors.New("missing broker username")
-	}
-	if c.Basic.Password == "" {
-		return errors.New("missing broker password")
+
+	if c.TLS == nil || (TLS{}) == *c.TLS {
+		if c.Basic == nil {
+			return errors.New("missing broker credentials")
+		}
+		if c.Basic.Username == "" {
+			return errors.New("missing broker username")
+		}
+		if c.Basic.Password == "" {
+			return errors.New("missing broker password")
+		}
+	} else {
+		_, err := tls.X509KeyPair([]byte(c.TLS.Certificate), []byte(c.TLS.Key))
+		if err != nil {
+			return errors.New("invalidate TLS configuration: " + err.Error())
+		}
 	}
 	return nil
 }

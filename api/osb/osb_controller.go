@@ -19,16 +19,16 @@ package osb
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
 	"regexp"
-
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 
 	"github.com/sirupsen/logrus"
 
@@ -111,7 +111,10 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 	}
 
 	modifiedRequest := r.Request.WithContext(ctx)
-	modifiedRequest.SetBasicAuth(broker.Credentials.Basic.Username, broker.Credentials.Basic.Password)
+	if broker.Credentials.Basic.Username != "" && broker.Credentials.Basic.Password != "" {
+		modifiedRequest.SetBasicAuth(broker.Credentials.Basic.Username, broker.Credentials.Basic.Password)
+	}
+
 	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(r.Body))
 	modifiedRequest.ContentLength = int64(len(r.Body))
 	modifiedRequest.URL.Path = m[1]
@@ -120,7 +123,12 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 	// This sets the host header to point to the service broker that the request will be proxied to
 	modifiedRequest.Host = targetBrokerURL.Host
 
-	proxy := buildProxy(targetBrokerURL, logger, broker)
+	proxy, err := buildProxy(targetBrokerURL, logger, broker)
+
+	if err != nil {
+		logger.WithError(err).Errorf("Unable to build proxy for service broker %s", broker.Name)
+		return nil, err
+	}
 
 	recorder := httptest.NewRecorder()
 
@@ -162,13 +170,40 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 	return resp, nil
 }
 
-func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.ServiceBroker) *httputil.ReverseProxy {
+func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.ServiceBroker) (*httputil.ReverseProxy, error) {
 	proxy := httputil.NewSingleHostReverseProxy(targetBrokerURL)
 	director := proxy.Director
 	proxy.Director = func(request *http.Request) {
 		director(request)
 		logger.Infof("Forwarded OSB request to service broker %s at %s", broker.Name, request.URL)
 	}
+
+	tlsConfig, err := broker.GetTlsConfig()
+
+	if err != nil {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "unable to get tls configuration: " + err.Error(),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
+	if len(tlsConfig.Certificates) > 0 {
+		proxyTransport, ok := proxy.Transport.(*http.Transport)
+		if ok {
+			if proxyTransport.TLSClientConfig == nil {
+				proxyTransport.TLSClientConfig = &tls.Config{}
+			}
+			proxyTransport.TLSClientConfig.Certificates = tlsConfig.Certificates
+		} else {
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: "unable to apply tls configuration: ",
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+	}
+
 	proxy.ModifyResponse = func(response *http.Response) error {
 		logger.Infof("Service broker %s replied with status %d", broker.Name, response.StatusCode)
 		return nil
@@ -181,5 +216,5 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 			StatusCode:  http.StatusBadGateway,
 		}, writer)
 	}
-	return proxy
+	return proxy, nil
 }

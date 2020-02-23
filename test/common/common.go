@@ -512,8 +512,8 @@ func Closer(s string) io.ReadCloser {
 	return NopCloser{bytes.NewBufferString(s)}
 }
 
-func DoHTTP(reaction *HTTPReaction, checks *HTTPExpectations) func(*http.Request) (*http.Response, error) {
-	return func(request *http.Request) (*http.Response, error) {
+func DoHTTP(reaction *HTTPReaction, checks *HTTPExpectations) util.DoRequestOsbFunc {
+	return func(request *http.Request, client *http.Client) (*http.Response, error) {
 		if checks != nil {
 			if len(checks.URL) > 0 && !strings.Contains(checks.URL, request.URL.Host) {
 				Fail(fmt.Sprintf("unexpected URL; expected %v, got %v", checks.URL, request.URL.Path))
@@ -559,10 +559,10 @@ type HTTPCouple struct {
 	Reaction     *HTTPReaction
 }
 
-func DoHTTPSequence(sequence []HTTPCouple) func(*http.Request) (*http.Response, error) {
+func DoHTTPSequence(sequence []HTTPCouple) util.DoRequestOsbFunc {
 	i := 0
-	return func(request *http.Request) (*http.Response, error) {
-		r, err := DoHTTP(sequence[i].Reaction, sequence[i].Expectations)(request)
+	return func(request *http.Request, client *http.Client) (*http.Response, error) {
+		r, err := DoHTTP(sequence[i].Reaction, sequence[i].Expectations)(request, client)
 		i++
 		return r, err
 	}
