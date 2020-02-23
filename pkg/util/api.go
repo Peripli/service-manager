@@ -40,6 +40,11 @@ type InputValidator interface {
 	Validate() error
 }
 
+// InputInterpret can be implemented by types to interpret input properties
+type InputInterpret interface {
+	Interpret() error
+}
+
 // HasRFC3986ReservedSymbols returns true if input contains any reserver characters as defined in RFC3986 section oidc_authn.oidc_authn
 func HasRFC3986ReservedSymbols(input string) bool {
 	return strings.ContainsAny(input, reservedSymbolsRFC3986)
@@ -91,6 +96,11 @@ func BytesToObject(bytes []byte, object interface{}) error {
 	if err := unmarshal(bytes, object); err != nil {
 		return err
 	}
+
+	if err := interpret(object); err != nil {
+		return err
+	}
+
 	if err := validate(object); err != nil {
 		return err
 	}
@@ -116,6 +126,19 @@ func unmarshal(body []byte, value interface{}) error {
 func validate(value interface{}) error {
 	if input, ok := value.(InputValidator); ok {
 		if err := input.Validate(); err != nil {
+			return &HTTPError{
+				ErrorType:   "BadRequest",
+				Description: err.Error(),
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+	}
+	return nil
+}
+
+func interpret(value interface{}) error {
+	if entity, ok := value.(InputInterpret); ok {
+		if err := entity.Interpret(); err != nil {
 			return &HTTPError{
 				ErrorType:   "BadRequest",
 				Description: err.Error(),

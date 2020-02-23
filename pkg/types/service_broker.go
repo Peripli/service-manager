@@ -19,6 +19,8 @@ package types
 
 import (
 	"context"
+	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,17 +34,45 @@ const maxNameLength = 255
 // ServiceBroker broker struct
 type ServiceBroker struct {
 	Base
-	Secured     `json:"-"`
-	Strip       `json:"-"`
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	BrokerURL   string       `json:"broker_url"`
-	Credentials *Credentials `json:"credentials,omitempty"`
+	Secured       `json:"-"`
+	Strip         `json:"-"`
+	Name          string             `json:"name"`
+	Description   string             `json:"description"`
+	BrokerURL     string             `json:"broker_url"`
+	Credentials   *Credentials       `json:"credentials,omitempty"`
+	Catalog       json.RawMessage    `json:"-"`
+	Services      []*ServiceOffering `json:"-"`
+	LastOperation *Operation         `json:"last_operation,omitempty"`
+}
 
-	Catalog  json.RawMessage    `json:"-"`
-	Services []*ServiceOffering `json:"-"`
+func (e *ServiceBroker) Interpret() error {
+	if e.Credentials != nil && e.Credentials.TLS != nil {
+		if val, err := base64.StdEncoding.DecodeString(e.Credentials.TLS.Certificate); err == nil {
+			e.Credentials.TLS.Certificate = string(val)
+		} else {
+			return err
+		}
 
-	LastOperation *Operation `json:"last_operation,omitempty"`
+		if val, err := base64.StdEncoding.DecodeString(e.Credentials.TLS.Key); err == nil {
+			e.Credentials.TLS.Key = string(val)
+		} else {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e *ServiceBroker) GetTlsConfig() (tls.Config, error) {
+	var tlsConfig tls.Config
+	if e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
+		cert, err := tls.X509KeyPair([]byte(e.Credentials.TLS.Certificate), []byte(e.Credentials.TLS.Key))
+		if err != nil {
+			return tls.Config{}, err
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	return tlsConfig, nil
 }
 
 func (e *ServiceBroker) Sanitize() {
@@ -64,6 +94,14 @@ func (e *ServiceBroker) transform(ctx context.Context, transformationFunc func(c
 	transformedPassword, err := transformationFunc(ctx, []byte(e.Credentials.Basic.Password))
 	if err != nil {
 		return err
+	}
+
+	if e.Credentials.TLS != nil && e.Credentials.TLS.Key != "" {
+		transformedPrivateKey, err := transformationFunc(ctx, []byte(e.Credentials.TLS.Key))
+		if err != nil {
+			return err
+		}
+		e.Credentials.TLS.Key = string(transformedPrivateKey)
 	}
 	e.Credentials.Basic.Password = string(transformedPassword)
 	return nil

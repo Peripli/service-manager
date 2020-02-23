@@ -30,13 +30,25 @@ const brokerCatalogURL = "%s/v2/catalog"
 const brokerAPIVersionHeader = "X-Broker-API-Version"
 
 // CatalogFetcher creates a broker catalog fetcher that uses the provided request function to call the specified broker's catalog endpoint
-func CatalogFetcher(doRequestFunc util.DoRequestFunc, brokerAPIVersion string) func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
+func CatalogFetcher(doRequestOsbFunc util.DoRequestOsbFunc, brokerAPIVersion string, transportSettings util.GetTransportSettings) func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
 	return func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
 		log.C(ctx).Debugf("Attempting to fetch catalog from broker with name %s and URL %s", broker.Name, broker.BrokerURL)
-		requestWithBasicAuth := util.BasicAuthDecorator(broker.Credentials.Basic.Username, broker.Credentials.Basic.Password, doRequestFunc)
-		response, err := util.SendRequestWithHeaders(ctx, requestWithBasicAuth, http.MethodGet, fmt.Sprintf(brokerCatalogURL, broker.BrokerURL), map[string]string{}, nil, map[string]string{
+
+		tlsConfig, err := broker.GetTlsConfig()
+		if err != nil {
+			log.C(ctx).WithError(err).Errorf("Unable to get tls configuration for service broker %s", broker.Name)
+			return nil, &util.HTTPError{
+				ErrorType:   "ServiceBrokerErr",
+				Description: fmt.Sprintf("could not get tls config for %s: %s", broker.Name, err.Error()),
+				StatusCode:  http.StatusBadGateway,
+			}
+		}
+
+		request := util.AuthAndTlsDecorator(tlsConfig, broker.Credentials.Basic.Username, broker.Credentials.Basic.Password, doRequestOsbFunc, transportSettings)
+		response, err := util.SendRequestWithHeaders(ctx, request, http.MethodGet, fmt.Sprintf(brokerCatalogURL, broker.BrokerURL), map[string]string{}, nil, map[string]string{
 			brokerAPIVersionHeader: brokerAPIVersion,
-		})
+		}, &http.Client{})
+
 		if err != nil {
 			log.C(ctx).WithError(err).Errorf("Error while forwarding request to service broker %s", broker.Name)
 			return nil, &util.HTTPError{

@@ -19,6 +19,7 @@ package util
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"github.com/gofrs/uuid"
 	"io"
@@ -30,21 +31,46 @@ import (
 
 // DoRequestFunc is an alias for any function that takes an http request and returns a response and error
 type DoRequestFunc func(request *http.Request) (*http.Response, error)
+type DoRequestOsbFunc func(request *http.Request, client *http.Client) (*http.Response, error)
+type GetTransportSettings func(certs []tls.Certificate) *http.Transport
 
-func BasicAuthDecorator(username, password string, requestFunc DoRequestFunc) DoRequestFunc {
-	return func(req *http.Request) (*http.Response, error) {
-		req.SetBasicAuth(username, password)
-		return requestFunc(req)
+func ClientRequest(request *http.Request, client *http.Client) (*http.Response, error) {
+	return client.Do(request)
+}
+
+func TransportWithTlsProvider(transport *http.Transport) GetTransportSettings {
+	return func(certs []tls.Certificate) *http.Transport {
+
+		if len(certs) > 0 {
+			if transport.TLSClientConfig == nil {
+				transport.TLSClientConfig = &tls.Config{}
+			}
+
+			transport.TLSClientConfig.Certificates = certs
+
+		}
+		return transport
+	}
+}
+
+func AuthAndTlsDecorator(config tls.Config, username, password string, reqFunc DoRequestOsbFunc, getTransportSettings GetTransportSettings) DoRequestOsbFunc {
+	return func(req *http.Request, client *http.Client) (*http.Response, error) {
+		if username != "" && password != "" {
+			req.SetBasicAuth(username, password)
+		}
+
+		client.Transport = getTransportSettings(config.Certificates)
+		return reqFunc(req, client)
 	}
 }
 
 // SendRequest sends a request to the specified client and the provided URL with the specified parameters and body.
-func SendRequest(ctx context.Context, doRequest DoRequestFunc, method, url string, params map[string]string, body interface{}) (*http.Response, error) {
-	return SendRequestWithHeaders(ctx, doRequest, method, url, params, body, map[string]string{})
+func SendRequest(ctx context.Context, doRequest DoRequestOsbFunc, method, url string, params map[string]string, body interface{}, client *http.Client) (*http.Response, error) {
+	return SendRequestWithHeaders(ctx, doRequest, method, url, params, body, map[string]string{}, client)
 }
 
 // SendRequestWithHeaders sends a request to the specified client and the provided URL with the specified parameters, body and headers.
-func SendRequestWithHeaders(ctx context.Context, doRequest DoRequestFunc, method, url string, params map[string]string, body interface{}, headers map[string]string) (*http.Response, error) {
+func SendRequestWithHeaders(ctx context.Context, doRequest DoRequestOsbFunc, method, url string, params map[string]string, body interface{}, headers map[string]string, client *http.Client) (*http.Response, error) {
 	var bodyReader io.Reader
 
 	if body != nil {
@@ -85,7 +111,7 @@ func SendRequestWithHeaders(ctx context.Context, doRequest DoRequestFunc, method
 	}
 
 	logger.Debugf("Sending request %s %s", request.Method, request.URL)
-	return doRequest(request)
+	return doRequest(request, client)
 }
 
 // BodyToBytes of the request inside given struct

@@ -13,7 +13,7 @@ import (
 // ListIterator lists the objects from the given url by loading one page at a time
 type ListIterator struct {
 	// DoRequest function executes the HTTP request, it is responsible for authentication
-	DoRequest DoRequestFunc
+	DoRequest DoRequestOsbFunc
 	// URL is the address of the resource to list
 	URL string
 
@@ -53,7 +53,7 @@ func (li *ListIterator) Next(ctx context.Context, items interface{}, maxItems in
 
 	method := http.MethodGet
 	url := li.URL
-	response, err := SendRequest(ctx, li.DoRequest, method, url, params, nil)
+	response, err := SendRequest(ctx, li.DoRequest, method, url, params, nil, http.DefaultClient)
 	if err != nil {
 		return false, -1, fmt.Errorf("Error sending request %s %s: %s", method, url, err)
 	}
@@ -82,7 +82,7 @@ func (li *ListIterator) Next(ctx context.Context, items interface{}, maxItems in
 // ListAll retrieves all the objects from the given url by loading all the pages
 // items should be a pointer to a slice, that will be populated with all the items
 // doRequest function executes the HTTP request, it is responsible for authentication
-func ListAll(ctx context.Context, doRequest DoRequestFunc, url string, items interface{}) error {
+func ListAll(ctx context.Context, doRequest DoRequestOsbFunc, url string, items interface{}) error {
 	itemsType := reflect.TypeOf(items)
 	if itemsType.Kind() != reflect.Ptr || itemsType.Elem().Kind() != reflect.Slice {
 		return fmt.Errorf("items should be a pointer to a slice, but got %v", itemsType)
