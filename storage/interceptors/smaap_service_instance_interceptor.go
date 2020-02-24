@@ -217,7 +217,7 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			return nil, err
 		}
 
-		var instanceBeforeUpdate *types.ServiceInstance
+		var instance *types.ServiceInstance
 		if !operation.Reschedule {
 			instanceObjBeforeUpdate, err := i.repository.Get(ctx, types.ServiceInstanceType, query.Criterion{
 				LeftOp:   "id",
@@ -229,18 +229,18 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 				log.C(ctx).WithError(err).Errorf("could not get instance with id '%s'", updatedInstance.ID)
 				return nil, err
 			}
-			instanceBeforeUpdate = instanceObjBeforeUpdate.(*types.ServiceInstance)
+			instance = instanceObjBeforeUpdate.(*types.ServiceInstance)
 
 			oldServicePlanObj, err := i.repository.Get(ctx, types.ServicePlanType, query.Criterion{
 				LeftOp:   "id",
 				Operator: query.EqualsOperator,
-				RightOp:  []string{instanceBeforeUpdate.ServicePlanID},
+				RightOp:  []string{instance.ServicePlanID},
 				Type:     query.FieldQuery,
 			})
 			if err != nil {
 				return nil, &util.HTTPError{
 					ErrorType:   "NotFound",
-					Description: fmt.Sprintf("current service plan with id %s for instance %s no longer exists and instance updates are not allowed", instanceBeforeUpdate.ServicePlanID, instanceBeforeUpdate.Name),
+					Description: fmt.Sprintf("current service plan with id %s for instance %s no longer exists and instance updates are not allowed", instance.ServicePlanID, instance.Name),
 					StatusCode:  http.StatusBadRequest,
 				}
 			}
@@ -269,21 +269,16 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 				dashboardURL := *updateInstanceResponse.DashboardURL
 				updatedInstance.DashboardURL = dashboardURL
 			}
-			instanceBeforeUpdate.UpdateValues = types.InstanceUpdateValues{
+			instance.UpdateValues = types.InstanceUpdateValues{
 				ServiceInstance: updatedInstance,
 				LabelChanges:    labelChanges,
 			}
 			// use repository with no interceptors to attach the update details to the instance
-			instanceObjAfterRawUpdate, err := i.repository.RawRepository.Update(ctx, instanceBeforeUpdate, types.LabelChanges{})
+			instanceObjAfterRawUpdate, err := i.repository.RawRepository.Update(ctx, instance, types.LabelChanges{})
 			if err != nil {
 				return nil, err
 			}
-			instanceBeforeUpdate = instanceObjAfterRawUpdate.(*types.ServiceInstance)
-			// We did a raw update on the instance which changed the updated_at value currently stored in SMDB
-			// In order to not mark the interceptor chain invocation later on as concurrent modification,
-			// we set the newer updated_at value in the updated values
-			instanceBeforeUpdate.UpdateValues.ServiceInstance.UpdatedAt = instanceBeforeUpdate.UpdatedAt
-
+			instance = instanceObjAfterRawUpdate.(*types.ServiceInstance)
 			if updateInstanceResponse.Async {
 				log.C(ctx).Infof("Successful asynchronous update instance request %s to broker %s returned response %s",
 					logUpdateInstanceRequest(updateInstanceRequest), broker.Name, logUpdateInstanceResponse(updateInstanceResponse))
@@ -300,13 +295,13 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 					logUpdateInstanceRequest(updateInstanceRequest), broker.Name, logUpdateInstanceResponse(updateInstanceResponse))
 			}
 		} else {
-			instanceBeforeUpdate = updatedInstance
+			instance = updatedInstance
 		}
 
 		if operation.Reschedule {
 			if err := i.pollServiceInstance(ctx, osbClient, updatedInstance, operation, service.CatalogID, plan.CatalogID, false); err != nil {
-				instanceBeforeUpdate.UpdateValues = types.InstanceUpdateValues{}
-				_, updateErr := i.repository.RawRepository.Update(ctx, instanceBeforeUpdate, types.LabelChanges{})
+				instance.UpdateValues = types.InstanceUpdateValues{}
+				_, updateErr := i.repository.RawRepository.Update(ctx, instance, types.LabelChanges{})
 				if updateErr != nil {
 					return nil, updateErr
 				}
@@ -314,9 +309,10 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			}
 		}
 		// continue further down the interceptor chain with the updated instance
-		//TODO if there are post around tx interceptors registered on the flow and they fail, we might result in a situation where we have
+
+		//if there are post around tx interceptors registered on the flow and they fail, we might result in a situation where we have
 		// successfully updated instance and an UPDATE operation that is marked as failed!
-		return f(ctx, instanceBeforeUpdate.UpdateValues.ServiceInstance, instanceBeforeUpdate.UpdateValues.LabelChanges...)
+		return f(ctx, instance.UpdateValues.ServiceInstance, instance.UpdateValues.LabelChanges...)
 	}
 }
 

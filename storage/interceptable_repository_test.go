@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/util"
-
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -333,22 +331,6 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 						},
 					}, nil
 				})
-			})
-
-			It("fails with concurrent modification failure", func() {
-				err := interceptableRepository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-					_, err := storage.Update(ctx, &types.ServiceBroker{
-						Base: types.Base{
-							UpdatedAt: updateTime,
-							Ready:     true,
-						},
-					}, types.LabelChanges{})
-
-					return err
-				})
-
-				Expect(err).Should(HaveOccurred())
-				Expect(err).To(Equal(util.ErrConcurrentResourceModification))
 			})
 		})
 

@@ -20,15 +20,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Peripli/service-manager/pkg/util"
-
 	"github.com/Peripli/service-manager/pkg/log"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 )
-
-const updateInProgress string = "update_in_progress"
 
 func NewInterceptableTransactionalRepository(repository TransactionalRepository) *InterceptableTransactionalRepository {
 	return &InterceptableTransactionalRepository{
@@ -260,25 +256,14 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 		return nil, err
 	}
 
-	// while the AroundTx hooks were being executed the stored resource actually changed - another concurrent update
-	// happened and finished concurrently and before this one so fail the request
-	// update to the same entity in the same transaction may be possible from an interceptor
-	inUpdate, _ := ctx.Value(updateInProgress).(bool)
-	if !oldObj.GetUpdatedAt().UTC().Equal(obj.GetUpdatedAt().UTC()) && !inUpdate && obj.GetType() != types.OperationType {
-		return nil, util.ErrConcurrentResourceModification
-	}
-
 	if updateOnTxFunc, found := ir.updateOnTxFuncs[objectType]; found {
 		delete(ir.updateOnTxFuncs, objectType)
 
-		// specify that an update is in progress so that multiple updates to the entity are not taken as false positive concurrent update
-		ctx = context.WithValue(ctx, updateInProgress, true)
 		updatedObj, err = updateOnTxFunc(updateObjFunc)(ctx, ir, oldObj, obj, labelChanges...)
 
 		ir.updateOnTxFuncs[objectType] = updateOnTxFunc
 
 	} else {
-		ctx = context.WithValue(ctx, updateInProgress, true)
 		updatedObj, err = updateObjFunc(ctx, ir, oldObj, obj, labelChanges...)
 	}
 
