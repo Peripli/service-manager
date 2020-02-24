@@ -219,9 +219,9 @@ var _ = Describe("Update", func() {
 								"org1",
 							},
 						},
-						Changes: LabelChanges{
-							&LabelChange{
-								Operation: RemoveLabelOperation,
+						Changes: types.LabelChanges{
+							&types.LabelChange{
+								Operation: types.RemoveLabelOperation,
 								Key:       "organization_guid",
 								Values:    []string{"org1"},
 							},
