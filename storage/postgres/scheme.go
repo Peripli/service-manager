@@ -46,7 +46,10 @@ func (s *scheme) introduce(entity storage.Entity) {
 	if t.Kind() != reflect.Ptr {
 		panic("All entities must be pointers to structs.")
 	}
-	obj := entity.ToObject()
+	obj, err := entity.ToObject()
+	if err != nil {
+		panic(fmt.Errorf("could introduce entity: %s", err))
+	}
 	objType := obj.GetType()
 
 	_, providerAlreadyExists := s.instanceProviders[objType]
@@ -55,9 +58,9 @@ func (s *scheme) introduce(entity storage.Entity) {
 		panic(fmt.Sprintf("Entity for object with type %s has already been introduced", objType))
 	}
 	s.converters[objType] = func(object types.Object) (PostgresEntity, error) {
-		entityFromObject, ok := entity.FromObject(object)
-		if !ok {
-			return nil, fmt.Errorf("regsitered entity cannot convert object from type %s", object.GetType())
+		entityFromObject, err := entity.FromObject(object)
+		if err != nil {
+			return nil, fmt.Errorf("regsitered entity cannot convert object from type %s: %s", object.GetType(), err)
 		}
 		pgEntity, ok := entityFromObject.(PostgresEntity)
 		if !ok {
@@ -66,7 +69,11 @@ func (s *scheme) introduce(entity storage.Entity) {
 		return pgEntity, nil
 	}
 	s.instanceProviders[objType] = func() (PostgresEntity, error) {
-		return s.convert(entity.ToObject())
+		object, err := entity.ToObject()
+		if err != nil {
+			return nil, fmt.Errorf("could not provide postgres entity for type %s: %s", objType, err)
+		}
+		return s.convert(object)
 	}
 
 	pgEntity, err := s.instanceProviders[objType]()

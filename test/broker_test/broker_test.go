@@ -39,7 +39,7 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 
-	"github.com/Peripli/service-manager/test/common"
+	. "github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/cast"
@@ -69,16 +69,16 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
 	PatchResource:                          test.APIResourcePatch,
-	AdditionalTests: func(ctx *common.TestContext, t *test.TestCase) {
+	AdditionalTests: func(ctx *TestContext, t *test.TestCase) {
 		Context("additional non-generic tests", func() {
 			var (
-				brokerServer           *common.BrokerServer
-				brokerWithLabelsServer *common.BrokerServer
+				brokerServer           *BrokerServer
+				brokerWithLabelsServer *BrokerServer
 
-				postBrokerRequestWithNoLabels common.Object
-				expectedBrokerResponse        common.Object
+				postBrokerRequestWithNoLabels Object
+				expectedBrokerResponse        Object
 
-				labels                      common.Object
+				labels                      Object
 				postBrokerRequestWithLabels labeledBroker
 
 				repository storage.Repository
@@ -99,8 +99,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			})
 
 			BeforeEach(func() {
-				brokerServer = common.NewBrokerServer()
-				brokerWithLabelsServer = common.NewBrokerServer()
+				brokerServer = NewBrokerServer()
+				brokerWithLabelsServer = NewBrokerServer()
 				brokerServer.Reset()
 				brokerWithLabelsServer.Reset()
 				brokerName := "brokerName"
@@ -108,41 +108,41 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				brokerDescription := "description"
 				brokerWithLabelsDescription := "descriptionWithLabels"
 
-				postBrokerRequestWithNoLabels = common.Object{
+				postBrokerRequestWithNoLabels = Object{
 					"name":        brokerName,
 					"broker_url":  brokerServer.URL(),
 					"description": brokerDescription,
-					"credentials": common.Object{
-						"basic": common.Object{
+					"credentials": Object{
+						"basic": Object{
 							"username": brokerServer.Username,
 							"password": brokerServer.Password,
 						},
 					},
 				}
-				expectedBrokerResponse = common.Object{
+				expectedBrokerResponse = Object{
 					"name":        brokerName,
 					"broker_url":  brokerServer.URL(),
 					"description": brokerDescription,
 				}
 
-				labels = common.Object{
-					"cluster_id": common.Array{"cluster_id_value"},
-					"org_id":     common.Array{"org_id_value1", "org_id_value2", "org_id_value3"},
+				labels = Object{
+					"cluster_id": Array{"cluster_id_value"},
+					"org_id":     Array{"org_id_value1", "org_id_value2", "org_id_value3"},
 				}
 
-				postBrokerRequestWithLabels = common.Object{
+				postBrokerRequestWithLabels = Object{
 					"name":        brokerWithLabelsName,
 					"broker_url":  brokerWithLabelsServer.URL(),
 					"description": brokerWithLabelsDescription,
-					"credentials": common.Object{
-						"basic": common.Object{
+					"credentials": Object{
+						"basic": Object{
 							"username": brokerWithLabelsServer.Username,
 							"password": brokerWithLabelsServer.Password,
 						},
 					},
 					"labels": labels,
 				}
-				common.RemoveAllBrokers(ctx.SMRepository)
+				RemoveAllBrokers(ctx.SMRepository)
 
 				repository = ctx.SMRepository
 			})
@@ -277,7 +277,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when the broker returns 404 for catalog", func() {
 					BeforeEach(func() {
 						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
-							common.SetResponse(rw, http.StatusNotFound, common.Object{})
+							SetResponse(rw, http.StatusNotFound, Object{})
 						}
 					})
 
@@ -304,7 +304,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 							<-continueCtx.Done()
 
-							common.SetResponse(rw, http.StatusTeapot, common.Object{})
+							SetResponse(rw, http.StatusTeapot, Object{})
 						}
 					})
 
@@ -322,10 +322,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when the broker catalog is incomplete", func() {
 					verifyPOSTWhenCatalogFieldIsMissing := func(responseVerifier func(r *httpexpect.Response), fieldPath string) {
 						BeforeEach(func() {
-							catalog, err := sjson.Delete(string(common.NewRandomSBCatalog()), fieldPath)
+							catalog, err := sjson.Delete(string(NewRandomSBCatalog()), fieldPath)
 							Expect(err).ToNot(HaveOccurred())
 
-							brokerServer.Catalog = common.SBCatalog(catalog)
+							brokerServer.Catalog = SBCatalog(catalog)
 						})
 
 						It("returns correct response", func() {
@@ -341,7 +341,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							catalog, err := sjson.Set(string(brokerServer.Catalog), fieldPath, fieldValue)
 							Expect(err).ToNot(HaveOccurred())
 
-							brokerServer.Catalog = common.SBCatalog(catalog)
+							brokerServer.Catalog = SBCatalog(catalog)
 						})
 
 						It("returns correct response", func() {
@@ -425,7 +425,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when fetching catalog fails", func() {
 					BeforeEach(func() {
 						brokerServer.CatalogHandler = func(w http.ResponseWriter, req *http.Request) {
-							common.SetResponse(w, http.StatusInternalServerError, common.Object{})
+							SetResponse(w, http.StatusInternalServerError, Object{})
 						}
 					})
 
@@ -500,7 +500,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("When creating labeled broker with key containing forbidden character", func() {
 						It("Should return 400", func() {
-							labels[fmt.Sprintf("containing %s separator", query.Separator)] = common.Array{"val"}
+							labels[fmt.Sprintf("containing %s separator", query.Separator)] = Array{"val"}
 							ctx.SMWithOAuth.POST(web.ServiceBrokersURL).
 								WithJSON(postBrokerRequestWithLabels).
 								Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("cannot contain whitespaces")
@@ -510,7 +510,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("When label key has new line", func() {
 						It("Should return 400", func() {
 							labels[`key with
-	new line`] = common.Array{"label-value"}
+	new line`] = Array{"label-value"}
 							ctx.SMWithOAuth.POST(web.ServiceBrokersURL).
 								WithJSON(postBrokerRequestWithLabels).
 								Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("cannot contain whitespaces")
@@ -519,7 +519,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("When label value has new line", func() {
 						It("Should return 400", func() {
-							labels["cluster_id"] = common.Array{`{
+							labels["cluster_id"] = Array{`{
 	"key": "k1",
 	"val": "val1"
 	}`}
@@ -536,7 +536,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				assertRepositoryReturnsExpectedCatalogAfterPatching := func(brokerID, expectedCatalog string) {
 					ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
-						WithJSON(common.Object{}).
+						WithJSON(Object{}).
 						Expect()
 
 					byID := query.ByField(query.EqualsOperator, "id", brokerID)
@@ -596,7 +596,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when request body contains invalid credentials", func() {
 					It("returns 400", func() {
 						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
-							WithJSON(common.Object{"credentials": "123"}).
+							WithJSON(Object{"credentials": "123"}).
 							Expect().
 							Status(http.StatusBadRequest).
 							JSON().Object().
@@ -607,7 +607,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when request body contains incomplete credentials", func() {
 					It("returns 400", func() {
 						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
-							WithJSON(common.Object{"credentials": common.Object{"basic": common.Object{"password": ""}}}).
+							WithJSON(Object{"credentials": Object{"basic": Object{"password": ""}}}).
 							Expect().
 							Status(http.StatusBadRequest).
 							JSON().Object().
@@ -616,19 +616,19 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("when broker with the name already exists", func() {
-					var anotherTestBroker common.Object
-					var anotherBrokerServer *common.BrokerServer
+					var anotherTestBroker Object
+					var anotherBrokerServer *BrokerServer
 
 					BeforeEach(func() {
-						anotherBrokerServer = common.NewBrokerServer()
+						anotherBrokerServer = NewBrokerServer()
 						anotherBrokerServer.Username = "username"
 						anotherBrokerServer.Password = "password"
-						anotherTestBroker = common.Object{
+						anotherTestBroker = Object{
 							"name":        "another_name",
 							"broker_url":  anotherBrokerServer.URL(),
 							"description": "another_description",
-							"credentials": common.Object{
-								"basic": common.Object{
+							"credentials": Object{
+								"basic": Object{
 									"username": anotherBrokerServer.Username,
 									"password": anotherBrokerServer.Password,
 								},
@@ -664,9 +664,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					It("returns 200", func() {
 						brokerServer.Username = "updatedUsername"
 						brokerServer.Password = "updatedPassword"
-						updatedCredentials := common.Object{
-							"credentials": common.Object{
-								"basic": common.Object{
+						updatedCredentials := Object{
+							"credentials": Object{
+								"basic": Object{
 									"username": brokerServer.Username,
 									"password": brokerServer.Password,
 								},
@@ -693,7 +693,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						createdAt := "2015-01-01T00:00:00Z"
 
 						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
-							WithJSON(common.Object{"created_at": createdAt}).
+							WithJSON(Object{"created_at": createdAt}).
 							Expect().
 							Status(http.StatusOK).JSON().Object().
 							ContainsKey("created_at").
@@ -711,28 +711,28 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("when new broker server is available", func() {
 					var (
-						updatedBrokerServer           *common.BrokerServer
-						updatedBrokerJSON             common.Object
-						expectedUpdatedBrokerResponse common.Object
+						updatedBrokerServer           *BrokerServer
+						updatedBrokerJSON             Object
+						expectedUpdatedBrokerResponse Object
 					)
 
 					BeforeEach(func() {
-						updatedBrokerServer = common.NewBrokerServer()
+						updatedBrokerServer = NewBrokerServer()
 						updatedBrokerServer.Username = "updated_user"
 						updatedBrokerServer.Password = "updated_password"
-						updatedBrokerJSON = common.Object{
+						updatedBrokerJSON = Object{
 							"name":        "updated_name",
 							"description": "updated_description",
 							"broker_url":  updatedBrokerServer.URL(),
-							"credentials": common.Object{
-								"basic": common.Object{
+							"credentials": Object{
+								"basic": Object{
 									"username": updatedBrokerServer.Username,
 									"password": updatedBrokerServer.Password,
 								},
 							},
 						}
 
-						expectedUpdatedBrokerResponse = common.Object{
+						expectedUpdatedBrokerResponse = Object{
 							"name":        updatedBrokerJSON["name"],
 							"description": updatedBrokerJSON["description"],
 							"broker_url":  updatedBrokerJSON["broker_url"],
@@ -768,10 +768,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("when broker_url is changed and the credentials are correct", func() {
 						It("returns 200", func() {
-							updatedBrokerJSON := common.Object{
+							updatedBrokerJSON := Object{
 								"broker_url": updatedBrokerServer.URL(),
-								"credentials": common.Object{
-									"basic": common.Object{
+								"credentials": Object{
+									"basic": Object{
 										"username": brokerServer.Username,
 										"password": brokerServer.Password,
 									},
@@ -802,7 +802,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("when broker_url is changed but the credentials are wrong", func() {
 						It("returns 400", func() {
-							updatedBrokerJSON := common.Object{
+							updatedBrokerJSON := Object{
 								"broker_url": updatedBrokerServer.URL(),
 							}
 							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
@@ -823,10 +823,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					Context("when broker_url is changed but the credentials are missing", func() {
-						var updatedBrokerJSON common.Object
+						var updatedBrokerJSON Object
 
 						BeforeEach(func() {
-							updatedBrokerJSON = common.Object{
+							updatedBrokerJSON = Object{
 								"broker_url": updatedBrokerServer.URL(),
 							}
 						})
@@ -842,8 +842,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						Context("username is missing", func() {
 							BeforeEach(func() {
-								updatedBrokerJSON["credentials"] = common.Object{
-									"basic": common.Object{
+								updatedBrokerJSON["credentials"] = Object{
+									"basic": Object{
 										"password": "b",
 									},
 								}
@@ -859,8 +859,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						Context("password is missing", func() {
 							BeforeEach(func() {
-								updatedBrokerJSON["credentials"] = common.Object{
-									"basic": common.Object{
+								updatedBrokerJSON["credentials"] = Object{
+									"basic": Object{
 										"username": "a",
 									},
 								}
@@ -879,7 +879,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when fields are updated one by one", func() {
 					It("returns 200", func() {
 						for _, prop := range []string{"name", "description"} {
-							updatedBrokerJSON := common.Object{}
+							updatedBrokerJSON := Object{}
 							updatedBrokerJSON[prop] = "updated"
 							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
 								WithJSON(updatedBrokerJSON).
@@ -904,7 +904,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when not updatable fields are provided in the request body", func() {
 					Context("when broker id is provided in request body", func() {
 						It("should not create the broker", func() {
-							postBrokerRequestWithNoLabels = common.Object{"id": "123"}
+							postBrokerRequestWithNoLabels = Object{"id": "123"}
 							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
 								WithJSON(postBrokerRequestWithNoLabels).
 								Expect().
@@ -922,10 +922,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("when unmodifiable fields are provided in the request body", func() {
 						BeforeEach(func() {
-							postBrokerRequestWithNoLabels = common.Object{
+							postBrokerRequestWithNoLabels = Object{
 								"created_at": "2016-06-08T16:41:26Z",
 								"updated_at": "2016-06-08T16:41:26Z",
-								"services":   common.Array{common.Object{"name": "serviceName"}},
+								"services":   Array{Object{"name": "serviceName"}},
 							}
 						})
 
@@ -960,7 +960,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when fetching the broker catalog fails", func() {
 					BeforeEach(func() {
 						brokerServer.CatalogHandler = func(w http.ResponseWriter, req *http.Request) {
-							common.SetResponse(w, http.StatusInternalServerError, common.Object{})
+							SetResponse(w, http.StatusInternalServerError, Object{})
 						}
 					})
 
@@ -983,30 +983,30 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						BeforeEach(func() {
 							existingServicePlan := gjson.Get(string(brokerServer.Catalog), "services.0.plans.0").String()
 							existingPlanID = gjson.Get(existingServicePlan, "id").String()
-							anotherServiceWithSamePlan, err := sjson.Set(common.GenerateTestServiceWithPlans(), "plans.-1", common.JSONToMap(existingServicePlan))
+							anotherServiceWithSamePlan, err := sjson.Set(GenerateTestServiceWithPlans(), "plans.-1", JSONToMap(existingServicePlan))
 							Expect(err).ShouldNot(HaveOccurred())
 
-							anotherService := common.JSONToMap(anotherServiceWithSamePlan)
+							anotherService := JSONToMap(anotherServiceWithSamePlan)
 							anotherServiceID = anotherService["id"].(string)
 							Expect(anotherServiceID).ToNot(BeEmpty())
 
 							catalog, err := sjson.Set(string(brokerServer.Catalog), "services.-1", anotherService)
 							Expect(err).ShouldNot(HaveOccurred())
 
-							brokerServer.Catalog = common.SBCatalog(catalog)
+							brokerServer.Catalog = SBCatalog(catalog)
 						})
 
 						It("is returned from the Services API associated with the correct broker", func() {
 							ctx.SMWithOAuth.List(web.ServiceOfferingsURL).
 								Path("$[*].catalog_id").Array().NotContains(anotherServiceID)
 							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
-								WithJSON(common.Object{}).
+								WithJSON(Object{}).
 								Expect().
 								Status(http.StatusOK)
 
 							By("updating broker again with 2 services with identical plans, should succeed")
 							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
-								WithJSON(common.Object{}).
+								WithJSON(Object{}).
 								Expect().
 								Status(http.StatusOK)
 
@@ -1046,26 +1046,26 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						var anotherPlanID string
 
 						BeforeEach(func() {
-							anotherPlan := common.JSONToMap(common.GeneratePaidTestPlan())
+							anotherPlan := JSONToMap(GeneratePaidTestPlan())
 							anotherPlanID = anotherPlan["id"].(string)
-							anotherServiceWithAnotherPlan, err := sjson.Set(common.GenerateTestServiceWithPlans(), "plans.-1", anotherPlan)
+							anotherServiceWithAnotherPlan, err := sjson.Set(GenerateTestServiceWithPlans(), "plans.-1", anotherPlan)
 							Expect(err).ShouldNot(HaveOccurred())
 
-							anotherService := common.JSONToMap(anotherServiceWithAnotherPlan)
+							anotherService := JSONToMap(anotherServiceWithAnotherPlan)
 							anotherServiceID = anotherService["id"].(string)
 							Expect(anotherServiceID).ToNot(BeEmpty())
 
 							catalog, err := sjson.Set(string(brokerServer.Catalog), "services.-1", anotherService)
 							Expect(err).ShouldNot(HaveOccurred())
 
-							brokerServer.Catalog = common.SBCatalog(catalog)
+							brokerServer.Catalog = SBCatalog(catalog)
 						})
 
 						It("is returned from the Services API associated with the correct broker", func() {
 							ctx.SMWithOAuth.List(web.ServiceOfferingsURL).
 								Path("$[*].catalog_id").Array().NotContains(anotherServiceID)
 							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
-								WithJSON(common.Object{}).
+								WithJSON(Object{}).
 								Expect().
 								Status(http.StatusOK)
 							servicesJsonResp := ctx.SMWithOAuth.List(web.ServiceOfferingsURL)
@@ -1110,11 +1110,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							} else {
 								expectedCatalog = string(catalog)
 							}
-							brokerServer.Catalog = common.SBCatalog(catalog)
+							brokerServer.Catalog = SBCatalog(catalog)
 						})
 
 						It("returns correct response", func() {
-							responseVerifier(ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(common.Object{}).Expect())
+							responseVerifier(ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(Object{}).Expect())
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
@@ -1136,11 +1136,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							} else {
 								expectedCatalog = string(catalog)
 							}
-							brokerServer.Catalog = common.SBCatalog(catalog)
+							brokerServer.Catalog = SBCatalog(catalog)
 						})
 
 						It("returns correct response", func() {
-							responseVerifier(ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(common.Object{}).Expect())
+							responseVerifier(ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(Object{}).Expect())
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
@@ -1154,14 +1154,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						var anotherServiceID string
 
 						BeforeEach(func() {
-							anotherService := common.JSONToMap(common.GenerateTestServiceWithPlans())
+							anotherService := JSONToMap(GenerateTestServiceWithPlans())
 							anotherServiceID = anotherService["id"].(string)
 							Expect(anotherServiceID).ToNot(BeEmpty())
 
 							currServices, err := sjson.Set(string(brokerServer.Catalog), "services.-1", anotherService)
 							Expect(err).ShouldNot(HaveOccurred())
 
-							brokerServer.Catalog = common.SBCatalog(currServices)
+							brokerServer.Catalog = SBCatalog(currServices)
 						})
 
 						It("is returned from the Services API associated with the correct broker", func() {
@@ -1169,7 +1169,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Path("$[*].catalog_id").Array().NotContains(anotherServiceID)
 
 							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
-								WithJSON(common.Object{}).
+								WithJSON(Object{}).
 								Expect().
 								Status(http.StatusOK)
 
@@ -1210,13 +1210,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 							s, err := sjson.Delete(string(brokerServer.Catalog), "services.0")
 							Expect(err).ShouldNot(HaveOccurred())
-							brokerServer.Catalog = common.SBCatalog(s)
+							brokerServer.Catalog = SBCatalog(s)
 						})
 
 						Context("with no existing service instances", func() {
 							It("is no longer returned by the Services and Plans API", func() {
 								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
-									WithJSON(common.Object{}).
+									WithJSON(Object{}).
 									Expect().
 									Status(http.StatusOK)
 
@@ -1237,21 +1237,21 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							BeforeEach(func() {
 								serviceInstances = make([]*types.ServiceInstance, 0)
 								for _, planID := range planIDsForService {
-									serviceInstance := common.CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, planID)
+									serviceInstance := CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, planID)
 									serviceInstances = append(serviceInstances, serviceInstance)
 								}
 							})
 
 							AfterEach(func() {
 								for _, serviceInstance := range serviceInstances {
-									err := common.DeleteInstance(ctx, serviceInstance.ID, serviceInstance.ServicePlanID)
+									err := DeleteInstance(ctx, serviceInstance.ID, serviceInstance.ServicePlanID)
 									Expect(err).ToNot(HaveOccurred())
 								}
 							})
 
 							It("should return 400 with user-friendly message", func() {
 								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
-									WithJSON(common.Object{}).
+									WithJSON(Object{}).
 									Expect().
 									Status(http.StatusConflict).
 									JSON().Object().
@@ -1277,7 +1277,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								catalog, err := sjson.Set(string(brokerServer.Catalog), "services.0.id", "new-id")
 								Expect(err).ToNot(HaveOccurred())
 
-								brokerServer.Catalog = common.SBCatalog(catalog)
+								brokerServer.Catalog = SBCatalog(catalog)
 							})
 
 							It("returns 409", func() {
@@ -1336,7 +1336,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						var serviceOfferingID string
 
 						BeforeEach(func() {
-							anotherPlan := common.JSONToMap(common.GeneratePaidTestPlan())
+							anotherPlan := JSONToMap(GeneratePaidTestPlan())
 							anotherPlanID = anotherPlan["id"].(string)
 							Expect(anotherPlan).ToNot(BeEmpty())
 							catalogServiceID := gjson.Get(string(brokerServer.Catalog), "services.0.id").Str
@@ -1359,7 +1359,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							}
 							s, err := sjson.Set(string(brokerServer.Catalog), "services.0.plans.2", anotherPlan)
 							Expect(err).ShouldNot(HaveOccurred())
-							brokerServer.Catalog = common.SBCatalog(s)
+							brokerServer.Catalog = SBCatalog(s)
 						})
 
 						It("is returned from the Plans API associated with the correct service offering", func() {
@@ -1367,7 +1367,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Path("$[*].catalog_id").Array().NotContains(anotherPlanID)
 
 							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
-								WithJSON(common.Object{}).
+								WithJSON(Object{}).
 								Expect().
 								Status(http.StatusOK)
 
@@ -1392,7 +1392,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect(removedPlanCatalogID).ToNot(BeEmpty())
 							s, err := sjson.Delete(string(brokerServer.Catalog), "services.0.plans.0")
 							Expect(err).ShouldNot(HaveOccurred())
-							brokerServer.Catalog = common.SBCatalog(s)
+							brokerServer.Catalog = SBCatalog(s)
 						})
 
 						Context("with no existing service instances", func() {
@@ -1401,7 +1401,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									Path("$[*].catalog_id").Array().Contains(removedPlanCatalogID)
 
 								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
-									WithJSON(common.Object{}).
+									WithJSON(Object{}).
 									Expect().
 									Status(http.StatusOK)
 
@@ -1423,12 +1423,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								removedPlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_id eq '%s'", removedPlanCatalogID)).
 									First().Object().Value("id").String().Raw()
 
-								serviceInstance = common.CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, removedPlanID)
+								serviceInstance = CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, removedPlanID)
 
 							})
 
 							AfterEach(func() {
-								err := common.DeleteInstance(ctx, serviceInstance.ID, serviceInstance.ServicePlanID)
+								err := DeleteInstance(ctx, serviceInstance.ID, serviceInstance.ServicePlanID)
 								Expect(err).ToNot(HaveOccurred())
 							})
 
@@ -1437,7 +1437,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									Path("$[*].catalog_id").Array().Contains(removedPlanCatalogID)
 
 								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
-									WithJSON(common.Object{}).
+									WithJSON(Object{}).
 									Expect().
 									Status(http.StatusConflict).
 									JSON().Object().
@@ -1459,7 +1459,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								catalog, err := sjson.Set(string(brokerServer.Catalog), "services.0.plans.0.id", "new-id")
 								Expect(err).ToNot(HaveOccurred())
 
-								brokerServer.Catalog = common.SBCatalog(catalog)
+								brokerServer.Catalog = SBCatalog(catalog)
 							})
 
 							It("returns 409", func() {
@@ -1510,17 +1510,17 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Describe("Labelled", func() {
 					var id string
-					var patchLabels []query.LabelChange
+					var patchLabels []types.LabelChange
 					var patchLabelsBody map[string]interface{}
 					changedLabelKey := "label_key"
 					changedLabelValues := []string{"label_value1", "label_value2"}
-					operation := query.AddLabelOperation
+					operation := types.AddLabelOperation
 					BeforeEach(func() {
-						patchLabels = []query.LabelChange{}
+						patchLabels = []types.LabelChange{}
 					})
 					JustBeforeEach(func() {
 						patchLabelsBody = make(map[string]interface{})
-						patchLabels = append(patchLabels, query.LabelChange{
+						patchLabels = append(patchLabels, types.LabelChange{
 							Operation: operation,
 							Key:       changedLabelKey,
 							Values:    changedLabelValues,
@@ -1558,7 +1558,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Add new label value", func() {
 						BeforeEach(func() {
-							operation = query.AddLabelValuesOperation
+							operation = types.AddLabelValuesOperation
 							changedLabelKey = "cluster_id"
 							changedLabelValues = []string{"new-label-value"}
 						})
@@ -1577,7 +1577,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Add new label value to a non-existing label", func() {
 						BeforeEach(func() {
-							operation = query.AddLabelValuesOperation
+							operation = types.AddLabelValuesOperation
 							changedLabelKey = "cluster_id_new"
 							changedLabelValues = []string{"new-label-value"}
 						})
@@ -1597,7 +1597,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Add duplicate label value", func() {
 						BeforeEach(func() {
-							operation = query.AddLabelValuesOperation
+							operation = types.AddLabelValuesOperation
 							changedLabelKey = "cluster_id"
 							values := labels["cluster_id"].([]interface{})
 							changedLabelValues = []string{values[0].(string)}
@@ -1612,7 +1612,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Remove a label", func() {
 						BeforeEach(func() {
-							operation = query.RemoveLabelOperation
+							operation = types.RemoveLabelOperation
 							changedLabelKey = "cluster_id"
 						})
 						It("Should return 200", func() {
@@ -1626,7 +1626,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Remove a label and providing no key", func() {
 						BeforeEach(func() {
-							operation = query.RemoveLabelOperation
+							operation = types.RemoveLabelOperation
 							changedLabelKey = ""
 						})
 						It("Should return 400", func() {
@@ -1639,7 +1639,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Remove a label key which does not exist", func() {
 						BeforeEach(func() {
-							operation = query.RemoveLabelOperation
+							operation = types.RemoveLabelOperation
 							changedLabelKey = "non-existing-ey"
 						})
 						It("Should return 200", func() {
@@ -1653,7 +1653,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("Remove label values and providing a single value", func() {
 						var valueToRemove string
 						BeforeEach(func() {
-							operation = query.RemoveLabelValuesOperation
+							operation = types.RemoveLabelValuesOperation
 							changedLabelKey = "cluster_id"
 							valueToRemove = labels[changedLabelKey].([]interface{})[0].(string)
 							changedLabelValues = []string{valueToRemove}
@@ -1670,7 +1670,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("Remove label values and providing multiple values", func() {
 						var valuesToRemove []string
 						BeforeEach(func() {
-							operation = query.RemoveLabelValuesOperation
+							operation = types.RemoveLabelValuesOperation
 							changedLabelKey = "org_id"
 							val1 := labels[changedLabelKey].([]interface{})[0].(string)
 							val2 := labels[changedLabelKey].([]interface{})[1].(string)
@@ -1689,7 +1689,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("Remove all label values for a key", func() {
 						var valuesToRemove []string
 						BeforeEach(func() {
-							operation = query.RemoveLabelValuesOperation
+							operation = types.RemoveLabelValuesOperation
 							changedLabelKey = "cluster_id"
 							labelValues := labels[changedLabelKey].([]interface{})
 							for _, val := range labelValues {
@@ -1708,7 +1708,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Remove label values and not providing value to remove", func() {
 						BeforeEach(func() {
-							operation = query.RemoveLabelValuesOperation
+							operation = types.RemoveLabelValuesOperation
 							changedLabelValues = []string{}
 						})
 						It("Should return 400", func() {
@@ -1721,7 +1721,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Remove label value which does not exist", func() {
 						BeforeEach(func() {
-							operation = query.RemoveLabelValuesOperation
+							operation = types.RemoveLabelValuesOperation
 							changedLabelKey = "cluster_id"
 							changedLabelValues = []string{"non-existing-value"}
 						})
@@ -1743,11 +1743,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					)
 
 					BeforeEach(func() {
-						brokerID, serviceInstance = common.CreateInstanceInPlatform(ctx, ctx.TestPlatform.ID)
+						brokerID, serviceInstance = CreateInstanceInPlatform(ctx, ctx.TestPlatform.ID)
 					})
 
 					AfterEach(func() {
-						err := common.DeleteInstance(ctx, serviceInstance.ID, serviceInstance.ServicePlanID)
+						err := DeleteInstance(ctx, serviceInstance.ID, serviceInstance.ServicePlanID)
 						Expect(err).ToNot(HaveOccurred())
 					})
 
@@ -1776,9 +1776,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
-	return func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
-		brokerJSON := common.GenerateRandomBroker()
+func blueprint(setNullFieldsValues bool) func(ctx *TestContext, auth *SMExpect, async bool) Object {
+	return func(ctx *TestContext, auth *SMExpect, async bool) Object {
+		brokerJSON := GenerateRandomBroker()
 
 		if !setNullFieldsValues {
 			delete(brokerJSON, "description")
@@ -1787,18 +1787,31 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *com
 		var obj map[string]interface{}
 		resp := auth.POST(web.ServiceBrokersURL).WithQuery("async", strconv.FormatBool(async)).WithJSON(brokerJSON).Expect()
 		if async {
-			obj = test.ExpectSuccessfulAsyncResourceCreation(resp, auth, web.ServiceBrokersURL)
+			resp.Status(http.StatusAccepted)
 		} else {
-			obj = resp.Status(http.StatusCreated).JSON().Object().Raw()
-			delete(obj, "credentials")
+			resp.Status(http.StatusCreated)
 		}
+
+		id, _ := VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+			Category:          types.CREATE,
+			State:             types.SUCCEEDED,
+			ResourceType:      types.ServiceBrokerType,
+			Reschedulable:     false,
+			DeletionScheduled: false,
+		})
+
+		obj = VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+			ID:    id,
+			Type:  types.ServiceBrokerType,
+			Ready: true,
+		}).Raw()
 
 		return obj
 	}
 }
 
-type labeledBroker common.Object
+type labeledBroker Object
 
-func (b labeledBroker) AddLabel(label common.Object) {
-	b["labels"] = append(b["labels"].(common.Array), label)
+func (b labeledBroker) AddLabel(label Object) {
+	b["labels"] = append(b["labels"].(Array), label)
 }

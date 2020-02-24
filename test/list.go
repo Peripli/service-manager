@@ -20,11 +20,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/types"
 	"net/url"
 	"strings"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/gavv/httpexpect"
 
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -54,19 +54,19 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 	commonLabelValue := "1"
 
 	attachLabel := func(obj common.Object) common.Object {
-		patchLabels := []*query.LabelChange{
+		patchLabels := []*types.LabelChange{
 			{
-				Operation: query.AddLabelOperation,
+				Operation: types.AddLabelOperation,
 				Key:       commonLabelKey,
 				Values:    []string{commonLabelValue},
 			},
 			{
-				Operation: query.AddLabelOperation,
+				Operation: types.AddLabelOperation,
 				Key:       "labelKey2",
 				Values:    []string{"str"},
 			},
 			{
-				Operation: query.AddLabelOperation,
+				Operation: types.AddLabelOperation,
 				Key:       "labelKey3",
 				Values:    []string{`{"key1": "val1", "key2": "val2"}`},
 			},
@@ -418,9 +418,9 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 			labelValue := "symbols!that@are#url$encoded%when^making a*request("
 			BeforeEach(func() {
 				obj = t.ResourceBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
-				patchLabels := []*query.LabelChange{
+				patchLabels := []*types.LabelChange{
 					{
-						Operation: query.AddLabelOperation,
+						Operation: types.AddLabelOperation,
 						Key:       labelKey,
 						Values:    []string{labelValue},
 					},
@@ -442,14 +442,14 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 
 					BeforeEach(func() {
 						rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant, bool(responseMode))
-						patchLabels := []*query.LabelChange{
+						patchLabels := []*types.LabelChange{
 							{
-								Operation: query.AddLabelOperation,
+								Operation: types.AddLabelOperation,
 								Key:       commonLabelKey,
 								Values:    []string{commonLabelValue},
 							},
 							{
-								Operation: query.AddLabelOperation,
+								Operation: types.AddLabelOperation,
 								Key:       resourceSpecificLabel,
 								Values:    []string{commonLabelValue},
 							},
@@ -510,9 +510,9 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 					BeforeEach(func() {
 						objID = r[len(r)-1]["id"].(string)
 						pageSize = len(r) / 2
-						patchLabels := []*query.LabelChange{
+						patchLabels := []*types.LabelChange{
 							{
-								Operation: query.AddLabelOperation,
+								Operation: types.AddLabelOperation,
 								Key:       labelKey,
 								Values:    []string{objID},
 							},

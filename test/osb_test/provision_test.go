@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/test/common"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -344,8 +343,8 @@ var _ = Describe("Provision", func() {
 
 			visibilityID := common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan1ID, platform.ID)
 			patchLabelsBody := make(map[string]interface{})
-			patchLabels := []query.LabelChange{{
-				Operation: query.AddLabelOperation,
+			patchLabels := []types.LabelChange{{
+				Operation: types.AddLabelOperation,
 				Key:       "organization_guid",
 				Values:    []string{organizationGUID},
 			}}

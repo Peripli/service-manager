@@ -17,6 +17,8 @@
 package postgres
 
 import (
+	"fmt"
+
 	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
 
@@ -46,11 +48,16 @@ type ServiceOffering struct {
 	Plans []*ServicePlan `db:"-"`
 }
 
-func (e *ServiceOffering) ToObject() types.Object {
+func (e *ServiceOffering) ToObject() (types.Object, error) {
 	var plans []*types.ServicePlan
 	for _, plan := range e.Plans {
-		plans = append(plans, plan.ToObject().(*types.ServicePlan))
+		planObject, err := plan.ToObject()
+		if err != nil {
+			return nil, fmt.Errorf("converting service offering to object failed while converting plans: %s", err)
+		}
+		plans = append(plans, planObject.(*types.ServicePlan))
 	}
+
 	return &types.ServiceOffering{
 		Base: types.Base{
 			ID:             e.ID,
@@ -73,21 +80,24 @@ func (e *ServiceOffering) ToObject() types.Object {
 		Metadata:             getJSONRawMessage(e.Metadata),
 		BrokerID:             e.BrokerID,
 		Plans:                plans,
-	}
+	}, nil
 }
 
-func (*ServiceOffering) FromObject(object types.Object) (storage.Entity, bool) {
+func (*ServiceOffering) FromObject(object types.Object) (storage.Entity, error) {
 	offering, ok := object.(*types.ServiceOffering)
 	if !ok {
-		return nil, false
+		return nil, fmt.Errorf("object is not of type ServiceOffering")
 	}
 	servicePlanDTO := &ServicePlan{}
 	var plans []*ServicePlan
 	for _, plan := range offering.Plans {
-		if entity, isServicePlan := servicePlanDTO.FromObject(plan); isServicePlan {
-			plans = append(plans, entity.(*ServicePlan))
+		entity, err := servicePlanDTO.FromObject(plan)
+		if err != nil {
+			return nil, fmt.Errorf("converting service offering from object failed while converting plans: %s", err)
 		}
+		plans = append(plans, entity.(*ServicePlan))
 	}
+
 	result := &ServiceOffering{
 		BaseEntity: BaseEntity{
 			ID:             offering.ID,
@@ -111,5 +121,6 @@ func (*ServiceOffering) FromObject(object types.Object) (storage.Entity, bool) {
 		BrokerID:             offering.BrokerID,
 		Plans:                plans,
 	}
-	return result, true
+
+	return result, nil
 }

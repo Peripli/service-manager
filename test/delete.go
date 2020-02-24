@@ -78,10 +78,14 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 					Expect().
 					Status(deletionRequestResponseCode)
 
-				if responseMode == Async {
-					_, err := ExpectOperationWithError(auth, resp, expectedOpState, expectedErrMsg)
-					Expect(err).To(BeNil())
-				}
+				common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
+					Category:          types.DELETE,
+					State:             expectedOpState,
+					ResourceType:      t.ResourceType,
+					Reschedulable:     false,
+					DeletionScheduled: false,
+					Error:             expectedErrMsg,
+				})
 
 				By("[TEST]: Verify resource of type %s does not exist after delete")
 				ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
@@ -160,13 +164,14 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 			})
 
 			verifyMissingResourceFailedDeletion := func(resp *httpexpect.Response, expectedErrMsg string) {
-				switch responseMode {
-				case Async:
-					_, err := ExpectOperationWithError(ctx.SMWithOAuth, resp, types.FAILED, expectedErrMsg)
-					Expect(err).To(BeNil())
-				case Sync:
-					resp.Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
-				}
+				common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
+					Category:          types.DELETE,
+					State:             types.FAILED,
+					ResourceType:      t.ResourceType,
+					Reschedulable:     false,
+					DeletionScheduled: false,
+					Error:             expectedErrMsg,
+				})
 			}
 
 			Context("when authenticating with basic auth", func() {

@@ -18,6 +18,7 @@ package postgres
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
@@ -36,7 +37,7 @@ type Notification struct {
 	CorrelationID sql.NullString     `db:"correlation_id"`
 }
 
-func (n *Notification) ToObject() types.Object {
+func (n *Notification) ToObject() (types.Object, error) {
 	return &types.Notification{
 		Base: types.Base{
 			ID:        n.ID,
@@ -51,13 +52,13 @@ func (n *Notification) ToObject() types.Object {
 		Revision:      n.Revision,
 		Payload:       getJSONRawMessage(n.Payload),
 		CorrelationID: n.CorrelationID.String,
-	}
+	}, nil
 }
 
-func (*Notification) FromObject(object types.Object) (storage.Entity, bool) {
+func (*Notification) FromObject(object types.Object) (storage.Entity, error) {
 	notification, ok := object.(*types.Notification)
 	if !ok {
-		return nil, false
+		return nil, fmt.Errorf("object is not of type Notification")
 	}
 
 	n := &Notification{
@@ -74,5 +75,5 @@ func (*Notification) FromObject(object types.Object) (storage.Entity, bool) {
 		Payload:       getJSONText(notification.Payload),
 		CorrelationID: toNullString(notification.CorrelationID),
 	}
-	return n, true
+	return n, nil
 }

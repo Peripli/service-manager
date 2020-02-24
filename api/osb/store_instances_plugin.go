@@ -475,7 +475,7 @@ func (ssi *StoreServiceInstancePlugin) updateOperation(ctx context.Context, oper
 		}
 	}
 
-	if _, err := storage.Update(ctx, operation, query.LabelChanges{}); err != nil {
+	if _, err := storage.Update(ctx, operation, types.LabelChanges{}); err != nil {
 		return util.HandleStorageError(err, string(operation.GetType()))
 	}
 
@@ -585,8 +585,8 @@ func (ssi *StoreServiceInstancePlugin) updateInstance(ctx context.Context, stora
 		serviceInstance.Context = req.RawContext
 	}
 
-	serviceInstance.NewState = previousValuesBytes
-	if _, err := storage.Update(ctx, serviceInstance, query.LabelChanges{}); err != nil {
+	serviceInstance.PreviousValues = previousValuesBytes
+	if _, err := storage.Update(ctx, serviceInstance, types.LabelChanges{}); err != nil {
 		return util.HandleStorageError(err, string(serviceInstance.GetType()))
 	}
 
@@ -609,7 +609,7 @@ func (ssi *StoreServiceInstancePlugin) rollbackInstance(ctx context.Context, req
 	serviceInstance.Usable = usable
 
 	if _, ok := req.(*lastOperationRequest); ok {
-		previousValues := serviceInstance.NewState
+		previousValues := serviceInstance.PreviousValues
 		oldCatalogPlanID := gjson.GetBytes(previousValues, smServicePlanIDKey).String()
 		if len(oldCatalogPlanID) != 0 {
 			serviceInstance.ServicePlanID = oldCatalogPlanID
@@ -624,7 +624,7 @@ func (ssi *StoreServiceInstancePlugin) rollbackInstance(ctx context.Context, req
 		}
 	}
 
-	if _, err := storage.Update(ctx, serviceInstance, query.LabelChanges{}); err != nil {
+	if _, err := storage.Update(ctx, serviceInstance, types.LabelChanges{}); err != nil {
 		return util.HandleStorageError(err, string(serviceInstance.GetType()))
 	}
 
@@ -646,7 +646,7 @@ func (ssi *StoreServiceInstancePlugin) updateInstanceReady(ctx context.Context, 
 	serviceInstance := instance.(*types.ServiceInstance)
 	serviceInstance.Ready = true
 
-	if _, err := storage.Update(ctx, serviceInstance, query.LabelChanges{}); err != nil {
+	if _, err := storage.Update(ctx, serviceInstance, types.LabelChanges{}); err != nil {
 		return util.HandleStorageError(err, string(serviceInstance.GetType()))
 	}
 

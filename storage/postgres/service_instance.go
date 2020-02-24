@@ -18,6 +18,8 @@ package postgres
 
 import (
 	"database/sql"
+	"encoding/json"
+	"fmt"
 
 	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
@@ -35,11 +37,17 @@ type ServiceInstance struct {
 	DashboardURL    sql.NullString     `db:"dashboard_url"`
 	MaintenanceInfo sqlxtypes.JSONText `db:"maintenance_info"`
 	Context         sqlxtypes.JSONText `db:"context"`
-	NewState        sqlxtypes.JSONText `db:"new_state"`
+	UpdateValues    sqlxtypes.JSONText `db:"new_state"`
 	Usable          bool               `db:"usable"`
 }
 
-func (si *ServiceInstance) ToObject() types.Object {
+func (si *ServiceInstance) ToObject() (types.Object, error) {
+	var updateValues types.InstanceUpdateValues
+	if si.UpdateValues != nil {
+		if err := json.Unmarshal(si.UpdateValues, &updateValues); err != nil {
+			return nil, err
+		}
+	}
 	return &types.ServiceInstance{
 		Base: types.Base{
 			ID:             si.ID,
@@ -55,15 +63,20 @@ func (si *ServiceInstance) ToObject() types.Object {
 		DashboardURL:    si.DashboardURL.String,
 		MaintenanceInfo: getJSONRawMessage(si.MaintenanceInfo),
 		Context:         getJSONRawMessage(si.Context),
-		NewState:        getJSONRawMessage(si.NewState),
+		UpdateValues:    updateValues,
 		Usable:          si.Usable,
-	}
+	}, nil
 }
 
-func (*ServiceInstance) FromObject(object types.Object) (storage.Entity, bool) {
+func (*ServiceInstance) FromObject(object types.Object) (storage.Entity, error) {
 	serviceInstance, ok := object.(*types.ServiceInstance)
 	if !ok {
-		return nil, false
+		return nil, fmt.Errorf("object is not of type ServiceInstance")
+	}
+
+	newStateBytes, err := json.Marshal(serviceInstance.UpdateValues)
+	if err != nil {
+		return nil, err
 	}
 
 	si := &ServiceInstance{
@@ -80,9 +93,9 @@ func (*ServiceInstance) FromObject(object types.Object) (storage.Entity, bool) {
 		DashboardURL:    toNullString(serviceInstance.DashboardURL),
 		MaintenanceInfo: getJSONText(serviceInstance.MaintenanceInfo),
 		Context:         getJSONText(serviceInstance.Context),
-		NewState:        getJSONText(serviceInstance.NewState),
+		UpdateValues:    newStateBytes,
 		Usable:          serviceInstance.Usable,
 	}
 
-	return si, true
+	return si, nil
 }

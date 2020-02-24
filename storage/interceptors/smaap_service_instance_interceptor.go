@@ -24,8 +24,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/tidwall/sjson"
-
 	"github.com/Peripli/service-manager/operations"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -44,7 +42,7 @@ const ServiceInstanceCreateInterceptorProviderName = "ServiceInstanceCreateInter
 
 type BaseSMAAPInterceptorProvider struct {
 	OSBClientCreateFunc osbc.CreateFunc
-	Repository          storage.TransactionalRepository
+	Repository          *storage.InterceptableTransactionalRepository
 	TenantKey           string
 	PollingInterval     time.Duration
 }
@@ -109,7 +107,7 @@ func (c *ServiceInstanceDeleteInterceptorProvider) Name() string {
 
 type ServiceInstanceInterceptor struct {
 	osbClientCreateFunc osbc.CreateFunc
-	repository          storage.TransactionalRepository
+	repository          *storage.InterceptableTransactionalRepository
 	tenantKey           string
 	pollingInterval     time.Duration
 }
@@ -157,7 +155,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 					// mark the operation as deletion scheduled meaning orphan mitigation is required
 					operation.DeletionScheduled = time.Now().UTC()
 					operation.Reschedule = false
-					if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
 					}
 				}
@@ -177,7 +175,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 					operation.ExternalID = string(*provisionResponse.OperationKey)
 				}
 
-				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", instance.ID, err)
 				}
 			} else {
@@ -203,74 +201,52 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 	}
 }
 func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
-	return func(ctx context.Context, newObj types.Object, labelChanges ...*query.LabelChange) (object types.Object, err error) {
-		// TODO use storage that is not interceptable instead of calling f multiple times
-
-		newInstance := newObj.(*types.ServiceInstance)
-		if newInstance.PlatformID != types.SMPlatform {
-			return f(ctx, newObj, labelChanges...)
+	return func(ctx context.Context, updatedObj types.Object, labelChanges ...*types.LabelChange) (object types.Object, err error) {
+		updatedInstance := updatedObj.(*types.ServiceInstance)
+		if updatedInstance.PlatformID != types.SMPlatform {
+			return f(ctx, updatedObj, labelChanges...)
 		}
-		newInstance.Ready = true
 
 		operation, found := operations.GetFromContext(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
 		}
 
-		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, newInstance)
+		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, updatedInstance)
 		if err != nil {
 			return nil, err
 		}
-		type NextState struct {
-			ServiceInstance *types.ServiceInstance `json:"instance"`
-			LabelChanges    query.LabelChanges     `json:"label_changes"`
-		}
 
-		oldInstanceObj, err := i.repository.Get(ctx, types.ServiceInstanceType, query.Criterion{
+		instanceObjBeforeUpdate, err := i.repository.Get(ctx, types.ServiceInstanceType, query.Criterion{
 			LeftOp:   "id",
 			Operator: query.EqualsOperator,
-			RightOp:  []string{newInstance.ID},
+			RightOp:  []string{updatedInstance.ID},
 			Type:     query.FieldQuery,
 		})
 		if err != nil {
-			log.C(ctx).WithError(err).Errorf("could not get instance with id '%s'", newInstance.ID)
+			log.C(ctx).WithError(err).Errorf("could not get instance with id '%s'", updatedInstance.ID)
 			return nil, err
 		}
-		oldInstance := oldInstanceObj.(*types.ServiceInstance)
-		readyStateBeforeUpdate := true
-		if len(oldInstance.NewState) == 0 {
-			readyStateBeforeUpdate = oldInstance.Ready
-		}
+		instanceBeforeUpdate := instanceObjBeforeUpdate.(*types.ServiceInstance)
 
 		oldServicePlanObj, err := i.repository.Get(ctx, types.ServicePlanType, query.Criterion{
 			LeftOp:   "id",
 			Operator: query.EqualsOperator,
-			RightOp:  []string{oldInstance.ServicePlanID},
+			RightOp:  []string{instanceBeforeUpdate.ServicePlanID},
 			Type:     query.FieldQuery,
 		})
 		if err != nil {
-			return nil, err
+			return nil, &util.HTTPError{
+				ErrorType:   "NotFound",
+				Description: fmt.Sprintf("current service plan with id %s for instance %s no longer exists and instance updates are not allowed", instanceBeforeUpdate.ServicePlanID, instanceBeforeUpdate.Name),
+				StatusCode:  http.StatusBadRequest,
+			}
 		}
 		oldServicePlan := oldServicePlanObj.(*types.ServicePlan)
 
 		var updateInstanceResponse *osbc.UpdateInstanceResponse
 		if !operation.Reschedule {
-			nextState := NextState{
-				ServiceInstance: newInstance,
-				LabelChanges:    labelChanges,
-			}
-			oldInstance.NewState, err = json.Marshal(nextState)
-			if err != nil {
-				return nil, fmt.Errorf("could not unmarshal new instance: %s", err)
-			}
-			oldInstance.Ready = false
-			// store new instance if SM crashes
-			oldInstanceObj, err := f(ctx, oldInstance)
-			if err != nil {
-				return nil, err
-			}
-			oldInstance = oldInstanceObj.(*types.ServiceInstance)
-			updateInstanceRequest, err := i.prepareUpdateInstanceRequest(newInstance, service.CatalogID, plan.CatalogID, oldServicePlan.CatalogID)
+			updateInstanceRequest, err := i.prepareUpdateInstanceRequest(updatedInstance, service.CatalogID, plan.CatalogID, oldServicePlan.CatalogID)
 			if err != nil {
 				return nil, fmt.Errorf("faied to prepare update instance request: %s", err)
 			}
@@ -282,66 +258,63 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 					Description: fmt.Sprintf("Failed update instance request %s: %s", logUpdateInstanceRequest(updateInstanceRequest), err),
 					StatusCode:  http.StatusBadGateway,
 				}
-				operation.State = types.FAILED
-				operation.Reschedule = false
-				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
-					return nil, fmt.Errorf("failed to update operation with id %s after broker error %s: %s", operation.ID, brokerError, err)
-				}
-				// clear new state
-				oldInstance.NewState = json.RawMessage{} // empty json?
-				oldInstance.Ready = readyStateBeforeUpdate
-				if _, err = f(ctx, oldInstance); err != nil {
-					return nil, err
-				}
+
 				return nil, brokerError
 			}
 
+			// SM should not not store parameters
+			updatedInstance.Parameters = nil
+			// if broker returned a dashboard URL, store it in SM
 			if updateInstanceResponse.DashboardURL != nil {
 				dashboardURL := *updateInstanceResponse.DashboardURL
-				newInstance.DashboardURL = dashboardURL
-				var err error
-				if nextState.ServiceInstance.NewState, err = sjson.SetBytes(nextState.ServiceInstance.NewState, "service_instance.dashboard_url", dashboardURL); err != nil {
-					return nil, err
-				}
+				updatedInstance.DashboardURL = dashboardURL
 			}
+			instanceBeforeUpdate.UpdateValues = types.InstanceUpdateValues{
+				ServiceInstance: updatedInstance,
+				LabelChanges:    labelChanges,
+			}
+			// use repository with no interceptors to attach the update details to the instance
+			instanceObjAfterRawUpdate, err := i.repository.RawRepository.Update(ctx, instanceBeforeUpdate, types.LabelChanges{})
+			if err != nil {
+				return nil, err
+			}
+			instanceBeforeUpdate = instanceObjAfterRawUpdate.(*types.ServiceInstance)
+			// We did a raw update on the instance which changed the updated_at value currently stored in SMDB
+			// In order to not mark the interceptor chain invocation later on as concurrent modification,
+			// we set the newer updated_at value in the updated values
+			instanceBeforeUpdate.UpdateValues.ServiceInstance.UpdatedAt = instanceBeforeUpdate.UpdatedAt
 
 			if updateInstanceResponse.Async {
-				log.C(ctx).Infof("Successful asynchronous provisioning request %s to broker %s returned response %s",
+				log.C(ctx).Infof("Successful asynchronous update instance request %s to broker %s returned response %s",
 					logUpdateInstanceRequest(updateInstanceRequest), broker.Name, logUpdateInstanceResponse(updateInstanceResponse))
 				operation.Reschedule = true
 				if updateInstanceResponse.OperationKey != nil {
 					operation.ExternalID = string(*updateInstanceResponse.OperationKey)
 				}
 
-				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
-					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", newInstance.ID, err)
+				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", updatedInstance.ID, err)
 				}
 			} else {
-				log.C(ctx).Infof("Successful synchronous provisioning %s to broker %s returned response %s",
+				log.C(ctx).Infof("Successful synchronous update instance %s to broker %s returned response %s",
 					logUpdateInstanceRequest(updateInstanceRequest), broker.Name, logUpdateInstanceResponse(updateInstanceResponse))
-				newInstance.UpdatedAt = oldInstance.UpdatedAt
-				newInstance.Ready = true
-				return f(ctx, newInstance, labelChanges...)
 			}
 		}
 
 		if operation.Reschedule {
-			if err := i.pollServiceInstance(ctx, osbClient, newInstance, operation, service.CatalogID, plan.CatalogID, false); err != nil {
-				oldInstance.NewState = json.RawMessage{} // empty json?
-				oldInstance.Ready = readyStateBeforeUpdate
-				return f(ctx, oldInstance)
-			} else {
-				newValues := &NextState{}
-				if err := json.Unmarshal(oldInstance.NewState, newValues); err != nil {
-					return nil, err
+			if err := i.pollServiceInstance(ctx, osbClient, updatedInstance, operation, service.CatalogID, plan.CatalogID, false); err != nil {
+				instanceBeforeUpdate.UpdateValues = types.InstanceUpdateValues{}
+				_, updateErr := i.repository.RawRepository.Update(ctx, instanceBeforeUpdate, types.LabelChanges{})
+				if updateErr != nil {
+					return nil, updateErr
 				}
-				newInstance := newValues.ServiceInstance
-				newInstance.Ready = true
-				newInstance.UpdatedAt = oldInstance.UpdatedAt
-				return f(ctx, newInstance, newValues.LabelChanges...)
+				return nil, err
 			}
 		}
-		return newInstance, nil
+		// continue further down the interceptor chain with the updated instance
+		//TODO if there are post around tx interceptors registered on the flow and they fail, we might result in a situation where we have
+		// successfully updated instance and an UPDATE operation that is marked as failed!
+		return f(ctx, instanceBeforeUpdate.UpdateValues.ServiceInstance, instanceBeforeUpdate.UpdateValues.LabelChanges...)
 	}
 }
 
@@ -426,7 +399,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 			if shouldStartOrphanMitigation(err) {
 				operation.DeletionScheduled = time.Now()
 				operation.Reschedule = false
-				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
 				}
 			}
@@ -441,7 +414,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 			if deprovisionResponse.OperationKey != nil {
 				operation.ExternalID = string(*deprovisionResponse.OperationKey)
 			}
-			if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+			if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 				return fmt.Errorf("failed to update operation with id %s to mark that rescheduling is possible: %s", operation.ID, err)
 			}
 		} else {
@@ -491,7 +464,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 					log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
 
 					operation.Reschedule = false
-					if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return fmt.Errorf("failed to update operation with id %s to mark that next execution should not be reschedulable", operation.ID)
 					}
 					return nil
@@ -513,7 +486,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 				log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
 
 				operation.Reschedule = false
-				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
 				}
 
@@ -523,10 +496,8 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 				operation.Reschedule = false
 				if enableOrphanMitigation {
 					operation.DeletionScheduled = time.Now()
-				} else {
-					operation.State = types.FAILED
 				}
-				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return fmt.Errorf("failed to update operation with id %s after failed of last operation for instance with id %s: %s", operation.ID, instance.ID, err)
 				}
 

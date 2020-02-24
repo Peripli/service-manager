@@ -81,27 +81,27 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 
 		fakeUpdateAroundTxIntercetptor = &storagefakes.FakeUpdateAroundTxInterceptor{}
 		fakeUpdateAroundTxIntercetptor.AroundTxUpdateCalls(func(next storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
-			return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
+			return func(ctx context.Context, obj types.Object, labelChanges ...*types.LabelChange) (object types.Object, e error) {
 				return next(ctx, obj, labelChanges...)
 			}
 		})
 
 		fakeUpdateOnTxIntercetptor = &storagefakes.FakeUpdateOnTxInterceptor{}
 		fakeUpdateOnTxIntercetptor.OnTxUpdateCalls(func(next storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-			return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
+			return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*types.LabelChange) (object types.Object, e error) {
 				return next(ctx, txStorage, oldObj, newObj, labelChanges...)
 			}
 		})
 
 		fakeUpdateIntercetptor = &storagefakes.FakeUpdateInterceptor{}
 		fakeUpdateIntercetptor.OnTxUpdateCalls(func(next storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-			return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
+			return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*types.LabelChange) (object types.Object, e error) {
 				return next(ctx, txStorage, oldObj, newObj, labelChanges...)
 			}
 		})
 
 		fakeUpdateIntercetptor.AroundTxUpdateCalls(func(next storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
-			return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
+			return func(ctx context.Context, obj types.Object, labelChanges ...*types.LabelChange) (object types.Object, e error) {
 				return next(ctx, obj, labelChanges...)
 			}
 		})
@@ -173,7 +173,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			return f(context, fakeStorage)
 		})
 
-		fakeStorage.UpdateCalls(func(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
+		fakeStorage.UpdateCalls(func(ctx context.Context, obj types.Object, labelChanges types.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
 			return obj, nil
 		})
 
@@ -249,7 +249,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 					UpdatedAt: updateTime,
 					Ready:     true,
 				},
-			}, query.LabelChanges{})
+			}, types.LabelChanges{})
 
 			Expect(err).ShouldNot(HaveOccurred())
 
@@ -307,7 +307,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 						UpdatedAt: updateTime,
 						Ready:     true,
 					},
-				}, query.LabelChanges{})
+				}, types.LabelChanges{})
 				Expect(err).ShouldNot(HaveOccurred())
 
 				byID := query.ByField(query.EqualsOperator, "id", "id")
@@ -342,7 +342,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 							UpdatedAt: updateTime,
 							Ready:     true,
 						},
-					}, query.LabelChanges{})
+					}, types.LabelChanges{})
 
 					return err
 				})
@@ -410,7 +410,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			})
 
 			fakeUpdateOnTxIntercetptor.OnTxUpdateCalls(func(next storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-				return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+				return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
 					o, err := txStorage.Update(ctx, newObj, labelChanges)
 					Expect(err).ShouldNot(HaveOccurred())
 

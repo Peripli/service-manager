@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/Peripli/service-manager/pkg/types"
+
 	"github.com/gavv/httpexpect"
 
 	. "github.com/onsi/gomega"
@@ -35,12 +36,17 @@ func DescribePatchTestsFor(ctx *common.TestContext, t TestCase, responseMode Res
 			switch responseMode {
 			case Async:
 				resp.Status(http.StatusAccepted)
-
-				_, err := ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
-				Expect(err).To(BeNil())
 			case Sync:
 				resp.Status(http.StatusOK)
 			}
+
+			common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
+				Category:          types.UPDATE,
+				State:             types.SUCCEEDED,
+				ResourceType:      t.ResourceType,
+				Reschedulable:     false,
+				DeletionScheduled: false,
+			})
 		}
 
 		Context(fmt.Sprintf("Existing resource of type %s", t.API), func() {
