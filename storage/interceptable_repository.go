@@ -19,7 +19,6 @@ package storage
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -239,8 +238,6 @@ func (ir *queryScopedInterceptableRepository) Delete(ctx context.Context, object
 
 func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj types.Object, labelChanges types.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
 	updateObjFunc := func(ctx context.Context, _ Repository, oldObj, newObj types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
-		newObj.SetUpdatedAt(time.Now().UTC())
-
 		object, err := ir.repositoryInTransaction.Update(ctx, newObj, labelChanges, criteria...)
 		if err != nil {
 			return nil, err
