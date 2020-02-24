@@ -43,7 +43,7 @@ func DescribePatchTestsFor(ctx *common.TestContext, t TestCase, responseMode Res
 			common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
 				Category:          types.UPDATE,
 				State:             types.SUCCEEDED,
-				ResourceType:      t.ResourceType,
+				ResourceType:      types.ObjectType(t.API),
 				Reschedulable:     false,
 				DeletionScheduled: false,
 			})

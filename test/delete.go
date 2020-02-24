@@ -81,7 +81,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 				common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
 					Category:          types.DELETE,
 					State:             expectedOpState,
-					ResourceType:      t.ResourceType,
+					ResourceType:      types.ObjectType(t.API),
 					Reschedulable:     false,
 					DeletionScheduled: false,
 					Error:             expectedErrMsg,
@@ -167,7 +167,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 				common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
 					Category:          types.DELETE,
 					State:             types.FAILED,
-					ResourceType:      t.ResourceType,
+					ResourceType:      types.ObjectType(t.API),
 					Reschedulable:     false,
 					DeletionScheduled: false,
 					Error:             expectedErrMsg,

@@ -20,10 +20,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/types"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/gavv/httpexpect"
 
@@ -72,7 +73,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 			},
 		}
 
-		t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, obj["id"].(string), t.ResourceType, patchLabels, bool(responseMode))
+		t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, obj["id"].(string), types.ObjectType(t.API), patchLabels, bool(responseMode))
 		var result *httpexpect.Object
 		if t.StrictlyTenantScoped {
 			result = ctx.SMWithOAuthForTenant.GET(t.API + "/" + obj["id"].(string)).
@@ -425,7 +426,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 						Values:    []string{labelValue},
 					},
 				}
-				t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, obj["id"].(string), t.ResourceType, patchLabels, bool(responseMode))
+				t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, obj["id"].(string), types.ObjectType(t.API), patchLabels, bool(responseMode))
 			})
 
 			It("returns 200", func() {
@@ -455,7 +456,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 							},
 						}
 						resourceID := rForTenant["id"].(string)
-						t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, resourceID, t.ResourceType, patchLabels, bool(responseMode))
+						t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, resourceID, types.ObjectType(t.API), patchLabels, bool(responseMode))
 
 						rForTenant = ctx.SMWithOAuth.GET(t.API + "/" + resourceID).
 							Expect().
@@ -519,7 +520,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 						}
 
 						By(fmt.Sprintf("Attempting add one additional %s label with value %v to resoucre of type %s with id %s", labelKey, []string{objID}, t.API, objID))
-						t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, objID, t.ResourceType, patchLabels, bool(responseMode))
+						t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, objID, types.ObjectType(t.API), patchLabels, bool(responseMode))
 
 						object := ctx.SMWithOAuth.GET(t.API + "/" + objID).
 							Expect().
