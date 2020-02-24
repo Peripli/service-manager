@@ -24,8 +24,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/types"
 
-	"github.com/tidwall/gjson"
-
 	"github.com/tidwall/sjson"
 
 	. "github.com/onsi/gomega"
@@ -88,20 +86,6 @@ var _ = Describe("Update", func() {
 				changes, err := LabelChangesFromJSON(body)
 				Expect(err).To(HaveOccurred())
 				Expect(changes).To(BeNil())
-			})
-		})
-
-		Context("When operation is remove label and body has values", func() {
-			BeforeEach(func() {
-				operation = types.RemoveLabelOperation
-			})
-			It("Should remove them", func() {
-				values := gjson.GetBytes(body, "labels.0.values").String()
-				Expect(values).ToNot(BeEmpty())
-				changes, err := LabelChangesFromJSON(body)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(changes).ToNot(BeNil())
-				Expect(changes[0].Values).To(BeEmpty())
 			})
 		})
 
@@ -205,7 +189,7 @@ var _ = Describe("Update", func() {
 							},
 						},
 					}),
-				Entry("remove key removes all values",
+				Entry("remove label with no values provided removes all values",
 					testEntry{
 						InitialLabels: types.Labels{
 							"organization_guid": {
@@ -223,6 +207,33 @@ var _ = Describe("Update", func() {
 						ExpectedLabelsToRemove: types.Labels{
 							"organization_guid": {
 								"org0",
+							},
+						},
+						ExpectedLabelsToAdd: types.Labels{},
+					}),
+				Entry("remove label with values provided removes only provided values",
+					testEntry{
+						InitialLabels: types.Labels{
+							"organization_guid": {
+								"org0",
+								"org1",
+							},
+						},
+						Changes: LabelChanges{
+							&LabelChange{
+								Operation: RemoveLabelOperation,
+								Key:       "organization_guid",
+								Values:    []string{"org1"},
+							},
+						},
+						ExpectedMergedLabels: types.Labels{
+							"organization_guid": {
+								"org0",
+							},
+						},
+						ExpectedLabelsToRemove: types.Labels{
+							"organization_guid": {
+								"org1",
 							},
 						},
 						ExpectedLabelsToAdd: types.Labels{},

@@ -36,11 +36,6 @@ func LabelChangesFromJSON(jsonBytes []byte) ([]*types.LabelChange, error) {
 		return nil, err
 	}
 
-	for _, v := range labelChanges {
-		if v.Operation == types.RemoveLabelOperation {
-			v.Values = nil
-		}
-	}
 	return labelChanges, nil
 }
 
