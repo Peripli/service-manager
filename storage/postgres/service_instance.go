@@ -37,7 +37,8 @@ type ServiceInstance struct {
 	DashboardURL    sql.NullString     `db:"dashboard_url"`
 	MaintenanceInfo sqlxtypes.JSONText `db:"maintenance_info"`
 	Context         sqlxtypes.JSONText `db:"context"`
-	UpdateValues    sqlxtypes.JSONText `db:"new_state"`
+	PreviousValues  sqlxtypes.JSONText `db:"previous_values"`
+	UpdateValues    sqlxtypes.JSONText `db:"update_values"`
 	Usable          bool               `db:"usable"`
 }
 
@@ -63,6 +64,7 @@ func (si *ServiceInstance) ToObject() (types.Object, error) {
 		DashboardURL:    si.DashboardURL.String,
 		MaintenanceInfo: getJSONRawMessage(si.MaintenanceInfo),
 		Context:         getJSONRawMessage(si.Context),
+		PreviousValues:  getJSONRawMessage(si.PreviousValues),
 		UpdateValues:    updateValues,
 		Usable:          si.Usable,
 	}, nil
@@ -93,6 +95,7 @@ func (*ServiceInstance) FromObject(object types.Object) (storage.Entity, error) 
 		DashboardURL:    toNullString(serviceInstance.DashboardURL),
 		MaintenanceInfo: getJSONText(serviceInstance.MaintenanceInfo),
 		Context:         getJSONText(serviceInstance.Context),
+		PreviousValues:  getJSONText(serviceInstance.PreviousValues),
 		UpdateValues:    newStateBytes,
 		Usable:          serviceInstance.Usable,
 	}
