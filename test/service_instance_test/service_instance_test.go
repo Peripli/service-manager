@@ -92,11 +92,12 @@ var _ = DescribeTestsFor(TestCase{
 				postInstanceRequest  Object
 				patchInstanceRequest Object
 
-				servicePlanID        string
-				anotherServicePlanID string
-				brokerID             string
-				brokerServer         *BrokerServer
-				instanceID           string
+				servicePlanID               string
+				anotherServicePlanCatalogID string
+				anotherServicePlanID        string
+				brokerID                    string
+				brokerServer                *BrokerServer
+				instanceID                  string
 			)
 
 			type testCase struct {
@@ -166,6 +167,7 @@ var _ = DescribeTestsFor(TestCase{
 				brokerID, brokerServer, plans = prepareBrokerWithCatalog(ctx, ctx.SMWithOAuth)
 				brokerServer.ShouldRecordRequests(false)
 				servicePlanID = plans.Element(0).Object().Value("id").String().Raw()
+				anotherServicePlanCatalogID = plans.Element(1).Object().Value("catalog_id").String().Raw()
 				anotherServicePlanID = plans.Element(1).Object().Value("id").String().Raw()
 				postInstanceRequest = Object{
 					"name":             "test-instance" + ID.String(),
@@ -1272,9 +1274,14 @@ var _ = DescribeTestsFor(TestCase{
 
 							When("fields are updated one by one", func() {
 								It("returns 200", func() {
-									for _, prop := range []string{"name", "maintenance_info"} {
+									for _, prop := range []string{"name", "maintenance_info", "service_plan_id"} {
 										updatedBrokerJSON := Object{}
-										updatedBrokerJSON[prop] = "updated-" + prop
+										if prop == "service_plan_id" {
+											EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, anotherServicePlanID, TenantIDValue)
+											updatedBrokerJSON[prop] = anotherServicePlanID
+										} else {
+											updatedBrokerJSON[prop] = "updated-" + prop
+										}
 
 										resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
 											WithQuery("async", testCase.async).
@@ -1545,6 +1552,43 @@ var _ = DescribeTestsFor(TestCase{
 										objAfterUpdate.
 											ContainsKey("dashboard_url").
 											ValueEqual("dashboard_url", updatedDashboardURL)
+									})
+								})
+
+								verificationHandler := func(bodyKey, expectedBodyValue string) func(req *http.Request) (int, map[string]interface{}) {
+									return func(req *http.Request) (int, map[string]interface{}) {
+										body, err := util.BodyToBytes(req.Body)
+										Expect(err).ToNot(HaveOccurred())
+										bodyValue := gjson.GetBytes(body, bodyKey).String()
+										Expect(bodyValue).To(Equal(expectedBodyValue))
+										platformValue := gjson.GetBytes(body, "context.platform").String()
+										Expect(platformValue).To(Equal(types.SMPlatform))
+
+										return http.StatusOK, Object{}
+									}
+								}
+
+								When("service plan id is updated", func() {
+									It("propagates the update to the broker", func() {
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodPatch, http.MethodPatch+"1",
+											verificationHandler("plan_id", anotherServicePlanCatalogID))
+
+										EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, anotherServicePlanID, TenantIDValue)
+
+										patchInstanceRequest["service_plan_id"] = anotherServicePlanID
+										patchInstance(ctx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.expectedUpdateSuccessStatusCode)
+									})
+								})
+
+								When("parameters are updated", func() {
+									It("propagates the update to the broker", func() {
+										patchInstanceRequest["parameters"] = map[string]string{
+											"newParamKey": "newParamValue",
+										}
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodPatch, http.MethodPatch+"1",
+											verificationHandler("parameters", `{"newParamKey":"newParamValue"}`))
+
+										patchInstance(ctx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.expectedUpdateSuccessStatusCode)
 									})
 								})
 
