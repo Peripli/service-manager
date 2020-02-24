@@ -19,6 +19,7 @@ package authenticators_test
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 
 	"github.com/Peripli/service-manager/storage/storagefakes"
@@ -61,7 +62,7 @@ var _ = Describe("Basic Authenticator", func() {
 		Context("When authorization is not basic", func() {
 			It("Should abstain", func() {
 				request.Header.Add("Authorization", "Bearer token")
-				user, decision, err := authenticator.Authenticate(request)
+				user, decision, err := authenticator.Authenticate(&web.Request{Request: request})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(user).To(BeNil())
 				Expect(decision).To(Equal(httpsec.Abstain))
@@ -79,7 +80,7 @@ var _ = Describe("Basic Authenticator", func() {
 				})
 
 				It("Should deny", func() {
-					user, decision, err := authenticator.Authenticate(request)
+					user, decision, err := authenticator.Authenticate(&web.Request{Request: request})
 					Expect(err).To(HaveOccurred())
 					Expect(user).To(BeNil())
 					Expect(decision).To(Equal(httpsec.Deny))
@@ -117,7 +118,7 @@ var _ = Describe("Basic Authenticator", func() {
 				})
 
 				It("Should deny", func() {
-					user, decision, err := authenticator.Authenticate(request)
+					user, decision, err := authenticator.Authenticate(&web.Request{Request: request})
 					Expect(err).To(HaveOccurred())
 					Expect(user).To(BeNil())
 					Expect(decision).To(Equal(httpsec.Deny))
@@ -132,7 +133,7 @@ var _ = Describe("Basic Authenticator", func() {
 				})
 
 				It("Should abstain with error", func() {
-					user, decision, err := authenticator.Authenticate(request)
+					user, decision, err := authenticator.Authenticate(&web.Request{Request: request})
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring(expectedError.Error()))
 					Expect(user).To(BeNil())
@@ -160,7 +161,7 @@ var _ = Describe("Basic Authenticator", func() {
 				})
 
 				It("Should deny", func() {
-					user, decision, err := authenticator.Authenticate(request)
+					user, decision, err := authenticator.Authenticate(&web.Request{Request: request})
 					Expect(err).To(HaveOccurred())
 					Expect(user).To(BeNil())
 					Expect(decision).To(Equal(httpsec.Deny))
@@ -187,7 +188,7 @@ var _ = Describe("Basic Authenticator", func() {
 				})
 
 				It("Should allow", func() {
-					user, decision, err := authenticator.Authenticate(request)
+					user, decision, err := authenticator.Authenticate(&web.Request{Request: request})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(user).To(Not(BeNil()))
 					Expect(decision).To(Equal(httpsec.Allow))
