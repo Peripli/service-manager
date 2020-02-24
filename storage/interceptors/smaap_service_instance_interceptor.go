@@ -217,35 +217,35 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			return nil, err
 		}
 
-		instanceObjBeforeUpdate, err := i.repository.Get(ctx, types.ServiceInstanceType, query.Criterion{
-			LeftOp:   "id",
-			Operator: query.EqualsOperator,
-			RightOp:  []string{updatedInstance.ID},
-			Type:     query.FieldQuery,
-		})
-		if err != nil {
-			log.C(ctx).WithError(err).Errorf("could not get instance with id '%s'", updatedInstance.ID)
-			return nil, err
-		}
-		instanceBeforeUpdate := instanceObjBeforeUpdate.(*types.ServiceInstance)
-
-		oldServicePlanObj, err := i.repository.Get(ctx, types.ServicePlanType, query.Criterion{
-			LeftOp:   "id",
-			Operator: query.EqualsOperator,
-			RightOp:  []string{instanceBeforeUpdate.ServicePlanID},
-			Type:     query.FieldQuery,
-		})
-		if err != nil {
-			return nil, &util.HTTPError{
-				ErrorType:   "NotFound",
-				Description: fmt.Sprintf("current service plan with id %s for instance %s no longer exists and instance updates are not allowed", instanceBeforeUpdate.ServicePlanID, instanceBeforeUpdate.Name),
-				StatusCode:  http.StatusBadRequest,
-			}
-		}
-		oldServicePlan := oldServicePlanObj.(*types.ServicePlan)
-
-		var updateInstanceResponse *osbc.UpdateInstanceResponse
+		var instanceBeforeUpdate *types.ServiceInstance
 		if !operation.Reschedule {
+			instanceObjBeforeUpdate, err := i.repository.Get(ctx, types.ServiceInstanceType, query.Criterion{
+				LeftOp:   "id",
+				Operator: query.EqualsOperator,
+				RightOp:  []string{updatedInstance.ID},
+				Type:     query.FieldQuery,
+			})
+			if err != nil {
+				log.C(ctx).WithError(err).Errorf("could not get instance with id '%s'", updatedInstance.ID)
+				return nil, err
+			}
+			instanceBeforeUpdate = instanceObjBeforeUpdate.(*types.ServiceInstance)
+
+			oldServicePlanObj, err := i.repository.Get(ctx, types.ServicePlanType, query.Criterion{
+				LeftOp:   "id",
+				Operator: query.EqualsOperator,
+				RightOp:  []string{instanceBeforeUpdate.ServicePlanID},
+				Type:     query.FieldQuery,
+			})
+			if err != nil {
+				return nil, &util.HTTPError{
+					ErrorType:   "NotFound",
+					Description: fmt.Sprintf("current service plan with id %s for instance %s no longer exists and instance updates are not allowed", instanceBeforeUpdate.ServicePlanID, instanceBeforeUpdate.Name),
+					StatusCode:  http.StatusBadRequest,
+				}
+			}
+			oldServicePlan := oldServicePlanObj.(*types.ServicePlan)
+			var updateInstanceResponse *osbc.UpdateInstanceResponse
 			updateInstanceRequest, err := i.prepareUpdateInstanceRequest(updatedInstance, service.CatalogID, plan.CatalogID, oldServicePlan.CatalogID)
 			if err != nil {
 				return nil, fmt.Errorf("faied to prepare update instance request: %s", err)
@@ -299,6 +299,8 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 				log.C(ctx).Infof("Successful synchronous update instance %s to broker %s returned response %s",
 					logUpdateInstanceRequest(updateInstanceRequest), broker.Name, logUpdateInstanceResponse(updateInstanceResponse))
 			}
+		} else {
+			instanceBeforeUpdate = updatedInstance
 		}
 
 		if operation.Reschedule {
