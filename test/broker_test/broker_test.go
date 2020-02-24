@@ -1800,7 +1800,7 @@ func blueprint(setNullFieldsValues bool) func(ctx *TestContext, auth *SMExpect, 
 			DeletionScheduled: false,
 		})
 
-		obj = VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+		obj = VerifyResourceExists(ctx.SMWithOAuth, ResourceExpectations{
 			ID:    id,
 			Type:  types.ServiceBrokerType,
 			Ready: true,
