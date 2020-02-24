@@ -114,6 +114,11 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		return next.Handle(req)
 	}
 
+	if !ok {
+		// no visibility labels means this is a public visibility
+		return next.Handle(req)
+	}
+
 	return nil, visibilityError
 }
 
