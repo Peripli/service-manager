@@ -19,7 +19,7 @@ package osb_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/test/testutil"
+	"github.com/Peripli/service-manager/test"
 	"github.com/gavv/httpexpect"
 	"net/http"
 	"net/http/httptest"
@@ -180,12 +180,18 @@ var _ = Describe("Catalog", func() {
 			plan2ID = getSMPlanIDByCatalogID(plan2CatalogID)
 			plan3ID = getSMPlanIDByCatalogID(plan3CatalogID)
 
-			username, password := testutil.RegisterBrokerPlatformCredentials(ctx.SMRepository, brokerID, ctx.TestPlatform.ID)
+			username, password := test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, brokerID)
 			ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
 
 			k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
 			k8sPlatform = common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
-			username, password = testutil.RegisterBrokerPlatformCredentials(ctx.SMRepository, brokerID, k8sPlatform.ID)
+
+			SMWithBasicK8S := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+				username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
+				req.WithBasicAuth(username, password).WithClient(ctx.HttpClient)
+			})}
+
+			username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicK8S, brokerID)
 			k8sAgent = &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
 				req.WithBasicAuth(username, password)
 			})}
@@ -295,7 +301,7 @@ var _ = Describe("Catalog", func() {
 				ctx.Servers[common.BrokerServerPrefix+prefixedBrokerID] = server
 				osbURL = "/v1/osb/" + prefixedBrokerID
 
-				username, password := testutil.RegisterBrokerPlatformCredentials(ctx.SMRepository, prefixedBrokerID, ctx.TestPlatform.ID)
+				username, password := test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, prefixedBrokerID)
 				ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
 			})
 

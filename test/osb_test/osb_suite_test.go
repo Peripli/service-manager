@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/test/testutil"
+	"github.com/Peripli/service-manager/test"
 	"net/http"
 	"strings"
 	"testing"
@@ -69,7 +69,8 @@ const (
 )
 
 var (
-	ctx *common.TestContext
+	ctx                 *common.TestContext
+	SMWithBasicPlatform *common.SMExpect
 
 	brokerServerWithEmptyCatalog *common.BrokerServer
 	emptyCatalogBrokerID         string
@@ -123,11 +124,13 @@ var _ = BeforeSuite(func() {
 		return nil
 	}).Build()
 
+	SMWithBasicPlatform = &common.SMExpect{Expect: ctx.SMWithBasic.Expect}
+
 	brokerPlatformCredentialsIDMap = make(map[string]brokerPlatformCredentials)
 
 	emptyCatalogBrokerID, _, brokerServerWithEmptyCatalog = ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog())
 	smUrlToEmptyCatalogBroker = brokerServerWithEmptyCatalog.URL() + "/v1/osb/" + emptyCatalogBrokerID
-	username, password := testutil.RegisterBrokerPlatformCredentials(ctx.SMRepository, emptyCatalogBrokerID, ctx.TestPlatform.ID)
+	username, password := test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, emptyCatalogBrokerID)
 	brokerPlatformCredentialsIDMap[emptyCatalogBrokerID] = brokerPlatformCredentials{
 		username: username,
 		password: password,
@@ -136,7 +139,7 @@ var _ = BeforeSuite(func() {
 	simpleBrokerCatalogID, _, brokerServerWithSimpleCatalog = ctx.RegisterBrokerWithCatalog(simpleCatalog)
 	smUrlToSimpleBrokerCatalogBroker = brokerServerWithSimpleCatalog.URL() + "/v1/osb/" + simpleBrokerCatalogID
 	common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, simpleBrokerCatalogID)
-	username, password = testutil.RegisterBrokerPlatformCredentials(ctx.SMRepository, simpleBrokerCatalogID, ctx.TestPlatform.ID)
+	username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, simpleBrokerCatalogID)
 	brokerPlatformCredentialsIDMap[simpleBrokerCatalogID] = brokerPlatformCredentials{
 		username: username,
 		password: password,
@@ -151,7 +154,7 @@ var _ = BeforeSuite(func() {
 	common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, stoppedBrokerID)
 	stoppedBrokerServer.Close()
 	smUrlToStoppedBroker = stoppedBrokerServer.URL() + "/v1/osb/" + stoppedBrokerID
-	username, password = testutil.RegisterBrokerPlatformCredentials(ctx.SMRepository, stoppedBrokerID, ctx.TestPlatform.ID)
+	username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, stoppedBrokerID)
 	brokerPlatformCredentialsIDMap[stoppedBrokerID] = brokerPlatformCredentials{
 		username: username,
 		password: password,
@@ -174,7 +177,7 @@ var _ = BeforeSuite(func() {
 	smBrokerURL = brokerServer.URL() + "/v1/osb/" + brokerID
 	brokerName = brokerObject["name"].(string)
 
-	username, password = testutil.RegisterBrokerPlatformCredentials(ctx.SMRepository, brokerID, ctx.TestPlatform.ID)
+	username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, brokerID)
 	brokerPlatformCredentialsIDMap[brokerID] = brokerPlatformCredentials{
 		username: username,
 		password: password,

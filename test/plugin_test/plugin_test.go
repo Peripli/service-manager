@@ -49,7 +49,7 @@ var _ = Describe("Service Manager Plugins", func() {
 	})
 
 	JustBeforeEach(func() {
-		username, password := testutil.RegisterBrokerPlatformCredentials(ctx.SMRepository, brokerID, ctx.TestPlatform.ID)
+		username, password := test.RegisterBrokerPlatformCredentials(ctx.SMWithBasic, brokerID)
 		ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
 	})
 

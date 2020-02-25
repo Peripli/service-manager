@@ -2,7 +2,7 @@ package filter_test
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/test/testutil"
+	"github.com/Peripli/service-manager/test"
 	"net/http"
 	"testing"
 
@@ -55,7 +55,7 @@ var _ = Describe("Service Manager Filters", func() {
 		osbURL = "/v1/osb/" + brokerID
 		order = ""
 
-		username, password := testutil.RegisterBrokerPlatformCredentials(ctx.SMRepository, brokerID, ctx.TestPlatform.ID)
+		username, password := test.RegisterBrokerPlatformCredentials(ctx.SMWithBasic, brokerID)
 		ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
 	})
 

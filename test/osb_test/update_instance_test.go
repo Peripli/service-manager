@@ -19,9 +19,8 @@ package osb_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/test/testutil"
-
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/test"
 
 	"net/http"
 
@@ -306,7 +305,12 @@ var _ = Describe("Update", func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
 
 			platform = common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
-			username, password := testutil.RegisterBrokerPlatformCredentials(ctx.SMRepository, brokerID, platform.ID)
+			SMWithBasic := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+				username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
+				req.WithBasicAuth(username, password).WithClient(ctx.HttpClient)
+			})}
+
+			username, password := test.RegisterBrokerPlatformCredentials(SMWithBasic, brokerID)
 			ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
 
 			plans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("catalog_id in ('%s','%s')", plan1CatalogID, plan2CatalogID)).Iter()

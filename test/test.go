@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -333,4 +334,25 @@ func DescribeTestsFor(t TestCase) bool {
 			By("==== Successfully finished preparation for SM tests. Running API tests suite... ====")
 		}()
 	})
+}
+
+func RegisterBrokerPlatformCredentials(SMBasicPlatform *common.SMExpect, brokerID string) (string, string) {
+	username := util.GenerateCredential()
+	password := util.GenerateCredential()
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		panic(err)
+	}
+
+	payload := map[string]interface{}{
+		"broker_id":     brokerID,
+		"username":      username,
+		"password_hash": string(passwordHash),
+	}
+
+	SMBasicPlatform.Request(http.MethodPost, web.BrokerPlatformCredentialsURL).
+		WithJSON(payload).Expect().Status(http.StatusCreated)
+
+	return username, password
 }
