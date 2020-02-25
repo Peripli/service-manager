@@ -19,15 +19,20 @@ package security
 import (
 	"bytes"
 	"fmt"
-
-	"github.com/Peripli/service-manager/pkg/types"
 )
+
+// Integral interface indicates that an objects needs to be processed with regards to its integrity
+type Integral interface {
+	IntegralData() []byte
+	SetIntegrity([]byte)
+	GetIntegrity() []byte
+}
 
 // IntegrityProcessor provides functionality to validate and calculate the integrity of a secured object
 //go:generate counterfeiter . IntegrityProcessor
 type IntegrityProcessor interface {
-	ValidateIntegrity(secured types.Secured) bool
-	CalculateIntegrity(secured types.Secured) ([]byte, error)
+	ValidateIntegrity(integral Integral) bool
+	CalculateIntegrity(integral Integral) ([]byte, error)
 }
 
 // HashingIntegrityProcessor is an integrity processor that uses a hashing func to calculate the integrity
@@ -36,11 +41,11 @@ type HashingIntegrityProcessor struct {
 }
 
 // CalculateIntegrity calculates the integrity of a secured object using a hashing func
-func (h *HashingIntegrityProcessor) CalculateIntegrity(secured types.Secured) ([]byte, error) {
-	if secured == nil {
+func (h *HashingIntegrityProcessor) CalculateIntegrity(integral Integral) ([]byte, error) {
+	if integral == nil {
 		return nil, fmt.Errorf("cannot calculate integrity of nil object")
 	}
-	integralData := secured.IntegralData()
+	integralData := integral.IntegralData()
 	if len(integralData) == 0 {
 		return []byte{}, nil
 	}
@@ -48,15 +53,15 @@ func (h *HashingIntegrityProcessor) CalculateIntegrity(secured types.Secured) ([
 }
 
 // ValidateIntegrity validates the integrity of a secured object using a hashing func
-func (h *HashingIntegrityProcessor) ValidateIntegrity(secured types.Secured) bool {
-	if secured == nil {
+func (h *HashingIntegrityProcessor) ValidateIntegrity(integral Integral) bool {
+	if integral == nil {
 		return true
 	}
-	integralData := secured.IntegralData()
+	integralData := integral.IntegralData()
 	if len(integralData) == 0 {
 		return true
 	}
 	hashedData := h.HashingFunc(integralData)
-	integrity := secured.GetIntegrity()
+	integrity := integral.GetIntegrity()
 	return bytes.Equal(hashedData, integrity)
 }

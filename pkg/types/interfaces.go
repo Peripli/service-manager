@@ -42,9 +42,6 @@ type Strip interface {
 type Secured interface {
 	Encrypt(context.Context, func(context.Context, []byte) ([]byte, error)) error
 	Decrypt(context.Context, func(context.Context, []byte) ([]byte, error)) error
-	IntegralData() []byte
-	SetIntegrity([]byte)
-	GetIntegrity() []byte
 }
 
 // Operatable is implemented by resources which have last operation associated

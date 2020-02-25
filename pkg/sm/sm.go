@@ -18,7 +18,6 @@ package sm
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -72,7 +71,6 @@ type ServiceManagerBuilder struct {
 	wg                  *sync.WaitGroup
 	cfg                 *config.Settings
 	securityBuilder     *SecurityBuilder
-	integrityProcessor  security.IntegrityProcessor
 }
 
 // ServiceManager  struct
@@ -111,11 +109,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 	// Decorate the storage with credentials encryption/decryption
 	encryptingDecorator := storage.EncryptingDecorator(ctx, &security.AESEncrypter{}, smStorage, postgres.EncryptingLocker(smStorage))
-	integrityProcessor := &security.HashingIntegrityProcessor{HashingFunc: func(data []byte) []byte {
-		hash := sha256.Sum256(data)
-		return hash[:]
-	}}
-	integrityDecorator := storage.DataIntegrityDecorator(integrityProcessor)
+	integrityDecorator := storage.DataIntegrityDecorator(cfg.Storage.IntegrityProcessor)
 
 	// Initialize the storage with graceful termination
 	var transactionalRepository storage.TransactionalRepository
@@ -182,7 +176,6 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		cfg:                 cfg,
 		securityBuilder:     securityBuilder,
 		OSBClientProvider:   osbClientProvider,
-		integrityProcessor:  integrityProcessor,
 	}
 
 	smb.RegisterPlugins(osb.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
@@ -553,8 +546,8 @@ func (smb *ServiceManagerBuilder) calculateIntegrity() error {
 			log.C(ctx).Infof("Found %d objects of type %s that need integrity to be calculated", objects.Len(), objectType)
 			for i := 0; i < objects.Len(); i++ {
 				obj := objects.ItemAt(i)
-				securedObj := obj.(types.Secured)
-				integrity, err := smb.integrityProcessor.CalculateIntegrity(securedObj)
+				securedObj := obj.(security.Integral)
+				integrity, err := smb.cfg.Storage.IntegrityProcessor.CalculateIntegrity(securedObj)
 				if err != nil {
 					return err
 				}

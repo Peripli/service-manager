@@ -118,7 +118,7 @@ func (cr *TransactionalIntegrityRepository) InTransaction(ctx context.Context, f
 }
 
 func (cr *integrityRepository) setIntegrity(obj types.Object) error {
-	if securedObject, isSecured := obj.(types.Secured); isSecured {
+	if securedObject, isSecured := obj.(security.Integral); isSecured {
 		integrity, err := cr.integrityProcessor.CalculateIntegrity(securedObject)
 		if err != nil {
 			return err
@@ -129,7 +129,7 @@ func (cr *integrityRepository) setIntegrity(obj types.Object) error {
 }
 
 func (cr *integrityRepository) validateIntegrity(obj types.Object) error {
-	if securedObject, isSecured := obj.(types.Secured); isSecured {
+	if securedObject, isSecured := obj.(security.Integral); isSecured {
 		if !cr.integrityProcessor.ValidateIntegrity(securedObject) {
 			return fmt.Errorf("invalid integrity for %s with ID %s", obj.GetType(), obj.GetID())
 		}
