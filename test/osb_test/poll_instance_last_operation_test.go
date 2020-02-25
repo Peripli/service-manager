@@ -21,10 +21,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/test/common"
-	"github.com/gavv/httpexpect"
-
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	. "github.com/onsi/ginkgo"
@@ -717,14 +713,17 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 	})
 
 	Context("when call to missing service broker", func() {
-		It("should fail", func() {
-			assertMissingBrokerError(
-				ctx.SMWithBasic.GET("http://localhost:3456/v1/osb/123"+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).Expect())
+		It("should fail with 401", func() {
+			ctx.SMWithBasic.GET("http://localhost:3456/v1/osb/123"+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				Expect().Status(http.StatusUnauthorized)
 		})
 	})
 
 	Context("when call to stopped service broker", func() {
 		It("should fail", func() {
+			credentials := brokerPlatformCredentialsIDMap[stoppedBrokerID]
+			ctx.SMWithBasic.SetBasicCredentials(ctx, credentials.username, credentials.password)
+
 			assertUnresponsiveBrokerError(
 				ctx.SMWithBasic.GET(smUrlToStoppedBroker+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).Expect())
 		})
@@ -747,7 +746,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 		})
 	})
 
-	Context("platform_id check", func() {
+	Context("broker platform credentials check", func() {
 		BeforeEach(func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
@@ -755,27 +754,16 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
 		})
 
-		Context("get instance last operaion from not an instance owner", func() {
-			var NewPlatformExpect *httpexpect.Expect
-
+		Context("get instance last operaion with invalid credentials", func() {
 			BeforeEach(func() {
-				platformJSON := common.MakePlatform("tcb-platform-test2", "tcb-platform-test2", "platform-type", "test-platform")
-				platform := common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
-				NewPlatformExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
-					username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
-					req.WithBasicAuth(username, password)
-				})
+				ctx.SMWithBasic.SetBasicCredentials(ctx, "test", "test")
 			})
 
-			It("should return 404", func() {
+			It("should return 401", func() {
 				brokerServer.ServiceInstanceLastOpHandler = parameterizedHandler(http.StatusOK, `{}`)
-				NewPlatformExpect.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					Expect().Status(http.StatusNotFound)
-			})
-
-			AfterEach(func() {
-				ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/tcb-platform-test2").Expect().Status(http.StatusOK)
+					Expect().Status(http.StatusUnauthorized)
 			})
 		})
 	})

@@ -2,6 +2,7 @@ package filter_test
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/test/testutil"
 	"net/http"
 	"testing"
 
@@ -53,6 +54,9 @@ var _ = Describe("Service Manager Filters", func() {
 		common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
 		osbURL = "/v1/osb/" + brokerID
 		order = ""
+
+		username, password := testutil.RegisterBrokerPlatformCredentials(ctx.SMRepository, brokerID, ctx.TestPlatform.ID)
+		ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
 	})
 
 	AfterEach(func() {

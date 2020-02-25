@@ -19,6 +19,8 @@ package osb_test
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/test/testutil"
+	"github.com/gavv/httpexpect"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -27,7 +29,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
-	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/tidwall/gjson"
@@ -62,24 +63,31 @@ var _ = Describe("Catalog", func() {
 				Expect().Status(http.StatusOK)
 		})
 
-		It("should return valid catalog if it's missing some properties", func() {
-			req := ctx.SMWithBasic.GET(smUrlToSimpleBrokerCatalogBroker+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).Expect()
-			req.Status(http.StatusOK)
+		Context("when call to simple broker catalog broker", func() {
+			BeforeEach(func() {
+				credentials := brokerPlatformCredentialsIDMap[simpleBrokerCatalogID]
+				ctx.SMWithBasic.SetBasicCredentials(ctx, credentials.username, credentials.password)
+			})
 
-			service := req.JSON().Object().Value("services").Array().First().Object()
-			service.Keys().NotContains("tags", "metadata", "requires")
+			It("should return valid catalog if it's missing some properties", func() {
+				req := ctx.SMWithBasic.GET(smUrlToSimpleBrokerCatalogBroker+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).Expect()
+				req.Status(http.StatusOK)
 
-			plan := service.Value("plans").Array().First().Object()
-			plan.Keys().NotContains("metadata", "schemas")
-		})
+				service := req.JSON().Object().Value("services").Array().First().Object()
+				service.Keys().NotContains("tags", "metadata", "requires")
 
-		It("should return valid catalog with all catalog extensions if catalog extensions are present", func() {
-			resp := ctx.SMWithBasic.GET(smUrlToSimpleBrokerCatalogBroker+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				Expect().
-				Status(http.StatusOK).JSON()
+				plan := service.Value("plans").Array().First().Object()
+				plan.Keys().NotContains("metadata", "schemas")
+			})
 
-			resp.Path("$.services[*].dashboard_client[*]").Array().Contains("id", "secret", "redirect_uri")
-			resp.Path("$.services[*].plans[*].random_extension").Array().Contains("random_extension")
+			It("should return valid catalog with all catalog extensions if catalog extensions are present", func() {
+				resp := ctx.SMWithBasic.GET(smUrlToSimpleBrokerCatalogBroker+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().
+					Status(http.StatusOK).JSON()
+
+				resp.Path("$.services[*].dashboard_client[*]").Array().Contains("id", "secret", "redirect_uri")
+				resp.Path("$.services[*].plans[*].random_extension").Array().Contains("random_extension")
+			})
 		})
 
 		It("should not reach service broker", func() {
@@ -91,6 +99,9 @@ var _ = Describe("Catalog", func() {
 
 		Context("when call to empty catalog broker", func() {
 			It("should succeed and return empty services", func() {
+				credentials := brokerPlatformCredentialsIDMap[emptyCatalogBrokerID]
+				ctx.SMWithBasic.SetBasicCredentials(ctx, credentials.username, credentials.password)
+
 				ctx.SMWithBasic.GET(smUrlToEmptyCatalogBroker+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK).JSON().Object().Value("services").Array().Empty()
 				Expect(len(brokerServerWithEmptyCatalog.CatalogEndpointRequests)).To(Equal(0))
@@ -109,14 +120,17 @@ var _ = Describe("Catalog", func() {
 	})
 
 	Context("when call to missing service broker", func() {
-		It("should fail", func() {
-			assertMissingBrokerError(
-				ctx.SMWithBasic.GET("http://localhost:3456/v1/osb/123"+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).Expect())
+		It("should fail with 401", func() {
+			ctx.SMWithBasic.GET("http://localhost:3456/v1/osb/123"+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				Expect().Status(http.StatusUnauthorized)
 		})
 	})
 
 	Context("when call to stopped service broker", func() {
 		It("should succeed because broker is not actually invoked", func() {
+			credentials := brokerPlatformCredentialsIDMap[stoppedBrokerID]
+			ctx.SMWithBasic.SetBasicCredentials(ctx, credentials.username, credentials.password)
+
 			ctx.SMWithBasic.GET(smUrlToStoppedBroker+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect().Status(http.StatusOK)
 
@@ -149,13 +163,6 @@ var _ = Describe("Catalog", func() {
 		}
 
 		BeforeEach(func() {
-			k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
-			k8sPlatform = common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
-			k8sAgent = &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
-				username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
-				req.WithBasicAuth(username, password)
-			})}
-
 			catalog := common.NewEmptySBCatalog()
 			plan1 = common.GenerateTestPlan()
 			plan2 = common.GenerateTestPlan()
@@ -172,6 +179,17 @@ var _ = Describe("Catalog", func() {
 			plan1ID = getSMPlanIDByCatalogID(plan1CatalogID)
 			plan2ID = getSMPlanIDByCatalogID(plan2CatalogID)
 			plan3ID = getSMPlanIDByCatalogID(plan3CatalogID)
+
+			username, password := testutil.RegisterBrokerPlatformCredentials(ctx.SMRepository, brokerID, ctx.TestPlatform.ID)
+			ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
+
+			k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+			k8sPlatform = common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
+			username, password = testutil.RegisterBrokerPlatformCredentials(ctx.SMRepository, brokerID, k8sPlatform.ID)
+			k8sAgent = &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+				req.WithBasicAuth(username, password)
+			})}
+
 		})
 
 		AfterEach(func() {
@@ -276,6 +294,9 @@ var _ = Describe("Catalog", func() {
 				prefixedBrokerID = common.RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth, map[string]string{})["id"].(string)
 				ctx.Servers[common.BrokerServerPrefix+prefixedBrokerID] = server
 				osbURL = "/v1/osb/" + prefixedBrokerID
+
+				username, password := testutil.RegisterBrokerPlatformCredentials(ctx.SMRepository, prefixedBrokerID, ctx.TestPlatform.ID)
+				ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
 			})
 
 			AfterEach(func() {

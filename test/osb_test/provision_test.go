@@ -17,7 +17,9 @@
 package osb_test
 
 import (
+	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/test/testutil"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -28,6 +30,7 @@ import (
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Provision", func() {
@@ -305,9 +308,9 @@ var _ = Describe("Provision", func() {
 	})
 
 	Context("when broker does not exist", func() {
-		It("should fail with 404", func() {
-			assertMissingBrokerError(ctx.SMWithBasic.PUT("http://localhost:32123/v1/osb/"+SID+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(provisionRequestBodyMap()()).Expect())
+		It("should fail with 401", func() {
+			ctx.SMWithBasic.PUT("http://localhost:32123/v1/osb/"+SID+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusUnauthorized)
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
@@ -317,6 +320,9 @@ var _ = Describe("Provision", func() {
 
 	Context("when broker is stopped", func() {
 		It("should fail with 502", func() {
+			credentials := brokerPlatformCredentialsIDMap[stoppedBrokerID]
+			ctx.SMWithBasic.SetBasicCredentials(ctx, credentials.username, credentials.password)
+
 			assertUnresponsiveBrokerError(ctx.SMWithBasic.PUT(smUrlToStoppedBroker+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(common.JSONToMap(buildRequestBody(service0CatalogID, plan0CatalogID))).Expect())
 
@@ -329,15 +335,12 @@ var _ = Describe("Provision", func() {
 	Context("provision instance of plan", func() {
 		var platform *types.Platform
 		var platformJSON common.Object
-		var NewPlatformExpect *httpexpect.Expect
 
 		JustBeforeEach(func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
 			platform = common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
-			NewPlatformExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
-				username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
-				req.WithBasicAuth(username, password)
-			})
+			username, password := testutil.RegisterBrokerPlatformCredentials(ctx.SMRepository, brokerID, platform.ID)
+			ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
 
 			plan1ID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("catalog_id eq '%s'", plan1CatalogID)).
 				First().Object().Value("id").String().Raw()
@@ -358,6 +361,11 @@ var _ = Describe("Provision", func() {
 		})
 
 		AfterEach(func() {
+			err := ctx.SMRepository.Delete(context.TODO(), types.BrokerPlatformCredentialType,
+				query.ByField(query.EqualsOperator, "broker_id", brokerID),
+				query.ByField(query.EqualsOperator, "platform_id", platform.ID))
+			Expect(err).ToNot(HaveOccurred())
+
 			ctx.SMWithOAuth.DELETE(web.VisibilitiesURL + "?fieldQuery=" + fmt.Sprintf("platform_id eq '%s'", platform.ID))
 			ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + platform.ID).Expect().Status(http.StatusOK)
 		})
@@ -368,14 +376,14 @@ var _ = Describe("Provision", func() {
 			})
 
 			It("should return 404 if plan is not visible in the org", func() {
-				NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+				ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(provisionRequestBodyMapWith("plan_id", plan2CatalogID)()).
 					Expect().Status(http.StatusNotFound)
 			})
 
 			It("should return 400 if no context is available", func() {
-				NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+				ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID, "context")()).
 					Expect().Status(http.StatusBadRequest)
@@ -384,14 +392,14 @@ var _ = Describe("Provision", func() {
 			It("should return 400 if organization_id is not in the context", func() {
 				body := provisionRequestBodyMapWith("plan_id", plan1CatalogID)()
 				body["context"] = "{}"
-				NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+				ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(body).
 					Expect().Status(http.StatusBadRequest)
 			})
 
 			It("should return 201 if plan is visible in the org", func() {
-				NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+				ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
 					Expect().Status(http.StatusCreated)
@@ -404,14 +412,14 @@ var _ = Describe("Provision", func() {
 			})
 
 			It("should return 404 if plan is not visible in the platform", func() {
-				NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+				ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(provisionRequestBodyMapWith("plan_id", plan2CatalogID)()).
 					Expect().Status(http.StatusNotFound)
 			})
 
 			It("should return 201 if plan is visible in the platform", func() {
-				NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+				ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
 					Expect().Status(http.StatusCreated)

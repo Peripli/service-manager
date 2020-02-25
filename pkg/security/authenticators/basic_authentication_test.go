@@ -51,7 +51,8 @@ var _ = Describe("Basic Authenticator", func() {
 		fakeRepository = &storagefakes.FakeStorage{}
 
 		authenticator = &authenticators.Basic{
-			Repository: fakeRepository,
+			Repository:             fakeRepository,
+			BasicAuthenticatorFunc: authenticators.BasicPlatformAuthenticator,
 		}
 
 		request, err = http.NewRequest(http.MethodGet, "https://example.com", nil)
@@ -195,5 +196,7 @@ var _ = Describe("Basic Authenticator", func() {
 				})
 			})
 		})
+
+		// TODO: Add tests for basicOSBAuthenticator
 	})
 })

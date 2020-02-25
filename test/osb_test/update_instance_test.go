@@ -17,7 +17,9 @@
 package osb_test
 
 import (
+	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/test/testutil"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -29,6 +31,7 @@ import (
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Update", func() {
@@ -45,7 +48,7 @@ var _ = Describe("Update", func() {
 		})
 	})
 
-	Context("platform_id check", func() {
+	Context("broker platform credentials check", func() {
 		BeforeEach(func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
@@ -53,27 +56,16 @@ var _ = Describe("Update", func() {
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
 		})
 
-		Context("update instance from not an instance owner", func() {
-			var NewPlatformExpect *httpexpect.Expect
-
+		Context("update instance with invalid credentials", func() {
 			BeforeEach(func() {
-				platformJSON := common.MakePlatform("tcb-platform-test2", "tcb-platform-test2", "platform-type", "test-platform")
-				platform := common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
-				NewPlatformExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
-					username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
-					req.WithBasicAuth(username, password)
-				})
+				ctx.SMWithBasic.SetBasicCredentials(ctx, "test", "test")
 			})
 
-			It("should return 404", func() {
+			It("should return 401", func() {
 				brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
-				NewPlatformExpect.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
+				ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
 					WithJSON(provisionRequestBodyMap()()).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					Expect().Status(http.StatusNotFound)
-			})
-
-			AfterEach(func() {
-				ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/tcb-platform-test2").Expect().Status(http.StatusOK)
+					Expect().Status(http.StatusUnauthorized)
 			})
 		})
 	})
@@ -309,16 +301,13 @@ var _ = Describe("Update", func() {
 	Context("update instance plan", func() {
 		var platform *types.Platform
 		var platformJSON common.Object
-		var NewPlatformExpect *httpexpect.Expect
 
 		JustBeforeEach(func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
 
 			platform = common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
-			NewPlatformExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
-				username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
-				req.WithBasicAuth(username, password)
-			})
+			username, password := testutil.RegisterBrokerPlatformCredentials(ctx.SMRepository, brokerID, platform.ID)
+			ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
 
 			plans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("catalog_id in ('%s','%s')", plan1CatalogID, plan2CatalogID)).Iter()
 			for _, p := range plans {
@@ -337,7 +326,7 @@ var _ = Describe("Update", func() {
 					Expect().
 					Status(http.StatusOK)
 			}
-			NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
 				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
 				Expect().Status(http.StatusCreated)
@@ -346,6 +335,11 @@ var _ = Describe("Update", func() {
 		})
 
 		AfterEach(func() {
+			err := ctx.SMRepository.Delete(context.TODO(), types.BrokerPlatformCredentialType,
+				query.ByField(query.EqualsOperator, "broker_id", brokerID),
+				query.ByField(query.EqualsOperator, "platform_id", platform.ID))
+			Expect(err).ToNot(HaveOccurred())
+
 			ctx.SMWithOAuth.DELETE(web.VisibilitiesURL + "?fieldQuery=" + fmt.Sprintf("platform_id eq '%s'", platform.ID))
 			ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + platform.ID).Expect().Status(http.StatusOK)
 		})
@@ -356,14 +350,14 @@ var _ = Describe("Update", func() {
 			})
 
 			It("should return 404 if new plan is not visible in the org", func() {
-				NewPlatformExpect.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
+				ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(updateRequestBodyMapWith("plan_id", plan3CatalogID)()).
 					Expect().Status(http.StatusNotFound)
 			})
 
 			It("should return 200 if new plan is visible in the org", func() {
-				NewPlatformExpect.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
+				ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(updateRequestBodyMapWith("plan_id", plan2CatalogID)()).
 					Expect().Status(http.StatusOK)
@@ -376,14 +370,14 @@ var _ = Describe("Update", func() {
 			})
 
 			It("should return 404 if new plan is not visible in the platform", func() {
-				NewPlatformExpect.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
+				ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(updateRequestBodyMapWith("plan_id", plan3CatalogID)()).
 					Expect().Status(http.StatusNotFound)
 			})
 
 			It("should return 200 if new plan is visible in the platform", func() {
-				NewPlatformExpect.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
+				ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(updateRequestBodyMapWith("plan_id", plan2CatalogID)()).
 					Expect().Status(http.StatusOK)

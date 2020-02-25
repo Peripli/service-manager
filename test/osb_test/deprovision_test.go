@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/test/common"
-
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gavv/httpexpect"
@@ -332,9 +330,9 @@ var _ = Describe("Deprovision", func() {
 	})
 
 	Context("when broker does not exist", func() {
-		It("should fail with 404", func() {
-			assertMissingBrokerError(ctx.SMWithBasic.DELETE("http://localhost:32123/v1/osb/"+SID+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				Expect())
+		It("should fail with 401", func() {
+			ctx.SMWithBasic.DELETE("http://localhost:32123/v1/osb/"+SID+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				Expect().Status(http.StatusUnauthorized)
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
@@ -344,6 +342,9 @@ var _ = Describe("Deprovision", func() {
 
 	Context("when broker is stopped", func() {
 		It("should fail with 502", func() {
+			credentials := brokerPlatformCredentialsIDMap[stoppedBrokerID]
+			ctx.SMWithBasic.SetBasicCredentials(ctx, credentials.username, credentials.password)
+
 			assertUnresponsiveBrokerError(ctx.SMWithBasic.DELETE(smUrlToStoppedBroker+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect())
 
@@ -353,7 +354,7 @@ var _ = Describe("Deprovision", func() {
 		})
 	})
 
-	Context("platform_id check", func() {
+	Context("broker platform credentials check", func() {
 		BeforeEach(func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
 
@@ -362,27 +363,16 @@ var _ = Describe("Deprovision", func() {
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
 		})
 
-		Context("deprovision from not an instance owner", func() {
-			var NewPlatformExpect *httpexpect.Expect
-
+		Context("deprovision with invalid credentials", func() {
 			BeforeEach(func() {
-				platformJSON := common.MakePlatform("tcb-platform-test2", "tcb-platform-test2", "platform-type", "test-platform")
-				platform := common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
-				NewPlatformExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
-					username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
-					req.WithBasicAuth(username, password)
-				})
+				ctx.SMWithBasic.SetBasicCredentials(ctx, "test", "test")
 			})
 
-			It("should return 404", func() {
+			It("should return 401", func() {
 				brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
-				NewPlatformExpect.DELETE(smBrokerURL+"/v2/service_instances/"+SID).
+				ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					Expect().Status(http.StatusNotFound)
-			})
-
-			AfterEach(func() {
-				ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/tcb-platform-test2").Expect().Status(http.StatusOK)
+					Expect().Status(http.StatusUnauthorized)
 			})
 		})
 	})

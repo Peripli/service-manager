@@ -113,7 +113,12 @@ func BasicOSBAuthenticator(request *web.Request, repository storage.Repository, 
 		return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
 	}
 
-	return buildResponse(username, credentials)
+	platformObj, err := repository.Get(ctx, types.PlatformType, query.ByField(query.EqualsOperator, "id", credentials.PlatformID))
+	if err != nil {
+		return nil, httpsec.Abstain, fmt.Errorf("could not get platform entity from storage: %s", err)
+	}
+
+	return buildResponse(username, platformObj)
 }
 
 func buildResponse(username string, userData interface{}) (*web.UserContext, httpsec.Decision, error) {
