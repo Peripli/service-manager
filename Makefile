@@ -68,12 +68,7 @@ prepare-counterfeiter:
 
 	@chmod a+x ${GOPATH}/bin/counterfeiter
 
-prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gometalinter, cover, goveralls)
-ifeq ($(shell which dep),)
-	@echo "Installing dep..."
-	@go get -u github.com/golang/dep/cmd/dep
-	@chmod a+x ${GOPATH}/bin/dep
-endif
+prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (gometalinter, cover, goveralls)
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter..."
 	@go get -u github.com/alecthomas/gometalinter
@@ -96,20 +91,10 @@ endif
 # Builds and dependency management
 #-----------------------------------------------------------------------------
 
-build: .init dep-vendor-only service-manager ## Downloads vendored dependecies and builds the service-manager binary
+build: .init vendor service-manager ## Downloads vendored dependecies and builds the service-manager binary
 
-dep-check:
-	@which dep 2>/dev/null || (echo dep is required to build the project; exit 1)
-
-dep: dep-check ## Runs dep ensure -v
-	@dep ensure -v
-	@dep status
-
-dep-vendor-only: dep-check ## Runs dep ensure --vendor-only -v
-	@dep ensure --vendor-only -v
-	@dep status
-
-dep-reload: dep-check clean-vendor dep ## Recreates the vendored dependencies
+vendor:
+	@go mod vendor
 
 service-manager: $(BINDIR)/service-manager
 
@@ -134,7 +119,6 @@ clean-bin: ## Cleans up the binaries
 clean-vendor: ## Cleans up the vendor folder and prints out the Gopkg.lock
 	@echo Deleting vendor folder...
 	@rm -rf vendor
-	@echo > Gopkg.lock
 
 build-gen-binary:
 	@go install github.com/Peripli/service-manager/cmd/smgen
