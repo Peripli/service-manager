@@ -48,29 +48,14 @@ func (c *CredentialsController) Routes() []web.Route {
 	return []web.Route{
 		{
 			Endpoint: web.Endpoint{
-				Method: http.MethodPost,
+				Method: http.MethodPut,
 				Path:   c.resourceBaseURL,
 			},
-			Handler: c.registerCredentials,
-		},
-		{
-			Endpoint: web.Endpoint{
-				Method: http.MethodPatch,
-				Path:   c.resourceBaseURL,
-			},
-			Handler: c.updateCredentials,
-		},
-		{
-			Endpoint: web.Endpoint{
-				Method: http.MethodDelete,
-				Path:   c.resourceBaseURL,
-			},
-			Handler: c.deleteCredentials,
+			Handler: c.setCredentials,
 		},
 	}
 }
-
-func (c *BaseController) registerCredentials(r *web.Request) (*web.Response, error) {
+func (c *BaseController) setCredentials(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Creating new broker platform credentials")
 
@@ -79,10 +64,31 @@ func (c *BaseController) registerCredentials(r *web.Request) (*web.Response, err
 		return nil, err
 	}
 
-	credentials := &types.BrokerPlatformCredential{}
-	if err := util.BytesToObject(r.Body, credentials); err != nil {
+	body := &types.BrokerPlatformCredential{}
+	if err := util.BytesToObject(r.Body, body); err != nil {
 		return nil, err
 	}
+
+	body.PlatformID = platform.ID
+
+	criteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, "platform_id", platform.ID),
+		query.ByField(query.EqualsOperator, "broker_id", body.BrokerID),
+	}
+	objFromDB, err := c.repository.Get(ctx, c.objectType, criteria...)
+	if err != nil {
+		if err == util.ErrNotFoundInStorage {
+			return c.registerCredentials(ctx, body)
+		}
+		return nil, util.HandleStorageError(err, c.objectType.String())
+	}
+
+	credentialsFromDB := objFromDB.(*types.BrokerPlatformCredential)
+	return c.updateCredentials(ctx, body, credentialsFromDB)
+}
+
+func (c *BaseController) registerCredentials(ctx context.Context, credentials *types.BrokerPlatformCredential) (*web.Response, error) {
+	log.C(ctx).Debugf("Creating new broker platform credentials")
 
 	UUID, err := uuid.NewV4()
 	if err != nil {
@@ -95,7 +101,6 @@ func (c *BaseController) registerCredentials(r *web.Request) (*web.Response, err
 	credentials.SetUpdatedAt(currentTime)
 	credentials.SetReady(true)
 
-	credentials.PlatformID = platform.ID
 	credentials.OldUsername = ""
 	credentials.OldPasswordHash = ""
 
@@ -104,70 +109,22 @@ func (c *BaseController) registerCredentials(r *web.Request) (*web.Response, err
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	return util.NewJSONResponse(http.StatusCreated, createdObj)
+	return util.NewJSONResponse(http.StatusOK, createdObj)
 }
 
-func (c *BaseController) updateCredentials(r *web.Request) (*web.Response, error) {
-	ctx := r.Context()
+func (c *BaseController) updateCredentials(ctx context.Context, body, credentialsFromDB *types.BrokerPlatformCredential) (*web.Response, error) {
 	log.C(ctx).Debugf("Updating broker platform credentials")
 
-	platform, err := osb.ExtractPlatformFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
+	credentialsFromDB.OldUsername = credentialsFromDB.Username
+	credentialsFromDB.OldPasswordHash = credentialsFromDB.PasswordHash
 
-	credentials := &types.BrokerPlatformCredential{}
-	if err := util.BytesToObject(r.Body, credentials); err != nil {
-		return nil, err
-	}
+	credentialsFromDB.Username = body.Username
+	credentialsFromDB.PasswordHash = body.PasswordHash
 
-	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "platform_id", platform.ID),
-		query.ByField(query.EqualsOperator, "broker_id", credentials.BrokerID),
-	}
-	objFromDB, err := c.repository.Get(ctx, c.objectType, criteria...)
-	if err != nil {
-		return nil, util.HandleStorageError(err, c.objectType.String())
-	}
-
-	brokerPlatformCredentials := objFromDB.(*types.BrokerPlatformCredential)
-
-	brokerPlatformCredentials.OldUsername = brokerPlatformCredentials.Username
-	brokerPlatformCredentials.OldPasswordHash = brokerPlatformCredentials.PasswordHash
-
-	brokerPlatformCredentials.Username = credentials.Username
-	brokerPlatformCredentials.PasswordHash = credentials.PasswordHash
-
-	object, err := c.repository.Update(ctx, brokerPlatformCredentials, query.LabelChanges{})
+	object, err := c.repository.Update(ctx, credentialsFromDB, query.LabelChanges{})
 	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
 	return util.NewJSONResponse(http.StatusOK, object)
-}
-
-func (c *BaseController) deleteCredentials(r *web.Request) (*web.Response, error) {
-	ctx := r.Context()
-	log.C(ctx).Debugf("Delete broker platform credentials")
-
-	platform, err := osb.ExtractPlatformFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	credentials := &types.BrokerPlatformCredential{}
-	if err := util.BytesToObject(r.Body, credentials); err != nil {
-		return nil, err
-	}
-
-	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "platform_id", platform.ID),
-		query.ByField(query.EqualsOperator, "broker_id", credentials.BrokerID),
-	}
-
-	if err := c.repository.Delete(ctx, types.BrokerPlatformCredentialType, criteria...); err != nil {
-		return nil, util.HandleStorageError(err, c.objectType.String())
-	}
-
-	return util.NewJSONResponse(http.StatusOK, map[string]string{})
 }

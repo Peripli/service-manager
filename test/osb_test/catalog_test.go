@@ -313,6 +313,30 @@ var _ = Describe("Catalog", func() {
 				ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
 					Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 			})
+
+			Context("when broker platform credentials change", func() {
+				It("should still get catalog", func() {
+					ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
+						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+
+					oldSMWithBasic := &common.SMExpect{Expect: ctx.SMWithBasic.Expect}
+
+					newUsername, newPassword := test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, prefixedBrokerID)
+					ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
+
+					By("new credentials not yet used - old ones should still be valid")
+					oldSMWithBasic.GET(osbURL + "/v2/catalog").
+						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+
+					By("new credentials used - old ones should be invalidated")
+					ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
+						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+
+					oldSMWithBasic.GET(osbURL + "/v2/catalog").
+						Expect().Status(http.StatusUnauthorized)
+
+				})
+			})
 		})
 	})
 })

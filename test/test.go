@@ -351,8 +351,8 @@ func RegisterBrokerPlatformCredentials(SMBasicPlatform *common.SMExpect, brokerI
 		"password_hash": string(passwordHash),
 	}
 
-	SMBasicPlatform.Request(http.MethodPost, web.BrokerPlatformCredentialsURL).
-		WithJSON(payload).Expect().Status(http.StatusCreated)
+	SMBasicPlatform.Request(http.MethodPut, web.BrokerPlatformCredentialsURL).
+		WithJSON(payload).Expect().Status(http.StatusOK)
 
 	return username, password
 }
