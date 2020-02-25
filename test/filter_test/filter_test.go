@@ -52,11 +52,13 @@ var _ = Describe("Service Manager Filters", func() {
 		catalog.AddService(service1)
 		brokerID, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 		common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
-		osbURL = "/v1/osb/" + brokerID
-		order = ""
 
 		username, password := test.RegisterBrokerPlatformCredentials(ctx.SMWithBasic, brokerID)
 		ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
+
+		osbURL = "/v1/osb/" + brokerID
+		order = ""
+
 	})
 
 	AfterEach(func() {

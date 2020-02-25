@@ -22,6 +22,7 @@ import (
 
 const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
+//GenerateCredential generates a 32bit random string which can be used as broker platform credential
 func GenerateCredential() string {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {

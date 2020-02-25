@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/test/testutil"
+	"github.com/Peripli/service-manager/test"
 	"net/http"
 	"strconv"
 	"testing"
