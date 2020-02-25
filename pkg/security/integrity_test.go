@@ -17,7 +17,6 @@
 package security_test
 
 import (
-	"context"
 	"crypto/sha256"
 
 	"github.com/Peripli/service-manager/pkg/security"
@@ -28,14 +27,6 @@ import (
 type obj struct {
 	integralData []byte
 	integrity    []byte
-}
-
-func (o *obj) Encrypt(context.Context, func(context.Context, []byte) ([]byte, error)) error {
-	return nil
-}
-
-func (o *obj) Decrypt(context.Context, func(context.Context, []byte) ([]byte, error)) error {
-	return nil
 }
 
 func (o *obj) IntegralData() []byte {

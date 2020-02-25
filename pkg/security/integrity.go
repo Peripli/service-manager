@@ -21,18 +21,18 @@ import (
 	"fmt"
 )
 
-// Integral interface indicates that an objects needs to be processed with regards to its integrity
-type Integral interface {
+// IntegralObject interface indicates that an objects needs to be processed with regards to its integrity
+type IntegralObject interface {
 	IntegralData() []byte
 	SetIntegrity([]byte)
 	GetIntegrity() []byte
 }
 
-// IntegrityProcessor provides functionality to validate and calculate the integrity of a secured object
+// IntegrityProcessor provides functionality to validate and calculate the integrity of an integral object
 //go:generate counterfeiter . IntegrityProcessor
 type IntegrityProcessor interface {
-	ValidateIntegrity(integral Integral) bool
-	CalculateIntegrity(integral Integral) ([]byte, error)
+	ValidateIntegrity(integral IntegralObject) bool
+	CalculateIntegrity(integral IntegralObject) ([]byte, error)
 }
 
 // HashingIntegrityProcessor is an integrity processor that uses a hashing func to calculate the integrity
@@ -40,8 +40,8 @@ type HashingIntegrityProcessor struct {
 	HashingFunc func(data []byte) []byte
 }
 
-// CalculateIntegrity calculates the integrity of a secured object using a hashing func
-func (h *HashingIntegrityProcessor) CalculateIntegrity(integral Integral) ([]byte, error) {
+// CalculateIntegrity calculates the integrity of an integral object using a hashing func
+func (h *HashingIntegrityProcessor) CalculateIntegrity(integral IntegralObject) ([]byte, error) {
 	if integral == nil {
 		return nil, fmt.Errorf("cannot calculate integrity of nil object")
 	}
@@ -52,8 +52,8 @@ func (h *HashingIntegrityProcessor) CalculateIntegrity(integral Integral) ([]byt
 	return h.HashingFunc(integralData), nil
 }
 
-// ValidateIntegrity validates the integrity of a secured object using a hashing func
-func (h *HashingIntegrityProcessor) ValidateIntegrity(integral Integral) bool {
+// ValidateIntegrity validates the integrity of an integral object using a hashing func
+func (h *HashingIntegrityProcessor) ValidateIntegrity(integral IntegralObject) bool {
 	if integral == nil {
 		return true
 	}

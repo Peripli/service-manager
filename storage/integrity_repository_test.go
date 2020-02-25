@@ -137,7 +137,7 @@ var _ = Describe("Integrity Repository", func() {
 			It("invokes the delegate repository with object with set integrity", func() {
 				Expect(fakeRepository.CreateCallCount() - delegateCreateCallsCountBeforeOp).To(Equal(1))
 				_, objectArg := fakeRepository.CreateArgsForCall(0)
-				Expect(objectArg.(security.Integral).GetIntegrity()).To(Equal(randomIntegrity))
+				Expect(objectArg.(security.IntegralObject).GetIntegrity()).To(Equal(randomIntegrity))
 			})
 		})
 	})
@@ -237,8 +237,8 @@ var _ = Describe("Integrity Repository", func() {
 				Expect(newIntegrity).ToNot(Equal(oldIntegrity))
 				updatedObject, err := repository.Update(ctx, broker, query.LabelChanges{})
 				Expect(err).ToNot(HaveOccurred())
-				Expect(updatedObject.(security.Integral).GetIntegrity()).To(Equal(newIntegrity[:]))
-				Expect(updatedObject.(security.Integral).GetIntegrity()).ToNot(Equal(oldIntegrity))
+				Expect(updatedObject.(security.IntegralObject).GetIntegrity()).To(Equal(newIntegrity[:]))
+				Expect(updatedObject.(security.IntegralObject).GetIntegrity()).ToNot(Equal(oldIntegrity))
 			})
 		})
 
@@ -258,7 +258,7 @@ var _ = Describe("Integrity Repository", func() {
 			It("invokes the delegate repository with object with set integrity", func() {
 				Expect(fakeRepository.UpdateCallCount() - delegateUpdateCallsCountBeforeOp).To(Equal(1))
 				_, objectArg, _, _ := fakeRepository.UpdateArgsForCall(0)
-				Expect(objectArg.(security.Integral).GetIntegrity()).To(Equal(randomIntegrity))
+				Expect(objectArg.(security.IntegralObject).GetIntegrity()).To(Equal(randomIntegrity))
 			})
 		})
 	})
@@ -302,9 +302,9 @@ var _ = Describe("Integrity Repository", func() {
 					returnedObj, err := repository.Create(ctx, object)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(fakeRepository.CreateCallCount() - delegateCreateCallsCountBeforeOp).To(Equal(1))
-					Expect(returnedObj.(security.Integral).GetIntegrity()).To(Equal(randomIntegrity))
+					Expect(returnedObj.(security.IntegralObject).GetIntegrity()).To(Equal(randomIntegrity))
 					_, objectArg := fakeRepository.CreateArgsForCall(0)
-					Expect(objectArg.(security.Integral).GetIntegrity()).To(Equal(randomIntegrity))
+					Expect(objectArg.(security.IntegralObject).GetIntegrity()).To(Equal(randomIntegrity))
 
 					// verify list
 					delegateListCallsCountBeforeOp := fakeRepository.ListCallCount()
@@ -318,8 +318,8 @@ var _ = Describe("Integrity Repository", func() {
 					Expect(err).ToNot(HaveOccurred())
 					Expect(fakeRepository.UpdateCallCount() - delegateUpdateCallsCountBeforeOp).To(Equal(1))
 					_, objectArg, _, _ = fakeRepository.UpdateArgsForCall(0)
-					Expect(returnedObj.(security.Integral).GetIntegrity()).To(Equal(randomIntegrity))
-					Expect(objectArg.(security.Integral).GetIntegrity()).To(Equal(randomIntegrity))
+					Expect(returnedObj.(security.IntegralObject).GetIntegrity()).To(Equal(randomIntegrity))
+					Expect(objectArg.(security.IntegralObject).GetIntegrity()).To(Equal(randomIntegrity))
 
 					// verify get
 					delegateGetCallsCountBeforeOp := fakeRepository.GetCallCount()
@@ -327,7 +327,7 @@ var _ = Describe("Integrity Repository", func() {
 					returnedObj, err = repository.Get(ctx, types.ServiceBrokerType, byID)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(fakeRepository.GetCallCount() - delegateGetCallsCountBeforeOp).To(Equal(1))
-					Expect(returnedObj.(security.Integral).GetIntegrity()).To(Equal(randomIntegrity))
+					Expect(returnedObj.(security.IntegralObject).GetIntegrity()).To(Equal(randomIntegrity))
 
 					// verify delete
 					delegateDeleteCallsCountBeforeOp := fakeRepository.DeleteCallCount()

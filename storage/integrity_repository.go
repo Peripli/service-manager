@@ -26,7 +26,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-// DataIntegrityDecorator decorates a repository to process the integrity of secured objects
+// DataIntegrityDecorator decorates a repository to process the integrity of integral objects
 func DataIntegrityDecorator(integrityProcessor security.IntegrityProcessor) TransactionalRepositoryDecorator {
 	return func(next TransactionalRepository) (TransactionalRepository, error) {
 		return NewIntegrityRepository(next, integrityProcessor), nil
@@ -118,7 +118,7 @@ func (cr *TransactionalIntegrityRepository) InTransaction(ctx context.Context, f
 }
 
 func (cr *integrityRepository) setIntegrity(obj types.Object) error {
-	if securedObject, isSecured := obj.(security.Integral); isSecured {
+	if securedObject, isSecured := obj.(security.IntegralObject); isSecured {
 		integrity, err := cr.integrityProcessor.CalculateIntegrity(securedObject)
 		if err != nil {
 			return err
@@ -129,7 +129,7 @@ func (cr *integrityRepository) setIntegrity(obj types.Object) error {
 }
 
 func (cr *integrityRepository) validateIntegrity(obj types.Object) error {
-	if securedObject, isSecured := obj.(security.Integral); isSecured {
+	if securedObject, isSecured := obj.(security.IntegralObject); isSecured {
 		if !cr.integrityProcessor.ValidateIntegrity(securedObject) {
 			return fmt.Errorf("invalid integrity for %s with ID %s", obj.GetType(), obj.GetID())
 		}

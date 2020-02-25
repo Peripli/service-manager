@@ -8,10 +8,10 @@ import (
 )
 
 type FakeIntegrityProcessor struct {
-	CalculateIntegrityStub        func(security.Integral) ([]byte, error)
+	CalculateIntegrityStub        func(security.IntegralObject) ([]byte, error)
 	calculateIntegrityMutex       sync.RWMutex
 	calculateIntegrityArgsForCall []struct {
-		arg1 security.Integral
+		arg1 security.IntegralObject
 	}
 	calculateIntegrityReturns struct {
 		result1 []byte
@@ -21,10 +21,10 @@ type FakeIntegrityProcessor struct {
 		result1 []byte
 		result2 error
 	}
-	ValidateIntegrityStub        func(security.Integral) bool
+	ValidateIntegrityStub        func(security.IntegralObject) bool
 	validateIntegrityMutex       sync.RWMutex
 	validateIntegrityArgsForCall []struct {
-		arg1 security.Integral
+		arg1 security.IntegralObject
 	}
 	validateIntegrityReturns struct {
 		result1 bool
@@ -36,11 +36,11 @@ type FakeIntegrityProcessor struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeIntegrityProcessor) CalculateIntegrity(arg1 security.Integral) ([]byte, error) {
+func (fake *FakeIntegrityProcessor) CalculateIntegrity(arg1 security.IntegralObject) ([]byte, error) {
 	fake.calculateIntegrityMutex.Lock()
 	ret, specificReturn := fake.calculateIntegrityReturnsOnCall[len(fake.calculateIntegrityArgsForCall)]
 	fake.calculateIntegrityArgsForCall = append(fake.calculateIntegrityArgsForCall, struct {
-		arg1 security.Integral
+		arg1 security.IntegralObject
 	}{arg1})
 	fake.recordInvocation("CalculateIntegrity", []interface{}{arg1})
 	fake.calculateIntegrityMutex.Unlock()
@@ -60,13 +60,13 @@ func (fake *FakeIntegrityProcessor) CalculateIntegrityCallCount() int {
 	return len(fake.calculateIntegrityArgsForCall)
 }
 
-func (fake *FakeIntegrityProcessor) CalculateIntegrityCalls(stub func(security.Integral) ([]byte, error)) {
+func (fake *FakeIntegrityProcessor) CalculateIntegrityCalls(stub func(security.IntegralObject) ([]byte, error)) {
 	fake.calculateIntegrityMutex.Lock()
 	defer fake.calculateIntegrityMutex.Unlock()
 	fake.CalculateIntegrityStub = stub
 }
 
-func (fake *FakeIntegrityProcessor) CalculateIntegrityArgsForCall(i int) security.Integral {
+func (fake *FakeIntegrityProcessor) CalculateIntegrityArgsForCall(i int) security.IntegralObject {
 	fake.calculateIntegrityMutex.RLock()
 	defer fake.calculateIntegrityMutex.RUnlock()
 	argsForCall := fake.calculateIntegrityArgsForCall[i]
@@ -99,11 +99,11 @@ func (fake *FakeIntegrityProcessor) CalculateIntegrityReturnsOnCall(i int, resul
 	}{result1, result2}
 }
 
-func (fake *FakeIntegrityProcessor) ValidateIntegrity(arg1 security.Integral) bool {
+func (fake *FakeIntegrityProcessor) ValidateIntegrity(arg1 security.IntegralObject) bool {
 	fake.validateIntegrityMutex.Lock()
 	ret, specificReturn := fake.validateIntegrityReturnsOnCall[len(fake.validateIntegrityArgsForCall)]
 	fake.validateIntegrityArgsForCall = append(fake.validateIntegrityArgsForCall, struct {
-		arg1 security.Integral
+		arg1 security.IntegralObject
 	}{arg1})
 	fake.recordInvocation("ValidateIntegrity", []interface{}{arg1})
 	fake.validateIntegrityMutex.Unlock()
@@ -123,13 +123,13 @@ func (fake *FakeIntegrityProcessor) ValidateIntegrityCallCount() int {
 	return len(fake.validateIntegrityArgsForCall)
 }
 
-func (fake *FakeIntegrityProcessor) ValidateIntegrityCalls(stub func(security.Integral) bool) {
+func (fake *FakeIntegrityProcessor) ValidateIntegrityCalls(stub func(security.IntegralObject) bool) {
 	fake.validateIntegrityMutex.Lock()
 	defer fake.validateIntegrityMutex.Unlock()
 	fake.ValidateIntegrityStub = stub
 }
 
-func (fake *FakeIntegrityProcessor) ValidateIntegrityArgsForCall(i int) security.Integral {
+func (fake *FakeIntegrityProcessor) ValidateIntegrityArgsForCall(i int) security.IntegralObject {
 	fake.validateIntegrityMutex.RLock()
 	defer fake.validateIntegrityMutex.RUnlock()
 	argsForCall := fake.validateIntegrityArgsForCall[i]
