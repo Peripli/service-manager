@@ -22,11 +22,11 @@ import (
 )
 
 //GenerateCredential generates a 32bit random string which can be used as broker platform credential
-func GenerateCredential() string {
+func GenerateCredential() (string, error) {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
-		panic(fmt.Sprintf("could not generate credential: %v", err))
+		return "", fmt.Errorf("could not generate credential: %v", err)
 	}
 
-	return base64.StdEncoding.EncodeToString(bytes)
+	return base64.StdEncoding.EncodeToString(bytes), nil
 }

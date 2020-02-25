@@ -337,8 +337,10 @@ func DescribeTestsFor(t TestCase) bool {
 }
 
 func RegisterBrokerPlatformCredentials(SMBasicPlatform *common.SMExpect, brokerID string) (string, string) {
-	username := util.GenerateCredential()
-	password := util.GenerateCredential()
+	username, err := util.GenerateCredential()
+	Expect(err).ToNot(HaveOccurred())
+	password, err := util.GenerateCredential()
+	Expect(err).ToNot(HaveOccurred())
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
