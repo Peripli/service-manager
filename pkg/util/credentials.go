@@ -17,10 +17,9 @@ package util
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 )
-
-const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 //GenerateCredential generates a 32bit random string which can be used as broker platform credential
 func GenerateCredential() string {
@@ -29,9 +28,5 @@ func GenerateCredential() string {
 		panic(fmt.Sprintf("could not generate credential: %v", err))
 	}
 
-	for idx, b := range bytes {
-		bytes[idx] = letters[b%byte(len(letters))]
-	}
-
-	return string(bytes)
+	return base64.StdEncoding.EncodeToString(bytes)
 }

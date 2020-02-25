@@ -232,11 +232,8 @@ var _ = Describe("Service Manager Authentication", func() {
 			{"Invalid token in authorization header", "DELETE", web.VisibilitiesURL + "/999", invalidBearerAuthHeader},
 
 			// BROKER PLATFORM CREDENTIALS
-			{"Missing authorization header", "POST", web.BrokerPlatformCredentialsURL, emptyAuthHeader},
-			{"Invalid authorization schema", "POST", web.BrokerPlatformCredentialsURL, invalidBasicAuthHeader},
-
-			{"Missing authorization header", "PATCH", web.BrokerPlatformCredentialsURL, emptyAuthHeader},
-			{"Invalid authorization schema", "PATCH", web.BrokerPlatformCredentialsURL, invalidBasicAuthHeader},
+			{"Missing authorization header", "PUT", web.BrokerPlatformCredentialsURL, emptyAuthHeader},
+			{"Invalid authorization schema", "PUT", web.BrokerPlatformCredentialsURL, invalidBasicAuthHeader},
 
 			// CONFIG
 			{"Missing authorization header", "GET", "/v1/config", emptyAuthHeader},
