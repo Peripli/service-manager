@@ -73,7 +73,7 @@ func Configure(settings *Settings) util.GetTransportSettings {
 	return util.TransportWithTlsProvider(copyTransportConfig(transport))
 }
 
-func copyTransportConfig(transport *http.Transport) http.Transport {
+func copyTransportConfig(transport *http.Transport) *http.Transport {
 	transportCopy := http.Transport{}
 	transportCopy.TLSClientConfig = transport.TLSClientConfig
 	transportCopy.ResponseHeaderTimeout = transport.ResponseHeaderTimeout
@@ -83,5 +83,5 @@ func copyTransportConfig(transport *http.Transport) http.Transport {
 	transportCopy.ProxyConnectHeader = transport.ProxyConnectHeader
 	transportCopy.IdleConnTimeout = transport.IdleConnTimeout
 	transportCopy.DialContext = transport.DialContext
-	return transportCopy
+	return &transportCopy
 }

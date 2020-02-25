@@ -38,7 +38,7 @@ func ClientRequest(request *http.Request, client *http.Client) (*http.Response, 
 	return client.Do(request)
 }
 
-func TransportWithTlsProvider(transport http.Transport) GetTransportSettings {
+func TransportWithTlsProvider(transport *http.Transport) GetTransportSettings {
 	return func(certs []tls.Certificate) *http.Transport {
 
 		if len(certs) > 0 {
@@ -49,7 +49,7 @@ func TransportWithTlsProvider(transport http.Transport) GetTransportSettings {
 			transport.TLSClientConfig.Certificates = certs
 
 		}
-		return &transport
+		return transport
 	}
 }
 
