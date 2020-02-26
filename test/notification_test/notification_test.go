@@ -3,10 +3,13 @@ package notification_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/util/slice"
 	"net/http"
 	"testing"
+
+	"github.com/Peripli/service-manager/pkg/util/slice"
+	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/web"
 
@@ -596,5 +599,91 @@ var _ = Describe("Notifications Suite", func() {
 
 			}, updateOpEntries(entry.ResourceUpdates)...)
 		})
+
 	}
+
+	Context("When resource creation fails after the transaction is commited", func() {
+		var customCtx *common.TestContext
+		BeforeEach(func() {
+			customCtx = common.NewTestContextBuilderWithSecurity().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+				smb.WithCreateInterceptorProvider(types.ServiceBrokerType, &testCreateInterceptorProvider{}).Register()
+
+				return nil
+			}).Build()
+		})
+
+		AfterEach(func() {
+			customCtx.Cleanup()
+		})
+
+		It("should not send create notification", func() {
+			list, err := customCtx.SMRepository.List(context.Background(), types.NotificationType, query.ByField(query.EqualsOperator, "type", "CREATED"))
+			Expect(err).ShouldNot(HaveOccurred())
+			notificationsCountBeforeOp := list.Len()
+			regBroker(customCtx)
+
+			brokers, err := customCtx.SMRepository.List(context.Background(), types.ServiceBrokerType)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(brokers.ItemAt(0).GetReady()).To(BeFalse())
+			list, err = customCtx.SMRepository.List(context.Background(), types.NotificationType, query.ByField(query.EqualsOperator, "type", "CREATED"))
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(list.Len()).To(Equal(notificationsCountBeforeOp))
+
+		})
+	})
 })
+
+func regBroker(ctx *common.TestContext) {
+	brokerServer := common.NewBrokerServerWithCatalog(common.NewRandomSBCatalog())
+	defer brokerServer.Close()
+
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	UUID2, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	brokerJSON := common.Object{
+		"name":        UUID.String(),
+		"broker_url":  brokerServer.URL(),
+		"description": UUID2.String(),
+		"credentials": common.Object{
+			"basic": common.Object{
+				"username": brokerServer.Username,
+				"password": brokerServer.Password,
+			},
+		},
+	}
+	ctx.SMWithOAuth.POST(web.ServiceBrokersURL).
+		WithHeaders(map[string]string{}).
+		WithJSON(brokerJSON).Expect()
+}
+
+type testCreateInterceptorProvider struct {
+}
+
+func (p *testCreateInterceptorProvider) Provide() storage.CreateInterceptor {
+	return &testCreateInterceptor{}
+}
+
+func (p *testCreateInterceptorProvider) Name() string {
+	return "TestInterceptor"
+}
+
+type testCreateInterceptor struct{}
+
+func (p *testCreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
+	return func(ctx context.Context, obj types.Object) (types.Object, error) {
+		robj, err := h(ctx, obj)
+		if err != nil {
+			return nil, err
+		}
+		return robj, errors.New("test test")
+	}
+}
+
+func (p *testCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+	return f
+}

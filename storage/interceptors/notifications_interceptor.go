@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/util/slice"
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/util/slice"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -53,6 +54,11 @@ func (ni *NotificationsInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc
 			return nil, err
 		}
 
+		if !newObj.GetReady() {
+			log.C(ctx).Infof("Object %s with id %s is not yet ready. No notification will be sent", newObj.GetType().String(), newObj.GetID())
+			return newObj, nil
+		}
+
 		for _, platformID := range platformIDs {
 			if err := CreateNotification(ctx, repository, types.CREATED, newObj.GetType(), platformID, &Payload{
 				New: &ObjectPayload{
@@ -80,10 +86,10 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			return nil, err
 		}
 
-		// Scheduler updates the `ready` property of resources once an operation has ended - we should not create MODIFIED notifications in these cases
-		if oldObject.GetReady() != updatedObject.GetReady() {
-			return updatedObject, nil
-		}
+		// // Scheduler updates the `ready` property of resources once an operation has ended - we should not create MODIFIED notifications in these cases
+		// if oldObject.GetReady() != updatedObject.GetReady() {
+		// 	return updatedObject, nil
+		// }
 
 		detailsMap, err := ni.AdditionalDetailsFunc(ctx, types.NewObjectArray(updatedObject), repository)
 		if err != nil {
@@ -94,6 +100,20 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 		updatedPlatformIDs, err := ni.PlatformIDsProviderFunc(ctx, updatedObject, repository)
 		if err != nil {
 			return nil, err
+		}
+
+		if !oldObject.GetReady() && updatedObject.GetReady() {
+			for _, platformID := range updatedPlatformIDs {
+				if err := CreateNotification(ctx, repository, types.CREATED, updatedObject.GetType(), platformID, &Payload{
+					New: &ObjectPayload{
+						Resource:   updatedObject,
+						Additional: additionalDetails,
+					},
+				}); err != nil {
+					return nil, err
+				}
+			}
+			return updatedObject, nil
 		}
 
 		preexistingPlatformIDs, addedPlatformIDs, removedPlatformIDs := determinePlatformIDs(oldPlatformIDs, updatedPlatformIDs)

@@ -238,6 +238,8 @@ func persistVisibility(ctx context.Context, txStorage storage.Repository, platfo
 			ID:        UUID.String(),
 			UpdatedAt: currentTime,
 			CreatedAt: currentTime,
+			// TODO: Set ready to what the resource ready field is that caused this visibility to be created
+			Ready:     true,
 		},
 		ServicePlanID: planID,
 		PlatformID:    platformID,
