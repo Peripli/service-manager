@@ -40,7 +40,7 @@ SOURCE_FILES	= $(shell find . -type f -name '*.go' ! -name '*.gen.go' ! -name '*
 GENERATE_PREREQ_FILES = $(shell find . -name "*.go" ! -path "./vendor/*" -exec grep "go:generate" -rli {} \;)
 
 # GO_FLAGS - extra "go build" flags to use - e.g. -v (for verbose)
-GO_BUILD 		= env CGO_ENABLED=0 GOOS=$(PLATFORM) GOARCH=$(ARCH) \
+GO_BUILD 		= env CGO_ENABLED=0 GO111MODULE=on GOOS=$(PLATFORM) GOARCH=$(ARCH) \
            		$(GO) build $(GO_FLAGS) -ldflags '-s -w $(BUILD_LDFLAGS) $(VERSION_FLAGS)'
 
 # TEST_FLAGS - extra "go test" flags to use
@@ -68,7 +68,12 @@ prepare-counterfeiter:
 
 	@chmod a+x ${GOPATH}/bin/counterfeiter
 
-prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (gometalinter, cover, goveralls)
+prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gometalinter, cover, goveralls)
+ifeq ($(shell which dep),)
+	@echo "Installing dep..."
+	@go get -u github.com/golang/dep/cmd/dep
+	@chmod a+x ${GOPATH}/bin/dep
+endif
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter..."
 	@go get -u github.com/alecthomas/gometalinter
