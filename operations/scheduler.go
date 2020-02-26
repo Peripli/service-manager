@@ -25,6 +25,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Peripli/service-manager/operations/opcontext"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -386,6 +388,7 @@ func (s *Scheduler) handleActionResponse(ctx context.Context, actionObject types
 	if err != nil {
 		return nil, err
 	}
+	opAfterJob.TransitiveResources = opBeforeJob.TransitiveResources
 
 	// if an action error has occurred we mark the operation as failed and check if deletion has to be scheduled
 	if actionError != nil {
@@ -486,6 +489,20 @@ func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObjec
 			}); err != nil {
 				return err
 			}
+
+			for _, trR := range opAfterJob.TransitiveResources {
+				if trR.OperationType != types.CREATE {
+					continue
+				}
+				resource, err := storage.Get(ctx, trR.Type, query.ByField(query.EqualsOperator, "id", trR.ID))
+				if err != nil {
+					return err
+				}
+				resource.SetReady(true)
+				if _, err := storage.Update(ctx, resource, query.LabelChanges{}); err != nil {
+					return err
+				}
+			}
 		}
 		return nil
 
@@ -498,7 +515,7 @@ func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObjec
 }
 
 func (s *Scheduler) addOperationToContext(ctx context.Context, operation *types.Operation) (context.Context, error) {
-	ctxWithOp, setCtxErr := SetInContext(ctx, operation)
+	ctxWithOp, setCtxErr := opcontext.Set(ctx, operation)
 	if setCtxErr != nil {
 		setCtxErr = fmt.Errorf("failed to set operation in job context: %s", setCtxErr)
 		if err := updateOperationState(ctx, s.repository, operation, types.FAILED, setCtxErr); err != nil {

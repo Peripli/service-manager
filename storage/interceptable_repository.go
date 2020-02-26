@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Peripli/service-manager/operations/opcontext"
 	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -127,6 +128,15 @@ func (ir *queryScopedInterceptableRepository) Create(ctx context.Context, obj ty
 			return nil, err
 		}
 
+		operation, found := opcontext.Get(ctx)
+		if found && operation.ResourceID != createdObj.GetID() {
+			operation.TransitiveResources = append(operation.TransitiveResources, &types.RelatedType{
+				ID:            createdObj.GetID(),
+				Type:          createdObj.GetType(),
+				OperationType: types.CREATE,
+			})
+		}
+
 		return createdObj, nil
 	}
 
@@ -184,6 +194,20 @@ func (ir *queryScopedInterceptableRepository) DeleteReturning(ctx context.Contex
 		if resultList, err = ir.repositoryInTransaction.DeleteReturning(ctx, objectType, deletionCriteria...); err != nil {
 			return err
 		}
+
+		operation, found := opcontext.Get(ctx)
+		if found {
+			for i := 0; i < resultList.Len(); i++ {
+				if operation.ResourceID != resultList.ItemAt(i).GetID() {
+					operation.TransitiveResources = append(operation.TransitiveResources, &types.RelatedType{
+						ID:            resultList.ItemAt(i).GetID(),
+						Type:          resultList.ItemAt(i).GetType(),
+						OperationType: types.DELETE,
+					})
+				}
+			}
+		}
+
 		return nil
 	}
 

@@ -18,9 +18,12 @@ package postgres
 
 import (
 	"database/sql"
+	"encoding/json"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
 )
@@ -29,20 +32,24 @@ import (
 //go:generate smgen storage operation github.com/Peripli/service-manager/pkg/types:Operation
 type Operation struct {
 	BaseEntity
-	Description       sql.NullString     `db:"description"`
-	Type              string             `db:"type"`
-	State             string             `db:"state"`
-	ResourceID        string             `db:"resource_id"`
-	ResourceType      string             `db:"resource_type"`
-	PlatformID        string             `db:"platform_id"`
-	Errors            sqlxtypes.JSONText `db:"errors"`
-	CorrelationID     sql.NullString     `db:"correlation_id"`
-	ExternalID        sql.NullString     `db:"external_id"`
-	Reschedule        bool               `db:"reschedule"`
-	DeletionScheduled time.Time          `db:"deletion_scheduled"`
+	Description         sql.NullString     `db:"description"`
+	Type                string             `db:"type"`
+	State               string             `db:"state"`
+	ResourceID          string             `db:"resource_id"`
+	TransitiveResources sqlxtypes.JSONText `db:"transitive_resources"`
+	ResourceType        string             `db:"resource_type"`
+	PlatformID          string             `db:"platform_id"`
+	Errors              sqlxtypes.JSONText `db:"errors"`
+	CorrelationID       sql.NullString     `db:"correlation_id"`
+	ExternalID          sql.NullString     `db:"external_id"`
+	Reschedule          bool               `db:"reschedule"`
+	DeletionScheduled   time.Time          `db:"deletion_scheduled"`
 }
 
 func (o *Operation) ToObject() types.Object {
+	transitiveResources := make([]*types.RelatedType, 0)
+	util.BytesToObject(getJSONRawMessage(o.TransitiveResources), &transitiveResources)
+
 	return &types.Operation{
 		Base: types.Base{
 			ID:             o.ID,
@@ -51,23 +58,29 @@ func (o *Operation) ToObject() types.Object {
 			PagingSequence: o.PagingSequence,
 			Ready:          o.Ready,
 		},
-		Description:       o.Description.String,
-		Type:              types.OperationCategory(o.Type),
-		State:             types.OperationState(o.State),
-		ResourceID:        o.ResourceID,
-		ResourceType:      types.ObjectType(o.ResourceType),
-		PlatformID:        o.PlatformID,
-		Errors:            getJSONRawMessage(o.Errors),
-		CorrelationID:     o.CorrelationID.String,
-		ExternalID:        o.ExternalID.String,
-		Reschedule:        o.Reschedule,
-		DeletionScheduled: o.DeletionScheduled,
+		Description:         o.Description.String,
+		Type:                types.OperationCategory(o.Type),
+		State:               types.OperationState(o.State),
+		ResourceID:          o.ResourceID,
+		TransitiveResources: transitiveResources,
+		ResourceType:        types.ObjectType(o.ResourceType),
+		PlatformID:          o.PlatformID,
+		Errors:              getJSONRawMessage(o.Errors),
+		CorrelationID:       o.CorrelationID.String,
+		ExternalID:          o.ExternalID.String,
+		Reschedule:          o.Reschedule,
+		DeletionScheduled:   o.DeletionScheduled,
 	}
 }
 
 func (*Operation) FromObject(object types.Object) (storage.Entity, bool) {
 	operation, ok := object.(*types.Operation)
 	if !ok {
+		return nil, false
+	}
+	transitiveResourcesBytes, err := json.Marshal(operation.TransitiveResources)
+	if err != nil {
+		log.D().Errorf("Could not marshal transitive resources of operation: %s", err.Error())
 		return nil, false
 	}
 
@@ -79,17 +92,18 @@ func (*Operation) FromObject(object types.Object) (storage.Entity, bool) {
 			PagingSequence: operation.PagingSequence,
 			Ready:          operation.Ready,
 		},
-		Description:       toNullString(operation.Description),
-		Type:              string(operation.Type),
-		State:             string(operation.State),
-		ResourceID:        operation.ResourceID,
-		ResourceType:      operation.ResourceType.String(),
-		PlatformID:        operation.PlatformID,
-		Errors:            getJSONText(operation.Errors),
-		CorrelationID:     toNullString(operation.CorrelationID),
-		ExternalID:        toNullString(operation.ExternalID),
-		Reschedule:        operation.Reschedule,
-		DeletionScheduled: operation.DeletionScheduled,
+		Description:         toNullString(operation.Description),
+		Type:                string(operation.Type),
+		State:               string(operation.State),
+		ResourceID:          operation.ResourceID,
+		TransitiveResources: getJSONText(transitiveResourcesBytes),
+		ResourceType:        operation.ResourceType.String(),
+		PlatformID:          operation.PlatformID,
+		Errors:              getJSONText(operation.Errors),
+		CorrelationID:       toNullString(operation.CorrelationID),
+		ExternalID:          toNullString(operation.ExternalID),
+		Reschedule:          operation.Reschedule,
+		DeletionScheduled:   operation.DeletionScheduled,
 	}
 	return o, true
 }
