@@ -173,7 +173,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 					// mark the operation as deletion scheduled meaning orphan mitigation is required
 					operation.DeletionScheduled = time.Now()
 					operation.Reschedule = false
-					if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
 					}
 				}
@@ -197,7 +197,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				if bindResponse.OperationKey != nil {
 					operation.ExternalID = string(*bindResponse.OperationKey)
 				}
-				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", instance.ID, err)
 				}
 			} else {
@@ -284,7 +284,7 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 			if shouldStartOrphanMitigation(err) {
 				operation.DeletionScheduled = time.Now()
 				operation.Reschedule = false
-				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
 				}
 			}
@@ -299,7 +299,7 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 			if unbindResponse.OperationKey != nil {
 				operation.ExternalID = string(*unbindResponse.OperationKey)
 			}
-			if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+			if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 				return fmt.Errorf("failed to update operation with id %s to mark that rescheduling is possible: %s", operation.ID, err)
 			}
 		} else {
@@ -468,7 +468,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 					log.C(ctx).Infof("Successfully finished polling operation for binding with id %s and name %s", binding.ID, binding.Name)
 
 					operation.Reschedule = false
-					if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
 					}
 					return nil
@@ -491,7 +491,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 				log.C(ctx).Infof("Successfully finished polling operation for binding with id %s and name %s", binding.ID, binding.Name)
 
 				operation.Reschedule = false
-				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
 				}
 
@@ -514,7 +514,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 				if enableOrphanMitigation {
 					operation.DeletionScheduled = time.Now()
 				}
-				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return fmt.Errorf("failed to update operation with id %s after failed of last operation for binding with id %s: %s", operation.ID, binding.ID, err)
 				}
 
@@ -553,7 +553,7 @@ func (i *ServiceBindingInterceptor) getBindingDetailsFromBroker(ctx context.Cont
 			// mark the operation as deletion scheduled meaning orphan mitigation is required
 			operation.DeletionScheduled = time.Now()
 			operation.Reschedule = false
-			if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+			if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 				return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s",
 					operation.ID, brokerError, err)
 			}

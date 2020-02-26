@@ -21,16 +21,14 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/web"
 
-	"github.com/Peripli/service-manager/pkg/query"
-
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
 // InterceptUpdateAroundTxFunc hook for entity update outside of transaction
-type InterceptUpdateAroundTxFunc func(ctx context.Context, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
+type InterceptUpdateAroundTxFunc func(ctx context.Context, newObj types.Object, labelChanges ...*types.LabelChange) (types.Object, error)
 
 // InterceptUpdateOnTxFunc hook for entity update in transaction
-type InterceptUpdateOnTxFunc func(ctx context.Context, txStorage Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
+type InterceptUpdateOnTxFunc func(ctx context.Context, txStorage Repository, oldObj, newObj types.Object, labelChanges ...*types.LabelChange) (types.Object, error)
 
 // UpdateAroundTxInterceptor provides hooks on entity update during AroundTx
 //go:generate counterfeiter . UpdateAroundTxInterceptor

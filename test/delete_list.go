@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
@@ -366,19 +366,19 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 	attachLabel := func(obj common.Object, i int) common.Object {
 		patchLabelsBody := make(map[string]interface{})
-		patchLabels := []*query.LabelChange{
+		patchLabels := []*types.LabelChange{
 			{
-				Operation: query.AddLabelOperation,
+				Operation: types.AddLabelOperation,
 				Key:       "labelKey1",
 				Values:    []string{fmt.Sprintf("%d", i)},
 			},
 			{
-				Operation: query.AddLabelOperation,
+				Operation: types.AddLabelOperation,
 				Key:       commonLabelKey,
 				Values:    []string{fmt.Sprintf("str%d", i)},
 			},
 			{
-				Operation: query.AddLabelOperation,
+				Operation: types.AddLabelOperation,
 				Key:       "labelKey3",
 				Values:    []string{fmt.Sprintf(`{"key%d": "val%d"}`, i, i)},
 			},
@@ -386,7 +386,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		patchLabelsBody["labels"] = patchLabels
 
 		By(fmt.Sprintf("Attempting to patch resource of %s with labels as labels are declared supported", t.API))
-		t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, obj["id"].(string), t.ResourceType, patchLabels, false)
+		t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, obj["id"].(string), types.ObjectType(t.API), patchLabels, false)
 
 		result := ctx.SMWithOAuth.GET(t.API + "/" + obj["id"].(string)).
 			Expect().
@@ -575,15 +575,15 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 						BeforeEach(func() {
 							rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant, false)
-							patchLabels := []*query.LabelChange{
+							patchLabels := []*types.LabelChange{
 								{
-									Operation: query.AddLabelOperation,
+									Operation: types.AddLabelOperation,
 									Key:       commonLabelKey,
 									Values:    []string{commonLabelValue},
 								},
 							}
 							resourceID := rForTenant["id"].(string)
-							t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, resourceID, t.ResourceType, patchLabels, false)
+							t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, resourceID, types.ObjectType(t.API), patchLabels, false)
 							rForTenant = ctx.SMWithOAuth.GET(t.API + "/" + resourceID).
 								Expect().
 								Status(http.StatusOK).JSON().Object().Raw()

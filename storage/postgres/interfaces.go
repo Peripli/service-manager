@@ -71,7 +71,11 @@ func rowsToList(rows *sqlx.Rows, rowCreator EntityLabelRowCreator, result types.
 		}
 		entity, ok := entities[row.GetID()]
 		if !ok {
-			entity = row.ToObject()
+			var err error
+			entity, err = row.ToObject()
+			if err != nil {
+				return fmt.Errorf("error converting pg rows to list: %s", err)
+			}
 			entities[row.GetID()] = entity
 			result.Add(entity)
 		}

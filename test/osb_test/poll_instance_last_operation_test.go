@@ -320,7 +320,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 					Type:         types.UPDATE,
 					State:        types.FAILED,
 					ResourceID:   SID,
-					ResourceType: "/v1/service_instances",
+					ResourceType: types.ServiceInstanceType,
 					ExternalID:   "",
 					Errors:       []byte("an error happened"),
 				})

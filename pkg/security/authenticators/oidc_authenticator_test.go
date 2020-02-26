@@ -259,7 +259,7 @@ var _ = Describe("OIDC Authenticator", func() {
 		validateAuthenticationReturns := func(expectedUser *web.UserContext, expectedDecision httpsec.Decision, expectedErr error) {
 			authenticator, _, _ := NewOIDCAuthenticator(ctx, oauthOptions)
 
-			user, decision, err := authenticator.Authenticate(request)
+			user, decision, err := authenticator.Authenticate(&web.Request{Request: request})
 
 			if expectedUser != nil {
 				Expect(user).To(Equal(expectedUser))
@@ -337,7 +337,7 @@ var _ = Describe("OIDC Authenticator", func() {
 						})
 
 						It("should deny with an error", func() {
-							user, decision, err := authenticator.Authenticate(request)
+							user, decision, err := authenticator.Authenticate(&web.Request{Request: request})
 
 							Expect(user).To(BeNil())
 							Expect(decision).To(Equal(httpsec.Deny))
@@ -359,7 +359,7 @@ var _ = Describe("OIDC Authenticator", func() {
 						})
 
 						It("should deny with an error", func() {
-							user, decision, err := authenticator.Authenticate(request)
+							user, decision, err := authenticator.Authenticate(&web.Request{Request: request})
 
 							Expect(user).To(BeNil())
 							Expect(decision).To(Equal(httpsec.Deny))
@@ -380,7 +380,7 @@ var _ = Describe("OIDC Authenticator", func() {
 						})
 
 						It("should allow authentication and return user", func() {
-							user, decision, err := authenticator.Authenticate(request)
+							user, decision, err := authenticator.Authenticate(&web.Request{Request: request})
 
 							Expect(user).To(Not(BeNil()))
 							Expect(user.Name).To(Equal(expectedUserName))

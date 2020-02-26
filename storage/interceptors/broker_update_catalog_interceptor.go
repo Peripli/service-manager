@@ -56,7 +56,7 @@ type brokerUpdateCatalogInterceptor struct {
 
 // AroundTxUpdate fetches the broker catalog before the transaction, so it can be stored later on in the transaction
 func (c *brokerUpdateCatalogInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
-	return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+	return func(ctx context.Context, obj types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
 		broker := obj.(*types.ServiceBroker)
 		if err := brokerCatalogAroundTx(ctx, broker, c.CatalogFetcher); err != nil {
 			return nil, err
@@ -68,7 +68,7 @@ func (c *brokerUpdateCatalogInterceptor) AroundTxUpdate(h storage.InterceptUpdat
 
 // OnTxUpdate stores the previously fetched broker catalog, in the transaction in which the broker is being updated
 func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-	return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+	return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
 		oldBroker := oldObj.(*types.ServiceBroker)
 
 		existingServiceOfferingsWithServicePlans, err := c.CatalogLoader(ctx, oldBroker.GetID(), txStorage)
@@ -111,7 +111,7 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 						StatusCode:  http.StatusBadRequest,
 					}
 				}
-				if _, err := txStorage.Update(ctx, catalogService, query.LabelChanges{}); err != nil {
+				if _, err := txStorage.Update(ctx, catalogService, types.LabelChanges{}); err != nil {
 					return nil, err
 				}
 			} else {
@@ -178,7 +178,7 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 							}
 						}
 
-						if _, err := txStorage.Update(ctx, existingPlanUpdated, query.LabelChanges{}); err != nil {
+						if _, err := txStorage.Update(ctx, existingPlanUpdated, types.LabelChanges{}); err != nil {
 							return nil, err
 						}
 

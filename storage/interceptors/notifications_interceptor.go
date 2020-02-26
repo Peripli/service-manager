@@ -21,7 +21,7 @@ import (
 type Payload struct {
 	New          *ObjectPayload     `json:"new,omitempty"`
 	Old          *ObjectPayload     `json:"old,omitempty"`
-	LabelChanges query.LabelChanges `json:"label_changes,omitempty"`
+	LabelChanges types.LabelChanges `json:"label_changes,omitempty"`
 }
 
 type ObjectPayload struct {
@@ -69,7 +69,7 @@ func (ni *NotificationsInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc
 }
 
 func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-	return func(ctx context.Context, repository storage.Repository, oldObject, newObject types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+	return func(ctx context.Context, repository storage.Repository, oldObject, newObject types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
 		oldPlatformIDs, err := ni.PlatformIDsProviderFunc(ctx, oldObject, repository)
 		if err != nil {
 			return nil, err

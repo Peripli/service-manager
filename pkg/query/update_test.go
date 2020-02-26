@@ -24,8 +24,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/types"
 
-	"github.com/tidwall/gjson"
-
 	"github.com/tidwall/sjson"
 
 	. "github.com/onsi/gomega"
@@ -36,11 +34,11 @@ import (
 var _ = Describe("Update", func() {
 
 	var body []byte
-	var operation LabelOperation
+	var operation types.LabelOperation
 
 	Describe("Label changes for body", func() {
 		BeforeEach(func() {
-			operation = AddLabelOperation
+			operation = types.AddLabelOperation
 		})
 
 		JustBeforeEach(func() {
@@ -57,7 +55,7 @@ var _ = Describe("Update", func() {
 			It("Should be ok", func() {
 				changes, err := LabelChangesFromJSON(body)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(changes).To(ConsistOf(&LabelChange{Operation: AddLabelOperation, Key: "key1", Values: []string{"val1", "val2"}}))
+				Expect(changes).To(ConsistOf(&types.LabelChange{Operation: types.AddLabelOperation, Key: "key1", Values: []string{"val1", "val2"}}))
 			})
 		})
 
@@ -91,20 +89,6 @@ var _ = Describe("Update", func() {
 			})
 		})
 
-		Context("When operation is remove label and body has values", func() {
-			BeforeEach(func() {
-				operation = RemoveLabelOperation
-			})
-			It("Should remove them", func() {
-				values := gjson.GetBytes(body, "labels.0.values").String()
-				Expect(values).ToNot(BeEmpty())
-				changes, err := LabelChangesFromJSON(body)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(changes).ToNot(BeNil())
-				Expect(changes[0].Values).To(BeEmpty())
-			})
-		})
-
 		Context("When there are no labels in the body", func() {
 			It("Should return no label changes", func() {
 				body, err := sjson.DeleteBytes(body, "labels")
@@ -131,7 +115,7 @@ var _ = Describe("Update", func() {
 		Context("for changes with add and remove operations", func() {
 			type testEntry struct {
 				InitialLabels          types.Labels
-				Changes                LabelChanges
+				Changes                types.LabelChanges
 				ExpectedMergedLabels   types.Labels
 				ExpectedLabelsToRemove types.Labels
 				ExpectedLabelsToAdd    types.Labels
@@ -145,33 +129,33 @@ var _ = Describe("Update", func() {
 								"org0",
 							},
 						},
-						Changes: LabelChanges{
-							&LabelChange{
-								Operation: AddLabelOperation,
+						Changes: types.LabelChanges{
+							&types.LabelChange{
+								Operation: types.AddLabelOperation,
 								Key:       "organization_guid",
 								Values: []string{
 									"org1",
 									"org2",
 								},
 							},
-							&LabelChange{
-								Operation: AddLabelValuesOperation,
+							&types.LabelChange{
+								Operation: types.AddLabelValuesOperation,
 								Key:       "organization_guid",
 								Values: []string{
 									"org3",
 									"org4",
 								},
 							},
-							&LabelChange{
-								Operation: RemoveLabelValuesOperation,
+							&types.LabelChange{
+								Operation: types.RemoveLabelValuesOperation,
 								Key:       "organization_guid",
 								Values: []string{
 									"org5",
 									"org6",
 								},
 							},
-							&LabelChange{
-								Operation: RemoveLabelOperation,
+							&types.LabelChange{
+								Operation: types.RemoveLabelOperation,
 								Key:       "organization_guid",
 								Values: []string{
 									"org7",
@@ -205,16 +189,16 @@ var _ = Describe("Update", func() {
 							},
 						},
 					}),
-				Entry("remove key removes all values",
+				Entry("remove label with no values provided removes all values",
 					testEntry{
 						InitialLabels: types.Labels{
 							"organization_guid": {
 								"org0",
 							},
 						},
-						Changes: LabelChanges{
-							&LabelChange{
-								Operation: RemoveLabelOperation,
+						Changes: types.LabelChanges{
+							&types.LabelChange{
+								Operation: types.RemoveLabelOperation,
 								Key:       "organization_guid",
 								Values:    []string{},
 							},
@@ -227,6 +211,33 @@ var _ = Describe("Update", func() {
 						},
 						ExpectedLabelsToAdd: types.Labels{},
 					}),
+				Entry("remove label with values provided removes only provided values",
+					testEntry{
+						InitialLabels: types.Labels{
+							"organization_guid": {
+								"org0",
+								"org1",
+							},
+						},
+						Changes: types.LabelChanges{
+							&types.LabelChange{
+								Operation: types.RemoveLabelOperation,
+								Key:       "organization_guid",
+								Values:    []string{"org1"},
+							},
+						},
+						ExpectedMergedLabels: types.Labels{
+							"organization_guid": {
+								"org0",
+							},
+						},
+						ExpectedLabelsToRemove: types.Labels{
+							"organization_guid": {
+								"org1",
+							},
+						},
+						ExpectedLabelsToAdd: types.Labels{},
+					}),
 				Entry("remove last value removes the key too",
 					testEntry{
 						InitialLabels: types.Labels{
@@ -234,9 +245,9 @@ var _ = Describe("Update", func() {
 								"org0",
 							},
 						},
-						Changes: LabelChanges{
-							&LabelChange{
-								Operation: RemoveLabelValuesOperation,
+						Changes: types.LabelChanges{
+							&types.LabelChange{
+								Operation: types.RemoveLabelValuesOperation,
 								Key:       "organization_guid",
 								Values:    []string{"org0"},
 							},
@@ -256,9 +267,9 @@ var _ = Describe("Update", func() {
 								"org0", "org1", "org2", "org4",
 							},
 						},
-						Changes: LabelChanges{
-							&LabelChange{
-								Operation: RemoveLabelValuesOperation,
+						Changes: types.LabelChanges{
+							&types.LabelChange{
+								Operation: types.RemoveLabelValuesOperation,
 								Key:       "organization_guid",
 								Values:    []string{"org1", "org2"},
 							},

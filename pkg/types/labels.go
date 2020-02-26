@@ -17,6 +17,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -33,6 +34,53 @@ func (l Labels) Validate() error {
 			if strings.ContainsRune(val, '\n') {
 				return fmt.Errorf("label with key \"%s\" has value \"%s\" contaning forbidden new line character", key, val)
 			}
+		}
+	}
+	return nil
+}
+
+// LabelOperation is an operation to be performed on labels
+type LabelOperation string
+
+const (
+	// AddLabelOperation takes a label and adds it to the entity's labels
+	AddLabelOperation LabelOperation = "add"
+	// AddLabelValuesOperation takes a key and values and adds the values to the label with this key
+	AddLabelValuesOperation LabelOperation = "add_values"
+	// RemoveLabelOperation takes a key and removes the label with this key
+	RemoveLabelOperation LabelOperation = "remove"
+	// RemoveLabelValuesOperation takes a key and values and removes the values from the label with this key
+	RemoveLabelValuesOperation LabelOperation = "remove_values"
+)
+
+// RequiresValues returns true if the operation requires values to be provided
+func (o LabelOperation) RequiresValues() bool {
+	return o != RemoveLabelOperation
+}
+
+// LabelChange represents the changes that should be performed to a label
+type LabelChange struct {
+	Operation LabelOperation `json:"op"`
+	Key       string         `json:"key"`
+	Values    []string       `json:"values"`
+}
+
+func (lc *LabelChange) Validate() error {
+	if lc.Operation.RequiresValues() && len(lc.Values) == 0 {
+		return fmt.Errorf("operation %s requires values to be provided", lc.Operation)
+	}
+	if lc.Key == "" || lc.Operation == "" {
+		return errors.New("both key and operation are missing but are required for label change")
+	}
+	return nil
+}
+
+type LabelChanges []*LabelChange
+
+func (lc *LabelChanges) Validate() error {
+	for _, labelChange := range *lc {
+		if err := labelChange.Validate(); err != nil {
+			return err
 		}
 	}
 	return nil
