@@ -222,17 +222,48 @@ var _ = Describe("Basic Authenticator", func() {
 				})
 
 				Context("When no broker platform credentials are found", func() {
-					BeforeEach(func() {
-						fakeRepository.ListReturns(&types.BrokerPlatformCredentials{}, nil)
+
+					Context("platform credentials are not found", func() {
+						BeforeEach(func() {
+							fakeRepository.ListReturns(&types.BrokerPlatformCredentials{}, nil)
+						})
+
+						It("Should deny with error", func() {
+							user, decision, err := authenticator.Authenticate(req)
+							Expect(err).To(HaveOccurred())
+							Expect(user).To(BeNil())
+							Expect(decision).To(Equal(httpsec.Deny))
+						})
 					})
 
-					It("Should deny with error", func() {
-						user, decision, err := authenticator.Authenticate(req)
-						Expect(err).To(HaveOccurred())
-						Expect(user).To(BeNil())
-						Expect(decision).To(Equal(httpsec.Deny))
-					})
+					Context("platform credentials are found", func() {
+						BeforeEach(func() {
+							fakeRepository.ListReturnsOnCall(0, &types.BrokerPlatformCredentials{}, nil)
+							fakeRepository.ListReturnsOnCall(1, &types.BrokerPlatformCredentials{}, nil)
+							fakeRepository.ListReturnsOnCall(2, &types.Platforms{
+								Platforms: []*types.Platform{
+									{
+										Base: types.Base{
+											ID: "id1",
+										},
+										Credentials: &types.Credentials{
+											Basic: &types.Basic{
+												Username: "username",
+												Password: "password",
+											},
+										},
+									},
+								},
+							}, nil)
+						})
 
+						It("Should allow", func() {
+							user, decision, err := authenticator.Authenticate(req)
+							Expect(err).NotTo(HaveOccurred())
+							Expect(user).ToNot(BeNil())
+							Expect(decision).To(Equal(httpsec.Allow))
+						})
+					})
 				})
 
 				Context("When getting broker platform credentials from storage fails", func() {

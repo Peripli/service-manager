@@ -310,7 +310,12 @@ var _ = Describe("Catalog", func() {
 			})
 
 			It("should get catalog", func() {
+				By("broker platform credentials")
 				ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
+					Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+
+				By("platform credentials")
+				SMWithBasicPlatform.GET(osbURL + "/v2/catalog").
 					Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 			})
 

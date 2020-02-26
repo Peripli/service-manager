@@ -96,7 +96,7 @@ func BasicOSBAuthenticator(request *web.Request, repository storage.Repository, 
 		}
 
 		if credentialsList.Len() != 1 {
-			return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
+			return BasicPlatformAuthenticator(request, repository, username, password)
 		}
 
 		useOldCredentials = true
