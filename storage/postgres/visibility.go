@@ -18,6 +18,7 @@ package postgres
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/Peripli/service-manager/storage"
 
@@ -31,7 +32,7 @@ type Visibility struct {
 	ServicePlanID string         `db:"service_plan_id"`
 }
 
-func (v *Visibility) ToObject() types.Object {
+func (v *Visibility) ToObject() (types.Object, error) {
 	return &types.Visibility{
 		Base: types.Base{
 			ID:             v.ID,
@@ -43,13 +44,13 @@ func (v *Visibility) ToObject() types.Object {
 		},
 		PlatformID:    v.PlatformID.String,
 		ServicePlanID: v.ServicePlanID,
-	}
+	}, nil
 }
 
-func (v *Visibility) FromObject(visibility types.Object) (storage.Entity, bool) {
+func (v *Visibility) FromObject(visibility types.Object) (storage.Entity, error) {
 	vis, ok := visibility.(*types.Visibility)
 	if !ok {
-		return nil, false
+		return nil, fmt.Errorf("object is not of type Visibility")
 	}
 	return &Visibility{
 		BaseEntity: BaseEntity{
@@ -61,5 +62,5 @@ func (v *Visibility) FromObject(visibility types.Object) (storage.Entity, bool) 
 		},
 		PlatformID:    toNullString(vis.PlatformID),
 		ServicePlanID: vis.ServicePlanID,
-	}, true
+	}, nil
 }

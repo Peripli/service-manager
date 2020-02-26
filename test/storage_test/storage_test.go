@@ -75,7 +75,7 @@ var _ = Describe("Test", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				platformFromStorage.(*types.Platform).Active = true
-				if updatedPlatform, err = storage.Update(ctx, platformFromStorage, query.LabelChanges{}); err != nil {
+				if updatedPlatform, err = storage.Update(ctx, platformFromStorage, types.LabelChanges{}); err != nil {
 					return err
 				}
 				Expect(updatedPlatform.(*types.Platform).Active).To(Equal(true))

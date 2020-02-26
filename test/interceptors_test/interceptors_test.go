@@ -235,7 +235,7 @@ var _ = Describe("Interceptors", func() {
 						if err != nil {
 							return nil, err
 						}
-						_, err = txStorage.Update(ctx, platformFromDB, query.LabelChanges{})
+						_, err = txStorage.Update(ctx, platformFromDB, types.LabelChanges{})
 						if err != nil {
 							return nil, err
 						}
@@ -244,7 +244,7 @@ var _ = Describe("Interceptors", func() {
 				}
 
 				updateModificationInterceptors[types.PlatformType].OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-					return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
+					return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*types.LabelChange) (object types.Object, e error) {
 						return nil, errors.New("expected update to fail")
 					}
 				}
@@ -270,7 +270,7 @@ var _ = Describe("Interceptors", func() {
 						if err != nil {
 							return nil, err
 						}
-						_, err = txStorage.Update(ctx, platformFromDB, query.LabelChanges{})
+						_, err = txStorage.Update(ctx, platformFromDB, types.LabelChanges{})
 						if err != nil {
 							return nil, err
 						}
@@ -279,7 +279,7 @@ var _ = Describe("Interceptors", func() {
 				}
 
 				updateModificationInterceptors[types.PlatformType].OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-					return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
+					return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*types.LabelChange) (object types.Object, e error) {
 						deleteCriteria := query.ByField(query.EqualsOperator, "id", platform2.ID)
 						By("calling storage delete, should call delete interceptor")
 						err := txStorage.Delete(ctx, types.PlatformType, deleteCriteria)
@@ -486,20 +486,20 @@ var _ = Describe("Interceptors", func() {
 					newLabelKey := "newLabelKey"
 					newLabelValue := []string{"newLabelValueAPI", "newLabelValueTX"}
 					updateModificationInterceptors[types.ObjectType(e.name)].AroundTxUpdateStub = func(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
-						return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
-							labelChanges = append(labelChanges, &query.LabelChange{
+						return func(ctx context.Context, obj types.Object, labelChanges ...*types.LabelChange) (object types.Object, e error) {
+							labelChanges = append(labelChanges, &types.LabelChange{
 								Key:       newLabelKey,
-								Operation: query.AddLabelOperation,
+								Operation: types.AddLabelOperation,
 								Values:    []string{newLabelValue[0]},
 							})
 							return h(ctx, obj, labelChanges...)
 						}
 					}
 					updateModificationInterceptors[types.ObjectType(e.name)].OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-						return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
-							labelChanges = append(labelChanges, &query.LabelChange{
+						return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*types.LabelChange) (object types.Object, e error) {
+							labelChanges = append(labelChanges, &types.LabelChange{
 								Key:       newLabelKey,
-								Operation: query.AddLabelOperation,
+								Operation: types.AddLabelOperation,
 								Values:    []string{newLabelValue[1]},
 							})
 							return f(ctx, txStorage, oldObj, newObj, labelChanges...)
@@ -586,7 +586,7 @@ func updateInterceptorProvider(nameSuffix string, stack *callStack) *storagefake
 	fakeUpdateInterceptorProvider.NameReturns(name)
 	fakeUpdateInterceptor := &storagefakes.FakeUpdateInterceptor{}
 	fakeUpdateInterceptor.AroundTxUpdateStub = func(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
-		return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+		return func(ctx context.Context, obj types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
 			stack.Add(name + "APIpre")
 			obj, err := h(ctx, obj, labelChanges...)
 			stack.Add(name + "APIpost")
@@ -594,7 +594,7 @@ func updateInterceptorProvider(nameSuffix string, stack *callStack) *storagefake
 		}
 	}
 	fakeUpdateInterceptor.OnTxUpdateStub = func(h storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-		return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+		return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
 			stack.Add(name + "TXpre")
 			obj, err := h(ctx, txStorage, oldObj, newObj, labelChanges...)
 			stack.Add(name + "TXpost")

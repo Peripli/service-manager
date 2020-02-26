@@ -19,13 +19,14 @@ package service_binding_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/Peripli/service-manager/pkg/query"
 	"net/http"
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/gofrs/uuid"
 
@@ -178,62 +179,6 @@ var _ = DescribeTestsFor(TestCase{
 					Status(expectedStatusCode)
 			}
 
-			verifyBindingExists := func(smClient *SMExpect, bindingID string, ready bool) {
-				timeoutDuration := 15 * time.Second
-				tickerInterval := 100 * time.Millisecond
-				timeout := time.After(timeoutDuration)
-				ticker := time.Tick(tickerInterval)
-				for {
-					select {
-					case <-timeout:
-						Fail(fmt.Sprintf("binding with id %s did not appear in SM after %.0f seconds", bindingID, timeoutDuration.Seconds()))
-					case <-ticker:
-						bindings := smClient.ListWithQuery(web.ServiceBindingsURL, fmt.Sprintf("fieldQuery=id eq '%s'", bindingID))
-						switch {
-						case bindings.Length().Raw() == 0:
-							By(fmt.Sprintf("Could not find binding with id %s in SM. Retrying...", bindingID))
-						case bindings.Length().Raw() > 1:
-							Fail(fmt.Sprintf("more than one binding with id %s was found in SM", bindingID))
-						default:
-							bindingObject := bindings.First().Object()
-							readyField := bindingObject.Value("ready").Boolean().Raw()
-							if readyField != ready {
-								Fail(fmt.Sprintf("Expected binding with id %s to be ready %t but ready was %t", bindingID, ready, readyField))
-							}
-							if ready {
-								bindingObject.Value("credentials").Equal(map[string]interface{}{
-									"user":     "user",
-									"password": "password",
-								})
-							}
-
-							return
-						}
-					}
-				}
-			}
-
-			verifyBindingDoesNotExist := func(smClient *SMExpect, bindingID string) {
-				timeoutDuration := 15 * time.Second
-				tickerInterval := 100 * time.Millisecond
-				timeout := time.After(timeoutDuration)
-				ticker := time.Tick(tickerInterval)
-				for {
-					select {
-					case <-timeout:
-						Fail(fmt.Sprintf("binding with id %s was still in SM after %.0f seconds", bindingID, timeoutDuration.Seconds()))
-					case <-ticker:
-						resp := smClient.GET(web.ServiceBindingsURL + "/" + bindingID).
-							Expect().Raw()
-						if resp.StatusCode != http.StatusNotFound {
-							By(fmt.Sprintf("Found binding with id %s but it should be deleted. Retrying...", bindingID))
-						} else {
-							return
-						}
-					}
-				}
-			}
-
 			BeforeEach(func() {
 				brokerID, brokerServer, servicePlanID = newServicePlan(ctx, true)
 				brokerServer.ShouldRecordRequests(false)
@@ -353,7 +298,11 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingExists(ctx.SMWithOAuth, bindingID, true)
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    bindingID,
+										Type:  types.ServiceBindingType,
+										Ready: true,
+									})
 								})
 							}
 
@@ -425,7 +374,11 @@ var _ = DescribeTestsFor(TestCase{
 										Reschedulable:     false,
 										DeletionScheduled: false,
 									})
-									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    bindingID,
+										Type:  types.ServiceBindingType,
+										Ready: true,
+									})
 								})
 							})
 						})
@@ -466,7 +419,10 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   bindingID,
+										Type: types.ServiceBindingType,
+									})
 								})
 							})
 
@@ -520,7 +476,10 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   bindingID,
+										Type: types.ServiceBindingType,
+									})
 								})
 							})
 
@@ -546,7 +505,10 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   bindingID,
+										Type: types.ServiceBindingType,
+									})
 								})
 							})
 
@@ -569,7 +531,11 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, false)
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    bindingID,
+										Type:  types.ServiceBindingType,
+										Ready: false,
+									})
 								})
 
 								AfterEach(func() {
@@ -588,7 +554,10 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   bindingID,
+										Type: types.ServiceBindingType,
+									})
 								})
 							})
 
@@ -652,7 +621,10 @@ var _ = DescribeTestsFor(TestCase{
 									createBinding(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedSMCrashStatusCode)
 									operation := <-opChan
 
-									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, operation.ResourceID)
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   operation.ResourceID,
+										Type: types.ServiceBindingType,
+									})
 
 									operationExpectation := OperationExpectations{
 										Category:          types.CREATE,
@@ -663,7 +635,10 @@ var _ = DescribeTestsFor(TestCase{
 									}
 
 									bindingID, _ = VerifyOperationExists(ctx, fmt.Sprintf("%s/%s%s/%s", web.ServiceBindingsURL, operation.ResourceID, web.OperationsURL, operation.ID), operationExpectation)
-									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   bindingID,
+										Type: types.ServiceBindingType,
+									})
 								})
 							})
 
@@ -683,7 +658,11 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    bindingID,
+										Type:  types.ServiceBindingType,
+										Ready: true,
+									})
 								})
 							})
 
@@ -704,7 +683,11 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    bindingID,
+										Type:  types.ServiceBindingType,
+										Ready: true,
+									})
 								})
 
 								if testCase.async {
@@ -735,7 +718,11 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											})
 
-											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, false)
+											VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:    bindingID,
+												Type:  types.ServiceBindingType,
+												Ready: false,
+											})
 										})
 									})
 
@@ -776,7 +763,11 @@ var _ = DescribeTestsFor(TestCase{
 											}
 
 											bindingID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectations)
-											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, false)
+											VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:    bindingID,
+												Type:  types.ServiceBindingType,
+												Ready: false,
+											})
 
 											newCtx.CleanupAll(false)
 
@@ -786,7 +777,11 @@ var _ = DescribeTestsFor(TestCase{
 											operationExpectations.Reschedulable = false
 
 											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectations)
-											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+											VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:    bindingID,
+												Type:  types.ServiceBindingType,
+												Ready: true,
+											})
 										})
 									})
 								}
@@ -807,7 +802,11 @@ var _ = DescribeTestsFor(TestCase{
 											Reschedulable:     false,
 											DeletionScheduled: false,
 										})
-										verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    bindingID,
+											Type:  types.ServiceBindingType,
+											Ready: true,
+										})
 									})
 								})
 
@@ -833,7 +832,10 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											})
 
-											verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+											VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:   bindingID,
+												Type: types.ServiceBindingType,
+											})
 										})
 									})
 
@@ -853,7 +855,11 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, false)
+											VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:    bindingID,
+												Type:  types.ServiceBindingType,
+												Ready: false,
+											})
 										})
 									})
 
@@ -876,7 +882,10 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											})
 
-											verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+											VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:   bindingID,
+												Type: types.ServiceBindingType,
+											})
 										})
 									})
 								})
@@ -898,7 +907,11 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										})
 
-										verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, false)
+										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    bindingID,
+											Type:  types.ServiceBindingType,
+											Ready: false,
+										})
 									})
 								})
 							})
@@ -920,7 +933,10 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   bindingID,
+										Type: types.ServiceBindingType,
+									})
 								})
 							})
 
@@ -944,7 +960,10 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   bindingID,
+										Type: types.ServiceBindingType,
+									})
 								})
 							})
 
@@ -974,7 +993,10 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										})
 
-										verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:   bindingID,
+											Type: types.ServiceBindingType,
+										})
 									})
 								})
 
@@ -1000,7 +1022,11 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, false)
+											VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:    bindingID,
+												Type:  types.ServiceBindingType,
+												Ready: false,
+											})
 										})
 									})
 								}
@@ -1049,7 +1075,10 @@ var _ = DescribeTestsFor(TestCase{
 										operationExpectations.Reschedulable = false
 
 										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectations)
-										verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:   bindingID,
+											Type: types.ServiceBindingType,
+										})
 									})
 
 								})
@@ -1075,7 +1104,10 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										})
 
-										verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:   bindingID,
+											Type: types.ServiceBindingType,
+										})
 									})
 								})
 							})
@@ -1110,7 +1142,10 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   bindingID,
+										Type: types.ServiceBindingType,
+									})
 								})
 							})
 						})
@@ -1119,21 +1154,30 @@ var _ = DescribeTestsFor(TestCase{
 							JustBeforeEach(func() {
 								postBindingRequest["name"] = "same-binding-name"
 								resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
-								if testCase.async {
-									_, err := ExpectOperation(ctx.SMWithOAuthForTenant, resp, types.SUCCEEDED)
-									Expect(err).ToNot(HaveOccurred())
-								}
+								VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									Category:          types.CREATE,
+									State:             types.SUCCEEDED,
+									ResourceType:      types.ServiceBindingType,
+									Reschedulable:     false,
+									DeletionScheduled: false,
+								})
 							})
 
 							When("for the same service instance", func() {
 								It("should reject", func() {
-									if testCase.async {
-										resp := createBinding(ctx.SMWithOAuthForTenant, true, testCase.expectedCreateSuccessStatusCode)
-										_, err := ExpectOperationWithError(ctx.SMWithOAuthForTenant, resp, types.FAILED, "binding with same name exists for instance with id")
-										Expect(err).ToNot(HaveOccurred())
-									} else {
-										createBinding(ctx.SMWithOAuthForTenant, false, http.StatusConflict)
+									statusCode := http.StatusAccepted
+									if !testCase.async {
+										statusCode = http.StatusConflict
 									}
+									resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, statusCode)
+									VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.FAILED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+										Error:             "binding with same name exists for instance with id",
+									})
 								})
 							})
 
@@ -1147,10 +1191,13 @@ var _ = DescribeTestsFor(TestCase{
 
 								It("should accept", func() {
 									resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
-									if testCase.async {
-										_, err := ExpectOperation(ctx.SMWithOAuthForTenant, resp, types.SUCCEEDED)
-										Expect(err).ToNot(HaveOccurred())
-									}
+									VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
 								})
 							})
 						})
@@ -1182,7 +1229,11 @@ var _ = DescribeTestsFor(TestCase{
 										Reschedulable:     false,
 										DeletionScheduled: false,
 									})
-									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    bindingID,
+										Type:  types.ServiceBindingType,
+										Ready: true,
+									})
 
 									expectedCode := http.StatusNotFound
 									if testCase.async {
@@ -1191,7 +1242,11 @@ var _ = DescribeTestsFor(TestCase{
 									smWithOtherTenant := ctx.NewTenantExpect("other-tenant")
 									deleteBinding(smWithOtherTenant, testCase.async, expectedCode)
 
-									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    bindingID,
+										Type:  types.ServiceBindingType,
+										Ready: true,
+									})
 
 								})
 							})
@@ -1206,7 +1261,11 @@ var _ = DescribeTestsFor(TestCase{
 										Reschedulable:     false,
 										DeletionScheduled: false,
 									})
-									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    bindingID,
+										Type:  types.ServiceBindingType,
+										Ready: true,
+									})
 
 									resp = deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
 
@@ -1217,7 +1276,10 @@ var _ = DescribeTestsFor(TestCase{
 										Reschedulable:     false,
 										DeletionScheduled: false,
 									})
-									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   bindingID,
+										Type: types.ServiceBindingType,
+									})
 								})
 							})
 						})
@@ -1232,7 +1294,11 @@ var _ = DescribeTestsFor(TestCase{
 									Reschedulable:     false,
 									DeletionScheduled: false,
 								})
-								verifyBindingExists(ctx.SMWithOAuth, bindingID, true)
+								VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									ID:    bindingID,
+									Type:  types.ServiceBindingType,
+									Ready: true,
+								})
 
 							})
 
@@ -1254,7 +1320,11 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    bindingID,
+										Type:  types.ServiceBindingType,
+										Ready: true,
+									})
 								})
 
 								AfterEach(func() {
@@ -1282,7 +1352,10 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   bindingID,
+										Type: types.ServiceBindingType,
+									})
 								})
 							})
 
@@ -1302,7 +1375,10 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   bindingID,
+										Type: types.ServiceBindingType,
+									})
 								})
 							})
 
@@ -1323,7 +1399,10 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   bindingID,
+										Type: types.ServiceBindingType,
+									})
 								})
 
 								if testCase.async {
@@ -1364,7 +1443,11 @@ var _ = DescribeTestsFor(TestCase{
 											}
 
 											bindingID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectations)
-											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+											VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:    bindingID,
+												Type:  types.ServiceBindingType,
+												Ready: true,
+											})
 
 											newCtx.CleanupAll(false)
 											isBound.Store(true)
@@ -1373,7 +1456,10 @@ var _ = DescribeTestsFor(TestCase{
 											operationExpectations.Reschedulable = false
 
 											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectations)
-											verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+											VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:   bindingID,
+												Type: types.ServiceBindingType,
+											})
 										})
 									})
 								}
@@ -1395,7 +1481,10 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										})
 
-										verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:   bindingID,
+											Type: types.ServiceBindingType,
+										})
 									})
 								})
 
@@ -1416,7 +1505,10 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										})
 
-										verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:   bindingID,
+											Type: types.ServiceBindingType,
+										})
 									})
 								})
 
@@ -1448,7 +1540,10 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											})
 
-											verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+											VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:   bindingID,
+												Type: types.ServiceBindingType,
+											})
 										})
 									})
 
@@ -1478,7 +1573,11 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+											VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:    bindingID,
+												Type:  types.ServiceBindingType,
+												Ready: true,
+											})
 										})
 									})
 
@@ -1507,7 +1606,10 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											})
 
-											verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+											VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:   bindingID,
+												Type: types.ServiceBindingType,
+											})
 										})
 									})
 								})
@@ -1529,7 +1631,11 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										})
 
-										verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    bindingID,
+											Type:  types.ServiceBindingType,
+											Ready: true,
+										})
 									})
 								})
 							})
@@ -1551,7 +1657,11 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    bindingID,
+										Type:  types.ServiceBindingType,
+										Ready: true,
+									})
 								})
 							})
 
@@ -1574,7 +1684,11 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    bindingID,
+										Type:  types.ServiceBindingType,
+										Ready: true,
+									})
 								})
 							})
 
@@ -1606,7 +1720,10 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										})
 
-										verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:   bindingID,
+											Type: types.ServiceBindingType,
+										})
 									})
 								})
 
@@ -1638,7 +1755,11 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+											VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:    bindingID,
+												Type:  types.ServiceBindingType,
+												Ready: true,
+											})
 										})
 									})
 								}
@@ -1669,7 +1790,10 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										})
 
-										verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:   bindingID,
+											Type: types.ServiceBindingType,
+										})
 									})
 								})
 							})
@@ -1715,7 +1839,10 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   bindingID,
+										Type: types.ServiceBindingType,
+									})
 								})
 							})
 						})
@@ -1726,7 +1853,7 @@ var _ = DescribeTestsFor(TestCase{
 	},
 })
 
-func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
+func blueprint(ctx *TestContext, _ *SMExpect, async bool) Object {
 	_, _, servicePlanID := newServicePlan(ctx, true)
 	EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 	ID, err := uuid.NewV4()
@@ -1743,10 +1870,24 @@ func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
 
 	var instance map[string]interface{}
 	if async {
-		instance = ExpectSuccessfulAsyncResourceCreation(resp, auth, web.ServiceInstancesURL)
+		resp.Status(http.StatusAccepted)
 	} else {
-		instance = resp.Status(http.StatusCreated).JSON().Object().Raw()
+		resp.Status(http.StatusCreated)
 	}
+
+	id, _ := VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+		Category:          types.CREATE,
+		State:             types.SUCCEEDED,
+		ResourceType:      types.ServiceInstanceType,
+		Reschedulable:     false,
+		DeletionScheduled: false,
+	})
+
+	instance = VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+		ID:    id,
+		Type:  types.ServiceInstanceType,
+		Ready: true,
+	}).Raw()
 
 	resp = ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
 		WithQuery("async", strconv.FormatBool(async)).
@@ -1757,10 +1898,24 @@ func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
 
 	var binding map[string]interface{}
 	if async {
-		binding = ExpectSuccessfulAsyncResourceCreation(resp, auth, web.ServiceBindingsURL)
+		resp.Status(http.StatusAccepted)
 	} else {
-		binding = resp.Status(http.StatusCreated).JSON().Object().Raw()
+		resp.Status(http.StatusCreated)
 	}
+
+	id, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+		Category:          types.CREATE,
+		State:             types.SUCCEEDED,
+		ResourceType:      types.ServiceBindingType,
+		Reschedulable:     false,
+		DeletionScheduled: false,
+	})
+
+	binding = VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+		ID:    id,
+		Type:  types.ServiceBindingType,
+		Ready: true,
+	}).Raw()
 
 	delete(binding, "credentials")
 	return binding
