@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/api/osb"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"golang.org/x/crypto/bcrypt"
@@ -52,6 +53,8 @@ func (a *Basic) Authenticate(request *web.Request) (*web.UserContext, httpsec.De
 //BasicPlatformAuthenticator attempts to authenticate basic auth requests with provided platform credentials
 func BasicPlatformAuthenticator(request *web.Request, repository storage.Repository, username, password string) (*web.UserContext, httpsec.Decision, error) {
 	ctx := request.Context()
+	log.C(ctx).Debugf("Attempting to authenticate platform credentials")
+
 	byUsername := query.ByField(query.EqualsOperator, "username", username)
 	platformList, err := repository.List(ctx, types.PlatformType, byUsername)
 	if err != nil {
@@ -73,6 +76,7 @@ func BasicPlatformAuthenticator(request *web.Request, repository storage.Reposit
 //BasicOSBAuthenticator attempts to authenticate basic auth requests with provided broker platform credentials
 func BasicOSBAuthenticator(request *web.Request, repository storage.Repository, username, password string) (*web.UserContext, httpsec.Decision, error) {
 	ctx := request.Context()
+	log.C(ctx).Debugf("Attempting to authenticate broker platform credentials")
 
 	brokerID, ok := request.PathParams[osb.BrokerIDPathParam]
 	if !ok {
@@ -89,6 +93,8 @@ func BasicOSBAuthenticator(request *web.Request, repository storage.Repository, 
 
 	useOldCredentials := false
 	if credentialsList.Len() != 1 {
+		log.C(ctx).Debugf("Authenticating broker platform credentials failed - will try with to find old credentials")
+
 		byUsername.LeftOp = "old_username"
 		credentialsList, err = repository.List(ctx, types.BrokerPlatformCredentialType, byBrokerID, byUsername)
 		if err != nil {
@@ -96,6 +102,7 @@ func BasicOSBAuthenticator(request *web.Request, repository storage.Repository, 
 		}
 
 		if credentialsList.Len() != 1 {
+			log.C(ctx).Debugf("Authenticating broker platform credentials failed - will try to fallback to platform credentials authentication")
 			return BasicPlatformAuthenticator(request, repository, username, password)
 		}
 
@@ -114,6 +121,7 @@ func BasicOSBAuthenticator(request *web.Request, repository storage.Repository, 
 	}
 
 	if !useOldCredentials && credentials.OldUsername != "" && credentials.OldPasswordHash != "" {
+		log.C(ctx).Debugf("Found old broker platform credentials - proceeding with deleting them")
 		credentials.OldUsername = ""
 		credentials.OldPasswordHash = ""
 
@@ -122,6 +130,7 @@ func BasicOSBAuthenticator(request *web.Request, repository storage.Repository, 
 		}
 	}
 
+	log.C(ctx).Debugf("Successfully authenticated broker platform credentials - fetching the corresponding platform")
 	platformObj, err := repository.Get(ctx, types.PlatformType, query.ByField(query.EqualsOperator, "id", credentials.PlatformID))
 	if err != nil {
 		return nil, httpsec.Abstain, fmt.Errorf("could not get platform entity from storage: %s", err)
