@@ -515,6 +515,14 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 		return fmt.Errorf("scheduling for operations of type %s is not allowed", string(types.SUCCEEDED))
 	}
 
+	if time.Now().UTC().After(operation.CreatedAt.Add(s.reconciliationOperationTimeout)) {
+		return &util.HTTPError{
+			ErrorType:   "ManualActionRequired",
+			Description: fmt.Sprintf("operation is older than %v and has exceeded the maximum reconciliation timeout", s.reconciliationOperationTimeout),
+			StatusCode:  http.StatusUnprocessableEntity,
+		}
+	}
+
 	if err := operation.Validate(); err != nil {
 		return fmt.Errorf("scheduled operation is not valid: %s", err)
 	}

@@ -54,48 +54,71 @@ var _ = Describe("Operations", func() {
 	})
 
 	Context("Scheduler", func() {
-		BeforeEach(func() {
-			postHook := func(e env.Environment, servers map[string]FakeServer) {
-				e.Set("operations.action_timeout", 5*time.Nanosecond)
-				e.Set("operations.mark_orphans_interval", 1*time.Hour)
-			}
-
-			ctx = NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
-		})
-
-		When("job timeout runs out", func() {
-			It("marks operation as failed", func() {
-				brokerServer := NewBrokerServer()
-				ctx.Servers[BrokerServerPrefix+"123"] = brokerServer
-				postBrokerRequestWithNoLabels := Object{
-					"id":         "123",
-					"name":       "test-broker",
-					"broker_url": brokerServer.URL(),
-					"credentials": Object{
-						"basic": Object{
-							"username": brokerServer.Username,
-							"password": brokerServer.Password,
-						},
+		postBrokerBody := func() Object {
+			brokerServer := NewBrokerServer()
+			ctx.Servers[BrokerServerPrefix+"123"] = brokerServer
+			return Object{
+				"id":         "123",
+				"name":       "test-broker",
+				"broker_url": brokerServer.URL(),
+				"credentials": Object{
+					"basic": Object{
+						"username": brokerServer.Username,
+						"password": brokerServer.Password,
 					},
-				}
+				},
+			}
+		}
 
-				resp := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithNoLabels).
-					WithQuery("async", "true").
-					Expect().
-					Status(http.StatusAccepted)
+		for isAsync := range []string{"true", "false"} {
+			When("job timeout runs out", func() {
+				BeforeEach(func() {
+					postHook := func(e env.Environment, servers map[string]FakeServer) {
+						e.Set("operations.action_timeout", 5*time.Nanosecond)
+					}
 
-				VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-					Category:          types.CREATE,
-					State:             types.FAILED,
-					ResourceType:      types.ServiceBrokerType,
-					Reschedulable:     false,
-					DeletionScheduled: false,
-					Error:             "could not reach service broker",
+					ctx = NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
+				})
+
+				It("marks operation as failed", func() {
+					resp := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerBody()).
+						WithQuery("async", "true").
+						Expect()
+
+					VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+						Category:          types.CREATE,
+						State:             types.FAILED,
+						ResourceType:      types.ServiceBrokerType,
+						Reschedulable:     false,
+						DeletionScheduled: false,
+						Error:             "could not reach service broker",
+					})
 				})
 			})
-		})
+
+			When("reconciliation timeout runs out", func() {
+				BeforeEach(func() {
+					postHook := func(e env.Environment, servers map[string]FakeServer) {
+						e.Set("operations.reconciliation_operation_timeout", 2*time.Nanosecond)
+					}
+
+					ctx = NewTestContextBuilder().WithEnvPostExtensions(postHook).SkipBasicAuthClientSetup(true).Build()
+				})
+
+				It("marks operation as failed", func() {
+					ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerBody()).
+						WithQuery("async", isAsync).
+						Expect().
+						Status(http.StatusUnprocessableEntity)
+				})
+			})
+		}
 
 		When("when there are no available workers", func() {
+			BeforeEach(func() {
+				ctx = NewTestContextBuilder().Build()
+			})
+
 			It("returns 503", func() {
 				brokerServer := NewBrokerServer()
 				postBrokerRequestWithNoLabels := Object{
@@ -137,7 +160,6 @@ var _ = Describe("Operations", func() {
 	})
 
 	Context("Jobs", func() {
-
 		var operation *types.Operation
 
 		BeforeEach(func() {
@@ -234,7 +256,7 @@ var _ = Describe("Operations", func() {
 						Expect(err).To(BeNil())
 
 						return count
-					}, cleanupInterval*2).Should(Equal(0))
+					}, cleanupInterval*3).Should(Equal(0))
 				})
 			})
 
@@ -332,12 +354,13 @@ var _ = Describe("Operations", func() {
 			})
 		})
 
-		When("Specified job timeout passes", func() {
+		When("Specified action timeout passes", func() {
 			It("Marks orphans as failed operations", func() {
 				operation := &types.Operation{
 					Base: types.Base{
 						ID:        defaultOperationID,
 						UpdatedAt: time.Now(),
+						CreatedAt: time.Now(),
 						Labels:    make(map[string][]string),
 						Ready:     true,
 					},
