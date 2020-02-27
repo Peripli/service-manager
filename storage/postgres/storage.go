@@ -165,7 +165,10 @@ func (ps *Storage) Create(ctx context.Context, obj types.Object) (types.Object, 
 		return nil, err
 	}
 
-	createdObj := result.ToObject()
+	createdObj, err := result.ToObject()
+	if err != nil {
+		return nil, fmt.Errorf("could not convert created pg entity to object: %s", err)
+	}
 	createdObj.SetLabels(obj.GetLabels())
 
 	var labels []storage.Label
@@ -298,8 +301,9 @@ func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteri
 	return checkRowsAffected(ctx, result)
 }
 
-func (ps *Storage) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, _ ...query.Criterion) (types.Object, error) {
+func (ps *Storage) Update(ctx context.Context, obj types.Object, labelChanges types.LabelChanges, _ ...query.Criterion) (types.Object, error) {
 	obj.SetUpdatedAt(time.Now().UTC())
+
 	entity, err := ps.scheme.convert(obj)
 	if err != nil {
 		return nil, err
@@ -311,11 +315,14 @@ func (ps *Storage) Update(ctx context.Context, obj types.Object, labelChanges qu
 		return nil, err
 	}
 
-	result := entity.ToObject()
+	result, err := entity.ToObject()
+	if err != nil {
+		return nil, fmt.Errorf("could not convert updated pg entity for object: %s", err)
+	}
 	return result, nil
 }
 
-func (ps *Storage) updateLabels(ctx context.Context, entityID string, entity PostgresEntity, updateActions []*query.LabelChange) error {
+func (ps *Storage) updateLabels(ctx context.Context, entityID string, entity PostgresEntity, updateActions []*types.LabelChange) error {
 	newLabelFunc := func(labelID string, labelKey string, labelValue string) (PostgresLabel, error) {
 		label := entity.NewLabel(labelID, labelKey, labelValue)
 		pgLabel, ok := label.(PostgresLabel)

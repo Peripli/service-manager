@@ -122,8 +122,9 @@ func (om *Maintainer) Run() {
 				return
 			}
 			defer func() {
-				err := om.operationLockers[functor.name].Unlock(om.smCtx)
-				log.C(om.smCtx).Warnf("Could not unlock for maintainer functor (%s): %s", functor.name, err)
+				if err := om.operationLockers[functor.name].Unlock(om.smCtx); err != nil {
+					log.C(om.smCtx).Warnf("Could not unlock for maintainer functor (%s): %s", functor.name, err)
+				}
 			}()
 			log.C(om.smCtx).Infof("Successfully retrieved lock for maintainer functor (%s)", functor.name)
 
@@ -165,10 +166,10 @@ func (om *Maintainer) cleanupExternalOperations() {
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
-		log.D().Debugf("Failed to cleanup operations: %s", err)
+		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
 		return
 	}
-	log.D().Debug("Finished cleaning up external operations")
+	log.C(om.smCtx).Debug("Finished cleaning up external operations")
 }
 
 // cleanupInternalSuccessfulOperations cleans up all successful internal operations which are older than some specified time
@@ -181,10 +182,10 @@ func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
-		log.D().Debugf("Failed to cleanup operations: %s", err)
+		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
 		return
 	}
-	log.D().Debug("Finished cleaning up successful internal operations")
+	log.C(om.smCtx).Debug("Finished cleaning up successful internal operations")
 }
 
 // cleanupInternalFailedOperations cleans up all failed internal operations which are older than some specified time
@@ -199,10 +200,10 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
-		log.D().Debugf("Failed to cleanup operations: %s", err)
+		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
 		return
 	}
-	log.D().Debug("Finished cleaning up failed internal operations")
+	log.C(om.smCtx).Debug("Finished cleaning up failed internal operations")
 }
 
 // rescheduleUnprocessedOperations reschedules IN_PROGRESS operations which are reschedulable, not scheduled for deletion and no goroutine is processing at the moment
@@ -220,14 +221,14 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
 	if err != nil {
-		log.D().Debugf("Failed to fetch unprocessed operations: %s", err)
+		log.C(om.smCtx).Debugf("Failed to fetch unprocessed operations: %s", err)
 		return
 	}
 
 	operations := objectList.(*types.Operations)
 	for i := 0; i < operations.Len(); i++ {
 		operation := operations.ItemAt(i).(*types.Operation)
-		logger := log.ForContext(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
+		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
 
 		var action storageAction
 
@@ -243,13 +244,17 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 				object, err := repository.Create(ctx, object)
 				return object, util.HandleStorageError(err, operation.ResourceType.String())
 			}
-			/* TODO: Uncomment and adapt once update flow is enabled
-			case types.UPDATE:
-				action = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-					object, err := repository.Update(ctx, objFromDB, labelChanges, criteria...)
-					return object, util.HandleStorageError(err, operation.ResourceType.String())
-				}
-			*/
+		case types.UPDATE:
+			byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
+			object, err := om.repository.Get(om.smCtx, operation.ResourceType, byID)
+			if err != nil {
+				logger.Warnf("Failed to fetch resource with ID (%s) for operation with ID (%s): %s", operation.ResourceID, operation.ID, err)
+				break
+			}
+			action = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+				object, err := repository.Update(ctx, object, nil, byID)
+				return object, util.HandleStorageError(err, operation.ResourceType.String())
+			}
 		case types.DELETE:
 			byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
 
@@ -270,7 +275,7 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 		}
 	}
 
-	log.D().Debug("Finished rescheduling unprocessed operations")
+	log.C(om.smCtx).Debug("Finished rescheduling unprocessed operations")
 }
 
 // rescheduleOrphanMitigationOperations reschedules orphan mitigation operations which no goroutine is processing at the moment
@@ -286,14 +291,14 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
 	if err != nil {
-		log.D().Debugf("Failed to fetch unprocessed orphan mitigation operations: %s", err)
+		log.C(om.smCtx).Debugf("Failed to fetch unprocessed orphan mitigation operations: %s", err)
 		return
 	}
 
 	operations := objectList.(*types.Operations)
 	for i := 0; i < operations.Len(); i++ {
 		operation := operations.ItemAt(i).(*types.Operation)
-		logger := log.ForContext(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
+		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
 
 		byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
 
@@ -313,7 +318,7 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 		}
 	}
 
-	log.D().Debug("Finished rescheduling unprocessed orphan mitigation operations")
+	log.C(om.smCtx).Debug("Finished rescheduling unprocessed orphan mitigation operations")
 }
 
 // markOrphanOperationsFailed checks for operations which are stuck in state IN_PROGRESS, updates their status to FAILED and schedules a delete action
@@ -329,38 +334,40 @@ func (om *Maintainer) markOrphanOperationsFailed() {
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
 	if err != nil {
-		log.D().Debugf("Failed to fetch orphan operations: %s", err)
+		log.C(om.smCtx).Debugf("Failed to fetch orphan operations: %s", err)
 		return
 	}
 
 	operations := objectList.(*types.Operations)
 	for i := 0; i < operations.Len(); i++ {
 		operation := operations.ItemAt(i).(*types.Operation)
-		logger := log.ForContext(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
+		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
 
 		operation.DeletionScheduled = time.Now()
 
-		if _, err := om.repository.Update(om.smCtx, operation, query.LabelChanges{}); err != nil {
+		if _, err := om.repository.Update(om.smCtx, operation, types.LabelChanges{}); err != nil {
 			logger.Warnf("Failed to update orphan operation with ID (%s) state to FAILED: %s", operation.ID, err)
 			continue
 		}
 
-		byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
-		action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-			err := repository.Delete(ctx, operation.ResourceType, byID)
-			if err != nil {
-				if err == util.ErrNotFoundInStorage {
-					return nil, nil
+		if operation.Type == types.CREATE || operation.Type == types.DELETE {
+			byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
+			action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+				err := repository.Delete(ctx, operation.ResourceType, byID)
+				if err != nil {
+					if err == util.ErrNotFoundInStorage {
+						return nil, nil
+					}
+					return nil, util.HandleStorageError(err, operation.ResourceType.String())
 				}
-				return nil, util.HandleStorageError(err, operation.ResourceType.String())
+				return nil, nil
 			}
-			return nil, nil
-		}
 
-		if err := om.scheduler.ScheduleAsyncStorageAction(om.smCtx, operation, action); err != nil {
-			logger.Warnf("Failed to schedule delete action for operation with ID (%s): %s", operation.ID, err)
+			if err := om.scheduler.ScheduleAsyncStorageAction(om.smCtx, operation, action); err != nil {
+				logger.Warnf("Failed to schedule delete action for operation with ID (%s): %s", operation.ID, err)
+			}
 		}
 	}
 
-	log.D().Debug("Finished marking orphan operations as failed")
+	log.C(om.smCtx).Debug("Finished marking orphan operations as failed")
 }

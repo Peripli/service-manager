@@ -30,8 +30,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/test"
-	"github.com/Peripli/service-manager/test/common"
+	. "github.com/Peripli/service-manager/test/common"
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -48,7 +47,7 @@ func TestOperations(t *testing.T) {
 }
 
 var _ = Describe("Operations", func() {
-	var ctx *common.TestContext
+	var ctx *TestContext
 
 	AfterEach(func() {
 		ctx.Cleanup()
@@ -56,24 +55,24 @@ var _ = Describe("Operations", func() {
 
 	Context("Scheduler", func() {
 		BeforeEach(func() {
-			postHook := func(e env.Environment, servers map[string]common.FakeServer) {
+			postHook := func(e env.Environment, servers map[string]FakeServer) {
 				e.Set("operations.action_timeout", 5*time.Nanosecond)
 				e.Set("operations.mark_orphans_interval", 1*time.Hour)
 			}
 
-			ctx = common.NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
+			ctx = NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
 		})
 
 		When("job timeout runs out", func() {
 			It("marks operation as failed", func() {
-				brokerServer := common.NewBrokerServer()
-				ctx.Servers[common.BrokerServerPrefix+"123"] = brokerServer
-				postBrokerRequestWithNoLabels := common.Object{
+				brokerServer := NewBrokerServer()
+				ctx.Servers[BrokerServerPrefix+"123"] = brokerServer
+				postBrokerRequestWithNoLabels := Object{
 					"id":         "123",
 					"name":       "test-broker",
 					"broker_url": brokerServer.URL(),
-					"credentials": common.Object{
-						"basic": common.Object{
+					"credentials": Object{
+						"basic": Object{
 							"username": brokerServer.Username,
 							"password": brokerServer.Password,
 						},
@@ -84,19 +83,26 @@ var _ = Describe("Operations", func() {
 					WithQuery("async", "true").
 					Expect().
 					Status(http.StatusAccepted)
-				_, err := test.ExpectOperationWithError(ctx.SMWithOAuth, resp, types.FAILED, "could not reach service broker")
-				Expect(err).To(BeNil())
+
+				VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+					Category:          types.CREATE,
+					State:             types.FAILED,
+					ResourceType:      types.ServiceBrokerType,
+					Reschedulable:     false,
+					DeletionScheduled: false,
+					Error:             "could not reach service broker",
+				})
 			})
 		})
 
 		When("when there are no available workers", func() {
 			It("returns 503", func() {
-				brokerServer := common.NewBrokerServer()
-				postBrokerRequestWithNoLabels := common.Object{
+				brokerServer := NewBrokerServer()
+				postBrokerRequestWithNoLabels := Object{
 					"name":       "test-broker",
 					"broker_url": brokerServer.URL(),
-					"credentials": common.Object{
-						"basic": common.Object{
+					"credentials": Object{
+						"basic": Object{
 							"username": brokerServer.Username,
 							"password": brokerServer.Password,
 						},
@@ -153,7 +159,7 @@ var _ = Describe("Operations", func() {
 				DeletionScheduled: time.Time{},
 			}
 
-			ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+			ctx = NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 				testController := panicController{
 					operation: operation,
 					scheduler: operations.NewScheduler(ctx, smb.Storage, operations.DefaultSettings(), 10, &sync.WaitGroup{}),
@@ -190,10 +196,10 @@ var _ = Describe("Operations", func() {
 			operationExpiration = 2 * time.Second
 		)
 
-		var ctxBuilder *common.TestContextBuilder
+		var ctxBuilder *TestContextBuilder
 
-		postHookWithOperationsConfig := func() func(e env.Environment, servers map[string]common.FakeServer) {
-			return func(e env.Environment, servers map[string]common.FakeServer) {
+		postHookWithOperationsConfig := func() func(e env.Environment, servers map[string]FakeServer) {
+			return func(e env.Environment, servers map[string]FakeServer) {
 				e.Set("operations.action_timeout", actionTimeout)
 				e.Set("operations.cleanup_interval", cleanupInterval)
 				e.Set("operations.lifespan", operationExpiration)
@@ -209,7 +215,7 @@ var _ = Describe("Operations", func() {
 
 		BeforeEach(func() {
 			postHook := postHookWithOperationsConfig()
-			ctxBuilder = common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook)
+			ctxBuilder = NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook)
 			ctx = ctxBuilder.Build()
 		})
 
@@ -243,8 +249,8 @@ var _ = Describe("Operations", func() {
 
 				var (
 					brokerID     string
-					catalog      common.SBCatalog
-					brokerServer *common.BrokerServer
+					catalog      SBCatalog
+					brokerServer *BrokerServer
 				)
 
 				asyncProvision := func() {
@@ -270,11 +276,11 @@ var _ = Describe("Operations", func() {
 						rw.Header().Set("Content-Type", "application/json")
 						rw.WriteHeader(http.StatusAccepted)
 					}
-					common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
+					CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
 				})
 
 				AfterEach(func() {
-					common.RemoveAllInstances(ctx)
+					RemoveAllInstances(ctx)
 					ctx.CleanupBroker(brokerID)
 				})
 
@@ -363,8 +369,8 @@ var _ = Describe("Operations", func() {
 	})
 })
 
-func simpleCatalog(serviceID, planID string) common.SBCatalog {
-	return common.SBCatalog(fmt.Sprintf(`{
+func simpleCatalog(serviceID, planID string) SBCatalog {
+	return SBCatalog(fmt.Sprintf(`{
 	  "services": [{
 			"name": "no-tags-no-metadata",
 			"id": "%s",

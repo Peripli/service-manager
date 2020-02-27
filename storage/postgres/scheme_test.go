@@ -227,12 +227,12 @@ func (storageEntity) SetID(id string) {
 
 }
 
-func (storageEntity) ToObject() types.Object {
-	return &obj{}
+func (storageEntity) ToObject() (types.Object, error) {
+	return &obj{}, nil
 }
 
-func (storageEntity) FromObject(object types.Object) (storage.Entity, bool) {
-	return &storageEntity{}, true
+func (storageEntity) FromObject(object types.Object) (storage.Entity, error) {
+	return &storageEntity{}, nil
 }
 
 func (storageEntity) BuildLabels(labels types.Labels, newLabel func(id, key, value string) storage.Label) ([]storage.Label, error) {
@@ -259,14 +259,14 @@ func (postgresEntity) LabelEntity() PostgresLabel {
 	return nil
 }
 
-func (postgresEntity) FromObject(object types.Object) (storage.Entity, bool) {
-	return &postgresEntity{}, true
+func (postgresEntity) FromObject(object types.Object) (storage.Entity, error) {
+	return &postgresEntity{}, nil
 }
 
 type pgEntityFromObjectNotOk struct {
 	*postgresEntity
 }
 
-func (pgEntityFromObjectNotOk) FromObject(object types.Object) (storage.Entity, bool) {
-	return nil, false
+func (pgEntityFromObjectNotOk) FromObject(object types.Object) (storage.Entity, error) {
+	return nil, nil
 }

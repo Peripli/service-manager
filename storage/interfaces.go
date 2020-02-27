@@ -33,8 +33,8 @@ import (
 
 type Entity interface {
 	GetID() string
-	ToObject() types.Object
-	FromObject(object types.Object) (Entity, bool)
+	ToObject() (types.Object, error)
+	FromObject(object types.Object) (Entity, error)
 	BuildLabels(labels types.Labels, newLabel func(id, key, value string) Label) ([]Label, error)
 	NewLabel(id, key, value string) Label
 }
@@ -170,7 +170,7 @@ type Repository interface {
 	Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) error
 
 	// Update updates an object from SM DB
-	Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error)
+	Update(ctx context.Context, obj types.Object, labelChanges types.LabelChanges, criteria ...query.Criterion) (types.Object, error)
 }
 
 // TransactionalRepository is a storage repository that can initiate a transaction
