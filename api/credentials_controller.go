@@ -74,7 +74,7 @@ func (c *BaseController) setCredentials(r *web.Request) (*web.Response, error) {
 	if body.NotificationID != "" {
 		criteria := []query.Criterion{
 			query.ByField(query.EqualsOperator, "id", body.NotificationID),
-			query.ByField(query.EqualsOperator, "platform_id", body.PlatformID),
+			query.ByField(query.EqualsOrNilOperator, "platform_id", body.PlatformID),
 			query.ByField(query.EqualsOperator, "resource", string(types.ServiceBrokerType)),
 		}
 

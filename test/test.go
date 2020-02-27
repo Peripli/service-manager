@@ -336,11 +336,19 @@ func DescribeTestsFor(t TestCase) bool {
 	})
 }
 
+func RegisterBrokerPlatformCredentialsExpect(SMBasicPlatform *common.SMExpect, brokerID string, expectedStatusCode int) (string, string) {
+	return RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMBasicPlatform, brokerID, "", expectedStatusCode)
+}
+
 func RegisterBrokerPlatformCredentials(SMBasicPlatform *common.SMExpect, brokerID string) (string, string) {
 	return RegisterBrokerPlatformCredentialsWithNotificationID(SMBasicPlatform, brokerID, "")
 }
 
 func RegisterBrokerPlatformCredentialsWithNotificationID(SMBasicPlatform *common.SMExpect, brokerID, notificationID string) (string, string) {
+	return RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMBasicPlatform, brokerID, notificationID, http.StatusOK)
+}
+
+func RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMBasicPlatform *common.SMExpect, brokerID, notificationID string, expectedStatusCode int) (string, string) {
 	username, err := util.GenerateCredential()
 	Expect(err).ToNot(HaveOccurred())
 	password, err := util.GenerateCredential()
@@ -359,7 +367,7 @@ func RegisterBrokerPlatformCredentialsWithNotificationID(SMBasicPlatform *common
 	}
 
 	SMBasicPlatform.Request(http.MethodPut, web.BrokerPlatformCredentialsURL).
-		WithJSON(payload).Expect().Status(http.StatusOK)
+		WithJSON(payload).Expect().Status(expectedStatusCode)
 
 	return username, password
 }

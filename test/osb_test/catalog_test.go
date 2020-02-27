@@ -307,6 +307,7 @@ var _ = Describe("Catalog", func() {
 
 			AfterEach(func() {
 				ctx.CleanupBroker(prefixedBrokerID)
+				ctx.CleanupPlatforms()
 			})
 
 			It("should get catalog", func() {
@@ -319,36 +320,142 @@ var _ = Describe("Catalog", func() {
 					Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 			})
 
-			Context("when broker platform credentials change", func() {
-				FIt("should still get catalog", func() {
+			Context("when broker platform credentials change in context of a notification processing", func() {
+				Context("and notification is found in SM DB", func() {
+					Context("and notification properties match the ones provided in the set credentials request", func() {
+						It("should still get catalog", func() {
+							ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
+								Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+
+							oldSMWithBasic := &common.SMExpect{Expect: ctx.SMWithBasic.Expect}
+
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + prefixedBrokerID).
+								WithJSON(common.Object{}).
+								Expect().Status(http.StatusOK)
+
+							notifications, err := ctx.SMRepository.List(context.TODO(), types.NotificationType,
+								query.OrderResultBy("created_at", query.DescOrder))
+							Expect(err).ToNot(HaveOccurred())
+
+							newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationID(SMWithBasicPlatform, prefixedBrokerID, notifications.ItemAt(0).GetID())
+							ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
+
+							By("new credentials not yet used - old ones should still be valid")
+							oldSMWithBasic.GET(osbURL + "/v2/catalog").
+								Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+
+							By("new credentials used - old ones should be invalidated")
+							ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
+								Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+
+							oldSMWithBasic.GET(osbURL + "/v2/catalog").
+								Expect().Status(http.StatusUnauthorized)
+
+						})
+					})
+
+					Context("and notification properties does NOT match the ones provided in the set credentials request", func() {
+						When("provided notification id is for a different platform", func() {
+							It("should return conflict", func() {
+								ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
+									Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+
+								oldSMWithBasic := &common.SMExpect{Expect: ctx.SMWithBasic.Expect}
+
+								newPlatform := ctx.RegisterPlatform()
+
+								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + prefixedBrokerID).
+									WithJSON(common.Object{}).
+									Expect().Status(http.StatusOK)
+
+
+								notifications, err := ctx.SMRepository.List(context.TODO(), types.NotificationType,
+									query.OrderResultBy("created_at", query.DescOrder),
+									query.ByField(query.EqualsOperator,"platform_id",newPlatform.ID))
+								Expect(err).ToNot(HaveOccurred())
+
+								newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMWithBasicPlatform, prefixedBrokerID, notifications.ItemAt(0).GetID(), http.StatusConflict)
+								ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
+
+								By("new credentials should be invalid")
+								ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
+									Expect().Status(http.StatusUnauthorized)
+
+								By("old ones should be valid")
+								oldSMWithBasic.GET(osbURL + "/v2/catalog").
+									Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+							})
+						})
+					})
+
+					When("provided notification id is for a different broker", func() {
+						It("should return conflict", func() {
+							ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
+								Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+
+							oldSMWithBasic := &common.SMExpect{Expect: ctx.SMWithBasic.Expect}
+
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + prefixedBrokerID).
+								WithJSON(common.Object{}).
+								Expect().Status(http.StatusOK)
+
+							notifications, err := ctx.SMRepository.List(context.TODO(), types.NotificationType,
+								query.OrderResultBy("created_at", query.DescOrder))
+							Expect(err).ToNot(HaveOccurred())
+
+							newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMWithBasicPlatform, "non-existing-broker-id", notifications.ItemAt(0).GetID(), http.StatusConflict)
+							ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
+
+							By("new credentials should be invalid")
+							ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
+								Expect().Status(http.StatusUnauthorized)
+
+							By("old ones should be valid")
+							oldSMWithBasic.GET(osbURL + "/v2/catalog").
+								Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+						})
+					})
+				})
+
+				Context("and notification is not found in SM DB", func() {
+					It("should return conflict", func() {
+						ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
+							Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+
+						oldSMWithBasic := &common.SMExpect{Expect: ctx.SMWithBasic.Expect}
+
+						newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMWithBasicPlatform, prefixedBrokerID, "non-existing-id", http.StatusConflict)
+						ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
+
+						By("new credentials should be invalid")
+						ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
+							Expect().Status(http.StatusUnauthorized)
+
+						By("old ones should be valid")
+						oldSMWithBasic.GET(osbURL + "/v2/catalog").
+							Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+
+					})
+				})
+			})
+
+			Context("when broker platform credentials change out of notification processing context when already exist", func() {
+				It("should return conflict", func() {
 					ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
 						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 
 					oldSMWithBasic := &common.SMExpect{Expect: ctx.SMWithBasic.Expect}
 
-					ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + prefixedBrokerID).
-						WithJSON(common.Object{}).
-						Expect().Status(http.StatusOK)
-
-					notification, err := ctx.SMRepository.Get(context.TODO(), types.NotificationType,
-						query.OrderResultBy("created_at", query.DescOrder),
-						query.LimitResultBy(1))
-					Expect(err).ToNot(HaveOccurred())
-
-					newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationID(SMWithBasicPlatform, prefixedBrokerID, notification.GetID())
+					newUsername, newPassword := test.RegisterBrokerPlatformCredentialsExpect(SMWithBasicPlatform, prefixedBrokerID, http.StatusConflict)
 					ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
 
-					By("new credentials not yet used - old ones should still be valid")
-					oldSMWithBasic.GET(osbURL + "/v2/catalog").
-						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
-
-					By("new credentials used - old ones should be invalidated")
+					By("new credentials should be invalid")
 					ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
-						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
-
-					oldSMWithBasic.GET(osbURL + "/v2/catalog").
 						Expect().Status(http.StatusUnauthorized)
 
+					By("old ones should be valid")
+					oldSMWithBasic.GET(osbURL + "/v2/catalog").
+						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 				})
 			})
 		})
