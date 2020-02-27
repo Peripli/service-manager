@@ -552,7 +552,7 @@ func (smb *ServiceManagerBuilder) calculateIntegrity() error {
 					return err
 				}
 				securedObj.SetIntegrity(integrity)
-				if _, err := storage.Update(ctx, obj, query.LabelChanges{}); err != nil {
+				if _, err := storage.Update(ctx, obj, types.LabelChanges{}); err != nil {
 					return err
 				}
 			}

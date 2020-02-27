@@ -209,7 +209,7 @@ var _ = Describe("Integrity Repository", func() {
 			It("returns an error", func() {
 				fakeIntegrityProcessor.CalculateIntegrityReturns([]byte{}, fmt.Errorf("error"))
 
-				_, err = repository.Update(ctx, object, query.LabelChanges{})
+				_, err = repository.Update(ctx, object, types.LabelChanges{})
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -218,7 +218,7 @@ var _ = Describe("Integrity Repository", func() {
 			It("returns an error", func() {
 				fakeRepository.UpdateReturns(nil, fmt.Errorf("error"))
 
-				_, err = repository.Update(ctx, object, query.LabelChanges{})
+				_, err = repository.Update(ctx, object, types.LabelChanges{})
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -235,7 +235,7 @@ var _ = Describe("Integrity Repository", func() {
 				broker := object.(*types.ServiceBroker)
 				oldIntegrity := broker.Credentials.Integrity
 				Expect(newIntegrity).ToNot(Equal(oldIntegrity))
-				updatedObject, err := repository.Update(ctx, broker, query.LabelChanges{})
+				updatedObject, err := repository.Update(ctx, broker, types.LabelChanges{})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(updatedObject.(security.IntegralObject).GetIntegrity()).To(Equal(newIntegrity[:]))
 				Expect(updatedObject.(security.IntegralObject).GetIntegrity()).ToNot(Equal(oldIntegrity))
@@ -247,7 +247,7 @@ var _ = Describe("Integrity Repository", func() {
 
 			BeforeEach(func() {
 				delegateUpdateCallsCountBeforeOp = fakeRepository.UpdateCallCount()
-				_, err := repository.Update(ctx, object, query.LabelChanges{})
+				_, err := repository.Update(ctx, object, types.LabelChanges{})
 				Expect(err).ToNot(HaveOccurred())
 			})
 
@@ -314,7 +314,7 @@ var _ = Describe("Integrity Repository", func() {
 
 					// verify update
 					delegateUpdateCallsCountBeforeOp := fakeRepository.UpdateCallCount()
-					returnedObj, err = repository.Update(ctx, object, query.LabelChanges{})
+					returnedObj, err = repository.Update(ctx, object, types.LabelChanges{})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(fakeRepository.UpdateCallCount() - delegateUpdateCallsCountBeforeOp).To(Equal(1))
 					_, objectArg, _, _ = fakeRepository.UpdateArgsForCall(0)

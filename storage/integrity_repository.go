@@ -88,7 +88,7 @@ func (cr *integrityRepository) List(ctx context.Context, objectType types.Object
 	return objectList, nil
 }
 
-func (cr *integrityRepository) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
+func (cr *integrityRepository) Update(ctx context.Context, obj types.Object, labelChanges types.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
 	if err := cr.setIntegrity(obj); err != nil {
 		return nil, err
 	}
