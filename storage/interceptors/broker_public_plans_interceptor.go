@@ -238,7 +238,7 @@ func persistVisibility(ctx context.Context, txStorage storage.Repository, platfo
 			ID:        UUID.String(),
 			UpdatedAt: currentTime,
 			CreatedAt: currentTime,
-			Ready: broker.GetReady(),
+			Ready:     broker.GetReady(),
 		},
 		ServicePlanID: planID,
 		PlatformID:    platformID,

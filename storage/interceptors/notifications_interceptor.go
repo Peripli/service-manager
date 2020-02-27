@@ -55,7 +55,7 @@ func (ni *NotificationsInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc
 		}
 
 		if !newObj.GetReady() {
-			log.C(ctx).Infof("Object %s with id %s is not yet ready. No notification will be sent", newObj.GetType().String(), newObj.GetID())
+			log.C(ctx).Infof("Object %s with id %s is not yet ready. No notification will be created", newObj.GetType().String(), newObj.GetID())
 			return newObj, nil
 		}
 
@@ -86,10 +86,10 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			return nil, err
 		}
 
-		// // Scheduler updates the `ready` property of resources once an operation has ended - we should not create MODIFIED notifications in these cases
-		// if oldObject.GetReady() != updatedObject.GetReady() {
-		// 	return updatedObject, nil
-		// }
+		if !updatedObject.GetReady() {
+			log.C(ctx).Infof("Object %s with id %s is not yet ready. No notification will be created", updatedObject.GetType().String(), updatedObject.GetID())
+			return updatedObject, nil
+		}
 
 		detailsMap, err := ni.AdditionalDetailsFunc(ctx, types.NewObjectArray(updatedObject), repository)
 		if err != nil {
@@ -102,6 +102,7 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			return nil, err
 		}
 
+		// If the updated object has just become ready, then create a CREATED notification for it
 		if !oldObject.GetReady() && updatedObject.GetReady() {
 			for _, platformID := range updatedPlatformIDs {
 				if err := CreateNotification(ctx, repository, types.CREATED, updatedObject.GetType(), platformID, &Payload{
