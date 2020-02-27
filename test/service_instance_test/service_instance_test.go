@@ -392,6 +392,13 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 
+							When("plan has public visibility and support specific platform", func() {
+								It(fmt.Sprintf("for tenant returns %d", testCase.expectedCreateSuccessStatusCode), func() {
+									EnsurePublicPlanVisibilityForPlatform(ctx.SMRepository, servicePlanID, types.SMPlatform)
+									createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+								})
+							})
+
 							When("creating instance with same name", func() {
 								BeforeEach(func() {
 									EnsurePublicPlanVisibility(ctx.SMRepository, servicePlanID)
