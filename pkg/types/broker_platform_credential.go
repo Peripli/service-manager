@@ -34,6 +34,8 @@ type BrokerPlatformCredential struct {
 
 	PlatformID string `json:"platform_id"`
 	BrokerID   string `json:"broker_id"`
+
+	NotificationID string `json:"notification_id,omitempty"`
 }
 
 func (e *BrokerPlatformCredential) Equals(obj Object) bool {
@@ -47,7 +49,8 @@ func (e *BrokerPlatformCredential) Equals(obj Object) bool {
 		e.OldUsername != instance.OldUsername ||
 		e.OldPasswordHash != instance.OldPasswordHash ||
 		e.PlatformID != instance.PlatformID ||
-		e.BrokerID != instance.BrokerID {
+		e.BrokerID != instance.BrokerID ||
+		e.NotificationID != instance.NotificationID {
 		return false
 	}
 

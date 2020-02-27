@@ -320,13 +320,22 @@ var _ = Describe("Catalog", func() {
 			})
 
 			Context("when broker platform credentials change", func() {
-				It("should still get catalog", func() {
+				FIt("should still get catalog", func() {
 					ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
 						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 
 					oldSMWithBasic := &common.SMExpect{Expect: ctx.SMWithBasic.Expect}
 
-					newUsername, newPassword := test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, prefixedBrokerID)
+					ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + prefixedBrokerID).
+						WithJSON(common.Object{}).
+						Expect().Status(http.StatusOK)
+
+					notification, err := ctx.SMRepository.Get(context.TODO(), types.NotificationType,
+						query.OrderResultBy("created_at", query.DescOrder),
+						query.LimitResultBy(1))
+					Expect(err).ToNot(HaveOccurred())
+
+					newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationID(SMWithBasicPlatform, prefixedBrokerID, notification.GetID())
 					ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
 
 					By("new credentials not yet used - old ones should still be valid")

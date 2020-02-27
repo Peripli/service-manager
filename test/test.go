@@ -337,6 +337,10 @@ func DescribeTestsFor(t TestCase) bool {
 }
 
 func RegisterBrokerPlatformCredentials(SMBasicPlatform *common.SMExpect, brokerID string) (string, string) {
+	return RegisterBrokerPlatformCredentialsWithNotificationID(SMBasicPlatform, brokerID, "")
+}
+
+func RegisterBrokerPlatformCredentialsWithNotificationID(SMBasicPlatform *common.SMExpect, brokerID, notificationID string) (string, string) {
 	username, err := util.GenerateCredential()
 	Expect(err).ToNot(HaveOccurred())
 	password, err := util.GenerateCredential()
@@ -348,9 +352,10 @@ func RegisterBrokerPlatformCredentials(SMBasicPlatform *common.SMExpect, brokerI
 	}
 
 	payload := map[string]interface{}{
-		"broker_id":     brokerID,
-		"username":      username,
-		"password_hash": string(passwordHash),
+		"broker_id":       brokerID,
+		"username":        username,
+		"password_hash":   string(passwordHash),
+		"notification_id": notificationID,
 	}
 
 	SMBasicPlatform.Request(http.MethodPut, web.BrokerPlatformCredentialsURL).

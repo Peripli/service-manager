@@ -24,6 +24,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/gofrs/uuid"
+	"github.com/tidwall/gjson"
 	"net/http"
 	"time"
 
@@ -68,8 +69,37 @@ func (c *BaseController) setCredentials(r *web.Request) (*web.Response, error) {
 	if err := util.BytesToObject(r.Body, body); err != nil {
 		return nil, err
 	}
-
 	body.PlatformID = platform.ID
+
+	if body.NotificationID != "" {
+		criteria := []query.Criterion{
+			query.ByField(query.EqualsOperator, "id", body.NotificationID),
+			query.ByField(query.EqualsOperator, "platform_id", body.PlatformID),
+			query.ByField(query.EqualsOperator, "resource", string(types.ServiceBrokerType)),
+		}
+
+		obj, err := c.repository.Get(ctx, types.NotificationType, criteria...)
+		if err != nil {
+			if err == util.ErrNotFoundInStorage {
+				return nil, &util.HTTPError{
+					ErrorType:   "CredentialsError",
+					Description: fmt.Sprintf("Invalid notification ID %s - request rejected", body.NotificationID),
+					StatusCode:  http.StatusConflict,
+				}
+			}
+			return nil, util.HandleStorageError(err, c.objectType.String())
+		}
+
+		notification := obj.(*types.Notification)
+
+		if gjson.GetBytes(notification.Payload, "new.resource.id").String() != body.BrokerID {
+			return nil, &util.HTTPError{
+				ErrorType:   "CredentialsError",
+				Description: fmt.Sprintf("Invalid notification ID %s - request rejected", body.NotificationID),
+				StatusCode:  http.StatusConflict,
+			}
+		}
+	}
 
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", platform.ID),
@@ -81,6 +111,14 @@ func (c *BaseController) setCredentials(r *web.Request) (*web.Response, error) {
 			return c.registerCredentials(ctx, body)
 		}
 		return nil, util.HandleStorageError(err, c.objectType.String())
+	}
+
+	if body.NotificationID == "" {
+		return nil, &util.HTTPError{
+			ErrorType:   "CredentialsError",
+			Description: fmt.Sprint("Invalid request - cannot update existing credentials"),
+			StatusCode:  http.StatusConflict,
+		}
 	}
 
 	credentialsFromDB := objFromDB.(*types.BrokerPlatformCredential)
