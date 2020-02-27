@@ -18,6 +18,7 @@ package postgres
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
@@ -44,7 +45,7 @@ type ServicePlan struct {
 	ServiceOfferingID string `db:"service_offering_id"`
 }
 
-func (sp *ServicePlan) ToObject() types.Object {
+func (sp *ServicePlan) ToObject() (types.Object, error) {
 	return &types.ServicePlan{
 		Base: types.Base{
 			ID:             sp.ID,
@@ -65,13 +66,13 @@ func (sp *ServicePlan) ToObject() types.Object {
 		MaximumPollingDuration: sp.MaximumPollingDuration,
 		MaintenanceInfo:        getJSONRawMessage(sp.MaintenanceInfo),
 		ServiceOfferingID:      sp.ServiceOfferingID,
-	}
+	}, nil
 }
 
-func (sp *ServicePlan) FromObject(object types.Object) (storage.Entity, bool) {
+func (sp *ServicePlan) FromObject(object types.Object) (storage.Entity, error) {
 	plan, ok := object.(*types.ServicePlan)
 	if !ok {
-		return nil, false
+		return nil, fmt.Errorf("object is not of type ServicePlan")
 	}
 	return &ServicePlan{
 		BaseEntity: BaseEntity{
@@ -93,5 +94,5 @@ func (sp *ServicePlan) FromObject(object types.Object) (storage.Entity, bool) {
 		MaximumPollingDuration: plan.MaximumPollingDuration,
 		MaintenanceInfo:        getJSONText(plan.MaintenanceInfo),
 		ServiceOfferingID:      plan.ServiceOfferingID,
-	}, true
+	}, nil
 }

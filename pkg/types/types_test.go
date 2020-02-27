@@ -291,7 +291,7 @@ func createServiceInstance(now time.Time) Object {
 		DashboardURL:    "http://test-service.com/dashboard",
 		MaintenanceInfo: []byte("default"),
 		Context:         []byte("default"),
-		PreviousValues:  []byte("default"),
+		UpdateValues:    InstanceUpdateValues{},
 		Usable:          true,
 	}
 }

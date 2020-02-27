@@ -19,6 +19,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/types"
 	"reflect"
 	"strings"
 	"time"
@@ -33,20 +34,20 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) (PostgresLabel, error), pgDB pgDB, referenceID string, updateActions []*query.LabelChange) error {
+func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) (PostgresLabel, error), pgDB pgDB, referenceID string, updateActions []*types.LabelChange) error {
 	for _, action := range updateActions {
 		switch action.Operation {
-		case query.AddLabelOperation:
+		case types.AddLabelOperation:
 			fallthrough
-		case query.AddLabelValuesOperation:
+		case types.AddLabelValuesOperation:
 			for _, labelValue := range action.Values {
 				if err := addLabel(ctx, newLabelFunc, pgDB, action.Key, labelValue, referenceID); err != nil {
 					return err
 				}
 			}
-		case query.RemoveLabelOperation:
+		case types.RemoveLabelOperation:
 			fallthrough
-		case query.RemoveLabelValuesOperation:
+		case types.RemoveLabelValuesOperation:
 			pgLabel, err := newLabelFunc("", "", "")
 			if err != nil {
 				return err

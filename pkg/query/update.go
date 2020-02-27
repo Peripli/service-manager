@@ -17,9 +17,6 @@
 package query
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -27,59 +24,12 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-// LabelOperation is an operation to be performed on labels
-type LabelOperation string
-
-const (
-	// AddLabelOperation takes a label and adds it to the entity's labels
-	AddLabelOperation LabelOperation = "add"
-	// AddLabelValuesOperation takes a key and values and adds the values to the label with this key
-	AddLabelValuesOperation LabelOperation = "add_values"
-	// RemoveLabelOperation takes a key and removes the label with this key
-	RemoveLabelOperation LabelOperation = "remove"
-	// RemoveLabelValuesOperation takes a key and values and removes the values from the label with this key
-	RemoveLabelValuesOperation LabelOperation = "remove_values"
-)
-
-// RequiresValues returns true if the operation requires values to be provided
-func (o LabelOperation) RequiresValues() bool {
-	return o != RemoveLabelOperation
-}
-
-// LabelChange represents the changes that should be performed to a label
-type LabelChange struct {
-	Operation LabelOperation `json:"op"`
-	Key       string         `json:"key"`
-	Values    []string       `json:"values"`
-}
-
-func (lc *LabelChange) Validate() error {
-	if lc.Operation.RequiresValues() && len(lc.Values) == 0 {
-		return fmt.Errorf("operation %s requires values to be provided", lc.Operation)
-	}
-	if lc.Key == "" || lc.Operation == "" {
-		return errors.New("both key and operation are missing but are required for label change")
-	}
-	return nil
-}
-
-type LabelChanges []*LabelChange
-
-func (lc *LabelChanges) Validate() error {
-	for _, labelChange := range *lc {
-		if err := labelChange.Validate(); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // LabelChangesFromJSON returns the label changes from the json byte array and an error if the changes are not valid
-func LabelChangesFromJSON(jsonBytes []byte) ([]*LabelChange, error) {
-	labelChanges := LabelChanges{}
+func LabelChangesFromJSON(jsonBytes []byte) ([]*types.LabelChange, error) {
+	labelChanges := types.LabelChanges{}
 	labelChangesBytes := gjson.GetBytes(jsonBytes, "labels").String()
 	if len(labelChangesBytes) <= 0 {
-		return LabelChanges{}, nil
+		return types.LabelChanges{}, nil
 	}
 
 	if err := util.BytesToObject([]byte(labelChangesBytes), &labelChanges); err != nil {
@@ -90,7 +40,7 @@ func LabelChangesFromJSON(jsonBytes []byte) ([]*LabelChange, error) {
 }
 
 // ApplyLabelChangesToLabels applies the specified label changes to the specified labels
-func ApplyLabelChangesToLabels(changes LabelChanges, labels types.Labels) (types.Labels, types.Labels, types.Labels) {
+func ApplyLabelChangesToLabels(changes types.LabelChanges, labels types.Labels) (types.Labels, types.Labels, types.Labels) {
 	mergedLabels, labelsToAdd, labelsToRemove := types.Labels{}, types.Labels{}, types.Labels{}
 	for k, v := range labels {
 		mergedLabels[k] = v
@@ -98,9 +48,9 @@ func ApplyLabelChangesToLabels(changes LabelChanges, labels types.Labels) (types
 
 	for _, change := range changes {
 		switch change.Operation {
-		case AddLabelOperation:
+		case types.AddLabelOperation:
 			fallthrough
-		case AddLabelValuesOperation:
+		case types.AddLabelValuesOperation:
 			for _, value := range change.Values {
 				found := false
 				for _, currentValue := range mergedLabels[change.Key] {
@@ -114,9 +64,9 @@ func ApplyLabelChangesToLabels(changes LabelChanges, labels types.Labels) (types
 					mergedLabels[change.Key] = append(mergedLabels[change.Key], value)
 				}
 			}
-		case RemoveLabelOperation:
+		case types.RemoveLabelOperation:
 			fallthrough
-		case RemoveLabelValuesOperation:
+		case types.RemoveLabelValuesOperation:
 			if len(change.Values) == 0 {
 				labelsToRemove[change.Key] = labels[change.Key]
 				delete(mergedLabels, change.Key)

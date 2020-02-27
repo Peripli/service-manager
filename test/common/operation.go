@@ -21,7 +21,10 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/gavv/httpexpect"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -44,7 +47,7 @@ type ResourceExpectations struct {
 	Ready bool
 }
 
-func VerifyResourceExists(smClient *SMExpect, expectations ResourceExpectations) {
+func VerifyResourceExists(smClient *SMExpect, expectations ResourceExpectations) *httpexpect.Object {
 	timeoutDuration := 15 * time.Second
 	timeout := time.After(timeoutDuration)
 	ticker := time.Tick(100 * time.Millisecond)
@@ -65,11 +68,12 @@ func VerifyResourceExists(smClient *SMExpect, expectations ResourceExpectations)
 				if readyField != expectations.Ready {
 					Fail(fmt.Sprintf("Expected resource with type %s and id %s to be ready %t but ready was %t", expectations.Type, expectations.ID, expectations.Ready, readyField))
 				}
-				return
+				return resources.First().Object()
 			}
 		}
 	}
 }
+
 func VerifyResourceDoesNotExist(smClient *SMExpect, expectations ResourceExpectations) {
 	timeoutDuration := 15 * time.Second
 	timeout := time.After(timeoutDuration)
@@ -124,6 +128,17 @@ func VerifyOperationExists(ctx *TestContext, operationURL string, expectations O
 					By(fmt.Sprintf("Found operation with reschdulable %t but expected %t. Continue waiting...", reschedulable, expectations.Reschedulable))
 				case deletionScheduled.IsZero() == expectations.DeletionScheduled:
 					By(fmt.Sprintf("Found operation with deletion schduled %t but expected %t. Continue waiting...", !deletionScheduled.IsZero(), expectations.DeletionScheduled))
+				case len(expectations.Error) != 0:
+					errs := operation["errors"].(map[string]interface{})
+					errMsg := errs["description"].(string)
+					if !strings.Contains(errMsg, expectations.Error) {
+						By(fmt.Sprintf("Found operation with error %s but expected %s. Continue waiting...", errMsg, expectations.Error))
+					} else {
+						resourceID := operation["resource_id"].(string)
+						By(fmt.Sprintf("Found matching operation with resource_id %s", resourceID))
+
+						return resourceID, operation["id"].(string)
+					}
 				default:
 					resourceID := operation["resource_id"].(string)
 					By(fmt.Sprintf("Found matching operation with resource_id %s", resourceID))
@@ -150,6 +165,8 @@ func VerifyOperationExists(ctx *TestContext, operationURL string, expectations O
 						op := objectList.ItemAt(0).(*types.Operation)
 						if op.DeletionScheduled.IsZero() == expectations.DeletionScheduled {
 							By("operation matching the expectations was not found. Retrying...")
+						} else if expectations.Error != "" && !strings.Contains(string(op.Errors), expectations.Error) {
+							By(fmt.Sprintf("Found operation with error %s but expected %s. Continue waiting...", string(op.Errors), expectations.Error))
 						} else {
 							return op.ResourceID, op.ID
 						}

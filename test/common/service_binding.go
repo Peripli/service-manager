@@ -57,7 +57,7 @@ func DeleteBinding(ctx *TestContext, bindingID, instanceID string) error {
 			ResourceType:  types.ServiceBrokerType,
 			CorrelationID: "-",
 		}, func(ctx context.Context, repository storage.Repository) (object types.Object, e error) {
-			return repository.Update(ctx, broker, query.LabelChanges{})
+			return repository.Update(ctx, broker, types.LabelChanges{})
 		}); err != nil {
 			return err
 		}

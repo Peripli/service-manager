@@ -19,6 +19,7 @@ package postgres
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -46,9 +47,13 @@ type Operation struct {
 	DeletionScheduled   time.Time          `db:"deletion_scheduled"`
 }
 
-func (o *Operation) ToObject() types.Object {
+func (o *Operation) ToObject() (types.Object, error) {
 	transitiveResources := make([]*types.RelatedType, 0)
-	util.BytesToObject(getJSONRawMessage(o.TransitiveResources), &transitiveResources)
+	if o.TransitiveResources.String() != "" {
+		if err := util.BytesToObject(getJSONRawMessage(o.TransitiveResources), &transitiveResources); err != nil {
+			return nil, err
+		}
+	}
 
 	return &types.Operation{
 		Base: types.Base{
@@ -70,18 +75,21 @@ func (o *Operation) ToObject() types.Object {
 		ExternalID:          o.ExternalID.String,
 		Reschedule:          o.Reschedule,
 		DeletionScheduled:   o.DeletionScheduled,
-	}
+	}, nil
 }
 
-func (*Operation) FromObject(object types.Object) (storage.Entity, bool) {
+func (*Operation) FromObject(object types.Object) (storage.Entity, error) {
 	operation, ok := object.(*types.Operation)
 	if !ok {
-		return nil, false
+		return nil, fmt.Errorf("object is not of type Operation")
+	}
+	if operation.TransitiveResources == nil {
+		operation.TransitiveResources = make([]*types.RelatedType, 0)
 	}
 	transitiveResourcesBytes, err := json.Marshal(operation.TransitiveResources)
 	if err != nil {
 		log.D().Errorf("Could not marshal transitive resources of operation: %s", err.Error())
-		return nil, false
+		return nil, err
 	}
 
 	o := &Operation{
@@ -105,5 +113,5 @@ func (*Operation) FromObject(object types.Object) (storage.Entity, bool) {
 		Reschedule:          operation.Reschedule,
 		DeletionScheduled:   operation.DeletionScheduled,
 	}
-	return o, true
+	return o, nil
 }

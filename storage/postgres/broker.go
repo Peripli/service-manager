@@ -18,6 +18,7 @@ package postgres
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
@@ -39,10 +40,14 @@ type Broker struct {
 	Services []*ServiceOffering `db:"-"`
 }
 
-func (e *Broker) ToObject() types.Object {
+func (e *Broker) ToObject() (types.Object, error) {
 	var services []*types.ServiceOffering
 	for _, service := range e.Services {
-		services = append(services, service.ToObject().(*types.ServiceOffering))
+		serviceObject, err := service.ToObject()
+		if err != nil {
+			return nil, fmt.Errorf("converting broker to object failed while converting services: %s", err)
+		}
+		services = append(services, serviceObject.(*types.ServiceOffering))
 	}
 	broker := &types.ServiceBroker{
 		Base: types.Base{
@@ -65,20 +70,23 @@ func (e *Broker) ToObject() types.Object {
 		Catalog:  getJSONRawMessage(e.Catalog),
 		Services: services,
 	}
-	return broker
+	return broker, nil
 }
 
-func (*Broker) FromObject(object types.Object) (storage.Entity, bool) {
+func (*Broker) FromObject(object types.Object) (storage.Entity, error) {
 	broker, ok := object.(*types.ServiceBroker)
 	if !ok {
-		return nil, false
+		return nil, nil
 	}
 	serviceOfferingDTO := &ServiceOffering{}
 	var services []*ServiceOffering
 	for _, service := range broker.Services {
-		if entity, isServiceOffering := serviceOfferingDTO.FromObject(service); isServiceOffering {
-			services = append(services, entity.(*ServiceOffering))
+		entity, err := serviceOfferingDTO.FromObject(service)
+		if err != nil {
+			return nil, fmt.Errorf("converting broker from object failed while converting services: %s", err)
 		}
+
+		services = append(services, entity.(*ServiceOffering))
 	}
 	b := &Broker{
 		BaseEntity: BaseEntity{
@@ -98,5 +106,5 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, bool) {
 		b.Username = broker.Credentials.Basic.Username
 		b.Password = broker.Credentials.Basic.Password
 	}
-	return b, true
+	return b, nil
 }

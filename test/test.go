@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -99,7 +98,7 @@ type TestCase struct {
 
 	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
 	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
-	PatchResource                          func(ctx *common.TestContext, tenantScoped bool, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, async bool)
+	PatchResource                          func(ctx *common.TestContext, tenantScoped bool, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*types.LabelChange, async bool)
 
 	AdditionalTests func(ctx *common.TestContext, t *TestCase)
 	ContextBuilder  *common.TestContextBuilder
@@ -114,7 +113,7 @@ func stripObject(obj common.Object, properties ...string) {
 	}
 }
 
-func APIResourcePatch(ctx *common.TestContext, tenantScoped bool, apiPath string, objID string, _ types.ObjectType, patchLabels []*query.LabelChange, async bool) {
+func APIResourcePatch(ctx *common.TestContext, tenantScoped bool, apiPath string, objID string, objType types.ObjectType, patchLabels []*types.LabelChange, async bool) {
 	patchLabelsBody := make(map[string]interface{})
 	patchLabelsBody["labels"] = patchLabels
 
@@ -129,16 +128,20 @@ func APIResourcePatch(ctx *common.TestContext, tenantScoped bool, apiPath string
 
 	if async {
 		resp = resp.Status(http.StatusAccepted)
-		_, err := ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
-		if err != nil {
-			panic(err)
-		}
 	} else {
 		resp.Status(http.StatusOK)
 	}
+
+	common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
+		Category:          types.UPDATE,
+		State:             types.SUCCEEDED,
+		ResourceType:      objType,
+		Reschedulable:     false,
+		DeletionScheduled: false,
+	})
 }
 
-func StorageResourcePatch(ctx *common.TestContext, _ bool, _ string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, _ bool) {
+func StorageResourcePatch(ctx *common.TestContext, _ bool, _ string, objID string, resourceType types.ObjectType, patchLabels []*types.LabelChange, _ bool) {
 	byID := query.ByField(query.EqualsOperator, "id", objID)
 	sb, err := ctx.SMRepository.Get(context.Background(), resourceType, byID)
 	if err != nil {
@@ -151,71 +154,32 @@ func StorageResourcePatch(ctx *common.TestContext, _ bool, _ string, objID strin
 	}
 }
 
-func ExpectSuccessfulAsyncResourceCreation(resp *httpexpect.Response, SM *common.SMExpect, resourceURL string) map[string]interface{} {
-	resp = resp.Status(http.StatusAccepted)
-
-	op, err := ExpectOperation(SM, resp, types.SUCCEEDED)
-	if err != nil {
-		panic(err)
-	}
-
-	obj := SM.GET(resourceURL + "/" + op.Value("resource_id").String().Raw()).
-		Expect().Status(http.StatusOK).JSON().Object().Raw()
-
-	return obj
-}
-
-func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState) (*httpexpect.Object, error) {
-	return ExpectOperationWithError(auth, asyncResp, expectedState, "")
-}
-
-//TODO this should be replaced as it does not verify enough
-func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState, expectedErrMsg string) (*httpexpect.Object, error) {
-	operationURL := asyncResp.Header("Location").Raw()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	var state string
-	expectedStateStr := string(expectedState)
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("unable to verify operation state (expected state = %s, last state = %s)", expectedStateStr, state)
-		default:
-			operation := auth.GET(operationURL).
-				Expect().Status(http.StatusOK).JSON().Object()
-			state = operation.Value("state").String().Raw()
-			if state == expectedStateStr {
-				if expectedState == types.SUCCEEDED || len(expectedStateStr) == 0 {
-					return operation, nil
-				}
-				errs := operation.Value("errors")
-				errs.NotNull()
-				errMsg := errs.Object().Value("description").String().Raw()
-
-				if !strings.Contains(errMsg, expectedErrMsg) {
-					return operation, fmt.Errorf("unable to verify operation - expected error message (%s), but got (%s)", expectedErrMsg, errMsg)
-				} else {
-					return operation, nil
-				}
-			}
-		}
-	}
-}
-
 func EnsurePublicPlanVisibility(repository storage.Repository, planID string) {
 	EnsurePlanVisibility(repository, "", "", planID, "")
 }
 
-func EnsurePlanVisibility(repository storage.Repository, tenantIdentifier, platformID, planID, tenantID string) {
-	byPlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
-	byPlatformID := query.ByField(query.EqualsOperator, "platform_id", platformID)
-	if err := repository.Delete(context.TODO(), types.VisibilityType, byPlanID, byPlatformID); err != nil {
+func EnsurePlanVisibilityDoesNotExist(repository storage.Repository, tenantIdentifier, platformID, planID, tenantID string) {
+	var criteria []query.Criterion
+
+	if planID != "" {
+		criteria = append(criteria, query.ByField(query.EqualsOperator, "service_plan_id", planID))
+	}
+	if platformID != "" {
+		criteria = append(criteria, query.ByField(query.EqualsOperator, "platform_id", platformID))
+	}
+	if tenantIdentifier != "" {
+		criteria = append(criteria, query.ByLabel(query.EqualsOperator, tenantIdentifier, tenantID))
+	}
+
+	if err := repository.Delete(context.TODO(), types.VisibilityType, criteria...); err != nil {
 		if err != util.ErrNotFoundInStorage {
 			panic(err)
 		}
 	}
+}
+
+func EnsurePlanVisibility(repository storage.Repository, tenantIdentifier, platformID, planID, tenantID string) {
+	EnsurePlanVisibilityDoesNotExist(repository, tenantIdentifier, platformID, planID, tenantID)
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(fmt.Errorf("could not generate GUID for visibility: %s", err))

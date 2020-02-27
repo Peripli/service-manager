@@ -18,6 +18,7 @@ package postgres
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
@@ -40,7 +41,7 @@ type ServiceBinding struct {
 	Credentials       string                 `db:"credentials"`
 }
 
-func (sb *ServiceBinding) ToObject() types.Object {
+func (sb *ServiceBinding) ToObject() (types.Object, error) {
 	return &types.ServiceBinding{
 		Base: types.Base{
 			ID:             sb.ID,
@@ -59,13 +60,13 @@ func (sb *ServiceBinding) ToObject() types.Object {
 		Context:           getJSONRawMessage(sb.Context),
 		BindResource:      getJSONRawMessage(sb.BindResource),
 		Credentials:       getJSONRawMessageFromString(sb.Credentials),
-	}
+	}, nil
 }
 
-func (*ServiceBinding) FromObject(object types.Object) (storage.Entity, bool) {
+func (*ServiceBinding) FromObject(object types.Object) (storage.Entity, error) {
 	serviceBinding, ok := object.(*types.ServiceBinding)
 	if !ok {
-		return nil, false
+		return nil, fmt.Errorf("object is not of type ServiceBinding")
 	}
 
 	sb := &ServiceBinding{
@@ -87,5 +88,5 @@ func (*ServiceBinding) FromObject(object types.Object) (storage.Entity, bool) {
 		Credentials:       getStringFromJSONRawMessage(serviceBinding.Credentials),
 	}
 
-	return sb, true
+	return sb, nil
 }
