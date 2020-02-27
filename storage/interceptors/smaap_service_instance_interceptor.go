@@ -42,7 +42,7 @@ const ServiceInstanceCreateInterceptorProviderName = "ServiceInstanceCreateInter
 
 type BaseSMAAPInterceptorProvider struct {
 	OSBClientCreateFunc osbc.CreateFunc
-	Repository          storage.TransactionalRepository
+	Repository          *storage.InterceptableTransactionalRepository
 	TenantKey           string
 	PollingInterval     time.Duration
 }
@@ -107,7 +107,7 @@ func (c *ServiceInstanceDeleteInterceptorProvider) Name() string {
 
 type ServiceInstanceInterceptor struct {
 	osbClientCreateFunc osbc.CreateFunc
-	repository          storage.TransactionalRepository
+	repository          *storage.InterceptableTransactionalRepository
 	tenantKey           string
 	pollingInterval     time.Duration
 }
@@ -155,7 +155,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 					// mark the operation as deletion scheduled meaning orphan mitigation is required
 					operation.DeletionScheduled = time.Now().UTC()
 					operation.Reschedule = false
-					if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
 					}
 				}
@@ -175,7 +175,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 					operation.ExternalID = string(*provisionResponse.OperationKey)
 				}
 
-				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", instance.ID, err)
 				}
 			} else {
@@ -192,7 +192,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		}
 
 		if operation.Reschedule {
-			if err := i.pollServiceInstance(ctx, osbClient, instance, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
+			if err := i.pollServiceInstance(ctx, osbClient, instance, operation, service.CatalogID, plan.CatalogID, true); err != nil {
 				return nil, err
 			}
 		}
@@ -200,10 +200,120 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		return instance, nil
 	}
 }
+func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
+	return func(ctx context.Context, updatedObj types.Object, labelChanges ...*types.LabelChange) (object types.Object, err error) {
+		updatedInstance := updatedObj.(*types.ServiceInstance)
+		if updatedInstance.PlatformID != types.SMPlatform {
+			return f(ctx, updatedObj, labelChanges...)
+		}
 
-// TODO Update of instances in SM is not yet implemented
-func (i *ServiceInstanceInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
-	return h
+		operation, found := operations.GetFromContext(ctx)
+		if !found {
+			return nil, fmt.Errorf("operation missing from context")
+		}
+
+		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, updatedInstance)
+		if err != nil {
+			return nil, err
+		}
+
+		var instance *types.ServiceInstance
+		if !operation.Reschedule {
+			instanceObjBeforeUpdate, err := i.repository.Get(ctx, types.ServiceInstanceType, query.Criterion{
+				LeftOp:   "id",
+				Operator: query.EqualsOperator,
+				RightOp:  []string{updatedInstance.ID},
+				Type:     query.FieldQuery,
+			})
+			if err != nil {
+				log.C(ctx).WithError(err).Errorf("could not get instance with id '%s'", updatedInstance.ID)
+				return nil, err
+			}
+			instance = instanceObjBeforeUpdate.(*types.ServiceInstance)
+
+			oldServicePlanObj, err := i.repository.Get(ctx, types.ServicePlanType, query.Criterion{
+				LeftOp:   "id",
+				Operator: query.EqualsOperator,
+				RightOp:  []string{instance.ServicePlanID},
+				Type:     query.FieldQuery,
+			})
+			if err != nil {
+				return nil, &util.HTTPError{
+					ErrorType:   "NotFound",
+					Description: fmt.Sprintf("current service plan with id %s for instance %s no longer exists and instance updates are not allowed", instance.ServicePlanID, instance.Name),
+					StatusCode:  http.StatusBadRequest,
+				}
+			}
+			oldServicePlan := oldServicePlanObj.(*types.ServicePlan)
+			var updateInstanceResponse *osbc.UpdateInstanceResponse
+			updateInstanceRequest, err := i.prepareUpdateInstanceRequest(updatedInstance, service.CatalogID, plan.CatalogID, oldServicePlan.CatalogID)
+			if err != nil {
+				return nil, fmt.Errorf("faied to prepare update instance request: %s", err)
+			}
+			log.C(ctx).Infof("Sending update instance request %s to broker with name %s", logUpdateInstanceRequest(updateInstanceRequest), broker.Name)
+			updateInstanceResponse, err = osbClient.UpdateInstance(updateInstanceRequest)
+			if err != nil {
+				brokerError := &util.HTTPError{
+					ErrorType:   "BrokerError",
+					Description: fmt.Sprintf("Failed update instance request %s: %s", logUpdateInstanceRequest(updateInstanceRequest), err),
+					StatusCode:  http.StatusBadGateway,
+				}
+
+				return nil, brokerError
+			}
+
+			// SM should not not store parameters
+			updatedInstance.Parameters = nil
+			// if broker returned a dashboard URL, store it in SM
+			if updateInstanceResponse.DashboardURL != nil {
+				dashboardURL := *updateInstanceResponse.DashboardURL
+				updatedInstance.DashboardURL = dashboardURL
+			}
+			instance.UpdateValues = types.InstanceUpdateValues{
+				ServiceInstance: updatedInstance,
+				LabelChanges:    labelChanges,
+			}
+			// use repository with no interceptors to attach the update details to the instance
+			instanceObjAfterRawUpdate, err := i.repository.RawRepository.Update(ctx, instance, types.LabelChanges{})
+			if err != nil {
+				return nil, err
+			}
+			instance = instanceObjAfterRawUpdate.(*types.ServiceInstance)
+			if updateInstanceResponse.Async {
+				log.C(ctx).Infof("Successful asynchronous update instance request %s to broker %s returned response %s",
+					logUpdateInstanceRequest(updateInstanceRequest), broker.Name, logUpdateInstanceResponse(updateInstanceResponse))
+				operation.Reschedule = true
+				if updateInstanceResponse.OperationKey != nil {
+					operation.ExternalID = string(*updateInstanceResponse.OperationKey)
+				}
+
+				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", updatedInstance.ID, err)
+				}
+			} else {
+				log.C(ctx).Infof("Successful synchronous update instance %s to broker %s returned response %s",
+					logUpdateInstanceRequest(updateInstanceRequest), broker.Name, logUpdateInstanceResponse(updateInstanceResponse))
+			}
+		} else {
+			instance = updatedInstance
+		}
+
+		if operation.Reschedule {
+			if err := i.pollServiceInstance(ctx, osbClient, updatedInstance, operation, service.CatalogID, plan.CatalogID, false); err != nil {
+				instance.UpdateValues = types.InstanceUpdateValues{}
+				_, updateErr := i.repository.RawRepository.Update(ctx, instance, types.LabelChanges{})
+				if updateErr != nil {
+					return nil, updateErr
+				}
+				return nil, err
+			}
+		}
+		// continue further down the interceptor chain with the updated instance
+
+		//if there are post around tx interceptors registered on the flow and they fail, we might result in a situation where we have
+		// successfully updated instance and an UPDATE operation that is marked as failed!
+		return f(ctx, instance.UpdateValues.ServiceInstance, instance.UpdateValues.LabelChanges...)
+	}
 }
 
 func (i *ServiceInstanceInterceptor) AroundTxDelete(f storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
@@ -287,7 +397,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 			if shouldStartOrphanMitigation(err) {
 				operation.DeletionScheduled = time.Now()
 				operation.Reschedule = false
-				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
 				}
 			}
@@ -302,7 +412,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 			if deprovisionResponse.OperationKey != nil {
 				operation.ExternalID = string(*deprovisionResponse.OperationKey)
 			}
-			if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+			if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 				return fmt.Errorf("failed to update operation with id %s to mark that rescheduling is possible: %s", operation.ID, err)
 			}
 		} else {
@@ -312,7 +422,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 	}
 
 	if operation.Reschedule {
-		if err := i.pollServiceInstance(ctx, osbClient, instance, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
+		if err := i.pollServiceInstance(ctx, osbClient, instance, operation, service.CatalogID, plan.CatalogID, true); err != nil {
 			return err
 		}
 	}
@@ -320,7 +430,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 	return nil
 }
 
-func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, osbClient osbc.Client, instance *types.ServiceInstance, operation *types.Operation, brokerID, serviceCatalogID, planCatalogID, operationKey string, enableOrphanMitigation bool) error {
+func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, osbClient osbc.Client, instance *types.ServiceInstance, operation *types.Operation, serviceCatalogID, planCatalogID string, enableOrphanMitigation bool) error {
 	var key *osbc.OperationKey
 	if len(operation.ExternalID) != 0 {
 		opKey := osbc.OperationKey(operation.ExternalID)
@@ -352,7 +462,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 					log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
 
 					operation.Reschedule = false
-					if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return fmt.Errorf("failed to update operation with id %s to mark that next execution should not be reschedulable", operation.ID)
 					}
 					return nil
@@ -374,7 +484,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 				log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
 
 				operation.Reschedule = false
-				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
 				}
 
@@ -385,7 +495,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 				if enableOrphanMitigation {
 					operation.DeletionScheduled = time.Now()
 				}
-				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return fmt.Errorf("failed to update operation with id %s after failed of last operation for instance with id %s: %s", operation.ID, instance.ID, err)
 				}
 
@@ -445,26 +555,26 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 }
 
 func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string) (*osbc.ProvisionRequest, error) {
-	context := make(map[string]interface{})
+	instanceContext := make(map[string]interface{})
 	if len(instance.Context) != 0 {
-		if err := json.Unmarshal(instance.Context, &context); err != nil {
+		if err := json.Unmarshal(instance.Context, &instanceContext); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal already present OSB context: %s", err)
 		}
 	} else {
-		context = map[string]interface{}{
+		instanceContext = map[string]interface{}{
 			"platform":      types.SMPlatform,
 			"instance_name": instance.Name,
 		}
 
 		if len(i.tenantKey) != 0 {
 			if tenantValue, ok := instance.GetLabels()[i.tenantKey]; ok {
-				context[i.tenantKey] = tenantValue[0]
+				instanceContext[i.tenantKey] = tenantValue[0]
 			}
 		}
 
-		contextBytes, err := json.Marshal(context)
+		contextBytes, err := json.Marshal(instanceContext)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal OSB context %+v: %s", context, err)
+			return nil, fmt.Errorf("failed to marshal OSB context %+v: %s", instanceContext, err)
 		}
 		instance.Context = contextBytes
 	}
@@ -477,12 +587,52 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.Ser
 		OrganizationGUID:  "-",
 		SpaceGUID:         "-",
 		Parameters:        instance.Parameters,
-		Context:           context,
+		Context:           instanceContext,
 		//TODO no OI for SM platform yet
 		OriginatingIdentity: nil,
 	}
 
 	return provisionRequest, nil
+}
+
+func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID, oldCatalogPlanID string) (*osbc.UpdateInstanceRequest, error) {
+	instanceContext := make(map[string]interface{})
+	if len(instance.Context) != 0 {
+		if err := json.Unmarshal(instance.Context, &instanceContext); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal already present OSB context: %s", err)
+		}
+	} else {
+		instanceContext = map[string]interface{}{
+			"platform":      types.SMPlatform,
+			"instance_name": instance.Name,
+		}
+
+		if len(i.tenantKey) != 0 {
+			if tenantValue, ok := instance.GetLabels()[i.tenantKey]; ok {
+				instanceContext[i.tenantKey] = tenantValue[0]
+			}
+		}
+
+		contextBytes, err := json.Marshal(instanceContext)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal OSB context %+v: %s", instanceContext, err)
+		}
+		instance.Context = contextBytes
+	}
+
+	return &osbc.UpdateInstanceRequest{
+		InstanceID:        instance.GetID(),
+		AcceptsIncomplete: true,
+		ServiceID:         serviceCatalogID,
+		PlanID:            &planCatalogID,
+		Parameters:        instance.Parameters,
+		Context:           instanceContext,
+		PreviousValues: &osbc.PreviousValues{
+			PlanID: oldCatalogPlanID,
+		},
+		//TODO no OI for SM platform yet
+		OriginatingIdentity: nil,
+	}, nil
 }
 
 func prepareDeprovisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string) *osbc.DeprovisionRequest {
@@ -513,12 +663,25 @@ func shouldStartOrphanMitigation(err error) bool {
 	return false
 }
 
+func logUpdateInstanceRequest(request *osbc.UpdateInstanceRequest) string {
+	servicePlanString := ""
+	if request.PlanID != nil {
+		servicePlanString = "planID: " + (*request.PlanID)
+	}
+	return fmt.Sprintf("context: %+v, instanceID: %s, %s, serviceID: %s, acceptsIncomplete: %t",
+		request.Context, request.InstanceID, servicePlanString, request.ServiceID, request.AcceptsIncomplete)
+}
+
 func logProvisionRequest(request *osbc.ProvisionRequest) string {
 	return fmt.Sprintf("context: %+v, instanceID: %s, planID: %s, serviceID: %s, acceptsIncomplete: %t",
 		request.Context, request.InstanceID, request.PlanID, request.ServiceID, request.AcceptsIncomplete)
 }
 
 func logProvisionResponse(response *osbc.ProvisionResponse) string {
+	return fmt.Sprintf("async: %t, dashboardURL: %s, operationKey: %s", response.Async, strPtrToStr(response.DashboardURL), opKeyPtrToStr(response.OperationKey))
+}
+
+func logUpdateInstanceResponse(response *osbc.UpdateInstanceResponse) string {
 	return fmt.Sprintf("async: %t, dashboardURL: %s, operationKey: %s", response.Async, strPtrToStr(response.DashboardURL), opKeyPtrToStr(response.OperationKey))
 }
 

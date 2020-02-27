@@ -389,8 +389,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + existingVisibilityID).
 							WithJSON(common.Object{
 								"labels": common.Array{
-									query.LabelChange{
-										Operation: query.AddLabelOperation,
+									types.LabelChange{
+										Operation: types.AddLabelOperation,
 										Key:       "key",
 										Values:    []string{"value"},
 									},
@@ -507,17 +507,17 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Describe("Labelled", func() {
 					var id string
-					var patchLabels []query.LabelChange
+					var patchLabels []types.LabelChange
 					var patchLabelsBody map[string]interface{}
 					changedLabelKey := "label_key"
 					changedLabelValues := []string{"label_value1", "label_value2"}
-					operation := query.AddLabelOperation
+					operation := types.AddLabelOperation
 					BeforeEach(func() {
-						patchLabels = []query.LabelChange{}
+						patchLabels = []types.LabelChange{}
 					})
 					JustBeforeEach(func() {
 						patchLabelsBody = make(map[string]interface{})
-						patchLabels = append(patchLabels, query.LabelChange{
+						patchLabels = append(patchLabels, types.LabelChange{
 							Operation: operation,
 							Key:       changedLabelKey,
 							Values:    changedLabelValues,
@@ -555,7 +555,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Add new label value", func() {
 						BeforeEach(func() {
-							operation = query.AddLabelValuesOperation
+							operation = types.AddLabelValuesOperation
 							changedLabelKey = "cluster_id"
 							changedLabelValues = []string{"new-label-value"}
 						})
@@ -574,7 +574,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Add new label value to a non-existing label", func() {
 						BeforeEach(func() {
-							operation = query.AddLabelValuesOperation
+							operation = types.AddLabelValuesOperation
 							changedLabelKey = "cluster_id_new"
 							changedLabelValues = []string{"new-label-value"}
 						})
@@ -594,7 +594,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Add duplicate label value", func() {
 						BeforeEach(func() {
-							operation = query.AddLabelValuesOperation
+							operation = types.AddLabelValuesOperation
 							changedLabelKey = "cluster_id"
 							values := labels["cluster_id"].([]interface{})
 							changedLabelValues = []string{values[0].(string)}
@@ -610,7 +610,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Remove a label", func() {
 						BeforeEach(func() {
-							operation = query.RemoveLabelOperation
+							operation = types.RemoveLabelOperation
 							changedLabelKey = "cluster_id"
 						})
 						It("Should return 200", func() {
@@ -624,7 +624,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Remove a label and providing no key", func() {
 						BeforeEach(func() {
-							operation = query.RemoveLabelOperation
+							operation = types.RemoveLabelOperation
 							changedLabelKey = ""
 						})
 						It("Should return 400", func() {
@@ -637,7 +637,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Remove a label key which does not exist", func() {
 						BeforeEach(func() {
-							operation = query.RemoveLabelOperation
+							operation = types.RemoveLabelOperation
 							changedLabelKey = "non-existing-ey"
 						})
 						It("Should return 200", func() {
@@ -651,7 +651,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("Remove label values and providing a single value", func() {
 						var valueToRemove string
 						BeforeEach(func() {
-							operation = query.RemoveLabelValuesOperation
+							operation = types.RemoveLabelValuesOperation
 							changedLabelKey = "cluster_id"
 							valueToRemove = labels[changedLabelKey].([]interface{})[0].(string)
 							changedLabelValues = []string{valueToRemove}
@@ -668,7 +668,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("Remove label values and providing multiple values", func() {
 						var valuesToRemove []string
 						BeforeEach(func() {
-							operation = query.RemoveLabelValuesOperation
+							operation = types.RemoveLabelValuesOperation
 							changedLabelKey = "org_id"
 							val1 := labels[changedLabelKey].([]interface{})[0].(string)
 							val2 := labels[changedLabelKey].([]interface{})[1].(string)
@@ -687,7 +687,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("Remove all label values for a key", func() {
 						var valuesToRemove []string
 						BeforeEach(func() {
-							operation = query.RemoveLabelValuesOperation
+							operation = types.RemoveLabelValuesOperation
 							changedLabelKey = "cluster_id"
 							labelValues := labels[changedLabelKey].([]interface{})
 							for _, val := range labelValues {
@@ -706,7 +706,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Remove label values and not providing value to remove", func() {
 						BeforeEach(func() {
-							operation = query.RemoveLabelValuesOperation
+							operation = types.RemoveLabelValuesOperation
 							changedLabelValues = []string{}
 						})
 						It("Should return 400", func() {
@@ -719,7 +719,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Remove label value which does not exist", func() {
 						BeforeEach(func() {
-							operation = query.RemoveLabelValuesOperation
+							operation = types.RemoveLabelValuesOperation
 							changedLabelKey = "cluster_id"
 							changedLabelValues = []string{"non-existing-value"}
 						})

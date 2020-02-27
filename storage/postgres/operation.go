@@ -18,6 +18,7 @@ package postgres
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -42,7 +43,7 @@ type Operation struct {
 	DeletionScheduled time.Time          `db:"deletion_scheduled"`
 }
 
-func (o *Operation) ToObject() types.Object {
+func (o *Operation) ToObject() (types.Object, error) {
 	return &types.Operation{
 		Base: types.Base{
 			ID:             o.ID,
@@ -62,13 +63,13 @@ func (o *Operation) ToObject() types.Object {
 		ExternalID:        o.ExternalID.String,
 		Reschedule:        o.Reschedule,
 		DeletionScheduled: o.DeletionScheduled,
-	}
+	}, nil
 }
 
-func (*Operation) FromObject(object types.Object) (storage.Entity, bool) {
+func (*Operation) FromObject(object types.Object) (storage.Entity, error) {
 	operation, ok := object.(*types.Operation)
 	if !ok {
-		return nil, false
+		return nil, fmt.Errorf("object is not of type Operation")
 	}
 
 	o := &Operation{
@@ -91,5 +92,5 @@ func (*Operation) FromObject(object types.Object) (storage.Entity, bool) {
 		Reschedule:        operation.Reschedule,
 		DeletionScheduled: operation.DeletionScheduled,
 	}
-	return o, true
+	return o, nil
 }

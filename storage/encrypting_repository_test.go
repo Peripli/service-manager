@@ -257,7 +257,7 @@ var _ = Describe("Encrypting Repository", func() {
 			It("returns an error", func() {
 				fakeEncrypter.EncryptReturns(nil, fmt.Errorf("error"))
 
-				_, err = repository.Update(ctx, objWithDecryptedPassword, query.LabelChanges{})
+				_, err = repository.Update(ctx, objWithDecryptedPassword, types.LabelChanges{})
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -266,7 +266,7 @@ var _ = Describe("Encrypting Repository", func() {
 			It("returns an error", func() {
 				fakeEncrypter.DecryptReturns(nil, fmt.Errorf("error"))
 
-				_, err = repository.Update(ctx, objWithDecryptedPassword, query.LabelChanges{})
+				_, err = repository.Update(ctx, objWithDecryptedPassword, types.LabelChanges{})
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -275,7 +275,7 @@ var _ = Describe("Encrypting Repository", func() {
 			It("returns an error", func() {
 				fakeRepository.UpdateReturns(nil, fmt.Errorf("error"))
 
-				_, err = repository.Update(ctx, objWithDecryptedPassword, query.LabelChanges{})
+				_, err = repository.Update(ctx, objWithDecryptedPassword, types.LabelChanges{})
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -287,7 +287,7 @@ var _ = Describe("Encrypting Repository", func() {
 
 			BeforeEach(func() {
 				delegateUpdateCallsCountBeforeOp = fakeRepository.UpdateCallCount()
-				returnedObj, err = repository.Update(ctx, objWithDecryptedPassword, query.LabelChanges{})
+				returnedObj, err = repository.Update(ctx, objWithDecryptedPassword, types.LabelChanges{})
 				Expect(err).ToNot(HaveOccurred())
 			})
 
@@ -383,7 +383,7 @@ var _ = Describe("Encrypting Repository", func() {
 
 					// verify update
 					delegateUpdateCallsCountBeforeOp := fakeRepository.UpdateCallCount()
-					returnedObj, err = repository.Update(ctx, objWithDecryptedPassword, query.LabelChanges{})
+					returnedObj, err = repository.Update(ctx, objWithDecryptedPassword, types.LabelChanges{})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(fakeRepository.UpdateCallCount() - delegateUpdateCallsCountBeforeOp).To(Equal(1))
 					_, objectArg, _, _ = fakeRepository.UpdateArgsForCall(0)

@@ -84,7 +84,7 @@ func (c *uniqueInstanceNameInterceptor) AroundTxCreate(h storage.InterceptCreate
 }
 
 func (c *uniqueInstanceNameInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
-	return func(ctx context.Context, newObj types.Object, labelChanges ...*query.LabelChange) (object types.Object, err error) {
+	return func(ctx context.Context, newObj types.Object, labelChanges ...*types.LabelChange) (object types.Object, err error) {
 		oldObj, err := c.Repository.Get(ctx, types.ServiceInstanceType, query.ByField(query.EqualsOperator, "id", newObj.GetID()))
 		if err != nil {
 			return nil, err

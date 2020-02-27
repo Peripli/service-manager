@@ -304,7 +304,7 @@ func (s *Scheduler) storeOrUpdateOperation(ctx context.Context, operation, lastO
 		// so that maintainer can know if other maintainers are currently processing it
 	} else if operation.Reschedule || !operation.DeletionScheduled.IsZero() {
 		log.C(ctx).Infof("Updating rescheduled %s operation with id %s", operation.Type, operation.ID)
-		if _, err := s.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+		if _, err := s.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 			return util.HandleStorageError(err, types.OperationType.String())
 		}
 		// otherwise we should not allow executing an existing operation again
@@ -317,7 +317,7 @@ func (s *Scheduler) storeOrUpdateOperation(ctx context.Context, operation, lastO
 
 func updateResource(ctx context.Context, repository storage.Repository, objectAfterAction types.Object, updateFunc func(obj types.Object)) (types.Object, error) {
 	updateFunc(objectAfterAction)
-	updatedObject, err := repository.Update(ctx, objectAfterAction, query.LabelChanges{})
+	updatedObject, err := repository.Update(ctx, objectAfterAction, types.LabelChanges{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to update object with type %s and id %s", objectAfterAction.GetType(), objectAfterAction.GetID())
 	}
@@ -359,7 +359,7 @@ func updateOperationState(ctx context.Context, repository storage.Repository, op
 	}
 
 	// this also updates updated_at which serves as "reporting" that someone is working on the operation
-	_, err := repository.Update(ctx, operation, query.LabelChanges{})
+	_, err := repository.Update(ctx, operation, types.LabelChanges{})
 	if err != nil {
 		return fmt.Errorf("failed to update state of operation with id %s to %s: %s", operation.ID, state, err)
 	}
@@ -541,7 +541,7 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 func initialLogMessage(ctx context.Context, operation *types.Operation, async bool) {
 	var logPrefix string
 	if operation.Reschedule {
-		logPrefix = "Reschduling (reschedule=true)"
+		logPrefix = "Rescheduling (reschedule=true)"
 	} else if !operation.DeletionScheduled.IsZero() {
 		logPrefix = "Scheduling orphan mitigation"
 	} else {
