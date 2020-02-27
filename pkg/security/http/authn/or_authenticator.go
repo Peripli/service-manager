@@ -1,7 +1,6 @@
 package authn
 
 import (
-	"net/http"
 	"strings"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -21,7 +20,7 @@ func NewOrAuthenticator(authenticators ...httpsec.Authenticator) httpsec.Authent
 }
 
 // Authenticate allows the request if at least one of the nested authenticators allows it
-func (a *orAuthenticator) Authenticate(request *http.Request) (*web.UserContext, httpsec.Decision, error) {
+func (a *orAuthenticator) Authenticate(request *web.Request) (*web.UserContext, httpsec.Decision, error) {
 	ctx := request.Context()
 	logger := log.C(ctx)
 	finalDecision := httpsec.Abstain

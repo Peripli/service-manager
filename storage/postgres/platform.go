@@ -18,6 +18,7 @@ package postgres
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/Peripli/service-manager/storage"
@@ -39,10 +40,10 @@ type Platform struct {
 	LastActive  time.Time      `db:"last_active"`
 }
 
-func (p *Platform) FromObject(object types.Object) (storage.Entity, bool) {
+func (p *Platform) FromObject(object types.Object) (storage.Entity, error) {
 	platform, ok := object.(*types.Platform)
 	if !ok {
-		return nil, false
+		return nil, fmt.Errorf("object is not of type Platform")
 	}
 	result := &Platform{
 		BaseEntity: BaseEntity{
@@ -67,10 +68,10 @@ func (p *Platform) FromObject(object types.Object) (storage.Entity, bool) {
 		result.Password = platform.Credentials.Basic.Password
 		result.Integrity = platform.Credentials.Integrity
 	}
-	return result, true
+	return result, nil
 }
 
-func (p *Platform) ToObject() types.Object {
+func (p *Platform) ToObject() (types.Object, error) {
 	return &types.Platform{
 		Base: types.Base{
 			ID:             p.ID,
@@ -91,5 +92,5 @@ func (p *Platform) ToObject() types.Object {
 		},
 		Active:     p.Active,
 		LastActive: p.LastActive,
-	}
+	}, nil
 }

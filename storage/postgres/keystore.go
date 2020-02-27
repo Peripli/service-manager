@@ -48,12 +48,12 @@ func (s *Safe) GetID() string {
 	return ""
 }
 
-func (s *Safe) ToObject() types.Object {
-	return nil
+func (s *Safe) ToObject() (types.Object, error) {
+	return nil, nil
 }
 
-func (s *Safe) FromObject(object types.Object) (storage.Entity, bool) {
-	return nil, false
+func (s *Safe) FromObject(object types.Object) (storage.Entity, error) {
+	return nil, nil
 }
 
 func (s *Safe) BuildLabels(labels types.Labels, newLabel func(id, key, value string) storage.Label) ([]storage.Label, error) {

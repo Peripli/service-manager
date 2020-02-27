@@ -34,11 +34,11 @@ import (
 var _ = Describe("Update", func() {
 
 	var body []byte
-	var operation LabelOperation
+	var operation types.LabelOperation
 
 	Describe("Label changes for body", func() {
 		BeforeEach(func() {
-			operation = AddLabelOperation
+			operation = types.AddLabelOperation
 		})
 
 		JustBeforeEach(func() {
@@ -55,7 +55,7 @@ var _ = Describe("Update", func() {
 			It("Should be ok", func() {
 				changes, err := LabelChangesFromJSON(body)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(changes).To(ConsistOf(&LabelChange{Operation: AddLabelOperation, Key: "key1", Values: []string{"val1", "val2"}}))
+				Expect(changes).To(ConsistOf(&types.LabelChange{Operation: types.AddLabelOperation, Key: "key1", Values: []string{"val1", "val2"}}))
 			})
 		})
 
@@ -115,7 +115,7 @@ var _ = Describe("Update", func() {
 		Context("for changes with add and remove operations", func() {
 			type testEntry struct {
 				InitialLabels          types.Labels
-				Changes                LabelChanges
+				Changes                types.LabelChanges
 				ExpectedMergedLabels   types.Labels
 				ExpectedLabelsToRemove types.Labels
 				ExpectedLabelsToAdd    types.Labels
@@ -129,33 +129,33 @@ var _ = Describe("Update", func() {
 								"org0",
 							},
 						},
-						Changes: LabelChanges{
-							&LabelChange{
-								Operation: AddLabelOperation,
+						Changes: types.LabelChanges{
+							&types.LabelChange{
+								Operation: types.AddLabelOperation,
 								Key:       "organization_guid",
 								Values: []string{
 									"org1",
 									"org2",
 								},
 							},
-							&LabelChange{
-								Operation: AddLabelValuesOperation,
+							&types.LabelChange{
+								Operation: types.AddLabelValuesOperation,
 								Key:       "organization_guid",
 								Values: []string{
 									"org3",
 									"org4",
 								},
 							},
-							&LabelChange{
-								Operation: RemoveLabelValuesOperation,
+							&types.LabelChange{
+								Operation: types.RemoveLabelValuesOperation,
 								Key:       "organization_guid",
 								Values: []string{
 									"org5",
 									"org6",
 								},
 							},
-							&LabelChange{
-								Operation: RemoveLabelOperation,
+							&types.LabelChange{
+								Operation: types.RemoveLabelOperation,
 								Key:       "organization_guid",
 								Values: []string{
 									"org7",
@@ -196,9 +196,9 @@ var _ = Describe("Update", func() {
 								"org0",
 							},
 						},
-						Changes: LabelChanges{
-							&LabelChange{
-								Operation: RemoveLabelOperation,
+						Changes: types.LabelChanges{
+							&types.LabelChange{
+								Operation: types.RemoveLabelOperation,
 								Key:       "organization_guid",
 								Values:    []string{},
 							},
@@ -219,9 +219,9 @@ var _ = Describe("Update", func() {
 								"org1",
 							},
 						},
-						Changes: LabelChanges{
-							&LabelChange{
-								Operation: RemoveLabelOperation,
+						Changes: types.LabelChanges{
+							&types.LabelChange{
+								Operation: types.RemoveLabelOperation,
 								Key:       "organization_guid",
 								Values:    []string{"org1"},
 							},
@@ -245,9 +245,9 @@ var _ = Describe("Update", func() {
 								"org0",
 							},
 						},
-						Changes: LabelChanges{
-							&LabelChange{
-								Operation: RemoveLabelValuesOperation,
+						Changes: types.LabelChanges{
+							&types.LabelChange{
+								Operation: types.RemoveLabelValuesOperation,
 								Key:       "organization_guid",
 								Values:    []string{"org0"},
 							},
@@ -267,9 +267,9 @@ var _ = Describe("Update", func() {
 								"org0", "org1", "org2", "org4",
 							},
 						},
-						Changes: LabelChanges{
-							&LabelChange{
-								Operation: RemoveLabelValuesOperation,
+						Changes: types.LabelChanges{
+							&types.LabelChange{
+								Operation: types.RemoveLabelValuesOperation,
 								Key:       "organization_guid",
 								Values:    []string{"org1", "org2"},
 							},

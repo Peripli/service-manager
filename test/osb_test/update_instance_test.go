@@ -19,8 +19,6 @@ package osb_test
 import (
 	"fmt"
 
-	"github.com/Peripli/service-manager/pkg/query"
-
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -325,8 +323,8 @@ var _ = Describe("Update", func() {
 				planID := p.Object().Value("id").String().Raw()
 				visibilityID := common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, planID, platform.ID)
 				patchLabelsBody := make(map[string]interface{})
-				patchLabels := []query.LabelChange{{
-					Operation: query.AddLabelOperation,
+				patchLabels := []types.LabelChange{{
+					Operation: types.AddLabelOperation,
 					Key:       "organization_guid",
 					Values:    []string{organizationGUID},
 				}}
