@@ -317,6 +317,18 @@ func (s *Scheduler) storeOrUpdateOperation(ctx context.Context, operation, lastO
 	return nil
 }
 
+func updateTransitiveResources(ctx context.Context, storage storage.Repository, resources []*types.RelatedType, updateFunc func(obj types.Object)) error {
+	for _, trR := range resources {
+		if trR.OperationType != types.CREATE {
+			continue
+		}
+		if err := fetchAndUpdateResource(ctx, storage, trR.ID, trR.Type, updateFunc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func updateResource(ctx context.Context, repository storage.Repository, objectAfterAction types.Object, updateFunc func(obj types.Object)) (types.Object, error) {
 	updateFunc(objectAfterAction)
 	updatedObject, err := repository.Update(ctx, objectAfterAction, query.LabelChanges{})
@@ -388,7 +400,13 @@ func (s *Scheduler) handleActionResponse(ctx context.Context, actionObject types
 	if err != nil {
 		return nil, err
 	}
+	// Store the transitive resources in the refeched operation as they were added to the one in the context (opBeforeJob)
 	opAfterJob.TransitiveResources = opBeforeJob.TransitiveResources
+	// add the operation to context because we want to work with the refeched operation for further storage actions
+	ctx, err = s.addOperationToContext(ctx, opAfterJob)
+	if err != nil {
+		return nil, err
+	}
 
 	// if an action error has occurred we mark the operation as failed and check if deletion has to be scheduled
 	if actionError != nil {
@@ -405,9 +423,6 @@ func (s *Scheduler) handleActionResponse(ctx context.Context, actionObject types
 
 func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError error, opAfterJob *types.Operation) error {
 	if err := s.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		if opErr := updateOperationState(ctx, storage, opAfterJob, types.FAILED, actionError); opErr != nil {
-			return fmt.Errorf("setting new operation state failed: %s", opErr)
-		}
 		// after a failed FAILED CREATE operation, update the ready field to false
 		if opAfterJob.Type == types.CREATE && opAfterJob.State == types.FAILED {
 			if err := fetchAndUpdateResource(ctx, storage, opAfterJob.ResourceID, opAfterJob.ResourceType, func(obj types.Object) {
@@ -415,7 +430,18 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 			}); err != nil {
 				return err
 			}
+
+			if err := updateTransitiveResources(ctx, storage, opAfterJob.TransitiveResources, func(obj types.Object) {
+				obj.SetReady(false)
+			}); err != nil {
+				return err
+			}
 		}
+
+		if opErr := updateOperationState(ctx, storage, opAfterJob, types.FAILED, actionError); opErr != nil {
+			return fmt.Errorf("setting new operation state failed: %s", opErr)
+		}
+
 		return nil
 	}); err != nil {
 		return err
@@ -477,9 +503,6 @@ func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObjec
 		// actual operation finished with no errors or an orphan mitigation caused by an actual operation finished with no errors
 		opAfterJob.DeletionScheduled = time.Time{}
 		log.C(ctx).Infof("Successfully executed %s operation with id %s for %s entity with id %s", opAfterJob.Type, opAfterJob.ID, opAfterJob.ResourceType, opAfterJob.ResourceID)
-		if err := updateOperationState(ctx, storage, opAfterJob, finalState, nil); err != nil {
-			return err
-		}
 
 		// after a successful CREATE operation, update the ready field to true
 		if opAfterJob.Type == types.CREATE && finalState == types.SUCCEEDED {
@@ -490,20 +513,17 @@ func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObjec
 				return err
 			}
 
-			for _, trR := range opAfterJob.TransitiveResources {
-				if trR.OperationType != types.CREATE {
-					continue
-				}
-				resource, err := storage.Get(ctx, trR.Type, query.ByField(query.EqualsOperator, "id", trR.ID))
-				if err != nil {
-					return err
-				}
-				resource.SetReady(true)
-				if _, err := storage.Update(ctx, resource, query.LabelChanges{}); err != nil {
-					return err
-				}
+			if err := updateTransitiveResources(ctx, storage, opAfterJob.TransitiveResources, func(obj types.Object) {
+				obj.SetReady(true)
+			}); err != nil {
+				return err
 			}
 		}
+
+		if err := updateOperationState(ctx, storage, opAfterJob, finalState, nil); err != nil {
+			return err
+		}
+
 		return nil
 
 	}); err != nil {

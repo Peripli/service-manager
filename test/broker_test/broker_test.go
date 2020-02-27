@@ -1733,6 +1733,65 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 					})
 				})
+
+				Context("when broker catalog is not changed", func() {
+					var (
+						brokerID string
+					)
+					BeforeEach(func() {
+						brokerID, _, _ = ctx.RegisterBroker()
+					})
+
+					It("transitive resources should only be updated", func() {
+						location := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).WithQuery(web.QueryParamAsync, "true").WithJSON(common.Object{}).Expect().Status(http.StatusAccepted).Header("Location").Raw()
+						common.VerifyOperationExists(ctx, location, common.OperationExpectations{
+							State:        types.SUCCEEDED,
+							Category:     types.UPDATE,
+							ResourceType: types.ServiceBrokerType,
+						})
+						transitive := ctx.SMWithOAuth.GET(location).
+							Expect().Status(http.StatusOK).JSON().Object().Value("transitive_resources").Array().Iter()
+						for _, r := range transitive {
+							if r.Object().Value("type").String().Raw() != types.NotificationType.String() {
+								r.Object().Value("operation_type").String().Equal(string(types.UPDATE))
+							}
+							r.Object().Value("operation_type").String().NotEqual(string(types.DELETE))
+						}
+					})
+				})
+
+				Context("when broker catalog is changed", func() {
+					var (
+						brokerID     string
+						brokerServer *common.BrokerServer
+						catalog      common.SBCatalog
+					)
+					BeforeEach(func() {
+						catalog = common.NewRandomSBCatalog()
+						brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
+					})
+
+					It("transitive resources should contain deleted plans", func() {
+						catalog.RemovePlan(0, 0)
+						brokerServer.Catalog = catalog
+
+						location := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).WithQuery(web.QueryParamAsync, "true").WithJSON(common.Object{}).Expect().Status(http.StatusAccepted).Header("Location").Raw()
+						common.VerifyOperationExists(ctx, location, common.OperationExpectations{
+							State:        types.SUCCEEDED,
+							Category:     types.UPDATE,
+							ResourceType: types.ServiceBrokerType,
+						})
+						transitive := ctx.SMWithOAuth.GET(location).
+							Expect().Status(http.StatusOK).JSON().Object().Value("transitive_resources").Array().Iter()
+						deletedCount := 0
+						for _, r := range transitive {
+							if r.Object().Value("operation_type").String().Raw() == string(types.DELETE) {
+								deletedCount++
+							}
+						}
+						Expect(deletedCount).To(Equal(1))
+					})
+				})
 			})
 
 			Describe("DELETE", func() {
@@ -1771,6 +1830,22 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Value("description").String().Contains("Only one resource can be deleted asynchronously at a time")
 					})
 				})
+
+				Context("when there are transitive resources", func() {
+					var brokerID string
+					BeforeEach(func() {
+						brokerID, _, _ = ctx.RegisterBroker()
+					})
+
+					It("should keep them in the operation", func() {
+						ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).Expect().Status(http.StatusOK)
+						operation, err := ctx.SMRepository.Get(context.Background(), types.OperationType,
+							query.ByField(query.EqualsOperator, "resource_id", brokerID),
+							query.ByField(query.EqualsOperator, "type", string(types.DELETE)))
+						Expect(err).ShouldNot(HaveOccurred())
+						Expect(operation.(*types.Operation).TransitiveResources).Should(HaveLen(1))
+					})
+				})
 			})
 		})
 	},
@@ -1791,6 +1866,46 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *com
 		} else {
 			obj = resp.Status(http.StatusCreated).JSON().Object().Raw()
 			delete(obj, "credentials")
+		}
+
+		brokerID := obj["id"].(string)
+
+		offerings, err := ctx.SMRepository.List(context.Background(), types.ServiceOfferingType, query.ByField(query.EqualsOperator, "broker_id", brokerID))
+		if err != nil {
+			panic(err)
+		}
+		offeringIDs := make([]string, 0, offerings.Len())
+		for i := 0; i < offerings.Len(); i++ {
+			offeringIDs = append(offeringIDs, offerings.ItemAt(i).GetID())
+		}
+		plans, err := ctx.SMRepository.List(context.Background(), types.ServicePlanType, query.ByField(query.InOperator, "service_offering_id", offeringIDs...))
+		if err != nil {
+			panic(err)
+		}
+		planIDs := make([]string, 0, plans.Len())
+		for i := 0; i < plans.Len(); i++ {
+			planIDs = append(planIDs, plans.ItemAt(i).GetID())
+		}
+		visibilities, err := ctx.SMRepository.List(context.Background(), types.VisibilityType, query.ByField(query.InOperator, "service_plan_id", planIDs...))
+		if err != nil {
+			panic(err)
+		}
+
+		transitiveResourcesExpectedCount := offerings.Len() + plans.Len() + visibilities.Len()
+		transitiveResources := auth.GET(web.ServiceBrokersURL+"/"+brokerID).WithQuery(web.QueryParamLastOp, "true").
+			Expect().Status(http.StatusOK).
+			JSON().Object().Value("last_operation").Object().Value("transitive_resources").Array()
+
+		transitiveResourcesActualCount := 0
+		for _, tr := range transitiveResources.Iter() {
+			// Do not count the notifications and resources which are not for created
+			if tr.Object().Value("type").String().Raw() != types.NotificationType.String() &&
+				tr.Object().Value("operation_type").String().Raw() == string(types.CREATE) {
+				transitiveResourcesActualCount++
+			}
+		}
+		if transitiveResourcesActualCount != transitiveResourcesExpectedCount {
+			Fail(fmt.Sprintf("Expected transitive resources %d but got %d", transitiveResourcesExpectedCount, transitiveResourcesActualCount))
 		}
 
 		return obj

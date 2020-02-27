@@ -237,6 +237,15 @@ func (ir *queryScopedInterceptableRepository) Delete(ctx context.Context, object
 		if err := ir.repositoryInTransaction.Delete(ctx, objectType, deletionCriteria...); err != nil {
 			return err
 		}
+		operation, found := opcontext.Get(ctx)
+		if found && operation.ResourceType != objectType {
+			operation.TransitiveResources = append(operation.TransitiveResources, &types.RelatedType{
+				Criteria:      deletionCriteria,
+				Type:          objectType,
+				OperationType: types.DELETE,
+			})
+		}
+
 		return nil
 	}
 
@@ -251,7 +260,6 @@ func (ir *queryScopedInterceptableRepository) Delete(ctx context.Context, object
 			return err
 		}
 		ir.deleteOnTxFuncs[objectType] = deleteOnTxFunc
-
 	} else {
 		if err := deleteObjectFunc(ctx, nil, nil, criteria...); err != nil {
 			return err
@@ -268,6 +276,15 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 		object, err := ir.repositoryInTransaction.Update(ctx, newObj, labelChanges, criteria...)
 		if err != nil {
 			return nil, err
+		}
+
+		operation, found := opcontext.Get(ctx)
+		if found && operation.ResourceID != object.GetID() {
+			operation.TransitiveResources = append(operation.TransitiveResources, &types.RelatedType{
+				ID:            object.GetID(),
+				Type:          object.GetType(),
+				OperationType: types.UPDATE,
+			})
 		}
 
 		labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, newObj.GetLabels())
