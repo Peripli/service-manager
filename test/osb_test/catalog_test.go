@@ -276,9 +276,20 @@ var _ = Describe("Catalog", func() {
 			const brokerPathPrefix = "/broker_prefix"
 			var (
 				server           common.FakeServer
+				oldSMWithBasic   *common.SMExpect
 				osbURL           string
 				prefixedBrokerID string
 			)
+
+			assertCredentialsNotChanged := func(oldSMExpect, newSMExpect *common.SMExpect) {
+				By("new credentials should be invalid")
+				newSMExpect.GET(osbURL + "/v2/catalog").
+					Expect().Status(http.StatusUnauthorized)
+
+				By("old ones should be valid")
+				oldSMExpect.GET(osbURL + "/v2/catalog").
+					Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+			}
 
 			BeforeEach(func() {
 				brokerHandler := &prefixedBrokerHandler{brokerPathPrefix}
@@ -303,6 +314,11 @@ var _ = Describe("Catalog", func() {
 
 				username, password := test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, prefixedBrokerID)
 				ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
+
+				oldSMWithBasic = &common.SMExpect{Expect: ctx.SMWithBasic.Expect}
+
+				ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
+					Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 			})
 
 			AfterEach(func() {
@@ -322,17 +338,14 @@ var _ = Describe("Catalog", func() {
 
 			Context("when broker platform credentials change in context of a notification processing", func() {
 				Context("and notification is found in SM DB", func() {
+					JustBeforeEach(func() {
+						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + prefixedBrokerID).
+							WithJSON(common.Object{}).
+							Expect().Status(http.StatusOK)
+					})
+
 					Context("and notification properties match the ones provided in the set credentials request", func() {
 						It("should still get catalog", func() {
-							ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
-								Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
-
-							oldSMWithBasic := &common.SMExpect{Expect: ctx.SMWithBasic.Expect}
-
-							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + prefixedBrokerID).
-								WithJSON(common.Object{}).
-								Expect().Status(http.StatusOK)
-
 							notifications, err := ctx.SMRepository.List(context.TODO(), types.NotificationType,
 								query.OrderResultBy("created_at", query.DescOrder))
 							Expect(err).ToNot(HaveOccurred())
@@ -356,106 +369,57 @@ var _ = Describe("Catalog", func() {
 
 					Context("and notification properties does NOT match the ones provided in the set credentials request", func() {
 						When("provided notification id is for a different platform", func() {
+							var newPlatform *types.Platform
+
+							BeforeEach(func() {
+								newPlatform = ctx.RegisterPlatform()
+							})
+
 							It("should return conflict", func() {
-								ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
-									Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
-
-								oldSMWithBasic := &common.SMExpect{Expect: ctx.SMWithBasic.Expect}
-
-								newPlatform := ctx.RegisterPlatform()
-
-								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + prefixedBrokerID).
-									WithJSON(common.Object{}).
-									Expect().Status(http.StatusOK)
-
-
 								notifications, err := ctx.SMRepository.List(context.TODO(), types.NotificationType,
 									query.OrderResultBy("created_at", query.DescOrder),
-									query.ByField(query.EqualsOperator,"platform_id",newPlatform.ID))
+									query.ByField(query.EqualsOperator, "platform_id", newPlatform.ID))
 								Expect(err).ToNot(HaveOccurred())
 
 								newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMWithBasicPlatform, prefixedBrokerID, notifications.ItemAt(0).GetID(), http.StatusConflict)
 								ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
 
-								By("new credentials should be invalid")
-								ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
-									Expect().Status(http.StatusUnauthorized)
+								assertCredentialsNotChanged(oldSMWithBasic, ctx.SMWithBasic)
+							})
+						})
 
-								By("old ones should be valid")
-								oldSMWithBasic.GET(osbURL + "/v2/catalog").
-									Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+						When("provided notification id is for a different broker", func() {
+							It("should return conflict", func() {
+								notifications, err := ctx.SMRepository.List(context.TODO(), types.NotificationType,
+									query.OrderResultBy("created_at", query.DescOrder))
+								Expect(err).ToNot(HaveOccurred())
+
+								newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMWithBasicPlatform, "non-existing-broker-id", notifications.ItemAt(0).GetID(), http.StatusConflict)
+								ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
+
+								assertCredentialsNotChanged(oldSMWithBasic, ctx.SMWithBasic)
 							})
 						})
 					})
 
-					When("provided notification id is for a different broker", func() {
-						It("should return conflict", func() {
-							ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
-								Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
-
-							oldSMWithBasic := &common.SMExpect{Expect: ctx.SMWithBasic.Expect}
-
-							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + prefixedBrokerID).
-								WithJSON(common.Object{}).
-								Expect().Status(http.StatusOK)
-
-							notifications, err := ctx.SMRepository.List(context.TODO(), types.NotificationType,
-								query.OrderResultBy("created_at", query.DescOrder))
-							Expect(err).ToNot(HaveOccurred())
-
-							newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMWithBasicPlatform, "non-existing-broker-id", notifications.ItemAt(0).GetID(), http.StatusConflict)
-							ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
-
-							By("new credentials should be invalid")
-							ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
-								Expect().Status(http.StatusUnauthorized)
-
-							By("old ones should be valid")
-							oldSMWithBasic.GET(osbURL + "/v2/catalog").
-								Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
-						})
-					})
 				})
 
 				Context("and notification is not found in SM DB", func() {
 					It("should return conflict", func() {
-						ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
-							Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
-
-						oldSMWithBasic := &common.SMExpect{Expect: ctx.SMWithBasic.Expect}
-
 						newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMWithBasicPlatform, prefixedBrokerID, "non-existing-id", http.StatusConflict)
 						ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
 
-						By("new credentials should be invalid")
-						ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
-							Expect().Status(http.StatusUnauthorized)
-
-						By("old ones should be valid")
-						oldSMWithBasic.GET(osbURL + "/v2/catalog").
-							Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
-
+						assertCredentialsNotChanged(oldSMWithBasic, ctx.SMWithBasic)
 					})
 				})
 			})
 
 			Context("when broker platform credentials change out of notification processing context when already exist", func() {
 				It("should return conflict", func() {
-					ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
-						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
-
-					oldSMWithBasic := &common.SMExpect{Expect: ctx.SMWithBasic.Expect}
-
 					newUsername, newPassword := test.RegisterBrokerPlatformCredentialsExpect(SMWithBasicPlatform, prefixedBrokerID, http.StatusConflict)
 					ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
 
-					By("new credentials should be invalid")
-					ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
-						Expect().Status(http.StatusUnauthorized)
-
-					By("old ones should be valid")
-					oldSMWithBasic.GET(osbURL + "/v2/catalog").
-						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+					assertCredentialsNotChanged(oldSMWithBasic, ctx.SMWithBasic)
 				})
 			})
 		})
