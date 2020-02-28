@@ -34,6 +34,7 @@ type objectDetails map[string]util.InputValidator
 type NotificationsInterceptor struct {
 	PlatformIDsProviderFunc func(ctx context.Context, object types.Object, repository storage.Repository) ([]string, error)
 	AdditionalDetailsFunc   func(ctx context.Context, objects types.ObjectList, repository storage.Repository) (objectDetails, error)
+	DeletePostConditionFunc func(ctx context.Context, object types.Object, repository storage.Repository, platformID string) error
 }
 
 func (ni *NotificationsInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
@@ -126,6 +127,10 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			}); err != nil {
 				return nil, err
 			}
+
+			if err := ni.DeletePostConditionFunc(ctx, oldObject, repository, platformID); err != nil {
+				return nil, err
+			}
 		}
 
 		modifiedPlatformIDs := append(preexistingPlatformIDs, addedPlatformIDs...)
@@ -187,6 +192,10 @@ func (ni *NotificationsInterceptor) OnTxDelete(h storage.InterceptDeleteOnTxFunc
 						Additional: additionalDetails[oldObject.GetID()],
 					},
 				}); err != nil {
+					return err
+				}
+
+				if err := ni.DeletePostConditionFunc(ctx, oldObject, repository, platformID); err != nil {
 					return err
 				}
 			}
