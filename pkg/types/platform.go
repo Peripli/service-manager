@@ -86,18 +86,6 @@ func (e *Platform) transform(ctx context.Context, transformationFunc func(contex
 	return nil
 }
 
-func (e *Platform) IntegralData() []byte {
-	return []byte(fmt.Sprintf("%s:%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password))
-}
-
-func (e *Platform) SetIntegrity(integrity []byte) {
-	e.Credentials.Integrity = integrity
-}
-
-func (e *Platform) GetIntegrity() []byte {
-	return e.Credentials.Integrity
-}
-
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (e *Platform) Validate() error {
 	if e.Type == "" {
