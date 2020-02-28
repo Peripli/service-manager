@@ -17,6 +17,7 @@
 package postgres
 
 import (
+	"fmt"
 	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -36,7 +37,7 @@ type BrokerPlatformCredential struct {
 	BrokerID   string `db:"broker_id"`
 }
 
-func (bpc *BrokerPlatformCredential) ToObject() types.Object {
+func (bpc *BrokerPlatformCredential) ToObject() (types.Object, error) {
 	return &types.BrokerPlatformCredential{
 		Base: types.Base{
 			ID:             bpc.ID,
@@ -52,13 +53,13 @@ func (bpc *BrokerPlatformCredential) ToObject() types.Object {
 		OldPasswordHash: bpc.OldPasswordHash,
 		PlatformID:      bpc.PlatformID,
 		BrokerID:        bpc.BrokerID,
-	}
+	}, nil
 }
 
-func (*BrokerPlatformCredential) FromObject(object types.Object) (storage.Entity, bool) {
+func (*BrokerPlatformCredential) FromObject(object types.Object) (storage.Entity, error) {
 	brokerPlatformCredential, ok := object.(*types.BrokerPlatformCredential)
 	if !ok {
-		return nil, false
+		return nil, fmt.Errorf("object is not of type BrokerPlatformCredential")
 	}
 
 	bpc := &BrokerPlatformCredential{
@@ -77,5 +78,5 @@ func (*BrokerPlatformCredential) FromObject(object types.Object) (storage.Entity
 		BrokerID:        brokerPlatformCredential.BrokerID,
 	}
 
-	return bpc, true
+	return bpc, nil
 }

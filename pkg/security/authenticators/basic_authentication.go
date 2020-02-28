@@ -125,7 +125,7 @@ func BasicOSBAuthenticator(request *web.Request, repository storage.Repository, 
 		credentials.OldUsername = ""
 		credentials.OldPasswordHash = ""
 
-		if _, err := repository.Update(ctx, credentials, query.LabelChanges{}); err != nil {
+		if _, err := repository.Update(ctx, credentials, types.LabelChanges{}); err != nil {
 			return nil, httpsec.Abstain, fmt.Errorf("could not delete old broker platform credentials from storage: %s", err)
 		}
 	}

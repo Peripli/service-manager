@@ -159,7 +159,7 @@ func (c *BaseController) updateCredentials(ctx context.Context, body, credential
 	credentialsFromDB.Username = body.Username
 	credentialsFromDB.PasswordHash = body.PasswordHash
 
-	object, err := c.repository.Update(ctx, credentialsFromDB, query.LabelChanges{})
+	object, err := c.repository.Update(ctx, credentialsFromDB, types.LabelChanges{})
 	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
