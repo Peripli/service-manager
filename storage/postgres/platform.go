@@ -35,7 +35,6 @@ type Platform struct {
 	Description sql.NullString `db:"description"`
 	Username    string         `db:"username"`
 	Password    string         `db:"password"`
-	Integrity   []byte         `db:"integrity"`
 	Active      bool           `db:"active"`
 	LastActive  time.Time      `db:"last_active"`
 }
@@ -66,7 +65,6 @@ func (p *Platform) FromObject(object types.Object) (storage.Entity, error) {
 	if platform.Credentials != nil && platform.Credentials.Basic != nil {
 		result.Username = platform.Credentials.Basic.Username
 		result.Password = platform.Credentials.Basic.Password
-		result.Integrity = platform.Credentials.Integrity
 	}
 	return result, nil
 }
@@ -88,7 +86,6 @@ func (p *Platform) ToObject() (types.Object, error) {
 				Username: p.Username,
 				Password: p.Password,
 			},
-			Integrity: p.Integrity,
 		},
 		Active:     p.Active,
 		LastActive: p.LastActive,
