@@ -134,7 +134,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			&filters.SelectionCriteria{},
 			filters.NewProtectedLabelsFilter(options.APISettings.ProtectedLabels),
 			&filters.ProtectedSMPlatformFilter{},
-			&filters.ServiceInstanceFilter{},
+			&filters.PlatformIDInstanceValidationFilter{},
 			&filters.ServiceInstanceStripFilter{},
 			&filters.ServiceBindingStripFilter{},
 			&filters.PlatformAwareVisibilityFilter{},

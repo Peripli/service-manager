@@ -59,8 +59,10 @@ func TestServiceInstances(t *testing.T) {
 }
 
 const (
-	TenantIdentifier = "tenant"
-	TenantIDValue    = "tenantID"
+	TenantIdentifier  = "tenant"
+	TenantIDValue     = "tenantID"
+	service1CatalogID = "service1CatalogID"
+	plan1CatalogID    = "plan1CatalogID"
 )
 
 var _ = DescribeTestsFor(TestCase{
@@ -158,6 +160,19 @@ var _ = DescribeTestsFor(TestCase{
 					WithQuery("async", async).
 					Expect().
 					Status(expectedStatusCode)
+			}
+
+			verificationHandler := func(bodyExpectations map[string]string, code int) func(req *http.Request) (int, map[string]interface{}) {
+				return func(req *http.Request) (int, map[string]interface{}) {
+					body, err := util.BodyToBytes(req.Body)
+					Expect(err).ToNot(HaveOccurred())
+					for k, v := range bodyExpectations {
+						actualBodyValue := gjson.GetBytes(body, k).String()
+						Expect(actualBodyValue).To(Equal(v))
+					}
+
+					return code, Object{}
+				}
 			}
 
 			BeforeEach(func() {
@@ -338,7 +353,7 @@ var _ = DescribeTestsFor(TestCase{
 										WithQuery("async", testCase.async).
 										Expect().Status(http.StatusBadRequest).JSON().Object()
 
-									resp.Value("description").Equal("Providing platform_id property during provisioning/updating of a service instance is forbidden")
+									resp.Value("description").Equal("Providing platform_id property during provisioning/updating with a value different from service-manager is forbidden")
 								})
 							})
 
@@ -1155,7 +1170,87 @@ var _ = DescribeTestsFor(TestCase{
 							})
 						})
 
-						When("instance exists", func() {
+						When("instance exists in a platform different from service manager", func() {
+							const (
+								brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
+								brokerAPIVersionHeaderValue = "2.13"
+								SID                         = "abc1234"
+							)
+
+							BeforeEach(func() {
+								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, ctx.TestPlatform.ID, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
+								brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut, verificationHandler(map[string]string{
+									"context." + TenantIdentifier: TenantIDValue,
+								}, http.StatusCreated))
+								brokerServer.ServiceInstanceHandlerFunc(http.MethodPatch, http.MethodPatch, verificationHandler(map[string]string{
+									"context." + TenantIdentifier: TenantIDValue,
+								}, http.StatusOK))
+								smBrokerURL := ctx.Servers[SMServer].URL() + "/v1/osb/" + brokerID
+								ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+									WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+									WithJSON(Object{
+										"service_id": service1CatalogID,
+										"plan_id":    plan1CatalogID,
+										"context": Object{
+											TenantIdentifier: TenantIDValue,
+										},
+									}).
+									Expect().Status(http.StatusCreated)
+
+								ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + SID).
+									Expect().
+									Status(http.StatusOK).
+									JSON().Object().Value("platform_id").Equal(ctx.TestPlatform.ID)
+							})
+
+							When("platform_id provided in request body", func() {
+								Context("which not is service-manager platform", func() {
+									It("should return 400", func() {
+										ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+											WithQuery("async", testCase.async).
+											WithJSON(Object{"platform_id": "another-platform-id"}).
+											Expect().Status(http.StatusBadRequest)
+
+										objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    SID,
+											Type:  types.ServiceInstanceType,
+											Ready: true,
+										})
+
+										objAfterOp.Value("platform_id").Equal(ctx.TestPlatform.ID)
+									})
+								})
+
+								Context("which is service-manager platform", func() {
+									It("should return 2xx", func() {
+										resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+											WithQuery("async", testCase.async).
+											WithJSON(Object{"platform_id": types.SMPlatform}).
+											Expect().Status(testCase.expectedUpdateSuccessStatusCode)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.UPDATE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										Expect(instanceID).To(Equal(SID))
+
+										objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    instanceID,
+											Type:  types.ServiceInstanceType,
+											Ready: true,
+										})
+
+										objAfterOp.Value("platform_id").Equal(types.SMPlatform)
+									})
+								})
+							})
+						})
+
+						When("instance exists in service manager platform", func() {
 							BeforeEach(func() {
 								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
 								resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
@@ -1244,13 +1339,10 @@ var _ = DescribeTestsFor(TestCase{
 
 								Context("which is not service-manager platform", func() {
 									It("should return 400", func() {
-										resp := ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL+"/"+instanceID).
+										ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL+"/"+instanceID).
 											WithQuery("async", testCase.async).
 											WithJSON(Object{"platform_id": "test-platform-id"}).
 											Expect().Status(http.StatusBadRequest)
-
-										resp.JSON().Object().Value("description").
-											Equal("Providing platform_id property during provisioning/updating of a service instance is forbidden")
 									})
 								})
 
@@ -1555,23 +1647,13 @@ var _ = DescribeTestsFor(TestCase{
 									})
 								})
 
-								verificationHandler := func(bodyKey, expectedBodyValue string) func(req *http.Request) (int, map[string]interface{}) {
-									return func(req *http.Request) (int, map[string]interface{}) {
-										body, err := util.BodyToBytes(req.Body)
-										Expect(err).ToNot(HaveOccurred())
-										bodyValue := gjson.GetBytes(body, bodyKey).String()
-										Expect(bodyValue).To(Equal(expectedBodyValue))
-										platformValue := gjson.GetBytes(body, "context.platform").String()
-										Expect(platformValue).To(Equal(types.SMPlatform))
-
-										return http.StatusOK, Object{}
-									}
-								}
-
 								When("service plan id is updated", func() {
 									It("propagates the update to the broker", func() {
 										brokerServer.ServiceInstanceHandlerFunc(http.MethodPatch, http.MethodPatch+"1",
-											verificationHandler("plan_id", anotherServicePlanCatalogID))
+											verificationHandler(map[string]string{
+												"plan_id":          anotherServicePlanCatalogID,
+												"context.platform": types.SMPlatform,
+											}, http.StatusOK))
 
 										EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, anotherServicePlanID, TenantIDValue)
 
@@ -1586,7 +1668,10 @@ var _ = DescribeTestsFor(TestCase{
 											"newParamKey": "newParamValue",
 										}
 										brokerServer.ServiceInstanceHandlerFunc(http.MethodPatch, http.MethodPatch+"1",
-											verificationHandler("parameters", `{"newParamKey":"newParamValue"}`))
+											verificationHandler(map[string]string{
+												"parameters":       `{"newParamKey":"newParamValue"}`,
+												"context.platform": types.SMPlatform,
+											}, http.StatusOK))
 
 										patchInstance(ctx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.expectedUpdateSuccessStatusCode)
 									})
@@ -2616,9 +2701,9 @@ func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
 }
 
 func prepareBrokerWithCatalog(ctx *TestContext, auth *SMExpect) (string, *BrokerServer, *httpexpect.Array) {
-	cPaidPlan1 := GeneratePaidTestPlan()
+	cPaidPlan1 := GenerateTestPlanWithID(plan1CatalogID)
 	cPaidPlan2 := GeneratePaidTestPlan()
-	cService := GenerateTestServiceWithPlans(cPaidPlan1, cPaidPlan2)
+	cService := GenerateTestServiceWithPlansWithID(service1CatalogID, cPaidPlan1, cPaidPlan2)
 	catalog := NewEmptySBCatalog()
 	catalog.AddService(cService)
 	brokerID, _, server := ctx.RegisterBrokerWithCatalog(catalog)

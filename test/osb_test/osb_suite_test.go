@@ -144,7 +144,7 @@ var _ = BeforeSuite(func() {
 	for _, p := range plans {
 		common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, p.Object().Value("id").String().Raw(), ctx.TestPlatform.ID)
 	}
-	smBrokerURL = brokerServer.URL() + "/v1/osb/" + brokerID
+	smBrokerURL = ctx.Servers[common.SMServer].URL() + "/v1/osb/" + brokerID
 	brokerName = brokerObject["name"].(string)
 })
 
