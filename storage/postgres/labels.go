@@ -19,10 +19,11 @@ package postgres
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/types"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -130,9 +131,10 @@ func findTagType(tags []tagType, tagName string) reflect.Type {
 }
 
 var (
-	intType   = reflect.TypeOf(int(1))
-	int64Type = reflect.TypeOf(int64(1))
-	timeType  = reflect.TypeOf(time.Time{})
+	intType       = reflect.TypeOf(int(1))
+	int64Type     = reflect.TypeOf(int64(1))
+	timeType      = reflect.TypeOf(time.Time{})
+	byteSliceType = reflect.TypeOf([]byte{})
 )
 
 func determineCastByType(tagType reflect.Type) string {
@@ -143,8 +145,9 @@ func determineCastByType(tagType reflect.Type) string {
 	case int64Type:
 		fallthrough
 	case timeType:
+		fallthrough
+	case byteSliceType:
 		dbCast = ""
-
 	default:
 		dbCast = "::text"
 	}

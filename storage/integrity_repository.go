@@ -108,7 +108,12 @@ func (cr *integrityRepository) Delete(ctx context.Context, objectType types.Obje
 }
 
 func (cr *TransactionalIntegrityRepository) InTransaction(ctx context.Context, f func(ctx context.Context, storage Repository) error) error {
-	return cr.repository.InTransaction(ctx, f)
+	return cr.repository.InTransaction(ctx, func(ctx context.Context, storage Repository) error {
+		return f(ctx, &integrityRepository{
+			repository:         storage,
+			integrityProcessor: cr.integrityProcessor,
+		})
+	})
 }
 
 func (cr *integrityRepository) setIntegrity(obj types.Object) error {

@@ -71,6 +71,8 @@ type ServiceManagerBuilder struct {
 	wg                  *sync.WaitGroup
 	cfg                 *config.Settings
 	securityBuilder     *SecurityBuilder
+	//rawRepository is a repository without any decoration and interceptors
+	rawRepository storage.TransactionalRepository
 }
 
 // ServiceManager  struct
@@ -176,6 +178,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		cfg:                 cfg,
 		securityBuilder:     securityBuilder,
 		OSBClientProvider:   osbClientProvider,
+		rawRepository:       smStorage,
 	}
 
 	smb.RegisterPlugins(osb.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
@@ -534,7 +537,7 @@ func (smb *ServiceManagerBuilder) Security() *SecurityBuilder {
 }
 
 func (smb *ServiceManagerBuilder) calculateIntegrity() error {
-	return smb.Storage.InTransaction(smb.ctx, func(ctx context.Context, storage storage.Repository) error {
+	return smb.rawRepository.InTransaction(smb.ctx, func(ctx context.Context, storage storage.Repository) error {
 		objectTypesWithIntegrity := []types.ObjectType{types.PlatformType, types.ServiceBrokerType, types.ServiceBindingType}
 		for _, objectType := range objectTypesWithIntegrity {
 			emptyIntegrityCriteria := query.ByField(query.EqualsOrNilOperator, "integrity", "")
