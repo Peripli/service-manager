@@ -583,7 +583,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									go func() {
 										for {
-											object, err := ctx.SMRepository.Get(context.TODO(), types.OperationType, opCriteria...)
+											object, err := newCtx.SMRepository.Get(context.TODO(), types.OperationType, opCriteria...)
 											if err == nil {
 												opChan <- object.(*types.Operation)
 												break
@@ -594,7 +594,7 @@ var _ = DescribeTestsFor(TestCase{
 									createInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedSMCrashStatusCode)
 									operation := <-opChan
 
-									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									VerifyResourceDoesNotExist(newCtx.SMWithOAuthForTenant, ResourceExpectations{
 										ID:   operation.ResourceID,
 										Type: types.ServiceInstanceType,
 									})
@@ -607,8 +607,8 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									}
 
-									instanceID, _ = VerifyOperationExists(ctx, fmt.Sprintf("%s/%s%s/%s", web.ServiceInstancesURL, operation.ResourceID, web.OperationsURL, operation.ID), operationExpectation)
-									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									instanceID, _ = VerifyOperationExists(newCtx, fmt.Sprintf("%s/%s%s/%s", web.ServiceInstancesURL, operation.ResourceID, web.OperationsURL, operation.ID), operationExpectation)
+									VerifyResourceDoesNotExist(newCtx.SMWithOAuthForTenant, ResourceExpectations{
 										ID:   instanceID,
 										Type: types.ServiceInstanceType,
 									})
@@ -665,11 +665,10 @@ var _ = DescribeTestsFor(TestCase{
 
 								if testCase.async {
 									When("action timeout is reached while polling", func() {
-										var oldCtx *TestContext
+										var newCtx *TestContext
 
 										BeforeEach(func() {
-											oldCtx = ctx
-											ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+											newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
 												Expect(set.Set("operations.action_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 
@@ -678,13 +677,13 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										AfterEach(func() {
-											ctx = oldCtx
+											ctx.SMWithBasic = newCtx.SMWithBasic
 										})
 
 										It("stores instance as ready false and the operation as reschedulable in progress", func() {
-											resp := createInstance(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
+											resp := createInstance(newCtx.SMWithOAuthForTenant, true, http.StatusAccepted)
 
-											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.CREATE,
 												State:             types.IN_PROGRESS,
 												ResourceType:      types.ServiceInstanceType,
@@ -692,7 +691,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											})
 
-											VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											VerifyResourceExists(newCtx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:    instanceID,
 												Type:  types.ServiceInstanceType,
 												Ready: false,
@@ -971,23 +970,23 @@ var _ = DescribeTestsFor(TestCase{
 										})
 									})
 
-									When("maximum deletion timout has been reached", func() {
-										var oldCtx *TestContext
+									When("maximum deletion timeout has been reached", func() {
+										var newCtx *TestContext
+
 										BeforeEach(func() {
-											oldCtx = ctx
-											ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+											newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
 												Expect(set.Set("operations.reconciliation_operation_timeout", (2 * time.Millisecond).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 										})
 
 										AfterEach(func() {
-											ctx = oldCtx
+											ctx.SMWithBasic = newCtx.SMWithBasic
 										})
 
 										It("keeps the instance as ready false and marks the operation as deletion scheduled", func() {
-											resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+											resp := createInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
-											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.CREATE,
 												State:             types.FAILED,
 												ResourceType:      types.ServiceInstanceType,
@@ -995,7 +994,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											VerifyResourceExists(newCtx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:    instanceID,
 												Type:  types.ServiceInstanceType,
 												Ready: false,
@@ -1115,13 +1114,12 @@ var _ = DescribeTestsFor(TestCase{
 
 							When("provision responds with error due to time out", func() {
 								var doneChannel chan interface{}
-								var oldCtx *TestContext
+								var newCtx *TestContext
 
 								BeforeEach(func() {
-									oldCtx = ctx
 									doneChannel = make(chan interface{})
-									ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-										Expect(set.Set("httpclient.response_header_timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
+									newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
+										Expect(set.Set("httpclient.response_header_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
 									}).BuildWithoutCleanup()
 
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", DelayingHandler(doneChannel))
@@ -1129,14 +1127,14 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								AfterEach(func() {
-									ctx = oldCtx
+									ctx.SMWithBasic = newCtx.SMWithBasic
 								})
 
 								It("orphan mitigates the instance", func() {
-									resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
-									<-time.After(1100 * time.Millisecond)
+									resp := createInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+									<-time.After(2100 * time.Millisecond)
 									close(doneChannel)
-									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.CREATE,
 										State:             types.FAILED,
 										ResourceType:      types.ServiceInstanceType,
@@ -1144,7 +1142,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									VerifyResourceDoesNotExist(newCtx.SMWithOAuthForTenant, ResourceExpectations{
 										ID:   instanceID,
 										Type: types.ServiceInstanceType,
 									})
@@ -1185,8 +1183,7 @@ var _ = DescribeTestsFor(TestCase{
 								brokerServer.ServiceInstanceHandlerFunc(http.MethodPatch, http.MethodPatch, verificationHandler(map[string]string{
 									"context." + TenantIdentifier: TenantIDValue,
 								}, http.StatusOK))
-								smBrokerURL := ctx.Servers[SMServer].URL() + "/v1/osb/" + brokerID
-								ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+								ctx.SMWithBasic.PUT("/v1/osb/"+brokerID+"/v2/service_instances/"+SID).
 									WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 									WithJSON(Object{
 										"service_id": service1CatalogID,
@@ -1790,11 +1787,10 @@ var _ = DescribeTestsFor(TestCase{
 
 									if testCase.async {
 										When("action timeout is reached while polling", func() {
-											var oldCtx *TestContext
+											var newCtx *TestContext
 
 											BeforeEach(func() {
-												oldCtx = ctx
-												ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+												newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
 													Expect(set.Set("operations.action_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
 												}).BuildWithoutCleanup()
 
@@ -1803,13 +1799,13 @@ var _ = DescribeTestsFor(TestCase{
 											})
 
 											AfterEach(func() {
-												ctx = oldCtx
+												ctx.SMWithBasic = newCtx.SMWithBasic
 											})
 
 											It("stores instance as ready true and the operation as reschedulable in progress", func() {
 												resp := patchInstance(ctx.SMWithOAuthForTenant, true, instanceID, http.StatusAccepted)
 
-												instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 													Category:          types.UPDATE,
 													State:             types.IN_PROGRESS,
 													ResourceType:      types.ServiceInstanceType,
@@ -1817,7 +1813,7 @@ var _ = DescribeTestsFor(TestCase{
 													DeletionScheduled: false,
 												})
 
-												VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												VerifyResourceExists(newCtx.SMWithOAuthForTenant, ResourceExpectations{
 													ID:    instanceID,
 													Type:  types.ServiceInstanceType,
 													Ready: true,
@@ -2399,22 +2395,22 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									When("maximum deletion timout has been reached", func() {
-										var oldCtx *TestContext
+										var newCtx *TestContext
+
 										BeforeEach(func() {
-											oldCtx = ctx
-											ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+											newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
 												Expect(set.Set("operations.reconciliation_operation_timeout", (2 * time.Millisecond).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 										})
 
 										AfterEach(func() {
-											ctx = oldCtx
+											ctx.SMWithBasic = newCtx.SMWithBasic
 										})
 
 										It("keeps the instance as ready false and marks the operation as deletion scheduled", func() {
-											resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+											resp := deleteInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
-											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.DELETE,
 												State:             types.FAILED,
 												ResourceType:      types.ServiceInstanceType,
@@ -2422,7 +2418,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											VerifyResourceExists(newCtx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:    instanceID,
 												Type:  types.ServiceInstanceType,
 												Ready: true,
@@ -2648,7 +2644,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									VerifyResourceDoesNotExist(newCtx.SMWithOAuthForTenant, ResourceExpectations{
 										ID:   instanceID,
 										Type: types.ServiceInstanceType,
 									})

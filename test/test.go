@@ -23,6 +23,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/spf13/pflag"
+
 	"github.com/Peripli/service-manager/pkg/util"
 
 	"time"
@@ -67,12 +69,12 @@ const (
 	operationExpiration = 60 * time.Second
 )
 
-func postHookWithOperationsConfig() func(e env.Environment, servers map[string]common.FakeServer) {
-	return func(e env.Environment, servers map[string]common.FakeServer) {
-		e.Set("operations.action_timeout", JobTimeout)
-		e.Set("operations.cleanup_interval", cleanupInterval)
-		e.Set("operations.lifespan", operationExpiration)
-		e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)
+func postHookWithOperationsConfig() func(set *pflag.FlagSet) {
+	return func(set *pflag.FlagSet) {
+		set.Set("operations.action_timeout", JobTimeout.String())
+		set.Set("operations.cleanup_interval", cleanupInterval.String())
+		set.Set("operations.lifespan", operationExpiration.String())
+		set.Set("operations.reconciliation_operation_timeout", (9999 * time.Hour).String())
 	}
 }
 
@@ -216,7 +218,7 @@ func DescribeTestsFor(t TestCase) bool {
 		})
 
 		ctxBuilder := func() *common.TestContextBuilder {
-			ctxBuilder := common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHookWithOperationsConfig())
+			ctxBuilder := common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(postHookWithOperationsConfig())
 
 			if t.MultitenancySettings != nil {
 				ctxBuilder.
