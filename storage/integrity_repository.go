@@ -49,7 +49,7 @@ type integrityRepository struct {
 	integrityProcessor security.IntegrityProcessor
 }
 
-// TransactionalIntegrityRepository is a TransactionalRepository which also processes the integrity of Secured objects
+// TransactionalIntegrityRepository is a TransactionalRepository which also processes the integrity of Integral objects
 // before storing and after fetching them from the database
 type TransactionalIntegrityRepository struct {
 	*integrityRepository
@@ -109,28 +109,23 @@ func (cr *integrityRepository) Delete(ctx context.Context, objectType types.Obje
 
 // InTransaction wraps repository passed in the transaction to also validate integrity
 func (cr *TransactionalIntegrityRepository) InTransaction(ctx context.Context, f func(ctx context.Context, storage Repository) error) error {
-	return cr.repository.InTransaction(ctx, func(ctx context.Context, storage Repository) error {
-		return f(ctx, &integrityRepository{
-			repository:         storage,
-			integrityProcessor: cr.integrityProcessor,
-		})
-	})
+	return cr.repository.InTransaction(ctx, f)
 }
 
 func (cr *integrityRepository) setIntegrity(obj types.Object) error {
-	if securedObject, isSecured := obj.(security.IntegralObject); isSecured {
-		integrity, err := cr.integrityProcessor.CalculateIntegrity(securedObject)
+	if integralObject, isIntegral := obj.(security.IntegralObject); isIntegral {
+		integrity, err := cr.integrityProcessor.CalculateIntegrity(integralObject)
 		if err != nil {
 			return err
 		}
-		securedObject.SetIntegrity(integrity)
+		integralObject.SetIntegrity(integrity)
 	}
 	return nil
 }
 
 func (cr *integrityRepository) validateIntegrity(obj types.Object) error {
-	if securedObject, isSecured := obj.(security.IntegralObject); isSecured {
-		if !cr.integrityProcessor.ValidateIntegrity(securedObject) {
+	if integralObject, isIntegral := obj.(security.IntegralObject); isIntegral {
+		if !cr.integrityProcessor.ValidateIntegrity(integralObject) {
 			return fmt.Errorf("invalid integrity for %s with ID %s", obj.GetType(), obj.GetID())
 		}
 	}
