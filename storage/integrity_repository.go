@@ -107,7 +107,6 @@ func (cr *integrityRepository) Delete(ctx context.Context, objectType types.Obje
 	return cr.repository.Delete(ctx, objectType, criteria...)
 }
 
-// InTransaction wraps repository passed in the transaction to also validate integrity
 func (cr *TransactionalIntegrityRepository) InTransaction(ctx context.Context, f func(ctx context.Context, storage Repository) error) error {
 	return cr.repository.InTransaction(ctx, f)
 }
