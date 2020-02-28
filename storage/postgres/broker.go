@@ -35,6 +35,7 @@ type Broker struct {
 	BrokerURL   string             `db:"broker_url"`
 	Username    string             `db:"username"`
 	Password    string             `db:"password"`
+	Integrity   []byte             `db:"integrity"`
 	Catalog     sqlxtypes.JSONText `db:"catalog"`
 
 	Services []*ServiceOffering `db:"-"`
@@ -66,6 +67,7 @@ func (e *Broker) ToObject() (types.Object, error) {
 				Username: e.Username,
 				Password: e.Password,
 			},
+			Integrity: e.Integrity,
 		},
 		Catalog:  getJSONRawMessage(e.Catalog),
 		Services: services,
@@ -105,6 +107,7 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, error) {
 	if broker.Credentials != nil && broker.Credentials.Basic != nil {
 		b.Username = broker.Credentials.Basic.Username
 		b.Password = broker.Credentials.Basic.Password
+		b.Integrity = broker.Credentials.Integrity
 	}
 	return b, nil
 }
