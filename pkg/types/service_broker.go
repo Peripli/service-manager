@@ -57,18 +57,6 @@ func (e *ServiceBroker) Decrypt(ctx context.Context, decryptionFunc func(context
 	return e.transform(ctx, decryptionFunc)
 }
 
-func (e *ServiceBroker) IntegralData() []byte {
-	return []byte(fmt.Sprintf("%s:%s:%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, e.BrokerURL))
-}
-
-func (e *ServiceBroker) SetIntegrity(integrity []byte) {
-	e.Credentials.Integrity = integrity
-}
-
-func (e *ServiceBroker) GetIntegrity() []byte {
-	return e.Credentials.Integrity
-}
-
 func (e *ServiceBroker) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
 	if e.Credentials == nil || e.Credentials.Basic == nil {
 		return nil

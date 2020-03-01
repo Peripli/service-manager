@@ -19,15 +19,12 @@ package storage
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"path"
 	"runtime"
 	"sync"
 	"time"
-
-	"github.com/Peripli/service-manager/pkg/security"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -60,7 +57,6 @@ type Settings struct {
 	SkipSSLValidation  bool                  `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when connecting to the storage"`
 	MaxIdleConnections int                   `mapstructure:"max_idle_connections" description:"sets the maximum number of connections in the idle connection pool"`
 	Notification       *NotificationSettings `mapstructure:"notification"`
-	IntegrityProcessor security.IntegrityProcessor
 }
 
 // DefaultSettings returns default values for storage settings
@@ -72,12 +68,6 @@ func DefaultSettings() *Settings {
 		SkipSSLValidation:  false,
 		MaxIdleConnections: 5,
 		Notification:       DefaultNotificationSettings(),
-		IntegrityProcessor: &security.HashingIntegrityProcessor{
-			HashingFunc: func(data []byte) []byte {
-				hash := sha256.Sum256(data)
-				return hash[:]
-			},
-		},
 	}
 }
 
@@ -91,9 +81,6 @@ func (s *Settings) Validate() error {
 	}
 	if len(s.EncryptionKey) != 32 {
 		return fmt.Errorf("validate Settings: StorageEncryptionKey must be exactly 32 symbols long but was %d symbols long", len(s.EncryptionKey))
-	}
-	if s.IntegrityProcessor == nil {
-		return fmt.Errorf("validate Settings: StorageIntegrityProcessor must not be nil")
 	}
 	return s.Notification.Validate()
 }

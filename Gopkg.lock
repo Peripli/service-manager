@@ -475,12 +475,12 @@
   version = "v1.5.1"
 
 [[projects]]
-  digest = "1:13503b1b68ee704913caf452f02968fa313a9934e67d951ed0d39ca8e230d5e0"
+  digest = "1:358f9a53d3bb46b9dd07b4490f9b30f9f85218b41f6bbb48d6503668a45721a6"
   name = "github.com/tidwall/gjson"
   packages = ["."]
   pruneopts = "UT"
-  revision = "0360deb6d803e8c271363ce5f6c85d6cd843a3a0"
-  version = "v1.5.0"
+  revision = "f042915ca17de35980544c91ab2c8ceb73b682f2"
+  version = "v1.6.0"
 
 [[projects]]
   digest = "1:8453ddbed197809ee8ca28b06bd04e127bec9912deb4ba451fea7a1eca578328"
@@ -604,7 +604,7 @@
     "publicsuffix",
   ]
   pruneopts = "UT"
-  revision = "0de0cce0169b09b364e001f108dc0399ea8630b3"
+  revision = "244492dfa37ae2ce87222fd06250a03160745faa"
 
 [[projects]]
   branch = "master"
@@ -619,11 +619,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:578046baf093df15df2904bbb0fe06f3f2385bad59987532201007754aa7e1d5"
+  digest = "1:4407806f09644672ca43681db267813d66485dc9e0c221a541bfc51e53535c82"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "d5e6a3e2c0ae16fc7480523ebcb7fd4dd3215489"
+  revision = "2f85c7ec1e521e2590f5310d149c4152c7624dc8"
 
 [[projects]]
   digest = "1:28deae5fe892797ff37a317b5bcda96d11d1c90dadd89f1337651df3bc4c586e"

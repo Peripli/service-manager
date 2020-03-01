@@ -133,11 +133,11 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 		Filters: []web.Filter{
 			&filters.Logging{},
 			&filters.SelectionCriteria{},
+			&filters.ServiceInstanceStripFilter{},
+			&filters.ServiceBindingStripFilter{},
 			filters.NewProtectedLabelsFilter(options.APISettings.ProtectedLabels),
 			&filters.ProtectedSMPlatformFilter{},
 			&filters.ServiceInstanceFilter{},
-			&filters.ServiceInstanceStripFilter{},
-			&filters.ServiceBindingStripFilter{},
 			&filters.PlatformAwareVisibilityFilter{},
 			&filters.PatchOnlyLabelsFilter{},
 			filters.NewPlansFilterByVisibility(options.Repository),

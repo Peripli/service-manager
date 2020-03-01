@@ -34,18 +34,26 @@ const planIDProperty = "service_plan_id"
 
 const ServiceInstanceVisibilityFilterName = "ServiceInstanceVisibilityFilter"
 
+// InstanceVisibilityMetadata contains metadata required for visibility checks during instance creation
+type InstanceVisibilityMetadata struct {
+	PlatformID   string
+	PlatformType string
+	LabelKey     string
+	LabelValue   string
+}
+
 // serviceInstanceVisibilityFilter ensures that the tenant making the provisioning/update request
 // has the necessary visibilities - i.e. that he has the right to consume the requested plan.
 type serviceInstanceVisibilityFilter struct {
-	repository       storage.Repository
-	tenantIdentifier string
+	repository                    storage.Repository
+	getInstanceVisibilityMetadata func(req *web.Request, repository storage.Repository) (*InstanceVisibilityMetadata, error)
 }
 
 // NewServiceInstanceVisibilityFilter creates a new serviceInstanceVisibilityFilter filter
-func NewServiceInstanceVisibilityFilter(repository storage.Repository, tenantIdentifier string) *serviceInstanceVisibilityFilter {
+func NewServiceInstanceVisibilityFilter(repository storage.Repository, getInstanceVisibilityMetadata func(req *web.Request, repository storage.Repository) (*InstanceVisibilityMetadata, error)) *serviceInstanceVisibilityFilter {
 	return &serviceInstanceVisibilityFilter{
-		repository:       repository,
-		tenantIdentifier: tenantIdentifier,
+		repository:                    repository,
+		getInstanceVisibilityMetadata: getInstanceVisibilityMetadata,
 	}
 }
 
@@ -56,15 +64,11 @@ func (*serviceInstanceVisibilityFilter) Name() string {
 func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 
-	tenantID := query.RetrieveFromCriteria(f.tenantIdentifier, query.CriteriaForContext(ctx)...)
-	if tenantID == "" {
-		log.C(ctx).Errorf("Tenant identifier not found in request criteria. Not able to create instance without tenant")
-		return nil, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: "no tenant identifier provided",
-			StatusCode:  http.StatusBadRequest,
-		}
+	visibilityMetadata, err := f.getInstanceVisibilityMetadata(req, f.repository)
+	if err != nil {
+		return nil, err
 	}
+
 	if req.Method == http.MethodDelete {
 		return next.Handle(req)
 	}
@@ -77,7 +81,7 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 	}
 
 	criteria := []query.Criterion{
-		query.ByField(query.EqualsOrNilOperator, platformIDProperty, types.SMPlatform),
+		query.ByField(query.EqualsOrNilOperator, platformIDProperty, visibilityMetadata.PlatformID),
 		query.ByField(query.EqualsOperator, planIDProperty, planID),
 	}
 
@@ -100,8 +104,18 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 	if len(visibility.PlatformID) == 0 { // public visibility
 		return next.Handle(req)
 	}
-	tenantLabels, ok := visibility.Labels[f.tenantIdentifier]
-	if ok && slice.StringsAnyEquals(tenantLabels, tenantID) {
+
+	if visibilityMetadata.LabelKey == "" {
+		return next.Handle(req)
+	}
+
+	tenantLabels, ok := visibility.Labels[visibilityMetadata.LabelKey]
+	if ok && slice.StringsAnyEquals(tenantLabels, visibilityMetadata.LabelValue) {
+		return next.Handle(req)
+	}
+
+	if !ok {
+		// no visibility labels means this is a public visibility
 		return next.Handle(req)
 	}
 

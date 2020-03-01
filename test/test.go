@@ -156,7 +156,11 @@ func StorageResourcePatch(ctx *common.TestContext, _ bool, _ string, objID strin
 }
 
 func EnsurePublicPlanVisibility(repository storage.Repository, planID string) {
-	EnsurePlanVisibility(repository, "", "", planID, "")
+	EnsurePublicPlanVisibilityForPlatform(repository, planID, "")
+}
+
+func EnsurePublicPlanVisibilityForPlatform(repository storage.Repository, planID, platformID string) {
+	EnsurePlanVisibility(repository, "", platformID, planID, "")
 }
 
 func EnsurePlanVisibilityDoesNotExist(repository storage.Repository, tenantIdentifier, platformID, planID, tenantID string) {
