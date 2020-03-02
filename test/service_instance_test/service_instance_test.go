@@ -160,6 +160,14 @@ var _ = DescribeTestsFor(TestCase{
 					Status(expectedStatusCode)
 			}
 
+			forceDeleteInstance := func(smClient *SMExpect, async bool, expectedStatusCode int) *httpexpect.Response {
+				return smClient.DELETE(web.ServiceInstancesURL+"/"+instanceID).
+					WithQuery("async", async).
+					WithQuery("force", "true").
+					Expect().
+					Status(expectedStatusCode)
+			}
+
 			BeforeEach(func() {
 				ID, err := uuid.NewV4()
 				Expect(err).ToNot(HaveOccurred())
@@ -2393,6 +2401,25 @@ var _ = DescribeTestsFor(TestCase{
 										ID:    instanceID,
 										Type:  types.ServiceInstanceType,
 										Ready: true,
+									})
+								})
+
+								When("deprovision is forceful", func() {
+									It("deletes the instance and marks the operation with success", func() {
+										resp := forceDeleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:   instanceID,
+											Type: types.ServiceInstanceType,
+										})
 									})
 								})
 							})

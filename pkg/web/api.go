@@ -39,6 +39,9 @@ const (
 
 	// QueryParamLastOp is the value used to denote the query key used to convey a client's intent to retrieve also the last operation associated with the requested resource
 	QueryParamLastOp = "last_op"
+
+	// QueryParamForce is the value used to denote that a resource is being forcefully deleted (ignoring around tx errors)
+	QueryParamForce = "force"
 )
 
 // API is the primary point for REST API registration

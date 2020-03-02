@@ -80,7 +80,7 @@ func (s *Settings) Validate() error {
 }
 
 type Options struct {
-	Repository        storage.TransactionalRepository
+	Repository        *storage.InterceptableTransactionalRepository
 	APISettings       *Settings
 	OperationSettings *operations.Settings
 	WSSettings        *ws.Settings

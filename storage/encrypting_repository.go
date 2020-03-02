@@ -195,6 +195,10 @@ func (er *encryptingRepository) Delete(ctx context.Context, objectType types.Obj
 	return nil
 }
 
+func (er *encryptingRepository) ForceDelete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) error {
+	return er.Delete(ctx, objectType, criteria...)
+}
+
 func (er *encryptingRepository) encrypt(ctx context.Context, obj types.Object) error {
 	if securedObject, isSecured := obj.(types.Secured); isSecured {
 		return securedObject.Encrypt(ctx, func(ctx context.Context, bytes []byte) ([]byte, error) {

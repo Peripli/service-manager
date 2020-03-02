@@ -169,6 +169,9 @@ type Repository interface {
 	//Delete deletes objects from SM DB
 	Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) error
 
+	//ForceDelete deletes objects from SM DB forcefully. The repository implementation is free to give a semantic to what forcefully means.
+	ForceDelete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) error
+
 	// Update updates an object from SM DB
 	Update(ctx context.Context, obj types.Object, labelChanges types.LabelChanges, criteria ...query.Criterion) (types.Object, error)
 }

@@ -50,7 +50,7 @@ type BaseController struct {
 
 	resourceBaseURL string
 	objectType      types.ObjectType
-	repository      storage.Repository
+	repository      *storage.InterceptableTransactionalRepository
 	objectBlueprint func() types.Object
 
 	DefaultPageSize int
@@ -229,12 +229,17 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
-
+	force := r.URL.Query().Get(web.QueryParamForce) == "true"
 	criteria := query.CriteriaForContext(ctx)
-
-	log.C(ctx).Debugf("Request will be executed synchronously")
-	if err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
-		return nil, util.HandleStorageError(err, c.objectType.String())
+	log.C(ctx).Debugf("Request will be executed synchronously with force = %t", force)
+	if force {
+		if err := c.repository.ForceDelete(ctx, c.objectType, criteria...); err != nil {
+			return nil, util.HandleStorageError(err, c.objectType.String())
+		}
+	} else {
+		if err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
+			return nil, util.HandleStorageError(err, c.objectType.String())
+		}
 	}
 
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -252,10 +257,16 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		return nil, err
 	}
 	r.Request = r.WithContext(ctx)
+	force := r.URL.Query().Get(web.QueryParamForce) == "true"
 	criteria := query.CriteriaForContext(ctx)
 
 	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-		err := repository.Delete(ctx, c.objectType, criteria...)
+		var err error
+		if force {
+			err = repository.ForceDelete(ctx, c.objectType, criteria...)
+		} else {
+			err = repository.Delete(ctx, c.objectType, criteria...)
+		}
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 

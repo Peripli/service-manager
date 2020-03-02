@@ -179,6 +179,14 @@ var _ = DescribeTestsFor(TestCase{
 					Status(expectedStatusCode)
 			}
 
+			forceDeleteBinding := func(smClient *SMExpect, async bool, expectedStatusCode int) *httpexpect.Response {
+				return smClient.DELETE(web.ServiceBindingsURL+"/"+bindingID).
+					WithQuery("async", async).
+					WithQuery("force", "true").
+					Expect().
+					Status(expectedStatusCode)
+			}
+
 			BeforeEach(func() {
 				brokerID, brokerServer, servicePlanID = newServicePlan(ctx, true)
 				brokerServer.ShouldRecordRequests(false)
@@ -1661,6 +1669,25 @@ var _ = DescribeTestsFor(TestCase{
 										ID:    bindingID,
 										Type:  types.ServiceBindingType,
 										Ready: true,
+									})
+								})
+
+								When("unbind is forceful", func() {
+									It("deletes the binding and marks the operation with success", func() {
+										resp := forceDeleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:   instanceID,
+											Type: types.ServiceInstanceType,
+										})
 									})
 								})
 							})

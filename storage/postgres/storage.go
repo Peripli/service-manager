@@ -300,6 +300,10 @@ func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteri
 	return checkRowsAffected(ctx, result)
 }
 
+func (ps *Storage) ForceDelete(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) error {
+	return ps.Delete(ctx, objType, criteria...)
+}
+
 func (ps *Storage) Update(ctx context.Context, obj types.Object, labelChanges types.LabelChanges, _ ...query.Criterion) (types.Object, error) {
 	obj.SetUpdatedAt(time.Now().UTC())
 

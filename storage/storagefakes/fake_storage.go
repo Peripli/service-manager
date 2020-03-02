@@ -78,6 +78,19 @@ type FakeStorage struct {
 		result1 types.ObjectList
 		result2 error
 	}
+	ForceDeleteStub        func(context.Context, types.ObjectType, ...query.Criterion) error
+	forceDeleteMutex       sync.RWMutex
+	forceDeleteArgsForCall []struct {
+		arg1 context.Context
+		arg2 types.ObjectType
+		arg3 []query.Criterion
+	}
+	forceDeleteReturns struct {
+		result1 error
+	}
+	forceDeleteReturnsOnCall map[int]struct {
+		result1 error
+	}
 	GetStub        func(context.Context, types.ObjectType, ...query.Criterion) (types.Object, error)
 	getMutex       sync.RWMutex
 	getArgsForCall []struct {
@@ -473,6 +486,68 @@ func (fake *FakeStorage) DeleteReturningReturnsOnCall(i int, result1 types.Objec
 		result1 types.ObjectList
 		result2 error
 	}{result1, result2}
+}
+
+func (fake *FakeStorage) ForceDelete(arg1 context.Context, arg2 types.ObjectType, arg3 ...query.Criterion) error {
+	fake.forceDeleteMutex.Lock()
+	ret, specificReturn := fake.forceDeleteReturnsOnCall[len(fake.forceDeleteArgsForCall)]
+	fake.forceDeleteArgsForCall = append(fake.forceDeleteArgsForCall, struct {
+		arg1 context.Context
+		arg2 types.ObjectType
+		arg3 []query.Criterion
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("ForceDelete", []interface{}{arg1, arg2, arg3})
+	fake.forceDeleteMutex.Unlock()
+	if fake.ForceDeleteStub != nil {
+		return fake.ForceDeleteStub(arg1, arg2, arg3...)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.forceDeleteReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeStorage) ForceDeleteCallCount() int {
+	fake.forceDeleteMutex.RLock()
+	defer fake.forceDeleteMutex.RUnlock()
+	return len(fake.forceDeleteArgsForCall)
+}
+
+func (fake *FakeStorage) ForceDeleteCalls(stub func(context.Context, types.ObjectType, ...query.Criterion) error) {
+	fake.forceDeleteMutex.Lock()
+	defer fake.forceDeleteMutex.Unlock()
+	fake.ForceDeleteStub = stub
+}
+
+func (fake *FakeStorage) ForceDeleteArgsForCall(i int) (context.Context, types.ObjectType, []query.Criterion) {
+	fake.forceDeleteMutex.RLock()
+	defer fake.forceDeleteMutex.RUnlock()
+	argsForCall := fake.forceDeleteArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeStorage) ForceDeleteReturns(result1 error) {
+	fake.forceDeleteMutex.Lock()
+	defer fake.forceDeleteMutex.Unlock()
+	fake.ForceDeleteStub = nil
+	fake.forceDeleteReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeStorage) ForceDeleteReturnsOnCall(i int, result1 error) {
+	fake.forceDeleteMutex.Lock()
+	defer fake.forceDeleteMutex.Unlock()
+	fake.ForceDeleteStub = nil
+	if fake.forceDeleteReturnsOnCall == nil {
+		fake.forceDeleteReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.forceDeleteReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
 }
 
 func (fake *FakeStorage) Get(arg1 context.Context, arg2 types.ObjectType, arg3 ...query.Criterion) (types.Object, error) {
@@ -896,6 +971,8 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.deleteMutex.RUnlock()
 	fake.deleteReturningMutex.RLock()
 	defer fake.deleteReturningMutex.RUnlock()
+	fake.forceDeleteMutex.RLock()
+	defer fake.forceDeleteMutex.RUnlock()
 	fake.getMutex.RLock()
 	defer fake.getMutex.RUnlock()
 	fake.inTransactionMutex.RLock()

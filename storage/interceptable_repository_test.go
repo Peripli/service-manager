@@ -2,6 +2,7 @@ package storage_test
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -274,6 +275,25 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 
 			Expect(fakeStorage.DeleteCallCount()).To(Equal(1))
 		})
+
+		Context("when a delete around tx interceptor returns an error", func() {
+			It("does not invoke the actual storage for deletion", func() {
+				fakeDeleteInterceptor.AroundTxDeleteCalls(func(next storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
+					return func(ctx context.Context, deletionCriteria ...query.Criterion) error {
+						return fmt.Errorf("interceptor error")
+					}
+				})
+
+				byID := query.ByField(query.EqualsOperator, "id", "id")
+				err := interceptableRepository.Delete(ctx, types.ServiceBrokerType, byID)
+
+				Expect(err).Should(HaveOccurred())
+
+				Expect(fakeDeleteAroundTxInterceptor.AroundTxDeleteCallCount()).To(Equal(1))
+
+				Expect(fakeStorage.DeleteReturningCallCount()).To(Equal(0))
+			})
+		})
 	})
 
 	Describe("DeleteReturning", func() {
@@ -289,6 +309,42 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			Expect(fakeDeleteInterceptor.OnTxDeleteCallCount()).To(Equal(1))
 
 			Expect(fakeStorage.DeleteReturningCallCount()).To(Equal(1))
+		})
+	})
+
+	Describe("ForceDelete", func() {
+		It("invokes all interceptors", func() {
+			byID := query.ByField(query.EqualsOperator, "id", "id")
+			err := interceptableRepository.ForceDelete(ctx, types.ServiceBrokerType, byID)
+
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Expect(fakeDeleteAroundTxInterceptor.AroundTxDeleteCallCount()).To(Equal(1))
+			Expect(fakeDeleteOnTxInterceptor.OnTxDeleteCallCount()).To(Equal(1))
+			Expect(fakeDeleteInterceptor.AroundTxDeleteCallCount()).To(Equal(1))
+			Expect(fakeDeleteInterceptor.OnTxDeleteCallCount()).To(Equal(1))
+
+			Expect(fakeStorage.ForceDeleteCallCount()).To(Equal(1))
+		})
+
+		Context("when a delete around tx interceptor returns an error", func() {
+			It("successfully invokes the actual storage for deletion", func() {
+				fakeDeleteInterceptor.AroundTxDeleteCalls(func(next storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
+					return func(ctx context.Context, deletionCriteria ...query.Criterion) error {
+						return fmt.Errorf("interceptor error")
+					}
+				})
+
+				byID := query.ByField(query.EqualsOperator, "id", "id")
+				err := interceptableRepository.ForceDelete(ctx, types.ServiceBrokerType, byID)
+
+				Expect(err).ShouldNot(HaveOccurred())
+
+				Expect(fakeDeleteAroundTxInterceptor.AroundTxDeleteCallCount()).To(Equal(1))
+				Expect(fakeDeleteOnTxInterceptor.OnTxDeleteCallCount()).To(Equal(1))
+
+				Expect(fakeStorage.ForceDeleteCallCount()).To(Equal(1))
+			})
 		})
 	})
 
