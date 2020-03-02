@@ -1679,7 +1679,7 @@ var _ = DescribeTestsFor(TestCase{
 										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 											Category:          types.DELETE,
 											State:             types.SUCCEEDED,
-											ResourceType:      types.ServiceInstanceType,
+											ResourceType:      types.ServiceBindingType,
 											Reschedulable:     false,
 											DeletionScheduled: false,
 										})
