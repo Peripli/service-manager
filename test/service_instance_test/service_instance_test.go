@@ -160,10 +160,10 @@ var _ = DescribeTestsFor(TestCase{
 					Status(expectedStatusCode)
 			}
 
-			forceDeleteInstance := func(smClient *SMExpect, async bool, expectedStatusCode int) *httpexpect.Response {
+			forceDeleteInstance := func(smClient *SMExpect, async bool, force bool, expectedStatusCode int) *httpexpect.Response {
 				return smClient.DELETE(web.ServiceInstancesURL+"/"+instanceID).
 					WithQuery("async", async).
-					WithQuery("force", "true").
+					WithQuery("force", force).
 					Expect().
 					Status(expectedStatusCode)
 			}
@@ -2016,36 +2016,43 @@ var _ = DescribeTestsFor(TestCase{
 										Expect().StatusRange(httpexpect.Status2xx)
 								})
 
-								It("fails to delete it and marks the operation as failed", func() {
-									bindingID = ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
-										WithQuery("async", false).
-										WithJSON(Object{
-											"name":                "test-service-binding",
-											"service_instance_id": instanceID,
-										}).
-										Expect().
-										Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+								for _, forceVal := range []bool{true, false} {
+									When(fmt.Sprintf("force is %t", forceVal), func() {
+										It("fails to delete it and marks the operation as failed", func() {
+											bindingID = ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+												WithQuery("async", false).
+												WithJSON(Object{
+													"name":                "test-service-binding",
+													"service_instance_id": instanceID,
+												}).
+												Expect().
+												Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 
-									expectedStatus := http.StatusBadRequest
-									if testCase.async {
-										expectedStatus = http.StatusAccepted
-									}
-									resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, expectedStatus)
+											expectedStatus := http.StatusBadRequest
+											if testCase.async {
+												expectedStatus = http.StatusAccepted
+											}
 
-									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-										Category:          types.DELETE,
-										State:             types.FAILED,
-										ResourceType:      types.ServiceInstanceType,
-										Reschedulable:     false,
-										DeletionScheduled: false,
+											var resp *httpexpect.Response
+
+											resp = forceDeleteInstance(ctx.SMWithOAuthForTenant, testCase.async, forceVal, expectedStatus)
+
+											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.FAILED,
+												ResourceType:      types.ServiceInstanceType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:    instanceID,
+												Type:  types.ServiceInstanceType,
+												Ready: true,
+											})
+										})
 									})
-
-									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-										ID:    instanceID,
-										Type:  types.ServiceInstanceType,
-										Ready: true,
-									})
-								})
+								}
 							})
 
 							When("broker responds with synchronous success", func() {
@@ -2406,7 +2413,7 @@ var _ = DescribeTestsFor(TestCase{
 
 								When("deprovision is forceful", func() {
 									It("deletes the instance and marks the operation with success", func() {
-										resp := forceDeleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+										resp := forceDeleteInstance(ctx.SMWithOAuthForTenant, testCase.async, true, testCase.expectedDeleteSuccessStatusCode)
 
 										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 											Category:          types.DELETE,
