@@ -7,6 +7,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/storage/catalog"
 )
 
 func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
@@ -56,10 +57,11 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 				services := broker.Services
 				if len(services) == 0 {
 					var err error
-					services, err = loadServicesFromStorage(ctx, broker, repository)
+					serviceOfferings, err := catalog.Load(ctx, broker.ID, repository)
 					if err != nil {
 						return nil, err
 					}
+					services = serviceOfferings.ServiceOfferings
 				}
 				details[broker.ID] = &BrokerAdditional{
 					Services: services,
@@ -68,41 +70,6 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 			return details, nil
 		},
 	}
-}
-
-func loadServicesFromStorage(ctx context.Context, broker *types.ServiceBroker, repository storage.Repository) ([]*types.ServiceOffering, error) {
-	var services []*types.ServiceOffering
-	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", broker.GetID())
-	listOfferings, err := repository.List(ctx, types.ServiceOfferingType, byBrokerID)
-	if err != nil {
-		return nil, err
-	}
-	if listOfferings.Len() == 0 {
-		return nil, nil
-	}
-	offerings := listOfferings.(*types.ServiceOfferings).ServiceOfferings
-	offeringIDs := make([]string, 0, len(offerings))
-	for _, offering := range offerings {
-		offeringIDs = append(offeringIDs, offering.ID)
-	}
-	byOfferingIDs := query.ByField(query.InOperator, "service_offering_id", offeringIDs...)
-	listPlans, err := repository.List(ctx, types.ServicePlanType, byOfferingIDs)
-	if err != nil {
-		return nil, err
-	}
-	if listPlans.Len() == 0 {
-		return nil, nil
-	}
-	plans := listPlans.(*types.ServicePlans).ServicePlans
-	services = offerings
-	for _, service := range offerings {
-		for _, plan := range plans {
-			if plan.ServiceOfferingID == service.ID {
-				service.Plans = append(service.Plans, plan)
-			}
-		}
-	}
-	return services, nil
 }
 
 type BrokerAdditional struct {
