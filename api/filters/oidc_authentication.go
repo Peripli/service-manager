@@ -56,6 +56,7 @@ func oidcAuthnMatchers() []web.FilterMatcher {
 					web.ServiceInstancesURL+"/**",
 					web.ConfigURL+"/**",
 					web.ProfileURL+"/**",
+					web.OperationsURL+"/**",
 				),
 			},
 		},

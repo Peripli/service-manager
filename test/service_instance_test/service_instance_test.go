@@ -599,7 +599,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									}
 
-									instanceID, _ = VerifyOperationExists(ctx, fmt.Sprintf("%s/%s%s/%s", web.ServiceInstancesURL, operation.ResourceID, web.OperationsURL, operation.ID), operationExpectation)
+									instanceID, _ = VerifyOperationExists(ctx, fmt.Sprintf("%s/%s%s/%s", web.ServiceInstancesURL, operation.ResourceID, web.ResourceOperationsURL, operation.ID), operationExpectation)
 									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
 										ID:   instanceID,
 										Type: types.ServiceInstanceType,

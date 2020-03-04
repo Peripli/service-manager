@@ -108,6 +108,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 
 			NewServiceOfferingController(ctx, options),
 			NewServicePlanController(ctx, options),
+			NewOperationsController(ctx, options),
 
 			&info.Controller{
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
