@@ -226,6 +226,7 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 		return
 	}
 
+	log.C(om.smCtx).Infof("Found %d operations eligible for rescheduling", objectList.Len())
 	operations := objectList.(*types.Operations)
 	for i := 0; i < operations.Len(); i++ {
 		operation := operations.ItemAt(i).(*types.Operation)
