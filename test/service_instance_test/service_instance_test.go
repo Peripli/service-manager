@@ -701,7 +701,9 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											}
 
+											fmt.Println("Verifying IN_PROGRESS operation.")
 											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectation)
+											fmt.Println("VERIFIED IN_PROGRESS operation.")
 											verifyInstanceExists(newCtx, instanceID, false)
 
 											newCtx.CleanupAll(false)
@@ -711,7 +713,9 @@ var _ = DescribeTestsFor(TestCase{
 											operationExpectation.State = types.SUCCEEDED
 											operationExpectation.Reschedulable = false
 
+											fmt.Println("Verifying SUCCEEDED operation.")
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectation)
+											fmt.Println("VERIFIED SUCCEEDED operation.")
 											verifyInstanceExists(ctx, instanceID, true)
 										})
 									})
