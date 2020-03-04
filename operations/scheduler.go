@@ -319,11 +319,10 @@ func (s *Scheduler) storeOrUpdateOperation(ctx context.Context, operation, lastO
 
 func updateTransitiveResources(ctx context.Context, storage storage.Repository, resources []*types.RelatedType, updateFunc func(obj types.Object)) error {
 	for _, trR := range resources {
-		if trR.OperationType != types.CREATE {
-			continue
-		}
-		if err := fetchAndUpdateResource(ctx, storage, trR.ID, trR.Type, updateFunc); err != nil {
-			return err
+		if trR.OperationType == types.CREATE {
+			if err := fetchAndUpdateResource(ctx, storage, trR.ID, trR.Type, updateFunc); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

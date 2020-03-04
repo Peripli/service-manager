@@ -1,5 +1,5 @@
 BEGIN;
 
-ALTER TABLE operations ALTER COLUMN transitive_resources DROP;
+ALTER TABLE operations DROP COLUMN transitive_resources;
 
 COMMIT;
