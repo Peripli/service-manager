@@ -27,7 +27,7 @@ import (
 const ServiceBindingStripFilterName = "ServiceBindingStripFilter"
 
 var serviceBindingUnmodifiableProperties = []string{
-	"credentials", "syslog_drain_url", "route_service_url", "volume_mounts", "endpoints", "ready",
+	"credentials", "syslog_drain_url", "route_service_url", "volume_mounts", "endpoints", "ready", "context",
 }
 
 // ServiceBindingStripFilter checks post request body for unmodifiable properties

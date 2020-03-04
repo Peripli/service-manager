@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/query"
 	"net/http"
 	"sync"
 	"time"
@@ -515,7 +516,7 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 	multitenancyFilters := filters.NewMultitenancyFilters(labelKey, extractTenantFunc)
 	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
 	smb.RegisterFilters(
-		filters.NewServiceInstanceVisibilityFilter(smb.Storage, labelKey),
+		filters.NewServiceInstanceVisibilityFilter(smb.Storage, DefaultInstanceVisibilityFunc(labelKey)),
 		filters.NewServiceBindingVisibilityFilter(smb.Storage, labelKey),
 	)
 
@@ -561,4 +562,25 @@ func (smb *ServiceManagerBuilder) calculateIntegrity() error {
 		}
 		return nil
 	})
+}
+
+func DefaultInstanceVisibilityFunc(labelKey string) func(req *web.Request, repository storage.Repository) (metadata *filters.InstanceVisibilityMetadata, err error) {
+	return func(req *web.Request, repository storage.Repository) (metadata *filters.InstanceVisibilityMetadata, err error) {
+		tenantID := query.RetrieveFromCriteria(labelKey, query.CriteriaForContext(req.Context())...)
+		if tenantID == "" {
+			log.C(req.Context()).Errorf("Tenant identifier not found in request criteria. Not able to create instance without tenant")
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: "no tenant identifier provided",
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+
+		return &filters.InstanceVisibilityMetadata{
+			PlatformID:   types.SMPlatform,
+			PlatformType: types.SMPlatform,
+			LabelKey:     labelKey,
+			LabelValue:   tenantID,
+		}, nil
+	}
 }
