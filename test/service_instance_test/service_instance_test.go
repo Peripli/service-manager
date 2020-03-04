@@ -175,6 +175,7 @@ var _ = DescribeTestsFor(TestCase{
 							if readyField != ready {
 								By(fmt.Sprintf("Expected instance with id %s to be ready %t but ready was %t. Retrying...", instanceID, ready, readyField))
 							} else {
+								By(fmt.Sprintf("Found instance with id %s in SM.", instanceID))
 								return
 							}
 						}
