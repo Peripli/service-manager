@@ -112,7 +112,7 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 	}
 
 	newFetcher := func(t testCase) func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
-		return osb.CatalogFetcher(common.DoHTTP(t.reaction, t.expectations), version, util.TransportWithTlsProvider(http.Transport{}))
+		return osb.CatalogFetcher(common.DoHTTP(t.reaction, t.expectations), version, util.TransportWithTlsProvider(&http.Transport{}))
 	}
 
 	basicAuth := func(username, password string) string {
