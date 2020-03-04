@@ -20,7 +20,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/query"
 	"net/http"
 	"sync"
 	"time"
