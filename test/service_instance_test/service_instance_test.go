@@ -691,7 +691,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										It("should start restart polling through maintainer and eventually instance is set to ready", func() {
-											fmt.Println("Provisioning async instance.")
+											By("Provisioning async instance.")
 											resp := createInstanceWithAsync(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
 
 											operationExpectation := OperationExpectations{
@@ -702,9 +702,9 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											}
 
-											fmt.Println("Verifying IN_PROGRESS operation.")
+											By("Verifying IN_PROGRESS operation.")
 											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectation)
-											fmt.Printf("VERIFIED IN_PROGRESS operation (instance_id = %v).\n", instanceID)
+											By(fmt.Sprintf("VERIFIED IN_PROGRESS operation (instance_id = %v).\n", instanceID))
 											verifyInstanceExists(newCtx, instanceID, false)
 
 											newCtx.CleanupAll(false)
@@ -714,9 +714,9 @@ var _ = DescribeTestsFor(TestCase{
 											operationExpectation.State = types.SUCCEEDED
 											operationExpectation.Reschedulable = false
 
-											fmt.Println("Verifying SUCCEEDED operation.")
+											By("Verifying SUCCEEDED operation.")
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectation)
-											fmt.Println("VERIFIED SUCCEEDED operation.")
+											By("VERIFIED SUCCEEDED operation.")
 											verifyInstanceExists(ctx, instanceID, true)
 										})
 									})
