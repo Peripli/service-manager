@@ -53,7 +53,7 @@ func TransportWithTlsProvider(transport *http.Transport) GetTransportSettings {
 	}
 }
 
-func AuthAndTlsDecorator(config tls.Config, username, password string, reqFunc DoRequestOsbFunc, getTransportSettings GetTransportSettings) DoRequestOsbFunc {
+func AuthAndTlsDecorator(config *tls.Config, username, password string, reqFunc DoRequestOsbFunc, getTransportSettings GetTransportSettings) DoRequestOsbFunc {
 	return func(req *http.Request, client *http.Client) (*http.Response, error) {
 		if username != "" && password != "" {
 			req.SetBasicAuth(username, password)

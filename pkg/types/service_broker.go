@@ -62,17 +62,17 @@ func (e *ServiceBroker) Interpret() error {
 	return nil
 }
 
-func (e *ServiceBroker) GetTlsConfig() (tls.Config, error) {
+func (e *ServiceBroker) GetTlsConfig() (*tls.Config, error) {
 	var tlsConfig tls.Config
 	if e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
 		cert, err := tls.X509KeyPair([]byte(e.Credentials.TLS.Certificate), []byte(e.Credentials.TLS.Key))
 		if err != nil {
-			return tls.Config{}, err
+			return &tls.Config{}, err
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 
-	return tlsConfig, nil
+	return &tlsConfig, nil
 }
 
 func (e *ServiceBroker) Sanitize() {
