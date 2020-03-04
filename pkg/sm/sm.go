@@ -71,6 +71,8 @@ type ServiceManagerBuilder struct {
 	wg                  *sync.WaitGroup
 	cfg                 *config.Settings
 	securityBuilder     *SecurityBuilder
+	//rawRepository is a repository without any decoration and interceptors
+	rawRepository storage.TransactionalRepository
 }
 
 // ServiceManager  struct
@@ -176,6 +178,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		cfg:                 cfg,
 		securityBuilder:     securityBuilder,
 		OSBClientProvider:   osbClientProvider,
+		rawRepository:       smStorage,
 	}
 
 	smb.RegisterPlugins(osb.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
@@ -255,14 +258,15 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	srv := server.New(smb.cfg.Server, smb.API)
 	srv.Use(filters.NewRecoveryMiddleware())
 
+	// calculate integrity before running maintainer on non-integral objects
+	if err := smb.calculateIntegrity(); err != nil {
+		log.C(smb.ctx).Panic(err)
+	}
+
 	// start the operation maintainer
 	smb.OperationMaintainer.Run()
 
 	if err := smb.registerSMPlatform(); err != nil {
-		log.C(smb.ctx).Panic(err)
-	}
-
-	if err := smb.calculateIntegrity(); err != nil {
 		log.C(smb.ctx).Panic(err)
 	}
 
@@ -533,9 +537,7 @@ func (smb *ServiceManagerBuilder) Security() *SecurityBuilder {
 }
 
 func (smb *ServiceManagerBuilder) calculateIntegrity() error {
-	// TODO: if you have access to the DB, changing the integral data and removing the integrity will make this effort useless.
-	// Probably this should be done in a separate application or removed from the code after the initial setup.
-	return smb.Storage.InTransaction(smb.ctx, func(ctx context.Context, storage storage.Repository) error {
+	return smb.rawRepository.InTransaction(smb.ctx, func(ctx context.Context, storage storage.Repository) error {
 		objectTypesWithIntegrity := []types.ObjectType{types.PlatformType, types.ServiceBrokerType, types.ServiceBindingType}
 		for _, objectType := range objectTypesWithIntegrity {
 			emptyIntegrityCriteria := query.ByField(query.EqualsOrNilOperator, "integrity", "")
