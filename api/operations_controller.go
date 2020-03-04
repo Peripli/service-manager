@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
@@ -29,6 +30,13 @@ func (c *OperationsController) Routes() []web.Route {
 				Path:   web.OperationsURL,
 			},
 			Handler: c.ListObjects,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodDelete,
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
+			},
+			Handler: c.DeleteSingleObject,
 		},
 	}
 }

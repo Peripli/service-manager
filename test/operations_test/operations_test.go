@@ -51,7 +51,7 @@ func TestOperations(t *testing.T) {
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.OperationsURL,
 	SupportedOps: []test.Op{
-		test.List,
+		test.List, test.Delete,
 	},
 	DisableTenantResources:                 true,
 	ResourceBlueprint:                      blueprint,
