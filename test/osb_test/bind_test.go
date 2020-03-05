@@ -71,7 +71,7 @@ var _ = Describe("Bind", func() {
 			brokerServer.BindingHandler = delayingHandler(done)
 			assertUnresponsiveBrokerError(ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect())
-		})
+		}, testTimeout)
 	})
 
 	Context("bind request", func() {

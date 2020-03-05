@@ -326,7 +326,7 @@ var _ = Describe("Deprovision", func() {
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
 			verifyOperationDoesNotExist(SID, "delete")
-		})
+		}, testTimeout)
 	})
 
 	Context("when broker does not exist", func() {

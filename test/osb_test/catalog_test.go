@@ -186,16 +186,13 @@ var _ = Describe("Catalog", func() {
 			k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
 			k8sPlatform = common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
 
-			SMWithBasicK8S := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+			k8sAgent = &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
 				username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
 				req.WithBasicAuth(username, password).WithClient(ctx.HttpClient)
 			})}
 
-			username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicK8S, brokerID)
-			k8sAgent = &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
-				req.WithBasicAuth(username, password)
-			})}
-
+			username, password = test.RegisterBrokerPlatformCredentials(k8sAgent, brokerID)
+			k8sAgent.SetBasicCredentials(ctx, username, password)
 		})
 
 		AfterEach(func() {

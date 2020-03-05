@@ -76,7 +76,7 @@ var _ = Describe("Unbind", func() {
 			assertUnresponsiveBrokerError(ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithQueryObject(provisionRequestBodyMap()()).
 				Expect())
-		})
+		}, testTimeout)
 	})
 
 	Context("broker platform credentials check", func() {

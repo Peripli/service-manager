@@ -743,7 +743,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 			brokerServer.ServiceInstanceLastOpHandler = delayingHandler(done)
 			assertUnresponsiveBrokerError(ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect())
-		})
+		}, testTimeout)
 	})
 
 	Context("broker platform credentials check", func() {

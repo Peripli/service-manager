@@ -72,7 +72,7 @@ var _ = Describe("Get Binding Last Operation", func() {
 			brokerServer.BindingLastOpHandler = delayingHandler(done)
 			assertUnresponsiveBrokerError(ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect())
-		})
+		}, testTimeout)
 	})
 
 	Context("broker platform credentials check", func() {

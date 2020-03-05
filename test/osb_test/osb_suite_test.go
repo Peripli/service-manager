@@ -62,7 +62,8 @@ const (
 	organizationGUID            = "1113aa0-124e-4af2-1526-6bfacf61b111"
 	SID                         = "12345"
 	timeoutDuration             = time.Millisecond * 500
-	additionalDelayAfterTimeout = time.Millisecond * 200
+	additionalDelayAfterTimeout = time.Millisecond * 5
+	testTimeout                 = 10
 
 	brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
 	brokerAPIVersionHeaderValue = "2.13"

@@ -21,9 +21,8 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/test"
-	"net/http"
-
 	"github.com/Peripli/service-manager/test/common"
+	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -304,7 +303,7 @@ var _ = Describe("Provision", func() {
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
 			verifyOperationDoesNotExist(SID, "create")
-		})
+		}, testTimeout)
 	})
 
 	Context("when broker does not exist", func() {
