@@ -113,6 +113,7 @@ func VerifyOperationExists(ctx *TestContext, operationURL string, expectations O
 					Fail(fmt.Sprintf("Could not parse time %s into format %s: %s", deletionScheduledString, time.RFC3339Nano, err))
 				}
 
+				By(fmt.Sprintf("Found operation: %v", operation))
 				switch {
 				case resourceType != string(expectations.ResourceType.String()):
 					By(fmt.Sprintf("Found operation with object type %s but expected %s. Continue waiting...", resourceType, expectations.ResourceType))
