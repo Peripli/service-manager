@@ -91,7 +91,8 @@ type TestContext struct {
 	SMScheduler          *operations.Scheduler
 	TestPlatform         *types.Platform
 
-	Servers map[string]FakeServer
+	Servers    map[string]FakeServer
+	HttpClient *http.Client
 }
 
 type SMExpect struct {
@@ -122,6 +123,12 @@ func (expect *SMExpect) ListWithQuery(path string, query string) *httpexpect.Arr
 	}
 
 	return httpexpect.NewArray(ginkgo.GinkgoT(), items)
+}
+
+func (expect *SMExpect) SetBasicCredentials(ctx *TestContext, username, password string) {
+	expect.Expect = ctx.SM.Builder(func(req *httpexpect.Request) {
+		req.WithBasicAuth(username, password).WithClient(ctx.HttpClient)
+	})
 }
 
 type testSMServer struct {
@@ -336,12 +343,13 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 
 	testContext := &TestContext{
 		wg:                   wg,
-		SM:                   &SMExpect{SM},
-		SMWithOAuth:          &SMExpect{SMWithOAuth},
-		SMWithOAuthForTenant: &SMExpect{SMWithOAuthForTenant},
+		SM:                   &SMExpect{Expect: SM},
+		SMWithOAuth:          &SMExpect{Expect: SMWithOAuth},
+		SMWithOAuthForTenant: &SMExpect{Expect: SMWithOAuthForTenant},
 		Servers:              tcb.Servers,
 		SMRepository:         smRepository,
 		SMScheduler:          smScheduler,
+		HttpClient:           tcb.HttpClient,
 	}
 
 	if cleanup {

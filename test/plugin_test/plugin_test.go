@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/test"
 	"net/http"
 	"strconv"
 	"testing"
@@ -31,16 +32,25 @@ func TestPlugins(t *testing.T) {
 }
 
 var _ = Describe("Service Manager Plugins", func() {
-	var ctx *common.TestContext
-	var brokerServer *common.BrokerServer
-	var osbURL string
-	var serviceID string
-	var planID string
+	var (
+		ctx          *common.TestContext
+		brokerServer *common.BrokerServer
+		osbURL       string
+
+		brokerID  string
+		serviceID string
+		planID    string
+	)
 
 	AfterEach(func() {
 		if ctx != nil {
 			ctx.Cleanup()
 		}
+	})
+
+	JustBeforeEach(func() {
+		username, password := test.RegisterBrokerPlatformCredentials(ctx.SMWithBasic, brokerID)
+		ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
 	})
 
 	Describe("Partial plugin", func() {
@@ -61,7 +71,6 @@ var _ = Describe("Service Manager Plugins", func() {
 			catalog := common.NewEmptySBCatalog()
 			catalog.AddService(service1)
 
-			var brokerID string
 			brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
 			brokerServer.ShouldRecordRequests(true)
 
@@ -104,7 +113,6 @@ var _ = Describe("Service Manager Plugins", func() {
 			catalog := common.NewEmptySBCatalog()
 			catalog.AddService(service1)
 
-			var brokerID string
 			brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
 			brokerServer.ShouldRecordRequests(true)
 			common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)

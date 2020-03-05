@@ -167,8 +167,8 @@
   name = "github.com/golang/protobuf"
   packages = ["proto"]
   pruneopts = "UT"
-  revision = "d23c5127dc24889085f8ccea5c9d560a57a879d8"
-  version = "v1.3.3"
+  revision = "5d5b4c10bd43f85e63bd9e4a3fa9b1ea2ef88af2"
+  version = "v1.3.4"
 
 [[projects]]
   digest = "1:a63cff6b5d8b95638bfe300385d93b2a6d9d687734b863da8e09dc834510a690"
@@ -256,7 +256,7 @@
   revision = "2ba0fc60eb4a54030f3a6d73ff0a047349c7eeca"
 
 [[projects]]
-  digest = "1:da22f8cea639e4c5a5df6a1604fe33396ee2cea130b8214ba67cb6ad236b87ff"
+  digest = "1:e5e0d775194850f7f06c78f51015ec7c85a59a62613d1ad9847b5ba0f2a021c8"
   name = "github.com/klauspost/compress"
   packages = [
     "flate",
@@ -264,8 +264,8 @@
     "zlib",
   ]
   pruneopts = "UT"
-  revision = "2a5ec94050832300f2c49529dbab4b3774cbc30a"
-  version = "v1.10.1"
+  revision = "d4b3bb13d45b000ac3a915d4f32069a9284540bb"
+  version = "v1.10.2"
 
 [[projects]]
   digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
@@ -471,16 +471,16 @@
     "require",
   ]
   pruneopts = "UT"
-  revision = "624f997379a27f38832b4b22ef5e4d31385c6daf"
-  version = "v1.5.0"
+  revision = "3ebf1ddaeb260c4b1ae502a01c7844fa8c1fa0e9"
+  version = "v1.5.1"
 
 [[projects]]
-  digest = "1:13503b1b68ee704913caf452f02968fa313a9934e67d951ed0d39ca8e230d5e0"
+  digest = "1:358f9a53d3bb46b9dd07b4490f9b30f9f85218b41f6bbb48d6503668a45721a6"
   name = "github.com/tidwall/gjson"
   packages = ["."]
   pruneopts = "UT"
-  revision = "0360deb6d803e8c271363ce5f6c85d6cd843a3a0"
-  version = "v1.5.0"
+  revision = "f042915ca17de35980544c91ab2c8ceb73b682f2"
+  version = "v1.6.0"
 
 [[projects]]
   digest = "1:8453ddbed197809ee8ca28b06bd04e127bec9912deb4ba451fea7a1eca578328"
@@ -578,19 +578,21 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:5cdf4eb6946922ebe638b90e548e1a86085b778d9daf0889951b39f44e6bbe6c"
+  digest = "1:6d1e6b1279da86043098d6b35e4e84f5ace42c7a3a8936025a843619b02253ea"
   name = "golang.org/x/crypto"
   packages = [
+    "bcrypt",
+    "blowfish",
     "ed25519",
     "ed25519/internal/edwards25519",
     "pbkdf2",
   ]
   pruneopts = "UT"
-  revision = "1d94cc7ab1c630336ab82ccb9c9cda72a875c382"
+  revision = "2aa609cf4a9d7d1126360de73b55b6002f9e052a"
 
 [[projects]]
   branch = "master"
-  digest = "1:7217cd222c72ced17b355f472688cd619e80c8b2e811cbe8b68b739091721173"
+  digest = "1:865e8f0cedca9141920b5d7a5b9f41d90fc14324c82506d452cf9cab669a44a7"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -602,7 +604,7 @@
     "publicsuffix",
   ]
   pruneopts = "UT"
-  revision = "16171245cfb220d5317888b716d69c1fb4e7992b"
+  revision = "244492dfa37ae2ce87222fd06250a03160745faa"
 
 [[projects]]
   branch = "master"
@@ -617,11 +619,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:466305ffc5f3d16969a5072672a77d430b60349a72a4226d939ab5979ea94faa"
+  digest = "1:a70084a3b2539ae837aa84c5ab561c6eddfc48eb64737d4f4414405694e47b0e"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "9197077df8675547dfa5e04c6dfcd024257a2030"
+  revision = "5d559ad92b82f3696a2a2f23108ac03758aabedb"
 
 [[projects]]
   digest = "1:28deae5fe892797ff37a317b5bcda96d11d1c90dadd89f1337651df3bc4c586e"
@@ -751,6 +753,7 @@
     "github.com/spf13/viper",
     "github.com/tidwall/gjson",
     "github.com/tidwall/sjson",
+    "golang.org/x/crypto/bcrypt",
     "gopkg.in/square/go-jose.v2/json",
     "gopkg.in/yaml.v2",
   ]
