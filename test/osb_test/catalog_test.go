@@ -375,13 +375,13 @@ var _ = Describe("Catalog", func() {
 								newPlatform = ctx.RegisterPlatform()
 							})
 
-							It("should return conflict", func() {
+							It("should return 400", func() {
 								notifications, err := ctx.SMRepository.List(context.TODO(), types.NotificationType,
 									query.OrderResultBy("created_at", query.DescOrder),
 									query.ByField(query.EqualsOperator, "platform_id", newPlatform.ID))
 								Expect(err).ToNot(HaveOccurred())
 
-								newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMWithBasicPlatform, prefixedBrokerID, notifications.ItemAt(0).GetID(), http.StatusConflict)
+								newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMWithBasicPlatform, prefixedBrokerID, notifications.ItemAt(0).GetID(), http.StatusBadRequest)
 								ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
 
 								assertCredentialsNotChanged(oldSMWithBasic, ctx.SMWithBasic)
@@ -389,12 +389,12 @@ var _ = Describe("Catalog", func() {
 						})
 
 						When("provided notification id is for a different broker", func() {
-							It("should return conflict", func() {
+							It("should return 400", func() {
 								notifications, err := ctx.SMRepository.List(context.TODO(), types.NotificationType,
 									query.OrderResultBy("created_at", query.DescOrder))
 								Expect(err).ToNot(HaveOccurred())
 
-								newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMWithBasicPlatform, "non-existing-broker-id", notifications.ItemAt(0).GetID(), http.StatusConflict)
+								newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMWithBasicPlatform, "non-existing-broker-id", notifications.ItemAt(0).GetID(), http.StatusBadRequest)
 								ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
 
 								assertCredentialsNotChanged(oldSMWithBasic, ctx.SMWithBasic)
@@ -405,8 +405,8 @@ var _ = Describe("Catalog", func() {
 				})
 
 				Context("and notification is not found in SM DB", func() {
-					It("should return conflict", func() {
-						newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMWithBasicPlatform, prefixedBrokerID, "non-existing-id", http.StatusConflict)
+					It("should return 400", func() {
+						newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMWithBasicPlatform, prefixedBrokerID, "non-existing-id", http.StatusBadRequest)
 						ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
 
 						assertCredentialsNotChanged(oldSMWithBasic, ctx.SMWithBasic)
@@ -415,7 +415,7 @@ var _ = Describe("Catalog", func() {
 			})
 
 			Context("when broker platform credentials change out of notification processing context when already exist", func() {
-				It("should return conflict", func() {
+				It("should return 409", func() {
 					newUsername, newPassword := test.RegisterBrokerPlatformCredentialsExpect(SMWithBasicPlatform, prefixedBrokerID, http.StatusConflict)
 					ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
 
