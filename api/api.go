@@ -109,7 +109,10 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			NewServiceOfferingController(ctx, options),
 			NewServicePlanController(ctx, options),
 
-			NewCredentialsController(ctx, options),
+			&credentialsController{
+				repository: options.Repository,
+			},
+
 			&info.Controller{
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,

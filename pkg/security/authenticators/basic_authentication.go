@@ -76,12 +76,12 @@ func BasicPlatformAuthenticator(request *web.Request, repository storage.Reposit
 //BasicOSBAuthenticator attempts to authenticate basic auth requests with provided broker platform credentials
 func BasicOSBAuthenticator(request *web.Request, repository storage.Repository, username, password string) (*web.UserContext, httpsec.Decision, error) {
 	ctx := request.Context()
-	log.C(ctx).Debugf("Attempting to authenticate broker platform credentials")
 
 	brokerID, ok := request.PathParams[osb.BrokerIDPathParam]
 	if !ok {
 		return nil, httpsec.Abstain, fmt.Errorf("could not get authenticate OSB request: brokerID path parameter not found")
 	}
+	log.C(ctx).Debugf("Attempting to authenticate broker platform credentials for broker with ID %s and username %s", brokerID, username)
 
 	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", brokerID)
 	byUsername := query.ByField(query.EqualsOperator, "username", username)

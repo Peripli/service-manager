@@ -194,10 +194,6 @@ func (ni *NotificationsInterceptor) OnTxDelete(h storage.InterceptDeleteOnTxFunc
 				}); err != nil {
 					return err
 				}
-
-				if err := ni.DeletePostConditionFunc(ctx, oldObject, repository, platformID); err != nil {
-					return err
-				}
 			}
 		}
 
