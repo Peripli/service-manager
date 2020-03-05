@@ -209,15 +209,16 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 
 // rescheduleUnprocessedOperations reschedules IN_PROGRESS operations which are reschedulable, not scheduled for deletion and no goroutine is processing at the moment
 func (om *Maintainer) rescheduleUnprocessedOperations() {
+	currentTime := time.Now()
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
 		query.ByField(query.EqualsOperator, "reschedule", "true"),
 		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
 		// check if operation hasn't been updated for the operation's maximum allowed time to execute
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ActionTimeout))),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ActionTimeout))),
 		// check if operation is still eligible for processing
-		query.ByField(query.GreaterThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ReconciliationOperationTimeout))),
+		query.ByField(query.GreaterThanOperator, "created_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ReconciliationOperationTimeout))),
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
@@ -226,6 +227,7 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 		return
 	}
 
+	log.C(om.smCtx).Infof("Current time: %v; Action timeout: %v; ROT: %v", currentTime, currentTime.Add(-om.settings.ActionTimeout), currentTime.Add(-om.settings.ReconciliationOperationTimeout))
 	log.C(om.smCtx).Infof("Found %d operations eligible for rescheduling", objectList.Len())
 	operations := objectList.(*types.Operations)
 	for i := 0; i < operations.Len(); i++ {
