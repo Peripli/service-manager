@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -37,6 +38,9 @@ type OAuthServer struct {
 	privateKey *rsa.PrivateKey // public key privateKey.PublicKey
 	signer     jwt.Signer
 	keyID      string
+
+	mutex                     *sync.RWMutex
+	tokenKeysRequestCallCount int
 }
 
 func NewOAuthServer() *OAuthServer {
@@ -129,6 +133,10 @@ func (os *OAuthServer) getTokenKeys(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(responseBody)
+
+	os.mutex.Lock()
+	os.tokenKeysRequestCallCount++
+	os.mutex.Unlock()
 }
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
