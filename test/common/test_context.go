@@ -73,6 +73,8 @@ type TestContextBuilder struct {
 	Environment func(f ...func(set *pflag.FlagSet)) env.Environment
 	Servers     map[string]FakeServer
 	HttpClient  *http.Client
+
+	useSeparateOAuthServerForTenantAccess bool
 }
 
 type TestContext struct {
@@ -311,6 +313,11 @@ func (tcb *TestContextBuilder) WithSMExtensions(fs ...func(ctx context.Context, 
 	return tcb
 }
 
+func (tcb *TestContextBuilder) ShouldUseSeparateOAuthServerForTenantAccess(use bool) *TestContextBuilder {
+	tcb.useSeparateOAuthServerForTenantAccess = use
+	return tcb
+}
+
 func (tcb *TestContextBuilder) Build() *TestContext {
 	return tcb.BuildWithListener(nil, true)
 }
@@ -323,7 +330,12 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 	environment := tcb.Environment(tcb.envPreHooks...)
 
 	tcb.Servers[OauthServer] = NewOAuthServer()
-	tcb.Servers[TenantOauthServer] = NewOAuthServer()
+	if tcb.useSeparateOAuthServerForTenantAccess {
+		tcb.Servers[TenantOauthServer] = NewOAuthServer()
+	} else {
+		tcb.Servers[TenantOauthServer] = tcb.Servers[OauthServer]
+	}
+
 	for _, envPostHook := range tcb.envPostHooks {
 		envPostHook(environment, tcb.Servers)
 	}
