@@ -37,8 +37,6 @@ type OAuthServer struct {
 	privateKey *rsa.PrivateKey // public key privateKey.PublicKey
 	signer     jwt.Signer
 	keyID      string
-
-	tokenKeyResponseBody []byte
 }
 
 func NewOAuthServer() *OAuthServer {

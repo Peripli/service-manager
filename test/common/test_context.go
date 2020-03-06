@@ -57,6 +57,7 @@ func init() {
 
 const SMServer = "sm-server"
 const OauthServer = "oauth-server"
+const TenantOauthServer = "tenant-oauth-server"
 const BrokerServerPrefix = "broker-"
 
 type TestContextBuilder struct {
@@ -322,6 +323,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 	environment := tcb.Environment(tcb.envPreHooks...)
 
 	tcb.Servers[OauthServer] = NewOAuthServer()
+	tcb.Servers[TenantOauthServer] = NewOAuthServer()
 	for _, envPostHook := range tcb.envPostHooks {
 		envPostHook(environment, tcb.Servers)
 	}
@@ -332,12 +334,13 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 
 	SM := httpexpect.New(ginkgo.GinkgoT(), smServer.URL())
 	oauthServer := tcb.Servers[OauthServer].(*OAuthServer)
+	tenantOauthServer := tcb.Servers[TenantOauthServer].(*OAuthServer)
 	accessToken := oauthServer.CreateToken(tcb.defaultTokenClaims)
 	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
 		req.WithHeader("Authorization", "Bearer "+accessToken).WithClient(tcb.HttpClient)
 	})
 
-	tenantAccessToken := oauthServer.CreateToken(tcb.tenantTokenClaims)
+	tenantAccessToken := tenantOauthServer.CreateToken(tcb.tenantTokenClaims)
 	SMWithOAuthForTenant := SM.Builder(func(req *httpexpect.Request) {
 		req.WithHeader("Authorization", "Bearer "+tenantAccessToken).WithClient(tcb.HttpClient)
 	})
@@ -352,7 +355,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 		SMScheduler:          smScheduler,
 		HttpClient:           tcb.HttpClient,
 		TenantTokenProvider: func() string {
-			return oauthServer.CreateToken(tcb.tenantTokenClaims)
+			return tenantOauthServer.CreateToken(tcb.tenantTokenClaims)
 		},
 	}
 
@@ -529,8 +532,8 @@ func (ctx *TestContext) RegisterPlatformWithType(platformType string) *types.Pla
 }
 
 func (ctx *TestContext) NewTenantExpect(tenantIdentifier string) *SMExpect {
-	oauthServer := ctx.Servers[OauthServer].(*OAuthServer)
-	accessToken := oauthServer.CreateToken(map[string]interface{}{
+	tenantOauthServer := ctx.Servers[TenantOauthServer].(*OAuthServer)
+	accessToken := tenantOauthServer.CreateToken(map[string]interface{}{
 		"cid": "tenancyClient",
 		"zid": tenantIdentifier,
 	})
