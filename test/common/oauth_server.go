@@ -19,6 +19,7 @@ package common
 import (
 	"crypto/rsa"
 	"encoding/json"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"time"
@@ -46,7 +47,7 @@ func NewOAuthServer() *OAuthServer {
 	os := &OAuthServer{
 		privateKey: privateKey,
 		signer:     jwt.RS256(privateKey, &privateKey.PublicKey),
-		keyID:      "test-key",
+		keyID:      randomName("key"),
 		Router:     mux.NewRouter(),
 	}
 	os.Router.HandleFunc("/.well-known/openid-configuration", os.getOpenIDConfig)
@@ -85,6 +86,7 @@ func (os *OAuthServer) getOpenIDConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (os *OAuthServer) RotateTokenKey() {
+	os.keyID = randomName("key")
 	privateKey := generatePrivateKey()
 	os.privateKey = privateKey
 	os.signer = jwt.RS256(privateKey, &privateKey.PublicKey)
@@ -129,4 +131,17 @@ func (os *OAuthServer) getTokenKeys(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(responseBody)
+}
+
+func randomName(prefix string) string {
+	rand.Seed(time.Now().UnixNano())
+	b := make([]rune, 15)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	if prefix == "" {
+		return string(b)
+	}
+
+	return prefix + "-" + string(b)
 }
