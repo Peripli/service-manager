@@ -131,6 +131,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
 			&filters.Logging{},
+			&filters.SupportedEncodingsFilter{},
 			&filters.SelectionCriteria{},
 			filters.NewProtectedLabelsFilter(options.APISettings.ProtectedLabels),
 			&filters.ProtectedSMPlatformFilter{},

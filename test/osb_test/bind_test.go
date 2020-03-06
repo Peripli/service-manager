@@ -33,6 +33,13 @@ var _ = Describe("Bind", func() {
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
 		})
+
+		It("Binding to a server that supports gzip encoded responses", func() {
+			brokerServer.BindingHandler = gzipHandler(http.StatusCreated, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+		})
+
 	})
 
 	Context("when call to failing service broker", func() {
