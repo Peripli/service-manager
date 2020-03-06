@@ -19,9 +19,11 @@ package authenticators
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/types"
-
+	"github.com/Peripli/service-manager/api/osb"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/types"
+	"golang.org/x/crypto/bcrypt"
 
 	httpsec "github.com/Peripli/service-manager/pkg/security/http"
 
@@ -29,9 +31,13 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
+//BasicAuthenticatorFunc defines a function which attempts to authenticate a basic auth request
+type BasicAuthenticatorFunc func(request *web.Request, repository storage.Repository, username, password string) (*web.UserContext, httpsec.Decision, error)
+
 // Basic for basic security
 type Basic struct {
-	Repository storage.Repository
+	Repository             storage.Repository
+	BasicAuthenticatorFunc BasicAuthenticatorFunc
 }
 
 // Authenticate authenticates by using the provided Basic credentials
@@ -41,9 +47,16 @@ func (a *Basic) Authenticate(request *web.Request) (*web.UserContext, httpsec.De
 		return nil, httpsec.Abstain, nil
 	}
 
+	return a.BasicAuthenticatorFunc(request, a.Repository, username, password)
+}
+
+//BasicPlatformAuthenticator attempts to authenticate basic auth requests with provided platform credentials
+func BasicPlatformAuthenticator(request *web.Request, repository storage.Repository, username, password string) (*web.UserContext, httpsec.Decision, error) {
 	ctx := request.Context()
+	log.C(ctx).Debugf("Attempting to authenticate platform credentials")
+
 	byUsername := query.ByField(query.EqualsOperator, "username", username)
-	platformList, err := a.Repository.List(ctx, types.PlatformType, byUsername)
+	platformList, err := repository.List(ctx, types.PlatformType, byUsername)
 	if err != nil {
 		return nil, httpsec.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
 	}
@@ -57,7 +70,77 @@ func (a *Basic) Authenticate(request *web.Request) (*web.UserContext, httpsec.De
 		return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
 	}
 
-	bytes, err := json.Marshal(platform)
+	return buildResponse(username, platform)
+}
+
+//BasicOSBAuthenticator attempts to authenticate basic auth requests with provided broker platform credentials
+func BasicOSBAuthenticator(request *web.Request, repository storage.Repository, username, password string) (*web.UserContext, httpsec.Decision, error) {
+	ctx := request.Context()
+
+	brokerID, ok := request.PathParams[osb.BrokerIDPathParam]
+	if !ok {
+		return nil, httpsec.Abstain, fmt.Errorf("could not get authenticate OSB request: brokerID path parameter not found")
+	}
+	log.C(ctx).Debugf("Attempting to authenticate broker platform credentials for broker with ID %s and username %s", brokerID, username)
+
+	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", brokerID)
+	byUsername := query.ByField(query.EqualsOperator, "username", username)
+
+	credentialsList, err := repository.List(ctx, types.BrokerPlatformCredentialType, byBrokerID, byUsername)
+	if err != nil {
+		return nil, httpsec.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
+	}
+
+	useOldCredentials := false
+	if credentialsList.Len() != 1 {
+		log.C(ctx).Debugf("Authenticating broker platform credentials failed - will try with to find old credentials")
+
+		byUsername.LeftOp = "old_username"
+		credentialsList, err = repository.List(ctx, types.BrokerPlatformCredentialType, byBrokerID, byUsername)
+		if err != nil {
+			return nil, httpsec.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
+		}
+
+		if credentialsList.Len() != 1 {
+			log.C(ctx).Debugf("Authenticating broker platform credentials failed - will try to fallback to platform credentials authentication")
+			return BasicPlatformAuthenticator(request, repository, username, password)
+		}
+
+		useOldCredentials = true
+	}
+
+	credentials := credentialsList.ItemAt(0).(*types.BrokerPlatformCredential)
+
+	passwordHash := credentials.PasswordHash
+	if useOldCredentials {
+		passwordHash = credentials.OldPasswordHash
+	}
+
+	if err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil {
+		return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
+	}
+
+	if !useOldCredentials && credentials.OldUsername != "" && credentials.OldPasswordHash != "" {
+		log.C(ctx).Debugf("Found old broker platform credentials - proceeding with deleting them")
+		credentials.OldUsername = ""
+		credentials.OldPasswordHash = ""
+
+		if _, err := repository.Update(ctx, credentials, types.LabelChanges{}); err != nil {
+			return nil, httpsec.Abstain, fmt.Errorf("could not delete old broker platform credentials from storage: %s", err)
+		}
+	}
+
+	log.C(ctx).Debugf("Successfully authenticated broker platform credentials - fetching the corresponding platform")
+	platformObj, err := repository.Get(ctx, types.PlatformType, query.ByField(query.EqualsOperator, "id", credentials.PlatformID))
+	if err != nil {
+		return nil, httpsec.Abstain, fmt.Errorf("could not get platform entity from storage: %s", err)
+	}
+
+	return buildResponse(username, platformObj)
+}
+
+func buildResponse(username string, userData interface{}) (*web.UserContext, httpsec.Decision, error) {
+	bytes, err := json.Marshal(userData)
 	if err != nil {
 		return nil, httpsec.Abstain, err
 	}

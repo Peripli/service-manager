@@ -17,9 +17,6 @@
 package osb_test
 
 import (
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/test/common"
-	"github.com/gavv/httpexpect"
 	"net/http"
 
 	. "github.com/onsi/ginkgo"
@@ -46,15 +43,17 @@ var _ = Describe("Unbind", func() {
 	})
 
 	Context("when call to missing broker", func() {
-		It("unbind fails", func() {
-			assertMissingBrokerError(
-				ctx.SMWithBasic.DELETE("http://localhost:3456/v1/osb/123"+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					WithQueryObject(provisionRequestBodyMap()()).Expect())
+		It("unbind fails with 401", func() {
+			ctx.SMWithBasic.DELETE("http://localhost:3456/v1/osb/123"+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithQueryObject(provisionRequestBodyMap()()).Expect().Status(http.StatusUnauthorized)
 		})
 	})
 
 	Context("when call to stopped service broker", func() {
 		It("should fail", func() {
+			credentials := brokerPlatformCredentialsIDMap[stoppedBrokerID]
+			ctx.SMWithBasic.SetBasicCredentials(ctx, credentials.username, credentials.password)
+
 			assertUnresponsiveBrokerError(
 				ctx.SMWithBasic.DELETE(smUrlToStoppedBroker+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithQueryObject(provisionRequestBodyMap()()).Expect())
@@ -77,10 +76,10 @@ var _ = Describe("Unbind", func() {
 			assertUnresponsiveBrokerError(ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithQueryObject(provisionRequestBodyMap()()).
 				Expect())
-		})
+		}, testTimeout)
 	})
 
-	Context("platform_id check", func() {
+	Context("broker platform credentials check", func() {
 		BeforeEach(func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
@@ -92,27 +91,16 @@ var _ = Describe("Unbind", func() {
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
 		})
 
-		Context("unbind from not an instance owner", func() {
-			var NewPlatformExpect *httpexpect.Expect
-
+		Context("unbind with invalid credentials", func() {
 			BeforeEach(func() {
-				platformJSON := common.MakePlatform("tcb-platform-test2", "tcb-platform-test2", "platform-type", "test-platform")
-				platform := common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
-				NewPlatformExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
-					username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
-					req.WithBasicAuth(username, password)
-				})
+				ctx.SMWithBasic.SetBasicCredentials(ctx, "test", "test")
 			})
 
 			It("should return 404", func() {
 				brokerServer.BindingHandler = parameterizedHandler(http.StatusOK, `{}`)
-				NewPlatformExpect.DELETE(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/bid").
+				ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/bid").
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					Expect().Status(http.StatusNotFound)
-			})
-
-			AfterEach(func() {
-				ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/tcb-platform-test2").Expect().Status(http.StatusOK)
+					Expect().Status(http.StatusUnauthorized)
 			})
 		})
 	})

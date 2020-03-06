@@ -90,7 +90,7 @@ var _ = Describe("Service Manager Security Tests", func() {
 
 		Context("with basic authenticator", func() {
 			BeforeEach(func() {
-				attachRequiredBasic(contextBuilder, []string{web.MonitorHealthURL}, []string{http.MethodGet})
+				attachRequiredBasic(contextBuilder, []string{web.MonitorHealthURL}, []string{http.MethodGet}, authenticators.BasicPlatformAuthenticator)
 			})
 
 			entries := []TableEntry{
@@ -293,7 +293,7 @@ var _ = Describe("Service Manager Security Tests", func() {
 
 		Context("with basic and bearer", func() {
 			BeforeEach(func() {
-				attachRequiredBasic(contextBuilder, []string{web.MonitorHealthURL}, []string{http.MethodGet})
+				attachRequiredBasic(contextBuilder, []string{web.MonitorHealthURL}, []string{http.MethodGet}, authenticators.BasicPlatformAuthenticator)
 				attachRequiredBearer(contextBuilder, []string{web.MonitorHealthURL}, []string{http.MethodGet})
 			})
 
@@ -348,7 +348,7 @@ var _ = Describe("Service Manager Security Tests", func() {
 
 		Context("with authenticator", func() {
 			BeforeEach(func() {
-				attachOptionalBasic(contextBuilder, []string{web.MonitorHealthURL}, []string{http.MethodGet})
+				attachOptionalBasic(contextBuilder, []string{web.MonitorHealthURL}, []string{http.MethodGet}, authenticators.BasicPlatformAuthenticator)
 			})
 
 			entries := []TableEntry{
@@ -406,8 +406,8 @@ var _ = Describe("Service Manager Security Tests", func() {
 		Context("required and optional", func() {
 			Context("a path is required and subpath is optional", func() {
 				BeforeEach(func() {
-					attachRequiredBasic(contextBuilder, []string{"/v1/**"}, []string{http.MethodGet})
-					attachOptionalBasic(contextBuilder, []string{web.MonitorHealthURL}, []string{http.MethodGet})
+					attachRequiredBasic(contextBuilder, []string{"/v1/**"}, []string{http.MethodGet}, authenticators.BasicPlatformAuthenticator)
+					attachOptionalBasic(contextBuilder, []string{web.MonitorHealthURL}, []string{http.MethodGet}, authenticators.BasicPlatformAuthenticator)
 				})
 
 				Context("when requesting required subpath", func() {
@@ -433,8 +433,8 @@ var _ = Describe("Service Manager Security Tests", func() {
 
 			Context("a path is optional and subpath is required", func() {
 				BeforeEach(func() {
-					attachRequiredBasic(contextBuilder, []string{web.MonitorHealthURL}, []string{http.MethodGet})
-					attachOptionalBasic(contextBuilder, []string{"/v1/**"}, []string{http.MethodGet})
+					attachRequiredBasic(contextBuilder, []string{web.MonitorHealthURL}, []string{http.MethodGet}, authenticators.BasicPlatformAuthenticator)
+					attachOptionalBasic(contextBuilder, []string{"/v1/**"}, []string{http.MethodGet}, authenticators.BasicPlatformAuthenticator)
 				})
 
 				Context("when requesting required subpath", func() {
@@ -450,8 +450,8 @@ var _ = Describe("Service Manager Security Tests", func() {
 
 			Context("with authenticator for GET and POST", func() {
 				BeforeEach(func() {
-					attachRequiredBasic(contextBuilder, []string{web.ServiceBrokersURL}, []string{http.MethodPost})
-					attachOptionalBasic(contextBuilder, []string{web.ServiceBrokersURL}, []string{http.MethodGet})
+					attachRequiredBasic(contextBuilder, []string{web.ServiceBrokersURL}, []string{http.MethodPost}, authenticators.BasicPlatformAuthenticator)
+					attachOptionalBasic(contextBuilder, []string{web.ServiceBrokersURL}, []string{http.MethodGet}, authenticators.BasicPlatformAuthenticator)
 				})
 
 				It("should return 401 for POST with no auth", func() {
@@ -469,7 +469,7 @@ var _ = Describe("Service Manager Security Tests", func() {
 
 			Context("basic required and bearer optional", func() {
 				BeforeEach(func() {
-					attachRequiredBasic(contextBuilder, []string{web.MonitorHealthURL}, []string{http.MethodGet})
+					attachRequiredBasic(contextBuilder, []string{web.MonitorHealthURL}, []string{http.MethodGet}, authenticators.BasicPlatformAuthenticator)
 					attachOptionalBearer(contextBuilder, []string{web.MonitorHealthURL}, []string{http.MethodGet})
 
 					contextBuilder.WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
@@ -541,19 +541,20 @@ func attachOptionalBearer(contextBuilder *common.TestContextBuilder, paths []str
 	attachBearer(contextBuilder, paths, methods, false)
 }
 
-func attachRequiredBasic(contextBuilder *common.TestContextBuilder, paths []string, methods []string) {
-	attachBasic(contextBuilder, paths, methods, true)
+func attachRequiredBasic(contextBuilder *common.TestContextBuilder, paths []string, methods []string, authenticatorFunc authenticators.BasicAuthenticatorFunc) {
+	attachBasic(contextBuilder, paths, methods, authenticatorFunc, true)
 }
 
-func attachOptionalBasic(contextBuilder *common.TestContextBuilder, paths []string, methods []string) {
-	attachBasic(contextBuilder, paths, methods, false)
+func attachOptionalBasic(contextBuilder *common.TestContextBuilder, paths []string, methods []string, authenticatorFunc authenticators.BasicAuthenticatorFunc) {
+	attachBasic(contextBuilder, paths, methods, authenticatorFunc, false)
 }
 
-func attachBasic(contextBuilder *common.TestContextBuilder, paths []string, methods []string, required bool) {
+func attachBasic(contextBuilder *common.TestContextBuilder, paths []string, methods []string, authenticatorFunc authenticators.BasicAuthenticatorFunc, required bool) {
 	contextBuilder.WithSMExtensions(func(_ context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 		secState := smb.Security().Path(paths...).Method(methods...).
 			WithAuthentication(&authenticators.Basic{
-				Repository: smb.Storage,
+				Repository:             smb.Storage,
+				BasicAuthenticatorFunc: authenticatorFunc,
 			})
 		if required {
 			secState.Required()
