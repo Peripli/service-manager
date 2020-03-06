@@ -51,6 +51,7 @@ func NewOAuthServer() *OAuthServer {
 		signer:     jwt.RS256(privateKey, &privateKey.PublicKey),
 		keyID:      randomName("key"),
 		Router:     mux.NewRouter(),
+		mutex:      &sync.RWMutex{},
 	}
 	os.Router.HandleFunc("/.well-known/openid-configuration", os.getOpenIDConfig)
 	os.Router.HandleFunc("/oauth/token", os.getToken)
