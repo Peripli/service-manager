@@ -80,6 +80,10 @@ func (os *OAuthServer) URL() string {
 	return os.BaseURL
 }
 
+func (os *OAuthServer) TokenKeysRequestCallCount() int {
+	return os.tokenKeysRequestCallCount
+}
+
 func (os *OAuthServer) getOpenIDConfig(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{
