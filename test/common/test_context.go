@@ -90,6 +90,7 @@ type TestContext struct {
 	SMRepository         storage.TransactionalRepository
 	SMScheduler          *operations.Scheduler
 	TestPlatform         *types.Platform
+	TenantTokenProvider  func() string
 
 	Servers    map[string]FakeServer
 	HttpClient *http.Client
@@ -350,6 +351,9 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 		SMRepository:         smRepository,
 		SMScheduler:          smScheduler,
 		HttpClient:           tcb.HttpClient,
+		TenantTokenProvider: func() string {
+			return oauthServer.CreateToken(tcb.tenantTokenClaims),
+		},
 	}
 
 	if cleanup {
