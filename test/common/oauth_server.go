@@ -133,6 +133,8 @@ func (os *OAuthServer) getTokenKeys(w http.ResponseWriter, r *http.Request) {
 	w.Write(responseBody)
 }
 
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
 func randomName(prefix string) string {
 	rand.Seed(time.Now().UnixNano())
 	b := make([]rune, 15)

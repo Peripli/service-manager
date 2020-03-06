@@ -352,7 +352,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 		SMScheduler:          smScheduler,
 		HttpClient:           tcb.HttpClient,
 		TenantTokenProvider: func() string {
-			return oauthServer.CreateToken(tcb.tenantTokenClaims),
+			return oauthServer.CreateToken(tcb.tenantTokenClaims)
 		},
 	}
 
