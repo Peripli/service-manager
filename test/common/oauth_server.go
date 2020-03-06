@@ -19,10 +19,11 @@ package common
 import (
 	"crypto/rsa"
 	"encoding/json"
-	"github.com/gorilla/mux"
 	"net/http"
 	"net/http/httptest"
 	"time"
+
+	"github.com/gorilla/mux"
 
 	"github.com/gbrlsnchs/jwt"
 )
@@ -35,6 +36,8 @@ type OAuthServer struct {
 	privateKey *rsa.PrivateKey // public key privateKey.PublicKey
 	signer     jwt.Signer
 	keyID      string
+
+	tokenKeyResponseBody []byte
 }
 
 func NewOAuthServer() *OAuthServer {
@@ -76,9 +79,15 @@ func (os *OAuthServer) URL() string {
 func (os *OAuthServer) getOpenIDConfig(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{
-		"issuer": "` + os.BaseURL + `/oauth/token",
-		"jwks_uri": "` + os.BaseURL + `/token_keys"
-	}`))
+		 "issuer": "` + os.BaseURL + `/oauth/token",
+		 "jwks_uri": "` + os.BaseURL + `/token_keys"
+	 }`))
+}
+
+func (os *OAuthServer) RotateTokenKey() {
+	privateKey := generatePrivateKey()
+	os.privateKey = privateKey
+	os.signer = jwt.RS256(privateKey, &privateKey.PublicKey)
 }
 
 func (os *OAuthServer) getToken(w http.ResponseWriter, r *http.Request) {
