@@ -107,6 +107,7 @@ func (c *uniqueInstanceNameInterceptor) checkUniqueName(ctx context.Context, lab
 	countCriteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, nameProperty, instance.Name),
+		query.ByField(query.EqualsOperator, "ready", "true"),
 	}
 	if len(c.TenantIdentifier) != 0 {
 		if labels == nil {

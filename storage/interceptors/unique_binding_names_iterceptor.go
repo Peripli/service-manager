@@ -65,6 +65,7 @@ func (c *uniqueBindingNameInterceptor) checkUniqueName(ctx context.Context, bind
 	countCriteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "service_instance_id", binding.ServiceInstanceID),
 		query.ByField(query.EqualsOperator, nameProperty, binding.Name),
+		query.ByField(query.EqualsOperator, "ready", "true"),
 	}
 	bindingCount, err := c.Repository.Count(ctx, types.ServiceBindingType, countCriteria...)
 
