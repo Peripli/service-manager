@@ -104,7 +104,7 @@ func (c *uniqueInstanceNameInterceptor) AroundTxUpdate(h storage.InterceptUpdate
 
 func (c *uniqueInstanceNameInterceptor) checkUniqueName(ctx context.Context, labels types.Labels, instance *types.ServiceInstance) error {
 	operation, operationFound := operations.GetFromContext(ctx)
-	if operationFound {
+	if !operationFound {
 		log.C(ctx).Debug("operation missing from context")
 	}
 

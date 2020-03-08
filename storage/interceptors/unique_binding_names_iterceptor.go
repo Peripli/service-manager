@@ -65,7 +65,7 @@ func (c *uniqueBindingNameInterceptor) AroundTxCreate(h storage.InterceptCreateA
 
 func (c *uniqueBindingNameInterceptor) checkUniqueName(ctx context.Context, binding *types.ServiceBinding) error {
 	operation, operationFound := operations.GetFromContext(ctx)
-	if operationFound {
+	if !operationFound {
 		log.C(ctx).Debug("operation missing from context")
 	}
 
