@@ -56,6 +56,9 @@ func NewVisibilityNotificationsInterceptor() *NotificationsInterceptor {
 			}
 			return details, nil
 		},
+		DeletePostConditionFunc: func(ctx context.Context, object types.Object, repository storage.Repository, platformID string) error {
+			return nil
+		},
 	}
 }
 
