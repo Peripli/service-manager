@@ -607,7 +607,7 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	ctx.CleanupPlatforms()
 	serversToDelete := make([]string, 0)
 	for serverName, server := range ctx.Servers {
-		if serverName != SMServer && serverName != OauthServer {
+		if serverName != SMServer && serverName != OauthServer && serverName != TenantOauthServer {
 			serversToDelete = append(serversToDelete, serverName)
 			server.Close()
 		}
