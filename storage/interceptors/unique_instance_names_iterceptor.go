@@ -111,7 +111,7 @@ func (c *uniqueInstanceNameInterceptor) checkUniqueName(ctx context.Context, lab
 	rescheduledOperation := operationFound && operation.Reschedule
 	if instance.PlatformID != types.SMPlatform || rescheduledOperation {
 		if rescheduledOperation {
-			log.C(ctx).Debug("skipping unique check of instance name as this is a rescheduled operation")
+			log.C(ctx).Info("skipping unique check of instance name as this is a rescheduled operation")
 		}
 		return nil
 	}

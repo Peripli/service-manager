@@ -70,7 +70,7 @@ func (c *uniqueBindingNameInterceptor) checkUniqueName(ctx context.Context, bind
 	}
 
 	if operationFound && operation.Reschedule {
-		log.C(ctx).Debug("skipping unique check of binding name as this is a rescheduled operation")
+		log.C(ctx).Info("skipping unique check of binding name as this is a rescheduled operation")
 		return nil
 	}
 
