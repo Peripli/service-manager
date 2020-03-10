@@ -35,6 +35,8 @@ type BrokerPlatformCredential struct {
 
 	PlatformID string `db:"platform_id"`
 	BrokerID   string `db:"broker_id"`
+
+	Integrity []byte `db:"integrity"`
 }
 
 func (bpc *BrokerPlatformCredential) ToObject() (types.Object, error) {
@@ -53,6 +55,7 @@ func (bpc *BrokerPlatformCredential) ToObject() (types.Object, error) {
 		OldPasswordHash: bpc.OldPasswordHash,
 		PlatformID:      bpc.PlatformID,
 		BrokerID:        bpc.BrokerID,
+		Integrity:       bpc.Integrity,
 	}, nil
 }
 
@@ -76,6 +79,7 @@ func (*BrokerPlatformCredential) FromObject(object types.Object) (storage.Entity
 		OldPasswordHash: brokerPlatformCredential.OldPasswordHash,
 		PlatformID:      brokerPlatformCredential.PlatformID,
 		BrokerID:        brokerPlatformCredential.BrokerID,
+		Integrity:       brokerPlatformCredential.Integrity,
 	}
 
 	return bpc, nil
