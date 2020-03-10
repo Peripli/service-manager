@@ -85,17 +85,6 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 									})
 								})
 							}
-
-							if !t.SupportsAsyncOperations {
-								Context("when resource does not support async and query param last_op is true", func() {
-									It("returns error", func() {
-										ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-											WithQuery(web.QueryParamLastOp, "true").
-											Expect().
-											Status(http.StatusBadRequest).JSON().Object().Value("description").String().Match("last operation is not supported for type *")
-									})
-								})
-							}
 						})
 
 						if !t.DisableTenantResources {

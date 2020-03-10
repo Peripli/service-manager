@@ -208,6 +208,13 @@ func (obj) GetPagingSequence() int64 {
 	return 0
 }
 
+func (*obj) SetLastOperation(*types.Operation) {
+}
+
+func (*obj) GetLastOperation() *types.Operation {
+	return nil
+}
+
 type dummyTypeObj struct {
 	*obj
 }
