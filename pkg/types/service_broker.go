@@ -20,7 +20,6 @@ package types
 import (
 	"context"
 	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -43,23 +42,6 @@ type ServiceBroker struct {
 	Catalog       json.RawMessage    `json:"-"`
 	Services      []*ServiceOffering `json:"-"`
 	LastOperation *Operation         `json:"last_operation,omitempty"`
-}
-
-func (e *ServiceBroker) Interpret() error {
-	if e.Credentials != nil && e.Credentials.TLS != nil {
-		if val, err := base64.StdEncoding.DecodeString(e.Credentials.TLS.Certificate); err == nil {
-			e.Credentials.TLS.Certificate = string(val)
-		} else {
-			return err
-		}
-
-		if val, err := base64.StdEncoding.DecodeString(e.Credentials.TLS.Key); err == nil {
-			e.Credentials.TLS.Key = string(val)
-		} else {
-			return err
-		}
-	}
-	return nil
 }
 
 func (e *ServiceBroker) GetTlsConfig() (*tls.Config, error) {
