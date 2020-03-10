@@ -17,6 +17,7 @@ package broker_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -528,6 +529,45 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								WithJSON(postBrokerRequestWithLabels).
 								Expect().Status(http.StatusBadRequest)
 						})
+					})
+				})
+
+				Context("transitive resources", func() {
+					It("should be saved in the operation", func() {
+						broker := t.ResourceBlueprint(ctx, ctx.SMWithOAuth, true)
+						brokerID := broker["id"].(string)
+
+						offerings, err := ctx.SMRepository.List(context.Background(), types.ServiceOfferingType, query.ByField(query.EqualsOperator, "broker_id", brokerID))
+						Expect(err).ShouldNot(HaveOccurred())
+
+						offeringIDs := make([]string, 0, offerings.Len())
+						for i := 0; i < offerings.Len(); i++ {
+							offeringIDs = append(offeringIDs, offerings.ItemAt(i).GetID())
+						}
+						plans, err := ctx.SMRepository.List(context.Background(), types.ServicePlanType, query.ByField(query.InOperator, "service_offering_id", offeringIDs...))
+						Expect(err).ShouldNot(HaveOccurred())
+
+						planIDs := make([]string, 0, plans.Len())
+						for i := 0; i < plans.Len(); i++ {
+							planIDs = append(planIDs, plans.ItemAt(i).GetID())
+						}
+						visibilities, err := ctx.SMRepository.List(context.Background(), types.VisibilityType, query.ByField(query.InOperator, "service_plan_id", planIDs...))
+						Expect(err).ShouldNot(HaveOccurred())
+
+						transitiveResourcesExpectedCount := offerings.Len() + plans.Len() + visibilities.Len()
+						transitiveResources := ctx.SMWithOAuth.GET(web.ServiceBrokersURL+"/"+brokerID).WithQuery(web.QueryParamLastOp, "true").
+							Expect().Status(http.StatusOK).
+							JSON().Object().Value("last_operation").Object().Value("transitive_resources").Array()
+
+						transitiveResourcesActualCount := 0
+						for _, tr := range transitiveResources.Iter() {
+							// Do not count the notifications and resources which are not for created
+							if tr.Object().Value("type").String().Raw() != types.NotificationType.String() &&
+								tr.Object().Value("operation_type").String().Raw() == string(types.CREATE) {
+								transitiveResourcesActualCount++
+							}
+						}
+						Expect(transitiveResourcesActualCount).To(Equal(transitiveResourcesExpectedCount))
 					})
 				})
 			})
@@ -1097,6 +1137,43 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						It("is returned from the repository as part of the brokers catalog field", func() {
 							assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, string(brokerServer.Catalog))
+						})
+
+						It("is added to the broker update operation as transitive resource", func() {
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
+								WithJSON(Object{}).
+								Expect().
+								Status(http.StatusOK)
+
+							body := ctx.SMWithOAuth.GET(web.ServiceBrokersURL+"/"+brokerID).WithQuery(web.QueryParamLastOp, "true").
+								Expect().Status(http.StatusOK).Body().Raw()
+							var broker types.ServiceBroker
+							err := json.Unmarshal([]byte(body), &broker)
+							Expect(err).ShouldNot(HaveOccurred())
+							operation := broker.LastOperation
+
+							common.AssertTransitiveResources(operation, TransitiveResourcesExpectation{
+								CreatedOfferings:     1,
+								CreatedPlans:         1,
+								CreatedNotifications: 1,
+							})
+
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
+								WithJSON(Object{}).
+								Expect().
+								Status(http.StatusOK)
+
+							body = ctx.SMWithOAuth.GET(web.ServiceBrokersURL+"/"+brokerID).WithQuery(web.QueryParamLastOp, "true").
+								Expect().Status(http.StatusOK).Body().Raw()
+							err = json.Unmarshal([]byte(body), &broker)
+							Expect(err).ShouldNot(HaveOccurred())
+							operation = broker.LastOperation
+
+							common.AssertTransitiveResources(operation, TransitiveResourcesExpectation{
+								CreatedOfferings:     0,
+								CreatedPlans:         0,
+								CreatedNotifications: 1,
+							})
 						})
 					})
 
@@ -1881,46 +1958,6 @@ func blueprint(setNullFieldsValues bool) func(ctx *TestContext, auth *SMExpect, 
 			Type:  types.ServiceBrokerType,
 			Ready: true,
 		}).Raw()
-
-		brokerID := obj["id"].(string)
-
-		offerings, err := ctx.SMRepository.List(context.Background(), types.ServiceOfferingType, query.ByField(query.EqualsOperator, "broker_id", brokerID))
-		if err != nil {
-			panic(err)
-		}
-		offeringIDs := make([]string, 0, offerings.Len())
-		for i := 0; i < offerings.Len(); i++ {
-			offeringIDs = append(offeringIDs, offerings.ItemAt(i).GetID())
-		}
-		plans, err := ctx.SMRepository.List(context.Background(), types.ServicePlanType, query.ByField(query.InOperator, "service_offering_id", offeringIDs...))
-		if err != nil {
-			panic(err)
-		}
-		planIDs := make([]string, 0, plans.Len())
-		for i := 0; i < plans.Len(); i++ {
-			planIDs = append(planIDs, plans.ItemAt(i).GetID())
-		}
-		visibilities, err := ctx.SMRepository.List(context.Background(), types.VisibilityType, query.ByField(query.InOperator, "service_plan_id", planIDs...))
-		if err != nil {
-			panic(err)
-		}
-
-		transitiveResourcesExpectedCount := offerings.Len() + plans.Len() + visibilities.Len()
-		transitiveResources := auth.GET(web.ServiceBrokersURL+"/"+brokerID).WithQuery(web.QueryParamLastOp, "true").
-			Expect().Status(http.StatusOK).
-			JSON().Object().Value("last_operation").Object().Value("transitive_resources").Array()
-
-		transitiveResourcesActualCount := 0
-		for _, tr := range transitiveResources.Iter() {
-			// Do not count the notifications and resources which are not for created
-			if tr.Object().Value("type").String().Raw() != types.NotificationType.String() &&
-				tr.Object().Value("operation_type").String().Raw() == string(types.CREATE) {
-				transitiveResourcesActualCount++
-			}
-		}
-		if transitiveResourcesActualCount != transitiveResourcesExpectedCount {
-			Fail(fmt.Sprintf("Expected transitive resources %d but got %d", transitiveResourcesExpectedCount, transitiveResourcesActualCount))
-		}
 
 		return obj
 	}

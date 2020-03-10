@@ -506,10 +506,10 @@ func cleanObject(ctx context.Context, object types.Object) {
 func attachLastOperation(ctx context.Context, objectID string, object types.Object, r *web.Request, repository storage.Repository) error {
 	if operatable, ok := object.(types.Operatable); ok {
 		orderBy := query.OrderResultBy("paging_sequence", query.DescOrder)
-		limitBy := query.LimitResultBy(1)
 		byObjectID := query.ByField(query.EqualsOperator, "resource_id", objectID)
 		criteria := query.CriteriaForContext(ctx)
-		list, err := repository.List(ctx, types.OperationType, append(criteria, byObjectID, orderBy, limitBy)...)
+		// Limit cannot be applied, otherwise the query is corrupted and does not return valid result
+		list, err := repository.List(ctx, types.OperationType, append(criteria, byObjectID, orderBy)...)
 		if err != nil {
 			return util.HandleStorageError(err, types.OperationType.String())
 		}
