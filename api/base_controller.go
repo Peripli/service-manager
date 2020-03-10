@@ -314,11 +314,9 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 	}
 
 	cleanObject(ctx, object)
-	displayOp := r.URL.Query().Get(web.QueryParamLastOp)
-	if displayOp == "true" {
-		if err := attachLastOperation(ctx, objectID, object, r, c.repository); err != nil {
-			return nil, err
-		}
+
+	if err := attachLastOperation(ctx, objectID, object, r, c.repository); err != nil {
+		return nil, err
 	}
 
 	return util.NewJSONResponse(http.StatusOK, object)

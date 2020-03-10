@@ -70,6 +70,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	SupportsAsyncOperations:                true,
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
+	ResourcePropertiesToIgnore:             []string{"last_operation"},
 	PatchResource:                          test.APIResourcePatch,
 	AdditionalTests: func(ctx *TestContext, t *test.TestCase) {
 		Context("additional non-generic tests", func() {
@@ -555,7 +556,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						Expect(err).ShouldNot(HaveOccurred())
 
 						transitiveResourcesExpectedCount := offerings.Len() + plans.Len() + visibilities.Len()
-						transitiveResources := ctx.SMWithOAuth.GET(web.ServiceBrokersURL+"/"+brokerID).WithQuery(web.QueryParamLastOp, "true").
+						transitiveResources := ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
 							Expect().Status(http.StatusOK).
 							JSON().Object().Value("last_operation").Object().Value("transitive_resources").Array()
 
@@ -1145,7 +1146,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK)
 
-							body := ctx.SMWithOAuth.GET(web.ServiceBrokersURL+"/"+brokerID).WithQuery(web.QueryParamLastOp, "true").
+							body := ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
 								Expect().Status(http.StatusOK).Body().Raw()
 							var broker types.ServiceBroker
 							err := json.Unmarshal([]byte(body), &broker)
@@ -1163,7 +1164,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK)
 
-							body = ctx.SMWithOAuth.GET(web.ServiceBrokersURL+"/"+brokerID).WithQuery(web.QueryParamLastOp, "true").
+							body = ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
 								Expect().Status(http.StatusOK).Body().Raw()
 							err = json.Unmarshal([]byte(body), &broker)
 							Expect(err).ShouldNot(HaveOccurred())
