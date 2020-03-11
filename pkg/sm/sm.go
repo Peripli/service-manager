@@ -62,17 +62,16 @@ import (
 type ServiceManagerBuilder struct {
 	*web.API
 
-	Storage             *storage.InterceptableTransactionalRepository
-	Notificator         storage.Notificator
-	NotificationCleaner *storage.NotificationCleaner
-	OperationMaintainer *operations.Maintainer
-	OSBClientProvider   osbc.CreateFunc
-	ctx                 context.Context
-	wg                  *sync.WaitGroup
-	cfg                 *config.Settings
-	securityBuilder     *SecurityBuilder
-	//rawRepository is a repository without any decoration and interceptors
-	rawRepository storage.TransactionalRepository
+	Storage              *storage.InterceptableTransactionalRepository
+	Notificator          storage.Notificator
+	NotificationCleaner  *storage.NotificationCleaner
+	OperationMaintainer  *operations.Maintainer
+	OSBClientProvider    osbc.CreateFunc
+	ctx                  context.Context
+	wg                   *sync.WaitGroup
+	cfg                  *config.Settings
+	securityBuilder      *SecurityBuilder
+	encryptingRepository storage.TransactionalRepository
 }
 
 // ServiceManager  struct
@@ -167,18 +166,22 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, postgresLockerCreatorFunc, cfg.Operations, waitGroup)
 	osbClientProvider := osb.NewBrokerClientProvider(cfg.HTTPClient.SkipSSLValidation, int(cfg.HTTPClient.ResponseHeaderTimeout.Seconds()))
 
+	encryptingRepository, err := encryptingDecorator(smStorage)
+	if err != nil {
+		return nil, fmt.Errorf("error decorating storage with encryption: %s", err)
+	}
 	smb := &ServiceManagerBuilder{
-		API:                 API,
-		Storage:             interceptableRepository,
-		Notificator:         pgNotificator,
-		NotificationCleaner: notificationCleaner,
-		OperationMaintainer: operationMaintainer,
-		ctx:                 ctx,
-		wg:                  waitGroup,
-		cfg:                 cfg,
-		securityBuilder:     securityBuilder,
-		OSBClientProvider:   osbClientProvider,
-		rawRepository:       smStorage,
+		API:                  API,
+		Storage:              interceptableRepository,
+		Notificator:          pgNotificator,
+		NotificationCleaner:  notificationCleaner,
+		OperationMaintainer:  operationMaintainer,
+		ctx:                  ctx,
+		wg:                   waitGroup,
+		cfg:                  cfg,
+		securityBuilder:      securityBuilder,
+		OSBClientProvider:    osbClientProvider,
+		encryptingRepository: encryptingRepository,
 	}
 
 	smb.RegisterPlugins(osb.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
@@ -537,7 +540,7 @@ func (smb *ServiceManagerBuilder) Security() *SecurityBuilder {
 }
 
 func (smb *ServiceManagerBuilder) calculateIntegrity() error {
-	return smb.rawRepository.InTransaction(smb.ctx, func(ctx context.Context, storage storage.Repository) error {
+	return smb.encryptingRepository.InTransaction(smb.ctx, func(ctx context.Context, storage storage.Repository) error {
 		objectTypesWithIntegrity := []types.ObjectType{types.PlatformType, types.ServiceBrokerType, types.ServiceBindingType, types.BrokerPlatformCredentialType}
 		for _, objectType := range objectTypesWithIntegrity {
 			emptyIntegrityCriteria := query.ByField(query.EqualsOrNilOperator, "integrity", "")
