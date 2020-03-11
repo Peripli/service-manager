@@ -54,7 +54,7 @@ const (
 )
 
 type RelatedType struct {
-	ID            string            `json:"id"`
+	ID            string            `json:"id,omitempty"`
 	Criteria      interface{}       `json:"criteria,omitempty"`
 	Type          ObjectType        `json:"type"`
 	OperationType OperationCategory `json:"operation_type"`
