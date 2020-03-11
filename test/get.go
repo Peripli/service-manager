@@ -132,7 +132,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 							if t.SupportsAsyncOperations && responseMode == Async {
 								Context("when resource is created async", func() {
 									It("returns last operation with the resource", func() {
-										response := ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+										response := ctx.SMWithOAuthForTenant.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
 											Expect().
 											Status(http.StatusOK).JSON().Object()
 										result := response.Raw()
