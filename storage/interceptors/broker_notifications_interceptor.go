@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/catalog"
 )
@@ -68,6 +70,20 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 				}
 			}
 			return details, nil
+		},
+		DeletePostConditionFunc: func(ctx context.Context, object types.Object, repository storage.Repository, platformID string) error {
+			criteria := []query.Criterion{
+				query.ByField(query.EqualsOperator, "broker_id", object.GetID()),
+				query.ByField(query.EqualsOperator, "platform_id", platformID),
+			}
+
+			log.C(ctx).Debugf("Proceeding with deletion of broker platform credentials for broker with id %s and platform with id %s", object.GetID(), platformID)
+			if err := repository.Delete(ctx, types.BrokerPlatformCredentialType, criteria...); err != nil {
+				if err != util.ErrNotFoundInStorage {
+					return err
+				}
+			}
+			return nil
 		},
 	}
 }

@@ -20,17 +20,11 @@ import (
 	"context"
 	"crypto/rand"
 	"log"
-	"testing"
 
 	"github.com/Peripli/service-manager/pkg/security"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
-
-func TestEncrypter(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "encrypter Test Suite")
-}
 
 var _ = Describe("AES Encrypter", func() {
 	var encrypter security.Encrypter

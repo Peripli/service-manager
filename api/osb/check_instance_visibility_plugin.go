@@ -70,7 +70,7 @@ func (p *checkVisibilityPlugin) UpdateService(req *web.Request, next web.Handler
 
 func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handler, planID string, osbContext json.RawMessage) (*web.Response, error) {
 	ctx := req.Context()
-	platform, err := extractPlatformFromContext(ctx)
+	platform, err := ExtractPlatformFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}

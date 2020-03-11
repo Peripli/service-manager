@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/tidwall/sjson"
 	"net/http"
 	"time"
 
@@ -376,6 +377,12 @@ func getInstanceByID(ctx context.Context, instanceID string, repository storage.
 func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool) (*osbc.BindRequest, error) {
 	context := make(map[string]interface{})
 	if len(binding.Context) != 0 {
+		var err error
+		binding.Context, err = sjson.SetBytes(binding.Context, "instance_name", instance.Name)
+		if err != nil {
+			return nil, err
+		}
+
 		if err := json.Unmarshal(binding.Context, &context); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal already present OSB context: %s", err)
 		}

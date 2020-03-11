@@ -21,6 +21,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Peripli/service-manager/operations/opcontext"
+	"github.com/Peripli/service-manager/pkg/log"
+
 	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -62,15 +65,25 @@ func (c *uniqueBindingNameInterceptor) AroundTxCreate(h storage.InterceptCreateA
 }
 
 func (c *uniqueBindingNameInterceptor) checkUniqueName(ctx context.Context, binding *types.ServiceBinding) error {
+	operation, operationFound := opcontext.Get(ctx)
+	if !operationFound {
+		log.C(ctx).Debug("operation missing from context")
+	}
+
+	if operationFound && operation.Reschedule {
+		log.C(ctx).Info("skipping unique check of binding name as this is a rescheduled operation")
+		return nil
+	}
+
 	countCriteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "service_instance_id", binding.ServiceInstanceID),
 		query.ByField(query.EqualsOperator, nameProperty, binding.Name),
 	}
 	bindingCount, err := c.Repository.Count(ctx, types.ServiceBindingType, countCriteria...)
-
 	if err != nil {
 		return fmt.Errorf("could not get count of service bindings %s", err)
 	}
+
 	if bindingCount > 0 {
 		return &util.HTTPError{
 			ErrorType:   "Conflict",
@@ -78,5 +91,6 @@ func (c *uniqueBindingNameInterceptor) checkUniqueName(ctx context.Context, bind
 			StatusCode:  http.StatusConflict,
 		}
 	}
+
 	return nil
 }

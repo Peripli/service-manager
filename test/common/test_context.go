@@ -57,6 +57,7 @@ func init() {
 
 const SMServer = "sm-server"
 const OauthServer = "oauth-server"
+const TenantOauthServer = "tenant-oauth-server"
 const BrokerServerPrefix = "broker-"
 
 type TestContextBuilder struct {
@@ -72,6 +73,8 @@ type TestContextBuilder struct {
 	Environment func(f ...func(set *pflag.FlagSet)) env.Environment
 	Servers     map[string]FakeServer
 	HttpClient  *http.Client
+
+	useSeparateOAuthServerForTenantAccess bool
 }
 
 type TestContext struct {
@@ -90,8 +93,10 @@ type TestContext struct {
 	SMRepository         storage.TransactionalRepository
 	SMScheduler          *operations.Scheduler
 	TestPlatform         *types.Platform
+	TenantTokenProvider  func() string
 
-	Servers map[string]FakeServer
+	Servers    map[string]FakeServer
+	HttpClient *http.Client
 }
 
 type SMExpect struct {
@@ -122,6 +127,12 @@ func (expect *SMExpect) ListWithQuery(path string, query string) *httpexpect.Arr
 	}
 
 	return httpexpect.NewArray(ginkgo.GinkgoT(), items)
+}
+
+func (expect *SMExpect) SetBasicCredentials(ctx *TestContext, username, password string) {
+	expect.Expect = ctx.SM.Builder(func(req *httpexpect.Request) {
+		req.WithBasicAuth(username, password).WithClient(ctx.HttpClient)
+	})
 }
 
 type testSMServer struct {
@@ -302,6 +313,11 @@ func (tcb *TestContextBuilder) WithSMExtensions(fs ...func(ctx context.Context, 
 	return tcb
 }
 
+func (tcb *TestContextBuilder) ShouldUseSeparateOAuthServerForTenantAccess(use bool) *TestContextBuilder {
+	tcb.useSeparateOAuthServerForTenantAccess = use
+	return tcb
+}
+
 func (tcb *TestContextBuilder) Build() *TestContext {
 	return tcb.BuildWithListener(nil, true)
 }
@@ -314,6 +330,12 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 	environment := tcb.Environment(tcb.envPreHooks...)
 
 	tcb.Servers[OauthServer] = NewOAuthServer()
+	if tcb.useSeparateOAuthServerForTenantAccess {
+		tcb.Servers[TenantOauthServer] = NewOAuthServer()
+	} else {
+		tcb.Servers[TenantOauthServer] = tcb.Servers[OauthServer]
+	}
+
 	for _, envPostHook := range tcb.envPostHooks {
 		envPostHook(environment, tcb.Servers)
 	}
@@ -324,24 +346,29 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 
 	SM := httpexpect.New(ginkgo.GinkgoT(), smServer.URL())
 	oauthServer := tcb.Servers[OauthServer].(*OAuthServer)
+	tenantOauthServer := tcb.Servers[TenantOauthServer].(*OAuthServer)
 	accessToken := oauthServer.CreateToken(tcb.defaultTokenClaims)
 	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
 		req.WithHeader("Authorization", "Bearer "+accessToken).WithClient(tcb.HttpClient)
 	})
 
-	tenantAccessToken := oauthServer.CreateToken(tcb.tenantTokenClaims)
+	tenantAccessToken := tenantOauthServer.CreateToken(tcb.tenantTokenClaims)
 	SMWithOAuthForTenant := SM.Builder(func(req *httpexpect.Request) {
 		req.WithHeader("Authorization", "Bearer "+tenantAccessToken).WithClient(tcb.HttpClient)
 	})
 
 	testContext := &TestContext{
 		wg:                   wg,
-		SM:                   &SMExpect{SM},
-		SMWithOAuth:          &SMExpect{SMWithOAuth},
-		SMWithOAuthForTenant: &SMExpect{SMWithOAuthForTenant},
+		SM:                   &SMExpect{Expect: SM},
+		SMWithOAuth:          &SMExpect{Expect: SMWithOAuth},
+		SMWithOAuthForTenant: &SMExpect{Expect: SMWithOAuthForTenant},
 		Servers:              tcb.Servers,
 		SMRepository:         smRepository,
 		SMScheduler:          smScheduler,
+		HttpClient:           tcb.HttpClient,
+		TenantTokenProvider: func() string {
+			return tenantOauthServer.CreateToken(tcb.tenantTokenClaims)
+		},
 	}
 
 	if cleanup {
@@ -517,8 +544,8 @@ func (ctx *TestContext) RegisterPlatformWithType(platformType string) *types.Pla
 }
 
 func (ctx *TestContext) NewTenantExpect(tenantIdentifier string) *SMExpect {
-	oauthServer := ctx.Servers[OauthServer].(*OAuthServer)
-	accessToken := oauthServer.CreateToken(map[string]interface{}{
+	tenantOauthServer := ctx.Servers[TenantOauthServer].(*OAuthServer)
+	accessToken := tenantOauthServer.CreateToken(map[string]interface{}{
 		"cid": "tenancyClient",
 		"zid": tenantIdentifier,
 	})
@@ -580,7 +607,7 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	ctx.CleanupPlatforms()
 	serversToDelete := make([]string, 0)
 	for serverName, server := range ctx.Servers {
-		if serverName != SMServer && serverName != OauthServer {
+		if serverName != SMServer && serverName != OauthServer && serverName != TenantOauthServer {
 			serversToDelete = append(serversToDelete, serverName)
 			server.Close()
 		}
