@@ -123,9 +123,9 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 
 			supportedPlatformTypes := supportedPlatforms(servicePlan)
 			if len(supportedPlatformTypes) == 0 { // all platforms are supported -> create single visibility with empty platform ID
-				err = resyncPublicPlanVisibilities(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker.ID)
+				err = resyncPublicPlanVisibilities(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker)
 			} else { // not all platforms are supported -> create single visibility for each supported platform
-				err = resyncPlanVisibilitiesWithSupportedPlatforms(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker.ID, supportedPlatformTypes)
+				err = resyncPlanVisibilitiesWithSupportedPlatforms(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker, supportedPlatformTypes)
 			}
 
 			if err != nil {
@@ -136,7 +136,7 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 	return nil
 }
 
-func resyncPublicPlanVisibilities(ctx context.Context, txStorage storage.Repository, planVisibilities types.ObjectList, isPlanPublic bool, planID, brokerID string) error {
+func resyncPublicPlanVisibilities(ctx context.Context, txStorage storage.Repository, planVisibilities types.ObjectList, isPlanPublic bool, planID string, broker *types.ServiceBroker) error {
 	publicVisibilityExists := false
 
 	for i := 0; i < planVisibilities.Len(); i++ {
@@ -163,7 +163,7 @@ func resyncPublicPlanVisibilities(ctx context.Context, txStorage storage.Reposit
 	}
 
 	if isPlanPublic && !publicVisibilityExists {
-		if err := persistVisibility(ctx, txStorage, "", planID, brokerID); err != nil {
+		if err := persistVisibility(ctx, txStorage, "", planID, broker); err != nil {
 			return err
 		}
 	}
@@ -171,7 +171,7 @@ func resyncPublicPlanVisibilities(ctx context.Context, txStorage storage.Reposit
 	return nil
 }
 
-func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage storage.Repository, planVisibilities types.ObjectList, isPlanPublic bool, planID, brokerID string, supportedPlatformTypes []string) error {
+func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage storage.Repository, planVisibilities types.ObjectList, isPlanPublic bool, planID string, broker *types.ServiceBroker, supportedPlatformTypes []string) error {
 	bySupportedPlatformTypes := query.ByField(query.InOperator, "type", supportedPlatformTypes...)
 	platformList, err := txStorage.List(ctx, types.PlatformType, bySupportedPlatformTypes)
 	if err != nil {
@@ -207,7 +207,7 @@ func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage
 
 	if isPlanPublic {
 		for _, platform := range supportedPlatforms {
-			if err := persistVisibility(ctx, txStorage, platform.ID, planID, brokerID); err != nil {
+			if err := persistVisibility(ctx, txStorage, platform.ID, planID, broker); err != nil {
 				return err
 			}
 		}
@@ -226,7 +226,7 @@ func platformsAnyMatchesVisibility(platforms []*types.Platform, visibility *type
 	return -1, false
 }
 
-func persistVisibility(ctx context.Context, txStorage storage.Repository, platformID, planID, brokerID string) error {
+func persistVisibility(ctx context.Context, txStorage storage.Repository, platformID, planID string, broker *types.ServiceBroker) error {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		return fmt.Errorf("could not generate GUID for visibility: %s", err)
@@ -238,8 +238,7 @@ func persistVisibility(ctx context.Context, txStorage storage.Repository, platfo
 			ID:        UUID.String(),
 			UpdatedAt: currentTime,
 			CreatedAt: currentTime,
-			// TODO: Set ready to what the resource ready field is that caused this visibility to be created
-			Ready: true,
+			Ready:     broker.GetReady(),
 		},
 		ServicePlanID: planID,
 		PlatformID:    platformID,
@@ -250,6 +249,6 @@ func persistVisibility(ctx context.Context, txStorage storage.Repository, platfo
 		return err
 	}
 
-	log.C(ctx).Debugf("Created new public visibility for broker with id (%s), plan with id (%s) and platform with id (%s)", brokerID, planID, platformID)
+	log.C(ctx).Debugf("Created new public visibility for broker with id (%s), plan with id (%s) and platform with id (%s)", broker.ID, planID, platformID)
 	return nil
 }

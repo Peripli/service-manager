@@ -36,9 +36,6 @@ const (
 
 	// QueryParamAsync is the value used to denote the query key used to convey a client's intent whether the request should be executed async or not
 	QueryParamAsync = "async"
-
-	// QueryParamLastOp is the value used to denote the query key used to convey a client's intent to retrieve also the last operation associated with the requested resource
-	QueryParamLastOp = "last_op"
 )
 
 // API is the primary point for REST API registration

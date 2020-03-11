@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package operations
+package opcontext
 
 import (
 	"context"
@@ -26,7 +26,7 @@ import (
 // some interceptors - based on the operation they execute different logic or they might update the actual operation
 type operationCtxKey struct{}
 
-func GetFromContext(ctx context.Context) (*types.Operation, bool) {
+func Get(ctx context.Context) (*types.Operation, bool) {
 	currentOperation := ctx.Value(operationCtxKey{})
 	if currentOperation == nil {
 		return nil, false
@@ -34,7 +34,7 @@ func GetFromContext(ctx context.Context) (*types.Operation, bool) {
 	return currentOperation.(*types.Operation), true
 }
 
-func SetInContext(ctx context.Context, operation *types.Operation) (context.Context, error) {
+func Set(ctx context.Context, operation *types.Operation) (context.Context, error) {
 	if err := operation.Validate(); err != nil {
 		return nil, err
 	}

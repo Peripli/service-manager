@@ -84,7 +84,7 @@ var _ = DescribeTestsFor(TestCase{
 	StrictlyTenantScoped:                   true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
-	ResourcePropertiesToIgnore:             []string{"platform_id"},
+	ResourcePropertiesToIgnore:             []string{"last_operation", "platform_id"},
 	PatchResource:                          APIResourcePatch,
 	AdditionalTests: func(ctx *TestContext, t *TestCase) {
 		Context("additional non-generic tests", func() {

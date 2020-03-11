@@ -30,6 +30,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 type OperationExpectations struct {
@@ -175,4 +176,33 @@ func VerifyOperationExists(ctx *TestContext, operationURL string, expectations O
 			}
 		}
 	}
+}
+
+type TransitiveResourcesExpectation struct {
+	CreatedOfferings     int
+	CreatedPlans         int
+	CreatedNotifications int
+}
+
+func AssertTransitiveResources(operation *types.Operation, expectations TransitiveResourcesExpectation) {
+	transitiveResources := operation.TransitiveResources
+	actualCreatedOfferings := 0
+	actualCreatedPlans := 0
+	actualCreatedNotifications := 0
+
+	for _, val := range transitiveResources {
+		if val.OperationType == types.CREATE {
+			switch val.Type {
+			case types.ServiceOfferingType:
+				actualCreatedOfferings++
+			case types.ServicePlanType:
+				actualCreatedPlans++
+			case types.NotificationType:
+				actualCreatedNotifications++
+			}
+		}
+	}
+	Expect(actualCreatedNotifications).To(Equal(expectations.CreatedNotifications))
+	Expect(actualCreatedOfferings).To(Equal(expectations.CreatedOfferings))
+	Expect(actualCreatedPlans).To(Equal(expectations.CreatedPlans))
 }

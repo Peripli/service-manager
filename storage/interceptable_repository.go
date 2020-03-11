@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Peripli/service-manager/operations/opcontext"
+
 	"github.com/Peripli/service-manager/pkg/log"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -122,6 +124,15 @@ func (ir *queryScopedInterceptableRepository) Create(ctx context.Context, obj ty
 			return nil, err
 		}
 
+		operation, found := opcontext.Get(ctx)
+		if found && operation.ResourceID != createdObj.GetID() {
+			operation.TransitiveResources = append(operation.TransitiveResources, &types.RelatedType{
+				ID:            createdObj.GetID(),
+				Type:          createdObj.GetType(),
+				OperationType: types.CREATE,
+			})
+		}
+
 		return createdObj, nil
 	}
 
@@ -179,6 +190,20 @@ func (ir *queryScopedInterceptableRepository) DeleteReturning(ctx context.Contex
 		if resultList, err = ir.repositoryInTransaction.DeleteReturning(ctx, objectType, deletionCriteria...); err != nil {
 			return err
 		}
+
+		operation, found := opcontext.Get(ctx)
+		if found {
+			for i := 0; i < resultList.Len(); i++ {
+				if operation.ResourceID != resultList.ItemAt(i).GetID() {
+					operation.TransitiveResources = append(operation.TransitiveResources, &types.RelatedType{
+						ID:            resultList.ItemAt(i).GetID(),
+						Type:          resultList.ItemAt(i).GetType(),
+						OperationType: types.DELETE,
+					})
+				}
+			}
+		}
+
 		return nil
 	}
 
@@ -208,6 +233,15 @@ func (ir *queryScopedInterceptableRepository) Delete(ctx context.Context, object
 		if err := ir.repositoryInTransaction.Delete(ctx, objectType, deletionCriteria...); err != nil {
 			return err
 		}
+		operation, found := opcontext.Get(ctx)
+		if found && operation.ResourceType != objectType {
+			operation.TransitiveResources = append(operation.TransitiveResources, &types.RelatedType{
+				Criteria:      deletionCriteria,
+				Type:          objectType,
+				OperationType: types.DELETE,
+			})
+		}
+
 		return nil
 	}
 
@@ -222,7 +256,6 @@ func (ir *queryScopedInterceptableRepository) Delete(ctx context.Context, object
 			return err
 		}
 		ir.deleteOnTxFuncs[objectType] = deleteOnTxFunc
-
 	} else {
 		if err := deleteObjectFunc(ctx, nil, nil, criteria...); err != nil {
 			return err
@@ -237,6 +270,15 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 		object, err := ir.repositoryInTransaction.Update(ctx, newObj, labelChanges, criteria...)
 		if err != nil {
 			return nil, err
+		}
+
+		operation, found := opcontext.Get(ctx)
+		if found && operation.ResourceID != object.GetID() {
+			operation.TransitiveResources = append(operation.TransitiveResources, &types.RelatedType{
+				ID:            object.GetID(),
+				Type:          object.GetType(),
+				OperationType: types.UPDATE,
+			})
 		}
 
 		labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, newObj.GetLabels())

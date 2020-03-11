@@ -53,19 +53,27 @@ const (
 	FAILED OperationState = "failed"
 )
 
+type RelatedType struct {
+	ID            string            `json:"id"`
+	Criteria      interface{}       `json:"criteria,omitempty"`
+	Type          ObjectType        `json:"type"`
+	OperationType OperationCategory `json:"operation_type"`
+}
+
 //go:generate smgen api Operation
 // Operation struct
 type Operation struct {
 	Base
-	Description   string            `json:"description,omitempty"`
-	Type          OperationCategory `json:"type"`
-	State         OperationState    `json:"state"`
-	ResourceID    string            `json:"resource_id"`
-	ResourceType  ObjectType        `json:"resource_type"`
-	Errors        json.RawMessage   `json:"errors,omitempty"`
-	PlatformID    string            `json:"platform_id"`
-	CorrelationID string            `json:"correlation_id"`
-	ExternalID    string            `json:"-"`
+	Description         string            `json:"description,omitempty"`
+	Type                OperationCategory `json:"type"`
+	State               OperationState    `json:"state"`
+	ResourceID          string            `json:"resource_id"`
+	TransitiveResources []*RelatedType    `json:"transitive_resources,omitempty"`
+	ResourceType        ObjectType        `json:"resource_type"`
+	Errors              json.RawMessage   `json:"errors,omitempty"`
+	PlatformID          string            `json:"platform_id"`
+	CorrelationID       string            `json:"correlation_id"`
+	ExternalID          string            `json:"-"`
 
 	// Reschedule specifies that the operation has reached a state after which it can be retried (checkpoint)
 	Reschedule bool `json:"reschedule"`
@@ -87,7 +95,8 @@ func (e *Operation) Equals(obj Object) bool {
 		e.State != operation.State ||
 		e.Type != operation.Type ||
 		e.PlatformID != operation.PlatformID ||
-		!reflect.DeepEqual(e.Errors, operation.Errors) {
+		!reflect.DeepEqual(e.Errors, operation.Errors) ||
+		!reflect.DeepEqual(e.TransitiveResources, operation.TransitiveResources) {
 		return false
 	}
 

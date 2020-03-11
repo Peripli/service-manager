@@ -24,8 +24,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/Peripli/service-manager/operations"
-
+	"github.com/Peripli/service-manager/operations/opcontext"
 	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -121,7 +120,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			return f(ctx, obj)
 		}
 
-		operation, found := operations.GetFromContext(ctx)
+		operation, found := opcontext.Get(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
 		}
@@ -207,7 +206,7 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			return f(ctx, updatedObj, labelChanges...)
 		}
 
-		operation, found := operations.GetFromContext(ctx)
+		operation, found := opcontext.Get(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
 		}
@@ -333,7 +332,7 @@ func (i *ServiceInstanceInterceptor) AroundTxDelete(f storage.InterceptDeleteAro
 				return f(ctx, deletionCriteria...)
 			}
 
-			operation, found := operations.GetFromContext(ctx)
+			operation, found := opcontext.Get(ctx)
 			if !found {
 				return fmt.Errorf("operation missing from context")
 			}

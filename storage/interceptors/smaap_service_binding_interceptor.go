@@ -23,9 +23,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/operations/opcontext"
 
-	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/log"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -103,7 +103,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			log.C(ctx).Debugf("platform is not %s. Skipping interceptor %s", types.SMPlatform, ServiceBindingDeleteInterceptorProviderName)
 			return f(ctx, obj)
 		}
-		operation, found := operations.GetFromContext(ctx)
+		operation, found := opcontext.Get(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
 		}
@@ -234,7 +234,7 @@ func (i *ServiceBindingInterceptor) AroundTxDelete(f storage.InterceptDeleteArou
 		if bindings.Len() != 0 {
 			binding := bindings.ItemAt(0).(*types.ServiceBinding)
 
-			operation, found := operations.GetFromContext(ctx)
+			operation, found := opcontext.Get(ctx)
 			if !found {
 				return fmt.Errorf("operation missing from context")
 			}
