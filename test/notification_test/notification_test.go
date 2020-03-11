@@ -608,7 +608,7 @@ var _ = Describe("Notifications Suite", func() {
 		var customCtx *common.TestContext
 		BeforeEach(func() {
 			customCtx = common.NewTestContextBuilderWithSecurity().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-				smb.WithCreateInterceptorProvider(types.ServiceBrokerType, &testCreateInterceptorProvider{}).Register()
+				smb.WithCreateAroundTxInterceptorProvider(types.ServiceBrokerType, &testCreateInterceptorProvider{}).Register()
 
 				return nil
 			}).Build()
@@ -666,7 +666,7 @@ func regBroker(ctx *common.TestContext) {
 type testCreateInterceptorProvider struct {
 }
 
-func (p *testCreateInterceptorProvider) Provide() storage.CreateInterceptor {
+func (p *testCreateInterceptorProvider) Provide() storage.CreateAroundTxInterceptor {
 	return &testCreateInterceptor{}
 }
 
@@ -684,8 +684,4 @@ func (p *testCreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTx
 		}
 		return robj, errors.New("test test")
 	}
-}
-
-func (p *testCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-	return f
 }
