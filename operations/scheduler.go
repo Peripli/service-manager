@@ -164,6 +164,7 @@ func (s *Scheduler) getResourceLastOperation(ctx context.Context, operation *typ
 	lastOperationObject, err := s.repository.Get(ctx, types.OperationType, byResourceID, orderDesc)
 	if err != nil {
 		if err == util.ErrNotFoundInStorage {
+			log.C(ctx).Debugf("Could not find last operation for resource with id %s and type %s in SMDB. Ignoring missing operation", operation.ResourceID, operation.ResourceType)
 			return nil, false, nil
 		}
 		return nil, false, util.HandleStorageError(err, types.OperationType.String())
@@ -331,6 +332,7 @@ func fetchAndUpdateResource(ctx context.Context, repository storage.Repository, 
 	objectFromDB, err := repository.Get(ctx, objectType, byID)
 	if err != nil {
 		if err == util.ErrNotFoundInStorage {
+			log.C(ctx).Debugf("Could not find resource with id %s and type %s in SMDB. Ignoring missing resource", objectID, objectType)
 			return nil
 		}
 		return fmt.Errorf("failed to retrieve object of type %s with id %s:%s", objectType.String(), objectID, err)
@@ -361,6 +363,10 @@ func updateOperationState(ctx context.Context, repository storage.Repository, op
 	// this also updates updated_at which serves as "reporting" that someone is working on the operation
 	_, err := repository.Update(ctx, operation, types.LabelChanges{})
 	if err != nil {
+		if err == util.ErrNotFoundInStorage {
+			log.C(ctx).Debugf("Could not find and update operation for resource with id %s and type %s in SMDB. Ignoring missing operation", operation.ResourceID, operation.ResourceType)
+			return nil
+		}
 		return fmt.Errorf("failed to update state of operation with id %s to %s: %s", operation.ID, state, err)
 	}
 
@@ -429,6 +435,7 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 			err := repository.Delete(ctx, opAfterJob.ResourceType, byID)
 			if err != nil {
 				if err == util.ErrNotFoundInStorage {
+					log.C(ctx).Debugf("Could not find resource with id %s and type %s during delete action in SMDB. Ignoring missing resource", opAfterJob.ResourceID, opAfterJob.ResourceType)
 					return nil, nil
 				}
 				return nil, util.HandleStorageError(err, opAfterJob.ResourceType.String())
@@ -516,11 +523,17 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 	}
 
 	if time.Now().UTC().After(operation.CreatedAt.Add(s.reconciliationOperationTimeout)) {
-		return &util.HTTPError{
+		manualActionRequiredError := &util.HTTPError{
 			ErrorType:   "ManualActionRequired",
-			Description: fmt.Sprintf("operation is older than %v and has exceeded the maximum reconciliation timeout", s.reconciliationOperationTimeout),
+			Description: fmt.Sprintf("operation is older than %v and has exceeded the maximum reconciliation timeout. Rootcause error: %s", s.reconciliationOperationTimeout, operation.Errors),
 			StatusCode:  http.StatusUnprocessableEntity,
 		}
+
+		if opErr := updateOperationState(ctx, s.repository, operation, types.FAILED, manualActionRequiredError); opErr != nil {
+			return fmt.Errorf("failed to update error of operation with id %s to %s", operation.ID, manualActionRequiredError)
+		}
+
+		return manualActionRequiredError
 	}
 
 	if err := operation.Validate(); err != nil {
