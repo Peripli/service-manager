@@ -35,6 +35,7 @@ type Broker struct {
 	BrokerURL            string             `db:"broker_url"`
 	Username             string             `db:"username"`
 	Password             string             `db:"password"`
+  Integrity   []byte             `db:"integrity"`
 	TlsClientKey         string             `db:"tls_client_key"`
 	TlsClientCertificate string             `db:"tls_client_certificate"`
 	Catalog              sqlxtypes.JSONText `db:"catalog"`
@@ -69,6 +70,7 @@ func (e *Broker) ToObject() (types.Object, error) {
 				Password: e.Password,
 			},
 			TLS: &types.TLS{Certificate: e.TlsClientCertificate, Key: e.TlsClientKey},
+			Integrity: e.Integrity,
 		},
 		Catalog:  getJSONRawMessage(e.Catalog),
 		Services: services,
@@ -108,6 +110,7 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, error) {
 	if broker.Credentials != nil && broker.Credentials.Basic != nil {
 		b.Username = broker.Credentials.Basic.Username
 		b.Password = broker.Credentials.Basic.Password
+		b.Integrity = broker.Credentials.Integrity
 	}
 
 	if broker.Credentials != nil && broker.Credentials.TLS != nil {

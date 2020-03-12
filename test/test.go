@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"strconv"
 
@@ -61,20 +62,7 @@ const (
 
 	Sync  ResponseMode = false
 	Async ResponseMode = true
-
-	JobTimeout          = 15 * time.Second
-	cleanupInterval     = 60 * time.Second
-	operationExpiration = 60 * time.Second
 )
-
-func postHookWithOperationsConfig() func(e env.Environment, servers map[string]common.FakeServer) {
-	return func(e env.Environment, servers map[string]common.FakeServer) {
-		e.Set("operations.action_timeout", JobTimeout)
-		e.Set("operations.cleanup_interval", cleanupInterval)
-		e.Set("operations.lifespan", operationExpiration)
-		e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)
-	}
-}
 
 type MultitenancySettings struct {
 	ClientID           string
@@ -220,7 +208,7 @@ func DescribeTestsFor(t TestCase) bool {
 		})
 
 		ctxBuilder := func() *common.TestContextBuilder {
-			ctxBuilder := common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHookWithOperationsConfig())
+			ctxBuilder := common.NewTestContextBuilderWithSecurity()
 
 			if t.MultitenancySettings != nil {
 				ctxBuilder.
@@ -301,4 +289,40 @@ func DescribeTestsFor(t TestCase) bool {
 			By("==== Successfully finished preparation for SM tests. Running API tests suite... ====")
 		}()
 	})
+}
+
+func RegisterBrokerPlatformCredentialsExpect(SMBasicPlatform *common.SMExpect, brokerID string, expectedStatusCode int) (string, string) {
+	return RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMBasicPlatform, brokerID, "", expectedStatusCode)
+}
+
+func RegisterBrokerPlatformCredentials(SMBasicPlatform *common.SMExpect, brokerID string) (string, string) {
+	return RegisterBrokerPlatformCredentialsWithNotificationID(SMBasicPlatform, brokerID, "")
+}
+
+func RegisterBrokerPlatformCredentialsWithNotificationID(SMBasicPlatform *common.SMExpect, brokerID, notificationID string) (string, string) {
+	return RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMBasicPlatform, brokerID, notificationID, http.StatusOK)
+}
+
+func RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMBasicPlatform *common.SMExpect, brokerID, notificationID string, expectedStatusCode int) (string, string) {
+	username, err := util.GenerateCredential()
+	Expect(err).ToNot(HaveOccurred())
+	password, err := util.GenerateCredential()
+	Expect(err).ToNot(HaveOccurred())
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		panic(err)
+	}
+
+	payload := map[string]interface{}{
+		"broker_id":       brokerID,
+		"username":        username,
+		"password_hash":   string(passwordHash),
+		"notification_id": notificationID,
+	}
+
+	SMBasicPlatform.Request(http.MethodPut, web.BrokerPlatformCredentialsURL).
+		WithJSON(payload).Expect().Status(expectedStatusCode)
+
+	return username, password
 }

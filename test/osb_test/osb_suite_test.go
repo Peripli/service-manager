@@ -17,9 +17,13 @@
 package osb_test
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/test"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -61,19 +65,23 @@ const (
 	organizationGUID            = "1113aa0-124e-4af2-1526-6bfacf61b111"
 	SID                         = "12345"
 	timeoutDuration             = time.Millisecond * 500
-	additionalDelayAfterTimeout = time.Millisecond * 200
+	additionalDelayAfterTimeout = time.Millisecond * 5
+	testTimeout                 = 10
 
 	brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
 	brokerAPIVersionHeaderValue = "2.13"
 )
 
 var (
-	ctx *common.TestContext
+	ctx                 *common.TestContext
+	SMWithBasicPlatform *common.SMExpect
 
 	brokerServerWithEmptyCatalog *common.BrokerServer
 	emptyCatalogBrokerID         string
 	smUrlToEmptyCatalogBroker    string
 
+	brokerServerWithSimpleCatalog    *common.BrokerServer
+	simpleBrokerCatalogID            string
 	smUrlToSimpleBrokerCatalogBroker string
 
 	stoppedBrokerServer  *common.BrokerServer
@@ -86,7 +94,14 @@ var (
 	smBrokerURL  string
 
 	provisionRequestBody string
+
+	brokerPlatformCredentialsIDMap map[string]brokerPlatformCredentials
 )
+
+type brokerPlatformCredentials struct {
+	username string
+	password string
+}
 
 var _ = BeforeSuite(func() {
 	ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
@@ -113,12 +128,26 @@ var _ = BeforeSuite(func() {
 		return nil
 	}).Build()
 
+	SMWithBasicPlatform = &common.SMExpect{Expect: ctx.SMWithBasic.Expect}
+
+	brokerPlatformCredentialsIDMap = make(map[string]brokerPlatformCredentials)
+
 	emptyCatalogBrokerID, _, brokerServerWithEmptyCatalog = ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog())
 	smUrlToEmptyCatalogBroker = brokerServerWithEmptyCatalog.URL() + "/v1/osb/" + emptyCatalogBrokerID
+	username, password := test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, emptyCatalogBrokerID)
+	brokerPlatformCredentialsIDMap[emptyCatalogBrokerID] = brokerPlatformCredentials{
+		username: username,
+		password: password,
+	}
 
-	simpleBrokerCatalogID, _, brokerServerWithSimpleCatalog := ctx.RegisterBrokerWithCatalog(simpleCatalog)
+	simpleBrokerCatalogID, _, brokerServerWithSimpleCatalog = ctx.RegisterBrokerWithCatalog(simpleCatalog)
 	smUrlToSimpleBrokerCatalogBroker = brokerServerWithSimpleCatalog.URL() + "/v1/osb/" + simpleBrokerCatalogID
 	common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, simpleBrokerCatalogID)
+	username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, simpleBrokerCatalogID)
+	brokerPlatformCredentialsIDMap[simpleBrokerCatalogID] = brokerPlatformCredentials{
+		username: username,
+		password: password,
+	}
 
 	plan0 := common.GenerateTestPlanWithID(plan0CatalogID)
 	service0 := common.GenerateTestServiceWithPlansWithID(service0CatalogID, plan0)
@@ -129,6 +158,11 @@ var _ = BeforeSuite(func() {
 	common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, stoppedBrokerID)
 	stoppedBrokerServer.Close()
 	smUrlToStoppedBroker = stoppedBrokerServer.URL() + "/v1/osb/" + stoppedBrokerID
+	username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, stoppedBrokerID)
+	brokerPlatformCredentialsIDMap[stoppedBrokerID] = brokerPlatformCredentials{
+		username: username,
+		password: password,
+	}
 
 	plan1 := common.GenerateTestPlanWithID(plan1CatalogID)
 	plan2 := common.GenerateTestPlanWithID(plan2CatalogID)
@@ -146,12 +180,21 @@ var _ = BeforeSuite(func() {
 	}
 	smBrokerURL = brokerServer.URL() + "/v1/osb/" + brokerID
 	brokerName = brokerObject["name"].(string)
+
+	username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, brokerID)
+	brokerPlatformCredentialsIDMap[brokerID] = brokerPlatformCredentials{
+		username: username,
+		password: password,
+	}
 })
 
 var _ = BeforeEach(func() {
 	resetBrokersHandlers()
 	resetBrokersCallHistory()
 	provisionRequestBody = buildRequestBody(service1CatalogID, plan1CatalogID)
+
+	credentials := brokerPlatformCredentialsIDMap[brokerID]
+	ctx.SMWithBasic.SetBasicCredentials(ctx, credentials.username, credentials.password)
 })
 
 var _ = JustAfterEach(func() {
@@ -198,6 +241,30 @@ func parameterizedHandler(statusCode int, responseBody string) func(rw http.Resp
 		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(statusCode)
 		rw.Write([]byte(responseBody))
+	}
+}
+
+func gzipWrite(w io.Writer, data []byte) error {
+	// Write gzipped data to the client
+	gw, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
+	defer gw.Close()
+	gw.Write(data)
+	return err
+}
+
+func gzipHandler(statusCode int, responseBody string) func(rw http.ResponseWriter, _ *http.Request) {
+	return func(rw http.ResponseWriter, req *http.Request) {
+		if req.Header.Get("Accept-Encoding") == "gzip" {
+			rw.Header().Set("Content-Encoding", "gzip")
+			rw.WriteHeader(statusCode)
+			var buf bytes.Buffer
+			gzipWrite(&buf, []byte(responseBody))
+			rw.Write(buf.Bytes())
+		} else {
+			rw.Header().Set("Content-Type", "application/json")
+			rw.WriteHeader(statusCode)
+			rw.Write([]byte(responseBody))
+		}
 	}
 }
 

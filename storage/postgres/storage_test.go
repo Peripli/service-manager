@@ -19,6 +19,8 @@ package postgres
 import (
 	"context"
 
+	"github.com/Peripli/service-manager/pkg/security/securityfakes"
+
 	"github.com/Peripli/service-manager/storage"
 
 	. "github.com/onsi/ginkgo"
@@ -95,11 +97,12 @@ var _ = Describe("Postgres Storage", func() {
 			It("Should panic", func() {
 				Expect(func() {
 					pgStorage.Open(&storage.Settings{
-						URI:               "invalid",
-						MigrationsURL:     "invalid",
-						EncryptionKey:     "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8",
-						SkipSSLValidation: true,
-						Notification:      storage.DefaultNotificationSettings(),
+						URI:                "invalid",
+						MigrationsURL:      "invalid",
+						EncryptionKey:      "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8",
+						SkipSSLValidation:  true,
+						Notification:       storage.DefaultNotificationSettings(),
+						IntegrityProcessor: &securityfakes.FakeIntegrityProcessor{},
 					})
 				}).To(Panic())
 			})

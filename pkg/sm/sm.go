@@ -20,10 +20,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/query"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/operations"
 
@@ -61,15 +62,16 @@ import (
 type ServiceManagerBuilder struct {
 	*web.API
 
-	Storage             *storage.InterceptableTransactionalRepository
-	Notificator         storage.Notificator
-	NotificationCleaner *storage.NotificationCleaner
-	OperationMaintainer *operations.Maintainer
-	OSBClientProvider   osbc.CreateFunc
-	ctx                 context.Context
-	wg                  *sync.WaitGroup
-	cfg                 *config.Settings
-	securityBuilder     *SecurityBuilder
+	Storage              *storage.InterceptableTransactionalRepository
+	Notificator          storage.Notificator
+	NotificationCleaner  *storage.NotificationCleaner
+	OperationMaintainer  *operations.Maintainer
+	OSBClientProvider    osbc.CreateFunc
+	ctx                  context.Context
+	wg                   *sync.WaitGroup
+	cfg                  *config.Settings
+	securityBuilder      *SecurityBuilder
+	encryptingRepository storage.TransactionalRepository
 }
 
 // ServiceManager  struct
@@ -108,11 +110,12 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 	// Decorate the storage with credentials encryption/decryption
 	encryptingDecorator := storage.EncryptingDecorator(ctx, &security.AESEncrypter{}, smStorage, postgres.EncryptingLocker(smStorage))
+	integrityDecorator := storage.DataIntegrityDecorator(cfg.Storage.IntegrityProcessor)
 
 	// Initialize the storage with graceful termination
 	var transactionalRepository storage.TransactionalRepository
 	waitGroup := &sync.WaitGroup{}
-	if transactionalRepository, err = storage.InitializeWithSafeTermination(ctx, smStorage, cfg.Storage, waitGroup, encryptingDecorator); err != nil {
+	if transactionalRepository, err = storage.InitializeWithSafeTermination(ctx, smStorage, cfg.Storage, waitGroup, integrityDecorator, encryptingDecorator); err != nil {
 		return nil, fmt.Errorf("error opening storage: %s", err)
 	}
 
@@ -163,17 +166,22 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, postgresLockerCreatorFunc, cfg.Operations, waitGroup)
 	osbClientProvider := osb.NewBrokerClientProvider(cfg.HTTPClient.SkipSSLValidation, int(cfg.HTTPClient.ResponseHeaderTimeout.Seconds()))
 
+	encryptingRepository, err := encryptingDecorator(smStorage)
+	if err != nil {
+		return nil, fmt.Errorf("error decorating storage with encryption: %s", err)
+	}
 	smb := &ServiceManagerBuilder{
-		API:                 API,
-		Storage:             interceptableRepository,
-		Notificator:         pgNotificator,
-		NotificationCleaner: notificationCleaner,
-		OperationMaintainer: operationMaintainer,
-		ctx:                 ctx,
-		wg:                  waitGroup,
-		cfg:                 cfg,
-		securityBuilder:     securityBuilder,
-		OSBClientProvider:   osbClientProvider,
+		API:                  API,
+		Storage:              interceptableRepository,
+		Notificator:          pgNotificator,
+		NotificationCleaner:  notificationCleaner,
+		OperationMaintainer:  operationMaintainer,
+		ctx:                  ctx,
+		wg:                   waitGroup,
+		cfg:                  cfg,
+		securityBuilder:      securityBuilder,
+		OSBClientProvider:    osbClientProvider,
+		encryptingRepository: encryptingRepository,
 	}
 
 	smb.RegisterPlugins(osb.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
@@ -252,6 +260,11 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	// setup server and add relevant global middleware
 	srv := server.New(smb.cfg.Server, smb.API)
 	srv.Use(filters.NewRecoveryMiddleware())
+
+	// calculate integrity before running maintainer on non-integral objects
+	if err := smb.calculateIntegrity(); err != nil {
+		log.C(smb.ctx).Panic(err)
+	}
 
 	// start the operation maintainer
 	smb.OperationMaintainer.Run()
@@ -524,6 +537,33 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 // Security provides mechanism to apply authentication and authorization with a builder pattern
 func (smb *ServiceManagerBuilder) Security() *SecurityBuilder {
 	return smb.securityBuilder.Reset()
+}
+
+func (smb *ServiceManagerBuilder) calculateIntegrity() error {
+	return smb.encryptingRepository.InTransaction(smb.ctx, func(ctx context.Context, storage storage.Repository) error {
+		objectTypesWithIntegrity := []types.ObjectType{types.PlatformType, types.ServiceBrokerType, types.ServiceBindingType, types.BrokerPlatformCredentialType}
+		for _, objectType := range objectTypesWithIntegrity {
+			emptyIntegrityCriteria := query.ByField(query.EqualsOrNilOperator, "integrity", "")
+			objects, err := storage.List(ctx, objectType, emptyIntegrityCriteria)
+			if err != nil {
+				return err
+			}
+			log.C(ctx).Infof("Found %d objects of type %s that need integrity to be calculated", objects.Len(), objectType)
+			for i := 0; i < objects.Len(); i++ {
+				obj := objects.ItemAt(i)
+				securedObj := obj.(security.IntegralObject)
+				integrity, err := smb.cfg.Storage.IntegrityProcessor.CalculateIntegrity(securedObj)
+				if err != nil {
+					return err
+				}
+				securedObj.SetIntegrity(integrity)
+				if _, err := storage.Update(ctx, obj, types.LabelChanges{}); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
 }
 
 func DefaultInstanceVisibilityFunc(labelKey string) func(req *web.Request, repository storage.Repository) (metadata *filters.InstanceVisibilityMetadata, err error) {
