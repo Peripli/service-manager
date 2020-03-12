@@ -40,11 +40,6 @@ type InputValidator interface {
 	Validate() error
 }
 
-// InputInterpret can be implemented by types to interpret input properties
-//type InputInterpret interface {
-//	Interpret() error
-//}
-
 // HasRFC3986ReservedSymbols returns true if input contains any reserver characters as defined in RFC3986 section oidc_authn.oidc_authn
 func HasRFC3986ReservedSymbols(input string) bool {
 	return strings.ContainsAny(input, reservedSymbolsRFC3986)
