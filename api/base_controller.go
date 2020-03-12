@@ -50,7 +50,7 @@ type BaseController struct {
 
 	resourceBaseURL string
 	objectType      types.ObjectType
-	repository      *storage.InterceptableTransactionalRepository
+	repository      storage.Repository
 	objectBlueprint func() types.Object
 
 	DefaultPageSize int
@@ -249,15 +249,14 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, error) {
 	objectID := r.PathParams[web.PathParamResourceID]
 	ctx := r.Context()
-	log.C(ctx).Debugf("Deleting %s with id %s", c.objectType, objectID)
-
+	force := r.URL.Query().Get(web.QueryParamForce) == "true"
+	log.C(ctx).Debugf("Deleting %s with id %s with force = %t", c.objectType, objectID, force)
 	byID := query.ByField(query.EqualsOperator, "id", objectID)
 	ctx, err := query.AddCriteria(ctx, byID)
 	if err != nil {
 		return nil, err
 	}
 	r.Request = r.WithContext(ctx)
-	force := r.URL.Query().Get(web.QueryParamForce) == "true"
 	criteria := query.CriteriaForContext(ctx)
 
 	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {

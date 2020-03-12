@@ -182,22 +182,8 @@ func (ir *queryScopedInterceptableRepository) DeleteReturning(ctx context.Contex
 		return nil
 	}
 
-	if deleteOnTxFunc, found := ir.deleteOnTxFuncs[objectType]; found {
-		objects, err := ir.List(ctx, objectType, criteria...)
-		if err != nil {
-			return nil, err
-		}
-		delete(ir.deleteOnTxFuncs, objectType)
-		if err := deleteOnTxFunc(deleteObjectFunc)(ctx, ir, objects, criteria...); err != nil {
-			ir.deleteOnTxFuncs[objectType] = deleteOnTxFunc
-			return nil, err
-		}
-		ir.deleteOnTxFuncs[objectType] = deleteOnTxFunc
-
-	} else {
-		if err := deleteObjectFunc(ctx, nil, nil, criteria...); err != nil {
-			return nil, err
-		}
+	if err := ir.delete(ctx, objectType, criteria, deleteObjectFunc); err != nil {
+		return nil, err
 	}
 
 	return resultList, nil
@@ -211,25 +197,7 @@ func (ir *queryScopedInterceptableRepository) Delete(ctx context.Context, object
 		return nil
 	}
 
-	if deleteOnTxFunc, found := ir.deleteOnTxFuncs[objectType]; found {
-		objects, err := ir.List(ctx, objectType, criteria...)
-		if err != nil {
-			return err
-		}
-		delete(ir.deleteOnTxFuncs, objectType)
-		if err := deleteOnTxFunc(deleteObjectFunc)(ctx, ir, objects, criteria...); err != nil {
-			ir.deleteOnTxFuncs[objectType] = deleteOnTxFunc
-			return err
-		}
-		ir.deleteOnTxFuncs[objectType] = deleteOnTxFunc
-
-	} else {
-		if err := deleteObjectFunc(ctx, nil, nil, criteria...); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return ir.delete(ctx, objectType, criteria, deleteObjectFunc)
 }
 
 func (ir *queryScopedInterceptableRepository) ForceDelete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) error {
@@ -240,6 +208,10 @@ func (ir *queryScopedInterceptableRepository) ForceDelete(ctx context.Context, o
 		return nil
 	}
 
+	return ir.delete(ctx, objectType, criteria, deleteObjectFunc)
+}
+
+func (ir *queryScopedInterceptableRepository) delete(ctx context.Context, objectType types.ObjectType, criteria []query.Criterion, deleteObjectFunc InterceptDeleteOnTxFunc) error {
 	if deleteOnTxFunc, found := ir.deleteOnTxFuncs[objectType]; found {
 		objects, err := ir.List(ctx, objectType, criteria...)
 		if err != nil {

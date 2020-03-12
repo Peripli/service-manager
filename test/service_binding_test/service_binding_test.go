@@ -1676,7 +1676,7 @@ var _ = DescribeTestsFor(TestCase{
 									It("deletes the binding and marks the operation with success", func() {
 										resp := forceDeleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
 
-										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 											Category:          types.DELETE,
 											State:             types.SUCCEEDED,
 											ResourceType:      types.ServiceBindingType,
@@ -1686,7 +1686,7 @@ var _ = DescribeTestsFor(TestCase{
 
 										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
 											ID:   instanceID,
-											Type: types.ServiceInstanceType,
+											Type: types.ServiceBindingType,
 										})
 									})
 								})
