@@ -20,9 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"strconv"
+
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -62,19 +63,7 @@ const (
 
 	Sync  ResponseMode = false
 	Async ResponseMode = true
-	ActionTimeout       = 15 * time.Second
-	cleanupInterval     = 60 * time.Second
-	operationExpiration = 60 * time.Second
 )
-
-func postHookWithOperationsConfig() func(e env.Environment, servers map[string]common.FakeServer) {
-	return func(e env.Environment, servers map[string]common.FakeServer) {
-		e.Set("operations.action_timeout", ActionTimeout)
-		e.Set("operations.cleanup_interval", cleanupInterval)
-		e.Set("operations.lifespan", operationExpiration)
-		e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)
-	}
-}
 
 type MultitenancySettings struct {
 	ClientID           string
