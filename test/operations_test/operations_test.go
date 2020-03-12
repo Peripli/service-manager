@@ -18,6 +18,7 @@ package operations_test
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/test"
 	"net/http"
 	"sync"
 	"testing"
@@ -276,6 +277,8 @@ var _ = Describe("Operations", func() {
 				)
 
 				asyncProvision := func() {
+					username, password := test.RegisterBrokerPlatformCredentials(ctx.SMWithBasic, brokerID)
+					ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
 					ctx.SMWithBasic.PUT(brokerServer.URL()+"/v1/osb/"+brokerID+"/v2/service_instances/12345").
 						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						WithQuery("async", true).
