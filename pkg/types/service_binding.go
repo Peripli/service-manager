@@ -44,8 +44,6 @@ type ServiceBinding struct {
 	Parameters        map[string]interface{} `json:"parameters,omitempty"`
 
 	Integrity []byte `json:"-"`
-
-	LastOperation *Operation `json:"last_operation,omitempty"`
 }
 
 func (e *ServiceBinding) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {
