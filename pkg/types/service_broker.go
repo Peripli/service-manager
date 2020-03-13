@@ -70,6 +70,14 @@ func (e *ServiceBroker) Decrypt(ctx context.Context, decryptionFunc func(context
 }
 
 func (e *ServiceBroker) IntegralData() []byte {
+	if e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
+		if e.Credentials.Basic != nil && e.Credentials.Basic.Username != "" && e.Credentials.Basic.Password != "" {
+			return []byte(fmt.Sprintf("%s:%s:%s:%s:%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password,
+				e.Credentials.TLS.Key, e.Credentials.TLS.Certificate, e.BrokerURL))
+		} else {
+			return []byte(fmt.Sprintf("%s:%s:%s", e.Credentials.TLS.Key, e.Credentials.TLS.Certificate, e.BrokerURL))
+		}
+	}
 	return []byte(fmt.Sprintf("%s:%s:%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, e.BrokerURL))
 }
 

@@ -116,6 +116,7 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, error) {
 	if broker.Credentials != nil && broker.Credentials.TLS != nil {
 		b.TlsClientCertificate = broker.Credentials.TLS.Certificate
 		b.TlsClientKey = broker.Credentials.TLS.Key
+		b.Integrity = broker.Credentials.Integrity
 	}
 	return b, nil
 }
