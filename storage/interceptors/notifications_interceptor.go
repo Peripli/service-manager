@@ -60,9 +60,8 @@ func (ni *NotificationsInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc
 			return newObj, nil
 		}
 
-		log.C(ctx).Infof("Object %s with id %s is ready. New notification of type %s will be created", newObj.GetType().String(), newObj.GetID(), string(types.CREATED))
-
 		for _, platformID := range platformIDs {
+			log.C(ctx).Infof("Object %s with id %s is ready. New notification of type %s will be created for platform with id %s", newObj.GetType().String(), newObj.GetID(), string(types.CREATED), platformID)
 			if err := CreateNotification(ctx, repository, types.CREATED, newObj.GetType(), platformID, &Payload{
 				New: &ObjectPayload{
 					Resource:   newObj,
