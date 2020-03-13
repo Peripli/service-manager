@@ -53,7 +53,7 @@ func (li *ListIterator) Next(ctx context.Context, items interface{}, maxItems in
 
 	method := http.MethodGet
 	url := li.URL
-	response, err := SendRequest(ctx, li.DoRequest, method, url, params, nil, http.DefaultClient)
+	response, err := SendRequest(ctx, li.DoRequest, method, url, params, nil)
 	if err != nil {
 		return false, -1, fmt.Errorf("Error sending request %s %s: %s", method, url, err)
 	}
