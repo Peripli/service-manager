@@ -526,7 +526,7 @@ OOzY8kGVInUs83tZOfMVjQ==
 					})
 
 					Context("when tls credentials are invalid", func() {
-						FIt("returns 400", func() {
+						It("returns 400", func() {
 							reply := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTls).
 								Expect().
 								Status(http.StatusCreated).
