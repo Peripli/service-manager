@@ -30,13 +30,15 @@ import (
 //go:generate smgen storage broker github.com/Peripli/service-manager/pkg/types:ServiceBroker
 type Broker struct {
 	BaseEntity
-	Name        string             `db:"name"`
-	Description sql.NullString     `db:"description"`
-	BrokerURL   string             `db:"broker_url"`
-	Username    string             `db:"username"`
-	Password    string             `db:"password"`
-	Integrity   []byte             `db:"integrity"`
-	Catalog     sqlxtypes.JSONText `db:"catalog"`
+	Name                 string             `db:"name"`
+	Description          sql.NullString     `db:"description"`
+	BrokerURL            string             `db:"broker_url"`
+	Username             string             `db:"username"`
+	Password             string             `db:"password"`
+	Integrity            []byte             `db:"integrity"`
+	TlsClientKey         string             `db:"tls_client_key"`
+	TlsClientCertificate string             `db:"tls_client_certificate"`
+	Catalog              sqlxtypes.JSONText `db:"catalog"`
 
 	Services []*ServiceOffering `db:"-"`
 }
@@ -67,6 +69,7 @@ func (e *Broker) ToObject() (types.Object, error) {
 				Username: e.Username,
 				Password: e.Password,
 			},
+			TLS:       &types.TLS{Certificate: e.TlsClientCertificate, Key: e.TlsClientKey},
 			Integrity: e.Integrity,
 		},
 		Catalog:  getJSONRawMessage(e.Catalog),
@@ -108,6 +111,11 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, error) {
 		b.Username = broker.Credentials.Basic.Username
 		b.Password = broker.Credentials.Basic.Password
 		b.Integrity = broker.Credentials.Integrity
+	}
+
+	if broker.Credentials != nil && broker.Credentials.TLS != nil {
+		b.TlsClientCertificate = broker.Credentials.TLS.Certificate
+		b.TlsClientKey = broker.Credentials.TLS.Key
 	}
 	return b, nil
 }
