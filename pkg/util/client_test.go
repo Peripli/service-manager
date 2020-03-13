@@ -31,15 +31,17 @@ import (
 
 var _ = Describe("Client Utils", func() {
 	var (
-		requestFunc  func(*http.Request) (*http.Response, error)
-		reaction     *common.HTTPReaction
-		expectations *common.HTTPExpectations
+		requestFuncWithClient util.DoRequestWithClientFunc
+		requestFunc           util.DoRequestFunc
+		reaction              *common.HTTPReaction
+		expectations          *common.HTTPExpectations
 	)
 
 	BeforeEach(func() {
 		reaction = &common.HTTPReaction{}
 		expectations = &common.HTTPExpectations{}
 		requestFunc = common.DoHTTP(reaction, expectations)
+		requestFuncWithClient = common.DoHTTPWithClient(reaction, expectations)
 	})
 
 	Describe("SendRequest", func() {
@@ -48,7 +50,7 @@ var _ = Describe("Client Utils", func() {
 				body := testTypeErrorMarshaling{
 					Field: "Value",
 				}
-				_, err := util.SendRequest(context.TODO(), requestFunc, "GET", "http://example.com", map[string]string{}, body)
+				_, err := util.SendRequest(context.TODO(), requestFunc, "GET", "http://example.com", map[string]string{}, body, http.DefaultClient)
 
 				Expect(err).Should(HaveOccurred())
 			})
@@ -57,7 +59,7 @@ var _ = Describe("Client Utils", func() {
 
 		Context("when method is invalid", func() {
 			It("returns an error", func() {
-				_, err := util.SendRequest(context.TODO(), requestFunc, "?+?.>", "http://example.com", map[string]string{}, nil)
+				_, err := util.SendRequest(context.TODO(), requestFunc, "?+?.>", "http://example.com", map[string]string{}, nil, http.DefaultClient)
 
 				Expect(err).Should(HaveOccurred())
 			})
@@ -79,7 +81,7 @@ var _ = Describe("Client Utils", func() {
 				reaction.Err = nil
 				reaction.Status = http.StatusOK
 
-				resp, err := util.SendRequest(context.TODO(), requestFunc, "POST", "http://example.com", params, body)
+				resp, err := util.SendRequest(context.TODO(), requestFunc, "POST", "http://example.com", params, body, http.DefaultClient)
 
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
@@ -97,7 +99,7 @@ var _ = Describe("Client Utils", func() {
 				entry := logrus.NewEntry(logrus.StandardLogger())
 				entry = entry.WithField(log.FieldCorrelationID, expectedCorrelationID)
 				ctx := log.ContextWithLogger(context.TODO(), entry)
-				resp, err := util.SendRequest(ctx, requestFunc, "GET", "http://example.com", nil, nil)
+				resp, err := util.SendRequest(ctx, requestFunc, "GET", "http://example.com", nil, nil, http.DefaultClient)
 
 				correlationID := resp.Request.Header.Get(log.CorrelationIDHeaders[0])
 				Expect(correlationID).To(Equal(expectedCorrelationID))
@@ -119,7 +121,28 @@ var _ = Describe("Client Utils", func() {
 			ctx := context.TODO()
 			resp, err := util.SendRequestWithHeaders(ctx, requestFunc, "GET", "http://example.com", nil, nil, map[string]string{
 				"header": "header",
-			})
+			}, http.DefaultClient)
+
+			header := resp.Request.Header.Get("header")
+			Expect(header).To(Equal("header"))
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+		})
+	})
+
+	Context("When sending a request with a header and client", func() {
+		BeforeEach(func() {
+			expectations.URL = "http://example.com"
+
+			reaction.Err = nil
+			reaction.Status = http.StatusOK
+		})
+
+		It("should attach it as header", func() {
+			ctx := context.TODO()
+			resp, err := util.SendRequestWithClientAndHeaders(ctx, requestFuncWithClient, "GET", "http://example.com", nil, nil, map[string]string{
+				"header": "header",
+			}, &http.Client{})
 
 			header := resp.Request.Header.Get("header")
 			Expect(header).To(Equal("header"))
@@ -137,7 +160,7 @@ var _ = Describe("Client Utils", func() {
 			reaction.Status = http.StatusOK
 			reaction.Body = `{"field":"value"}`
 
-			resp, err = util.SendRequest(context.TODO(), requestFunc, "POST", "http://example.com", map[string]string{}, nil)
+			resp, err = util.SendRequest(context.TODO(), requestFunc, "POST", "http://example.com", map[string]string{}, nil, http.DefaultClient)
 			Expect(err).ShouldNot(HaveOccurred())
 		})
 

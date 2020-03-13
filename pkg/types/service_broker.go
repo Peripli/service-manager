@@ -19,6 +19,7 @@ package types
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -41,6 +42,19 @@ type ServiceBroker struct {
 
 	Catalog  json.RawMessage    `json:"-"`
 	Services []*ServiceOffering `json:"-"`
+}
+
+func (e *ServiceBroker) GetTlsConfig() (*tls.Config, error) {
+	var tlsConfig tls.Config
+	if e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
+		cert, err := tls.X509KeyPair([]byte(e.Credentials.TLS.Certificate), []byte(e.Credentials.TLS.Key))
+		if err != nil {
+			return &tls.Config{}, err
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	return &tlsConfig, nil
 }
 
 func (e *ServiceBroker) Sanitize() {
@@ -68,14 +82,22 @@ func (e *ServiceBroker) GetIntegrity() []byte {
 }
 
 func (e *ServiceBroker) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
-	if e.Credentials == nil || e.Credentials.Basic == nil {
-		return nil
+	if e.Credentials != nil || e.Credentials.Basic == nil {
+		transformedPassword, err := transformationFunc(ctx, []byte(e.Credentials.Basic.Password))
+		if err != nil {
+			return err
+		}
+		e.Credentials.Basic.Password = string(transformedPassword)
 	}
-	transformedPassword, err := transformationFunc(ctx, []byte(e.Credentials.Basic.Password))
-	if err != nil {
-		return err
+
+	if e.Credentials.TLS != nil && e.Credentials.TLS.Key != "" {
+		transformedPrivateKey, err := transformationFunc(ctx, []byte(e.Credentials.TLS.Key))
+		if err != nil {
+			return err
+		}
+		e.Credentials.TLS.Key = string(transformedPrivateKey)
 	}
-	e.Credentials.Basic.Password = string(transformedPassword)
+
 	return nil
 }
 

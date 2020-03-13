@@ -535,11 +535,18 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 		return nil, nil, nil, nil, util.HandleStorageError(err, types.ServiceBrokerType.String())
 	}
 	broker := brokerObject.(*types.ServiceBroker)
+
+	tlsConfig, err := broker.GetTlsConfig()
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
 	osbClient, err := osbClientFunc(&osbc.ClientConfiguration{
 		Name:                broker.Name + " broker client",
 		EnableAlphaFeatures: true,
 		URL:                 broker.BrokerURL,
 		APIVersion:          osbc.LatestAPIVersion(),
+		TLSConfig:           tlsConfig,
 		AuthConfig: &osbc.AuthConfig{
 			BasicAuthConfig: &osbc.BasicAuthConfig{
 				Username: broker.Credentials.Basic.Username,
