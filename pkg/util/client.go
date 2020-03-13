@@ -66,8 +66,8 @@ func AuthAndTlsDecorator(config *tls.Config, username, password string, reqFunc 
 }
 
 // SendRequest sends a request to the specified client and the provided URL with the specified parameters and body.
-func SendRequest(ctx context.Context, doRequest DoRequestFunc, method, url string, params map[string]string, body interface{}, client *http.Client) (*http.Response, error) {
-	return SendRequestWithHeaders(ctx, doRequest, method, url, params, body, map[string]string{}, client)
+func SendRequest(ctx context.Context, doRequest DoRequestFunc, method, url string, params map[string]string, body interface{}) (*http.Response, error) {
+	return SendRequestWithHeaders(ctx, doRequest, method, url, params, body, map[string]string{})
 }
 
 func prepareRequest(ctx context.Context, method, url string, params map[string]string, body interface{}, headers map[string]string) (*http.Request, *logrus.Entry, error) {
@@ -113,7 +113,7 @@ func prepareRequest(ctx context.Context, method, url string, params map[string]s
 }
 
 // SendRequestWithHeaders sends a request to the specified client and the provided URL with the specified parameters, body and headers.
-func SendRequestWithHeaders(ctx context.Context, doRequest DoRequestFunc, method, url string, params map[string]string, body interface{}, headers map[string]string, client *http.Client) (*http.Response, error) {
+func SendRequestWithHeaders(ctx context.Context, doRequest DoRequestFunc, method, url string, params map[string]string, body interface{}, headers map[string]string) (*http.Response, error) {
 	request, logger, err := prepareRequest(ctx, method, url, params, body, headers)
 	if err != nil {
 		return nil, err
