@@ -156,6 +156,7 @@ func resyncPublicPlanVisibilities(ctx context.Context, txStorage storage.Reposit
 		}
 
 		if shouldDeleteVisibility {
+			log.C(ctx).Debugf("Deleting public visibility with id (%s) for broker with id (%s), plan with id (%s) and platform with id (%s)", visibility.ID, brokerID, planID, visibility.PlatformID)
 			if err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
 				return err
 			}
@@ -198,6 +199,7 @@ func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage
 		}
 
 		if shouldDeleteVisibility {
+			log.C(ctx).Debugf("Deleting public visibility with id (%s) for broker with id (%s), plan with id (%s) and platform with id (%s)", visibility.ID, brokerID, planID, visibility.PlatformID)
 			byVisibilityID := query.ByField(query.EqualsOperator, "id", visibility.ID)
 			if err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
 				return err
