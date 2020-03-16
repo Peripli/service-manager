@@ -42,9 +42,8 @@ type ServiceBinding struct {
 	BindResource      json.RawMessage        `json:"bind_resource,omitempty"`
 	Credentials       json.RawMessage        `json:"credentials,omitempty"`
 	Parameters        map[string]interface{} `json:"parameters,omitempty"`
-	Integrity         []byte                 `json:"-"`
 
-	LastOperation *Operation `json:"last_operation,omitempty"`
+	Integrity []byte `json:"-"`
 }
 
 func (e *ServiceBinding) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {
@@ -98,14 +97,6 @@ func (e *ServiceBinding) Equals(obj Object) bool {
 	}
 
 	return true
-}
-
-func (e *ServiceBinding) SetLastOperation(lastOp *Operation) {
-	e.LastOperation = lastOp
-}
-
-func (e *ServiceBinding) GetLastOperation() *Operation {
-	return e.LastOperation
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

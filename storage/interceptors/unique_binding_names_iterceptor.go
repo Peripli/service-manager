@@ -19,9 +19,10 @@ package interceptors
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/log"
 	"net/http"
+
+	"github.com/Peripli/service-manager/operations/opcontext"
+	"github.com/Peripli/service-manager/pkg/log"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -64,7 +65,7 @@ func (c *uniqueBindingNameInterceptor) AroundTxCreate(h storage.InterceptCreateA
 }
 
 func (c *uniqueBindingNameInterceptor) checkUniqueName(ctx context.Context, binding *types.ServiceBinding) error {
-	operation, operationFound := operations.GetFromContext(ctx)
+	operation, operationFound := opcontext.Get(ctx)
 	if !operationFound {
 		log.C(ctx).Debug("operation missing from context")
 	}
