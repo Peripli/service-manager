@@ -1352,17 +1352,47 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							var expectedCatalog string
 
 							BeforeEach(func() {
-								expectedCatalog = string(brokerServer.Catalog)
 								catalog, err := sjson.Set(string(brokerServer.Catalog), "services.0.id", "new-id")
 								Expect(err).ToNot(HaveOccurred())
+
+								expectedCatalog = catalog
 
 								brokerServer.Catalog = SBCatalog(catalog)
 							})
 
-							It("returns 409", func() {
-								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).WithJSON(postBrokerRequestWithNoLabels).
+							It("returns 200", func() {
+								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(postBrokerRequestWithNoLabels).
 									Expect().
-									Status(http.StatusConflict).JSON().Object().Keys().Contains("error", "description")
+									Status(http.StatusOK)
+
+								assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+							})
+
+							Specify("the catalog before the modification is returned by the repository", func() {
+								assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, expectedCatalog)
+
+							})
+						})
+
+						Context("when both catalog service id and service plan id are modified but the catalog names are not", func() {
+							var expectedCatalog string
+
+							BeforeEach(func() {
+								catalog, err := sjson.Set(string(brokerServer.Catalog), "services.0.id", "new-svc-id")
+								Expect(err).ToNot(HaveOccurred())
+
+								catalog, err = sjson.Set(string(brokerServer.Catalog), "services.0.plans.0.id", "new-plan-id")
+								Expect(err).ToNot(HaveOccurred())
+
+								expectedCatalog = catalog
+
+								brokerServer.Catalog = SBCatalog(catalog)
+							})
+
+							It("returns 200", func() {
+								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(postBrokerRequestWithNoLabels).
+									Expect().
+									Status(http.StatusOK)
 
 								assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 							})
@@ -1533,18 +1563,18 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							var expectedCatalog string
 
 							BeforeEach(func() {
-								expectedCatalog = string(brokerServer.Catalog)
-
 								catalog, err := sjson.Set(string(brokerServer.Catalog), "services.0.plans.0.id", "new-id")
 								Expect(err).ToNot(HaveOccurred())
+
+								expectedCatalog = catalog
 
 								brokerServer.Catalog = SBCatalog(catalog)
 							})
 
-							It("returns 409", func() {
-								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).WithJSON(postBrokerRequestWithNoLabels).
+							It("returns 200", func() {
+								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(postBrokerRequestWithNoLabels).
 									Expect().
-									Status(http.StatusConflict).JSON().Object().Keys().Contains("error", "description")
+									Status(http.StatusOK)
 
 								assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 							})
