@@ -126,8 +126,7 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 	proxy, err := buildProxy(targetBrokerURL, logger, broker)
 
 	if err != nil {
-		logger.WithError(err).Errorf("Unable to build proxy for service broker %s", broker.Name)
-		return nil, err
+		return nil, fmt.Errorf("unable to build proxy for service broker %s", broker.Name)
 	}
 
 	recorder := httptest.NewRecorder()
@@ -178,13 +177,13 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 		logger.Infof("Forwarded OSB request to service broker %s at %s", broker.Name, request.URL)
 	}
 
-	tlsConfig, err := broker.GetTlsConfig()
+	tlsConfig, err := broker.GetTLSConfig()
 
 	if err != nil {
 		return nil, &util.HTTPError{
-			ErrorType:   "BadRequest",
+			ErrorType:   "InternalError",
 			Description: "unable to get tls configuration: " + err.Error(),
-			StatusCode:  http.StatusBadRequest,
+			StatusCode:  http.StatusInternalServerError,
 		}
 	}
 
@@ -198,8 +197,8 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 		} else {
 			return nil, &util.HTTPError{
 				ErrorType:   "BadRequest",
-				Description: "unable to apply tls configuration: ",
-				StatusCode:  http.StatusBadRequest,
+				Description: "unable to apply tls configuration",
+				StatusCode:  http.StatusInternalServerError,
 			}
 		}
 	}
