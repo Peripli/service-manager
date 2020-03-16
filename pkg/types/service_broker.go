@@ -33,15 +33,14 @@ const maxNameLength = 255
 // ServiceBroker broker struct
 type ServiceBroker struct {
 	Base
-	Secured     `json:"-"`
-	Strip       `json:"-"`
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	BrokerURL   string       `json:"broker_url"`
-	Credentials *Credentials `json:"credentials,omitempty"`
-
-	Catalog  json.RawMessage    `json:"-"`
-	Services []*ServiceOffering `json:"-"`
+	Secured       `json:"-"`
+	Strip         `json:"-"`
+	Name          string             `json:"name"`
+	Description   string             `json:"description"`
+	BrokerURL     string             `json:"broker_url"`
+	Credentials   *Credentials       `json:"credentials,omitempty"`
+	Catalog       json.RawMessage    `json:"-"`
+	Services      []*ServiceOffering `json:"-"`
 }
 
 func (e *ServiceBroker) GetTlsConfig() (*tls.Config, error) {
