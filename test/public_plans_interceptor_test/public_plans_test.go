@@ -19,10 +19,11 @@ package interceptor_test
 import (
 	"context"
 	"fmt"
-	"github.com/gavv/httpexpect"
 	"math/rand"
 	"net/http"
 	"testing"
+
+	"github.com/gavv/httpexpect"
 
 	"github.com/Peripli/service-manager/pkg/web"
 

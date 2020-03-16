@@ -96,9 +96,10 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 		log.C(ctx).Debugf("Found %d services and %d plans in catalog for broker with id %s", len(catalogServices), len(catalogPlansMap), brokerID)
 
 		log.C(ctx).Debugf("Resyncing service offerings for broker with id %s...", brokerID)
+		offeringsToBeCreated := make([]*types.ServiceOffering, 0)
 		for _, catalogService := range catalogServices {
-			existingServiceOffering, ok := existingServicesOfferingsMap[catalogService.CatalogID]
-			if ok {
+			existingServiceOffering, offeringExists := existingServicesOfferingsMap[catalogService.CatalogID]
+			if offeringExists {
 				delete(existingServicesOfferingsMap, catalogService.CatalogID)
 				catalogService.ID = existingServiceOffering.ID
 				catalogService.CreatedAt = existingServiceOffering.CreatedAt
@@ -128,9 +129,8 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 					}
 				}
 
-				if _, err = txStorage.Create(ctx, catalogService); err != nil {
-					return nil, err
-				}
+				catalogService := catalogService
+				offeringsToBeCreated = append(offeringsToBeCreated, catalogService)
 			}
 
 			catalogPlansForService := catalogPlansMap[catalogService.CatalogID]
@@ -145,17 +145,24 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 				return nil, err
 			}
 		}
+
+		for _, offering := range offeringsToBeCreated {
+			if _, err = txStorage.Create(ctx, offering); err != nil {
+				return nil, err
+			}
+		}
 		log.C(ctx).Debugf("Successfully resynced service offerings for broker with id %s", brokerID)
 
 		log.C(ctx).Debugf("Resyncing service plans for broker with id %s", brokerID)
+		plansToBeCreated := make([]*types.ServicePlan, 0)
 		for serviceOfferingCatalogID, catalogPlans := range catalogPlansMap {
 			// for each catalog plan of this service
 			for _, catalogPlan := range catalogPlans {
 				var newPlansMapping []*types.ServicePlan
 				// after each iteration take the existing plans for the service again as if a previous match was found,
 				// the existing plans will be reduced by one
-				existingServicePlans, ok := existingServicePlansPerOfferingMap[serviceOfferingCatalogID]
-				if ok {
+				existingServicePlans, plansExist := existingServicePlansPerOfferingMap[serviceOfferingCatalogID]
+				if plansExist {
 					var existingPlanUpdated *types.ServicePlan
 					// for each plan in SMDB for this service
 					for _, existingServicePlan := range existingServicePlans {
@@ -185,15 +192,13 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 						// we found a match for an existing plan so we remove it from the ones that will be deleted at the end
 						existingServicePlansPerOfferingMap[serviceOfferingCatalogID] = newPlansMapping
 					} else {
-						if err := createPlan(ctx, txStorage, catalogPlan, brokerID); err != nil {
-							return nil, err
-						}
+						catalogPlan := catalogPlan
+						plansToBeCreated = append(plansToBeCreated, catalogPlan)
 					}
 				} else {
 					// for this one we didnt even find an existing service in the initially loaded list, so create it
-					if err := createPlan(ctx, txStorage, catalogPlan, brokerID); err != nil {
-						return nil, err
-					}
+					catalogPlan := catalogPlan
+					plansToBeCreated = append(plansToBeCreated, catalogPlan)
 				}
 			}
 		}
@@ -208,6 +213,12 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 					}
 					return nil, err
 				}
+			}
+		}
+
+		for _, plan := range plansToBeCreated {
+			if err := createPlan(ctx, txStorage, plan, brokerID); err != nil {
+				return nil, err
 			}
 		}
 

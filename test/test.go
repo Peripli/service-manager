@@ -190,6 +190,7 @@ func EnsurePlanVisibility(repository storage.Repository, tenantIdentifier, platf
 			UpdatedAt: currentTime,
 			CreatedAt: currentTime,
 			Labels:    labels,
+			Ready:     true,
 		},
 		ServicePlanID: planID,
 		PlatformID:    platformID,

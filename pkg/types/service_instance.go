@@ -41,8 +41,6 @@ type ServiceInstance struct {
 
 	Parameters map[string]interface{} `json:"parameters,omitempty"`
 	Usable     bool                   `json:"usable"`
-
-	LastOperation *Operation `json:"last_operation,omitempty"`
 }
 
 type InstanceUpdateValues struct {
@@ -89,12 +87,4 @@ func (e *ServiceInstance) Validate() error {
 	}
 
 	return nil
-}
-
-func (e *ServiceInstance) SetLastOperation(lastOp *Operation) {
-	e.LastOperation = lastOp
-}
-
-func (e *ServiceInstance) GetLastOperation() *Operation {
-	return e.LastOperation
 }

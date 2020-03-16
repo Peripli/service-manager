@@ -41,7 +41,6 @@ type ServiceBroker struct {
 	Credentials   *Credentials       `json:"credentials,omitempty"`
 	Catalog       json.RawMessage    `json:"-"`
 	Services      []*ServiceOffering `json:"-"`
-	LastOperation *Operation         `json:"last_operation,omitempty"`
 }
 
 func (e *ServiceBroker) GetTlsConfig() (*tls.Config, error) {
@@ -107,14 +106,6 @@ func (e *ServiceBroker) transform(ctx context.Context, transformationFunc func(c
 	}
 	e.Credentials.Basic.Password = string(transformedPassword)
 	return nil
-}
-
-func (e *ServiceBroker) SetLastOperation(lastOp *Operation) {
-	e.LastOperation = lastOp
-}
-
-func (e *ServiceBroker) GetLastOperation() *Operation {
-	return e.LastOperation
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
