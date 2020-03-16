@@ -184,7 +184,7 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 			},
 			expectedErr: &util.HTTPError{
 				ErrorType:   "ServiceBrokerErr",
-				Description: fmt.Sprintf("could not get tls config for name: tls: failed to find any PEM data in certificate input"),
+				Description: fmt.Sprintf("failed to find any PEM data in certificate input"),
 				StatusCode:  http.StatusBadGateway,
 			},
 		}),

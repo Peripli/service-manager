@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 const maxNameLength = 255
@@ -43,14 +44,15 @@ type ServiceBroker struct {
 	Services      []*ServiceOffering `json:"-"`
 }
 
-func (e *ServiceBroker) GetTlsConfig() (*tls.Config, error) {
+func (e *ServiceBroker) GetTLSConfig() (*tls.Config, error) {
 	var tlsConfig tls.Config
 	if e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
 		cert, err := tls.X509KeyPair([]byte(e.Credentials.TLS.Certificate), []byte(e.Credentials.TLS.Key))
 		if err != nil {
-			return &tls.Config{}, err
+			return nil, err
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
+		return &tlsConfig, nil
 	}
 
 	return &tlsConfig, nil
@@ -69,15 +71,18 @@ func (e *ServiceBroker) Decrypt(ctx context.Context, decryptionFunc func(context
 }
 
 func (e *ServiceBroker) IntegralData() []byte {
+	var integrity []string
+
 	if e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
-		if e.Credentials.Basic != nil && e.Credentials.Basic.Username != "" && e.Credentials.Basic.Password != "" {
-			return []byte(fmt.Sprintf("%s:%s:%s:%s:%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password,
-				e.Credentials.TLS.Key, e.Credentials.TLS.Certificate, e.BrokerURL))
-		} else {
-			return []byte(fmt.Sprintf("%s:%s:%s", e.Credentials.TLS.Key, e.Credentials.TLS.Certificate, e.BrokerURL))
-		}
+		integrity = append(integrity, e.Credentials.TLS.Certificate, e.Credentials.TLS.Key)
 	}
-	return []byte(fmt.Sprintf("%s:%s:%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, e.BrokerURL))
+
+	if e.Credentials.Basic != nil && e.Credentials.Basic.Username != "" && e.Credentials.Basic.Password != "" {
+		integrity = append(integrity, e.Credentials.Basic.Username, e.Credentials.Basic.Password)
+	}
+
+	integrity = append(integrity, e.BrokerURL)
+	return []byte(strings.Join(integrity, ":"))
 }
 
 func (e *ServiceBroker) SetIntegrity(integrity []byte) {
@@ -89,7 +94,7 @@ func (e *ServiceBroker) GetIntegrity() []byte {
 }
 
 func (e *ServiceBroker) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
-	if e.Credentials != nil || e.Credentials.Basic == nil {
+	if e.Credentials != nil && e.Credentials.Basic != nil {
 		transformedPassword, err := transformationFunc(ctx, []byte(e.Credentials.Basic.Password))
 		if err != nil {
 			return err
@@ -104,7 +109,6 @@ func (e *ServiceBroker) transform(ctx context.Context, transformationFunc func(c
 		}
 		e.Credentials.TLS.Key = string(transformedPrivateKey)
 	}
-
 	return nil
 }
 

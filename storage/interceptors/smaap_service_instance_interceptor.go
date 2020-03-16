@@ -536,7 +536,7 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 	}
 	broker := brokerObject.(*types.ServiceBroker)
 
-	tlsConfig, err := broker.GetTlsConfig()
+	tlsConfig, err := broker.GetTLSConfig()
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
