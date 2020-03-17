@@ -28,8 +28,7 @@ func Register(ctx context.Context, cfg *config.Settings, smb *sm.ServiceManagerB
 		web.VisibilitiesURL+"/*",
 		web.ServiceInstancesURL+"/*",
 		web.ServiceBindingsURL+"/*",
-		web.NotificationsURL+"/*",
-		web.OperationsURL+"/*").
+		web.NotificationsURL+"/*").
 		Method(http.MethodGet).
 		WithAuthentication(basicPlatformAuthenticator).Required()
 

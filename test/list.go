@@ -386,11 +386,13 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 
 	return Describe("List", func() {
 		Context("with basic auth", func() {
-			It("returns 200", func() {
-				ctx.SMWithBasic.GET(t.API).
-					Expect().
-					Status(http.StatusOK)
-			})
+			if !t.DisableBasicAuth {
+				It("returns 200", func() {
+					ctx.SMWithBasic.GET(t.API).
+						Expect().
+						Status(http.StatusOK)
+				})
+			}
 		})
 
 		Context("by date", func() {

@@ -320,6 +320,11 @@ var _ = Describe("Service Manager Authentication", func() {
 			{"Invalid authorization schema", "GET", web.OperationsURL, invalidBasicAuthHeader},
 			{"Missing token in authorization header", "GET", web.OperationsURL, emptyBearerAuthHeader},
 			{"Invalid token in authorization header", "GET", web.OperationsURL, invalidBearerAuthHeader},
+
+			{"Missing authorization header", "DELETE", web.OperationsURL + "/999", emptyAuthHeader},
+			{"Invalid authorization schema", "DELETE", web.OperationsURL + "/999", invalidBasicAuthHeader},
+			{"Missing token in authorization header", "DELETE", web.OperationsURL + "/999", emptyBearerAuthHeader},
+			{"Invalid token in authorization header", "DELETE", web.OperationsURL + "/999", invalidBearerAuthHeader},
 		}
 
 		for _, request := range authRequests {
