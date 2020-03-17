@@ -90,7 +90,8 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		return nil, fmt.Errorf("error validating configuration: %s", err)
 	}
 
-	transportSettingsProvider := httpclient.Configure(cfg.HTTPClient)
+	httpclient.SetHTTPClientGlobalSettings(cfg.HTTPClient)
+	httpclient.Configure(http.DefaultTransport.(*http.Transport))
 
 	// Setup logging
 	ctx, err = log.Configure(ctx, cfg.Log)
@@ -192,10 +193,10 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	// Register default interceptors that represent the core SM business logic
 	smb.
 		WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerCreateCatalogInterceptorProvider{
-			CatalogFetcher: osb.CatalogFetcher(util.ClientRequest, cfg.API.OSBVersion, transportSettingsProvider),
+			CatalogFetcher: osb.CatalogFetcher(util.ClientRequest, cfg.API.OSBVersion),
 		}).Register().
 		WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerUpdateCatalogInterceptorProvider{
-			CatalogFetcher: osb.CatalogFetcher(util.ClientRequest, cfg.API.OSBVersion, transportSettingsProvider),
+			CatalogFetcher: osb.CatalogFetcher(util.ClientRequest, cfg.API.OSBVersion),
 			CatalogLoader:  catalog.Load,
 		}).Register().
 		WithDeleteInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerDeleteCatalogInterceptorProvider{

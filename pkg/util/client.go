@@ -39,32 +39,6 @@ func ClientRequest(request *http.Request, client *http.Client) (*http.Response, 
 	return client.Do(request)
 }
 
-func TransportWithTlsProvider(transport *http.Transport) GetTransportSettings {
-	return func(certs []tls.Certificate) *http.Transport {
-
-		if len(certs) > 0 {
-			if transport.TLSClientConfig == nil {
-				transport.TLSClientConfig = &tls.Config{}
-			}
-
-			transport.TLSClientConfig.Certificates = certs
-
-		}
-		return transport
-	}
-}
-
-func AuthAndTlsDecorator(config *tls.Config, username, password string, reqFunc DoRequestWithClientFunc, getTransportSettings GetTransportSettings) DoRequestWithClientFunc {
-	return func(req *http.Request, client *http.Client) (*http.Response, error) {
-		if username != "" && password != "" {
-			req.SetBasicAuth(username, password)
-		}
-
-		client.Transport = getTransportSettings(config.Certificates)
-		return reqFunc(req, client)
-	}
-}
-
 // SendRequest sends a request to the specified client and the provided URL with the specified parameters and body.
 func SendRequest(ctx context.Context, doRequest DoRequestFunc, method, url string, params map[string]string, body interface{}) (*http.Response, error) {
 	return SendRequestWithHeaders(ctx, doRequest, method, url, params, body, map[string]string{})

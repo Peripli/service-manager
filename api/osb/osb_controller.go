@@ -19,8 +19,8 @@ package osb
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/client"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"io/ioutil"
@@ -177,7 +177,7 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 		logger.Infof("Forwarded OSB request to service broker %s at %s", broker.Name, request.URL)
 	}
 
-	tlsConfig, err := broker.GetTLSConfig()
+	brokerClient, err := (&client.BrokerClient{}).New(broker, nil)
 
 	if err != nil {
 		return nil, &util.HTTPError{
@@ -187,20 +187,9 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 		}
 	}
 
-	if len(tlsConfig.Certificates) > 0 {
-		proxyTransport, ok := proxy.Transport.(*http.Transport)
-		if ok {
-			if proxyTransport.TLSClientConfig == nil {
-				proxyTransport.TLSClientConfig = &tls.Config{}
-			}
-			proxyTransport.TLSClientConfig.Certificates = tlsConfig.Certificates
-		} else {
-			return nil, &util.HTTPError{
-				ErrorType:   "BadRequest",
-				Description: "unable to apply tls configuration",
-				StatusCode:  http.StatusInternalServerError,
-			}
-		}
+	useBrokerTLSConfig, transportWithTLS := brokerClient.GetTransportWithTLS()
+	if useBrokerTLSConfig {
+		proxy.Transport = transportWithTLS
 	}
 
 	proxy.ModifyResponse = func(response *http.Response) error {
