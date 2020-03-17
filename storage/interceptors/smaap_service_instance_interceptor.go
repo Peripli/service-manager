@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/client"
 	"github.com/tidwall/sjson"
 	"net/http"
 	"net/url"
@@ -536,17 +537,20 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 	}
 	broker := brokerObject.(*types.ServiceBroker)
 
-	tlsConfig, err := broker.GetTLSConfig()
+	brokerClient, err := client.New(broker, nil)
+
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
+
+	_, transportWithTLS := brokerClient.GetTransportWithTLS()
 
 	osbClient, err := osbClientFunc(&osbc.ClientConfiguration{
 		Name:                broker.Name + " broker client",
 		EnableAlphaFeatures: true,
 		URL:                 broker.BrokerURL,
 		APIVersion:          osbc.LatestAPIVersion(),
-		TLSConfig:           tlsConfig,
+		TLSConfig:           transportWithTLS.TLSClientConfig,
 		AuthConfig: &osbc.AuthConfig{
 			BasicAuthConfig: &osbc.BasicAuthConfig{
 				Username: broker.Credentials.Basic.Username,

@@ -180,11 +180,7 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 	brokerClient, err := client.New(broker, nil)
 
 	if err != nil {
-		return nil, &util.HTTPError{
-			ErrorType:   "InternalError",
-			Description: "unable to get tls configuration: " + err.Error(),
-			StatusCode:  http.StatusInternalServerError,
-		}
+		return nil, err
 	}
 
 	useBrokerTLSConfig, transportWithTLS := brokerClient.GetTransportWithTLS()
