@@ -11,7 +11,8 @@ import (
 
 var _ = Describe("OSB Controller test", func() {
 
-	var clientKey = `-----BEGIN PRIVATE KEY-----
+	const (
+		clientKey = `-----BEGIN PRIVATE KEY-----
   MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDaO3W1LP5M20sF
   fnPI+s3pqVRPbnHe5TiepguuMLqcM4HS6eJz5/IimmILUexCLZ83WZYOcAGFqRNR
   zLUrhbOH62RK+U8JvaB4JA/rFzXOQ698RDzAVo7ZFhiHGO3o1Y27icdfF2ps2MZX
@@ -40,7 +41,7 @@ var _ = Describe("OSB Controller test", func() {
   gB9ceWwBvf0HhZYfJ3XCJZXM
 -----END PRIVATE KEY-----`
 
-	var cret = `-----BEGIN CERTIFICATE-----
+		cret = `-----BEGIN CERTIFICATE-----
 MIICrDCCAZQCCQCziU7at44ipjANBgkqhkiG9w0BAQUFADAYMRYwFAYDVQQDDA1G
 aXJzdCBNLiBMYXN0MB4XDTIwMDIyMjEyNDMxMloXDTIwMDMyMzEyNDMxMlowGDEW
 MBQGA1UEAwwNRmlyc3QgTS4gTGFzdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC
@@ -57,6 +58,7 @@ hpL8qoDDR9vDvjvqE2jlqXMPAe0DZEljRzG+EARODnaCEFFpzEkosQLlPSXyn51I
 qYxHGtKZSU5BCswd7c3r8SL5qzmAscmu6orqwzGsvLHAx3Y9OcF+7weDZdz2OB3p
 OOzY8kGVInUs83tZOfMVjQ==
 -----END CERTIFICATE-----`
+	)
 
 	var brokerTLS types.ServiceBroker
 
