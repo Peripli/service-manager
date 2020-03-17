@@ -96,16 +96,6 @@ func SendRequestWithHeaders(ctx context.Context, doRequest DoRequestFunc, method
 	return doRequest(request)
 }
 
-func SendRequestWithClientAndHeaders(ctx context.Context, doRequest DoRequestWithClientFunc, method, url string, params map[string]string, body interface{}, headers map[string]string, client *http.Client) (*http.Response, error) {
-	request, logger, err := prepareRequest(ctx, method, url, params, body, headers)
-	if err != nil {
-		return nil, err
-	}
-
-	logger.Debugf("Sending request %s %s", request.Method, request.URL)
-	return doRequest(request, client)
-}
-
 // BodyToBytes of the request inside given struct
 func BodyToBytes(closer io.ReadCloser) ([]byte, error) {
 	defer func() {

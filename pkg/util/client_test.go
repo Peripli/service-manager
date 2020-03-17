@@ -31,17 +31,15 @@ import (
 
 var _ = Describe("Client Utils", func() {
 	var (
-		requestFuncWithClient util.DoRequestWithClientFunc
-		requestFunc           util.DoRequestFunc
-		reaction              *common.HTTPReaction
-		expectations          *common.HTTPExpectations
+		requestFunc  util.DoRequestFunc
+		reaction     *common.HTTPReaction
+		expectations *common.HTTPExpectations
 	)
 
 	BeforeEach(func() {
 		reaction = &common.HTTPReaction{}
 		expectations = &common.HTTPExpectations{}
 		requestFunc = common.DoHTTP(reaction, expectations)
-		requestFuncWithClient = common.DoHTTPWithClient(reaction, expectations)
 	})
 
 	Describe("SendRequest", func() {
@@ -122,27 +120,6 @@ var _ = Describe("Client Utils", func() {
 			resp, err := util.SendRequestWithHeaders(ctx, requestFunc, "GET", "http://example.com", nil, nil, map[string]string{
 				"header": "header",
 			})
-
-			header := resp.Request.Header.Get("header")
-			Expect(header).To(Equal("header"))
-			Expect(err).ShouldNot(HaveOccurred())
-			Expect(resp.StatusCode).To(Equal(http.StatusOK))
-		})
-	})
-
-	Context("When sending a request with a header and client", func() {
-		BeforeEach(func() {
-			expectations.URL = "http://example.com"
-
-			reaction.Err = nil
-			reaction.Status = http.StatusOK
-		})
-
-		It("should attach it as header", func() {
-			ctx := context.TODO()
-			resp, err := util.SendRequestWithClientAndHeaders(ctx, requestFuncWithClient, "GET", "http://example.com", nil, nil, map[string]string{
-				"header": "header",
-			}, &http.Client{})
 
 			header := resp.Request.Header.Get("header")
 			Expect(header).To(Equal("header"))
