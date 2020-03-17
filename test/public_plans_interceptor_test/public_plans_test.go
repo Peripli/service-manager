@@ -19,11 +19,11 @@ package interceptor_test
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/storage"
+	"github.com/gavv/httpexpect"
 	"math/rand"
 	"net/http"
 	"testing"
-
-	"github.com/gavv/httpexpect"
 
 	"github.com/Peripli/service-manager/pkg/web"
 
@@ -104,8 +104,8 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
-				SupportedPlatforms: func(plan *types.ServicePlan) []string {
-					return plan.SupportedPlatforms()
+				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
+					return common.ResolveSupportedPlatformIDsForPlan(ctx, plan, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerCreateCatalogInterceptorName).Register()
 
@@ -113,8 +113,8 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
-				SupportedPlatforms: func(plan *types.ServicePlan) []string {
-					return plan.SupportedPlatforms()
+				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
+					return common.ResolveSupportedPlatformIDsForPlan(ctx, plan, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerUpdateCatalogInterceptorName).Register()
 			return nil

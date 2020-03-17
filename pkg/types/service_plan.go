@@ -105,10 +105,20 @@ func (e *ServicePlan) Validate() error {
 	return nil
 }
 
-// SupportedPlatforms returns the supportedPlatforms provided in a plan's metadata (if a value is provided at all).
+// SupportedPlatformTypes returns the supportedPlatforms provided in a plan's metadata (if a value is provided at all).
 // If there are no supported platforms, an empty array is returned denoting that the plan is available to platforms of all types.
-func (e *ServicePlan) SupportedPlatforms() []string {
-	supportedPlatforms := gjson.GetBytes(e.Metadata, "supportedPlatforms")
+func (e *ServicePlan) SupportedPlatformTypes() []string {
+	return e.supportedPlatforms("supportedPlatforms")
+}
+
+// SupportedPlatformIDs returns the supportedPlatformIDs provided in a plan's metadata (if a value is provided at all).
+// If there are no supported platforms IDs, an empty array is returned denoting that the plan is available to platforms of any ID.
+func (e *ServicePlan) SupportedPlatformIDs() []string {
+	return e.supportedPlatforms("supportedPlatformIDs")
+}
+
+func (e *ServicePlan) supportedPlatforms(propertyKey string) []string {
+	supportedPlatforms := gjson.GetBytes(e.Metadata, propertyKey)
 	if !supportedPlatforms.IsArray() {
 		return []string{}
 	}
@@ -121,8 +131,20 @@ func (e *ServicePlan) SupportedPlatforms() []string {
 }
 
 // SupportsPlatform determines whether a specific platform is among the ones that a plan supports
-func (e *ServicePlan) SupportsPlatform(platform string) bool {
-	platforms := e.SupportedPlatforms()
+func (e *ServicePlan) SupportsPlatformType(platform string) bool {
+	platformTypes := e.SupportedPlatformTypes()
 
-	return len(platforms) == 0 || slice.StringsAnyEquals(platforms, platform)
+	return len(platformTypes) == 0 || slice.StringsAnyEquals(platformTypes, platform)
+}
+
+// SupportsPlatform determines whether a specific platform is among the ones that a plan supports
+func (e *ServicePlan) SupportsPlatformInstance(platform Platform) bool {
+	platformIDs := e.SupportedPlatformIDs()
+
+	if len(platformIDs) == 0 {
+		platformTypes := e.SupportedPlatformTypes()
+		return len(platformTypes) == 0 || slice.StringsAnyEquals(platformTypes, platform.Type)
+	} else {
+		return slice.StringsAnyEquals(platformIDs, platform.ID)
+	}
 }
