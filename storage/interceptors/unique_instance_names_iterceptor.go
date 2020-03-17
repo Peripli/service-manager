@@ -21,6 +21,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Peripli/service-manager/operations/opcontext"
+	"github.com/Peripli/service-manager/pkg/log"
+
 	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -101,7 +104,16 @@ func (c *uniqueInstanceNameInterceptor) AroundTxUpdate(h storage.InterceptUpdate
 }
 
 func (c *uniqueInstanceNameInterceptor) checkUniqueName(ctx context.Context, labels types.Labels, instance *types.ServiceInstance) error {
-	if instance.PlatformID != types.SMPlatform {
+	operation, operationFound := opcontext.Get(ctx)
+	if !operationFound {
+		log.C(ctx).Debug("operation missing from context")
+	}
+
+	rescheduledOperation := operationFound && operation.Reschedule
+	if instance.PlatformID != types.SMPlatform || rescheduledOperation {
+		if rescheduledOperation {
+			log.C(ctx).Info("skipping unique check of instance name as this is a rescheduled operation")
+		}
 		return nil
 	}
 	countCriteria := []query.Criterion{
@@ -119,10 +131,10 @@ func (c *uniqueInstanceNameInterceptor) checkUniqueName(ctx context.Context, lab
 		}
 	}
 	instanceCount, err := c.Repository.Count(ctx, types.ServiceInstanceType, countCriteria...)
-
 	if err != nil {
 		return fmt.Errorf("could not get count of service instances %s", err)
 	}
+
 	if instanceCount > 0 {
 		return &util.HTTPError{
 			ErrorType:   "Conflict",
@@ -130,5 +142,6 @@ func (c *uniqueInstanceNameInterceptor) checkUniqueName(ctx context.Context, lab
 			StatusCode:  http.StatusConflict,
 		}
 	}
+
 	return nil
 }

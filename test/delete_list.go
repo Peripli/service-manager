@@ -593,14 +593,12 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 							labelQuery := fmt.Sprintf("labelQuery=%s eq '%s'", commonLabelKey, commonLabelValue)
 							expectResources := func(resourcesToExpect []common.Object) {
 								for _, obj := range resourcesToExpect {
-									delete(obj, "updated_at")
-									delete(obj, "created_at")
+									stripObject(obj, t.ResourcePropertiesToIgnore...)
 								}
 								array := ctx.SMWithOAuth.ListWithQuery(t.API, labelQuery)
 								for _, item := range array.Iter() {
 									obj := item.Object().Raw()
-									delete(obj, "updated_at")
-									delete(obj, "created_at")
+									stripObject(obj, t.ResourcePropertiesToIgnore...)
 								}
 								for _, obj := range resourcesToExpect {
 									array.Contains(obj)

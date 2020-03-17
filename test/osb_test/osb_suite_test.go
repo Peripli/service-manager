@@ -17,10 +17,13 @@
 package osb_test
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/test"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -238,6 +241,30 @@ func parameterizedHandler(statusCode int, responseBody string) func(rw http.Resp
 		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(statusCode)
 		rw.Write([]byte(responseBody))
+	}
+}
+
+func gzipWrite(w io.Writer, data []byte) error {
+	// Write gzipped data to the client
+	gw, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
+	defer gw.Close()
+	gw.Write(data)
+	return err
+}
+
+func gzipHandler(statusCode int, responseBody string) func(rw http.ResponseWriter, _ *http.Request) {
+	return func(rw http.ResponseWriter, req *http.Request) {
+		if req.Header.Get("Accept-Encoding") == "gzip" {
+			rw.Header().Set("Content-Encoding", "gzip")
+			rw.WriteHeader(statusCode)
+			var buf bytes.Buffer
+			gzipWrite(&buf, []byte(responseBody))
+			rw.Write(buf.Bytes())
+		} else {
+			rw.Header().Set("Content-Type", "application/json")
+			rw.WriteHeader(statusCode)
+			rw.Write([]byte(responseBody))
+		}
 	}
 }
 

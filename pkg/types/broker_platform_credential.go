@@ -16,6 +16,7 @@
 package types
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -36,6 +37,44 @@ type BrokerPlatformCredential struct {
 	BrokerID   string `json:"broker_id"`
 
 	NotificationID string `json:"notification_id,omitempty"`
+	Integrity      []byte `json:"-"`
+}
+
+func (e *BrokerPlatformCredential) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {
+	return e.transform(ctx, encryptionFunc)
+}
+
+func (e *BrokerPlatformCredential) Decrypt(ctx context.Context, decryptionFunc func(context.Context, []byte) ([]byte, error)) error {
+	return e.transform(ctx, decryptionFunc)
+}
+
+func (e *BrokerPlatformCredential) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
+	transformedPassword, err := transformationFunc(ctx, []byte(e.PasswordHash))
+	if err != nil {
+		return err
+	}
+	e.PasswordHash = string(transformedPassword)
+
+	if e.OldPasswordHash != "" {
+		transformedOldPassword, err := transformationFunc(ctx, []byte(e.OldPasswordHash))
+		if err != nil {
+			return err
+		}
+		e.OldPasswordHash = string(transformedOldPassword)
+	}
+	return nil
+}
+
+func (e *BrokerPlatformCredential) IntegralData() []byte {
+	return []byte(fmt.Sprintf("%s:%s:%s:%s:%s:%s", e.Username, e.PasswordHash, e.OldUsername, e.OldPasswordHash, e.BrokerID, e.PlatformID))
+}
+
+func (e *BrokerPlatformCredential) SetIntegrity(integrity []byte) {
+	e.Integrity = integrity
+}
+
+func (e *BrokerPlatformCredential) GetIntegrity() []byte {
+	return e.Integrity
 }
 
 func (e *BrokerPlatformCredential) Equals(obj Object) bool {

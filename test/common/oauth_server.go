@@ -19,10 +19,13 @@ package common
 import (
 	"crypto/rsa"
 	"encoding/json"
-	"github.com/gorilla/mux"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"time"
+
+	"github.com/gorilla/mux"
 
 	"github.com/gbrlsnchs/jwt"
 )
@@ -35,6 +38,9 @@ type OAuthServer struct {
 	privateKey *rsa.PrivateKey // public key privateKey.PublicKey
 	signer     jwt.Signer
 	keyID      string
+
+	mutex                     *sync.RWMutex
+	tokenKeysRequestCallCount int
 }
 
 func NewOAuthServer() *OAuthServer {
@@ -43,8 +49,9 @@ func NewOAuthServer() *OAuthServer {
 	os := &OAuthServer{
 		privateKey: privateKey,
 		signer:     jwt.RS256(privateKey, &privateKey.PublicKey),
-		keyID:      "test-key",
+		keyID:      randomName("key"),
 		Router:     mux.NewRouter(),
+		mutex:      &sync.RWMutex{},
 	}
 	os.Router.HandleFunc("/.well-known/openid-configuration", os.getOpenIDConfig)
 	os.Router.HandleFunc("/oauth/token", os.getToken)
@@ -73,12 +80,23 @@ func (os *OAuthServer) URL() string {
 	return os.BaseURL
 }
 
+func (os *OAuthServer) TokenKeysRequestCallCount() int {
+	return os.tokenKeysRequestCallCount
+}
+
 func (os *OAuthServer) getOpenIDConfig(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{
-		"issuer": "` + os.BaseURL + `/oauth/token",
-		"jwks_uri": "` + os.BaseURL + `/token_keys"
-	}`))
+		 "issuer": "` + os.BaseURL + `/oauth/token",
+		 "jwks_uri": "` + os.BaseURL + `/token_keys"
+	 }`))
+}
+
+func (os *OAuthServer) RotateTokenKey() {
+	os.keyID = randomName("key")
+	privateKey := generatePrivateKey()
+	os.privateKey = privateKey
+	os.signer = jwt.RS256(privateKey, &privateKey.PublicKey)
 }
 
 func (os *OAuthServer) getToken(w http.ResponseWriter, r *http.Request) {
@@ -120,4 +138,23 @@ func (os *OAuthServer) getTokenKeys(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(responseBody)
+
+	os.mutex.Lock()
+	os.tokenKeysRequestCallCount++
+	os.mutex.Unlock()
+}
+
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func randomName(prefix string) string {
+	rand.Seed(time.Now().UnixNano())
+	b := make([]rune, 15)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	if prefix == "" {
+		return string(b)
+	}
+
+	return prefix + "-" + string(b)
 }

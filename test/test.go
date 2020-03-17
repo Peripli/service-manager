@@ -62,20 +62,7 @@ const (
 
 	Sync  ResponseMode = false
 	Async ResponseMode = true
-
-	JobTimeout          = 15 * time.Second
-	cleanupInterval     = 60 * time.Second
-	operationExpiration = 60 * time.Second
 )
-
-func postHookWithOperationsConfig() func(e env.Environment, servers map[string]common.FakeServer) {
-	return func(e env.Environment, servers map[string]common.FakeServer) {
-		e.Set("operations.action_timeout", JobTimeout)
-		e.Set("operations.cleanup_interval", cleanupInterval)
-		e.Set("operations.lifespan", operationExpiration)
-		e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)
-	}
-}
 
 type MultitenancySettings struct {
 	ClientID           string
@@ -203,6 +190,7 @@ func EnsurePlanVisibility(repository storage.Repository, tenantIdentifier, platf
 			UpdatedAt: currentTime,
 			CreatedAt: currentTime,
 			Labels:    labels,
+			Ready:     true,
 		},
 		ServicePlanID: planID,
 		PlatformID:    platformID,
@@ -221,7 +209,7 @@ func DescribeTestsFor(t TestCase) bool {
 		})
 
 		ctxBuilder := func() *common.TestContextBuilder {
-			ctxBuilder := common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHookWithOperationsConfig())
+			ctxBuilder := common.NewTestContextBuilderWithSecurity()
 
 			if t.MultitenancySettings != nil {
 				ctxBuilder.
