@@ -19,7 +19,6 @@ package httpclient
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/util"
 	"net"
 	"net/http"
 	"time"
@@ -32,6 +31,8 @@ type Settings struct {
 	DialTimeout           time.Duration `mapstructure:"dial_timeout"`
 	SkipSSLValidation     bool          `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when making calls to external services"`
 }
+
+var globalSettings Settings
 
 // DefaultSettings return the default values for httpclient settings
 func DefaultSettings() *Settings {
@@ -61,27 +62,20 @@ func (s *Settings) Validate() error {
 	return nil
 }
 
-// Configure configures the default http client and transport
-func Configure(settings *Settings) util.GetTransportSettings {
-	transport := http.DefaultTransport.(*http.Transport)
+func GetHttpClientGlobalSettings() *Settings {
+	return &globalSettings
+}
+
+func SetHTTPClientGlobalSettings(settings *Settings) {
+	globalSettings = *settings
+}
+
+// Configures the http client transport
+func Configure(transport *http.Transport) {
+	settings := GetHttpClientGlobalSettings()
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation}
 	transport.ResponseHeaderTimeout = settings.ResponseHeaderTimeout
 	transport.TLSHandshakeTimeout = settings.TLSHandshakeTimeout
 	transport.IdleConnTimeout = settings.IdleConnTimeout
 	transport.DialContext = (&net.Dialer{Timeout: settings.DialTimeout}).DialContext
-	http.DefaultClient.Transport = transport
-	return util.TransportWithTlsProvider(copyTransportConfig(transport))
-}
-
-func copyTransportConfig(transport *http.Transport) *http.Transport {
-	transportCopy := http.Transport{}
-	transportCopy.TLSClientConfig = transport.TLSClientConfig
-	transportCopy.ResponseHeaderTimeout = transport.ResponseHeaderTimeout
-	transportCopy.TLSHandshakeTimeout = transport.TLSHandshakeTimeout
-	transportCopy.DisableKeepAlives = transport.DisableKeepAlives
-	transportCopy.MaxIdleConns = transport.MaxIdleConns
-	transportCopy.ProxyConnectHeader = transport.ProxyConnectHeader
-	transportCopy.IdleConnTimeout = transport.IdleConnTimeout
-	transportCopy.DialContext = transport.DialContext
-	return &transportCopy
 }

@@ -19,6 +19,7 @@ package osb
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/client"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -30,19 +31,24 @@ const brokerCatalogURL = "%s/v2/catalog"
 const brokerAPIVersionHeader = "X-Broker-API-Version"
 
 // CatalogFetcher creates a broker catalog fetcher that uses the provided request function to call the specified broker's catalog endpoint
-func CatalogFetcher(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion string, transportSettings util.GetTransportSettings) func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
+func CatalogFetcher(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion string) func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
 	return func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
 		log.C(ctx).Debugf("Attempting to fetch catalog from broker with name %s and URL %s", broker.Name, broker.BrokerURL)
+		brokerClient, err := (&client.BrokerClient{}).New(broker, doRequestWithClient)
 
-		tlsConfig, err := broker.GetTLSConfig()
 		if err != nil {
-			return nil, fmt.Errorf("unable to get TLS configuration for service broker %s: %v", broker.Name, err)
+			log.C(ctx).WithError(err).Errorf(err.Error())
+			return nil, &util.HTTPError{
+				ErrorType:   "ServiceBrokerErr",
+				Description: err.Error(),
+				StatusCode:  http.StatusBadGateway,
+			}
 		}
 
-		request := util.AuthAndTlsDecorator(tlsConfig, broker.Credentials.Basic.Username, broker.Credentials.Basic.Password, doRequestWithClient, transportSettings)
-		response, err := util.SendRequestWithClientAndHeaders(ctx, request, http.MethodGet, fmt.Sprintf(brokerCatalogURL, broker.BrokerURL), map[string]string{}, nil, map[string]string{
-			brokerAPIVersionHeader: brokerAPIVersion,
-		}, &http.Client{})
+		response, err := brokerClient.SendRequest(ctx, http.MethodGet, fmt.Sprintf(brokerCatalogURL, broker.BrokerURL),
+			map[string]string{}, nil, map[string]string{
+				brokerAPIVersionHeader: brokerAPIVersion,
+			})
 
 		if err != nil {
 			log.C(ctx).WithError(err).Errorf("Error while forwarding request to service broker %s", broker.Name)

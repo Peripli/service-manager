@@ -390,7 +390,8 @@ OOzY8kGVInUs83tZOfMVjQ==
 					BeforeEach(func() {
 						settings := httpclient.DefaultSettings()
 						settings.ResponseHeaderTimeout = timeoutDuration
-						httpclient.Configure(settings)
+						httpclient.SetHTTPClientGlobalSettings(settings)
+						httpclient.Configure(http.DefaultTransport.(*http.Transport))
 						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
 							catalogStopDuration := timeoutDuration + additionalDelayAfterTimeout
 							continueCtx, _ := context.WithTimeout(req.Context(), catalogStopDuration)
@@ -402,7 +403,8 @@ OOzY8kGVInUs83tZOfMVjQ==
 					})
 
 					AfterEach(func() {
-						httpclient.Configure(httpclient.DefaultSettings())
+						httpclient.SetHTTPClientGlobalSettings(httpclient.DefaultSettings())
+						httpclient.Configure(http.DefaultTransport.(*http.Transport))
 					})
 
 					It("returns 502", func() {
