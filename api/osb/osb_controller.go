@@ -177,7 +177,7 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 		logger.Infof("Forwarded OSB request to service broker %s at %s", broker.Name, request.URL)
 	}
 
-	brokerClient, err := (&client.BrokerClient{}).New(broker, nil)
+	brokerClient, err := client.New(broker, nil)
 
 	if err != nil {
 		return nil, &util.HTTPError{
