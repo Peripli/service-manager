@@ -543,21 +543,26 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 		return nil, nil, nil, nil, err
 	}
 
-	_, transportWithTLS := brokerClient.GetTransportWithTLS()
+	withBrokerTLS, transportWithTLS := brokerClient.GetTransportWithTLS()
 
-	osbClient, err := osbClientFunc(&osbc.ClientConfiguration{
+	osbClientConfig := &osbc.ClientConfiguration{
 		Name:                broker.Name + " broker client",
 		EnableAlphaFeatures: true,
 		URL:                 broker.BrokerURL,
 		APIVersion:          osbc.LatestAPIVersion(),
-		TLSConfig:           transportWithTLS.TLSClientConfig,
 		AuthConfig: &osbc.AuthConfig{
 			BasicAuthConfig: &osbc.BasicAuthConfig{
 				Username: broker.Credentials.Basic.Username,
 				Password: broker.Credentials.Basic.Password,
 			},
 		},
-	})
+	}
+
+	if withBrokerTLS{
+		osbClientConfig.TLSConfig = transportWithTLS.TLSClientConfig
+	}
+
+	osbClient, err := osbClientFunc(osbClientConfig)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
