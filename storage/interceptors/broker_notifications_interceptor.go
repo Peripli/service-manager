@@ -30,7 +30,30 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 				}
 			}
 
-			return ResolveSupportedPlatformIDsForPlans(ctx, plans, repository)
+			supportedPlatforms, err := ResolveSupportedPlatformIDsForPlans(ctx, plans, repository)
+			if err != nil {
+				return nil, err
+			}
+
+			if supportedPlatforms != nil {
+				return supportedPlatforms, nil
+			}
+
+			criteria := []query.Criterion{
+				query.ByField(query.NotEqualsOperator, "type", types.SMPlatform),
+			}
+
+			objList, err := repository.List(ctx, types.PlatformType, criteria...)
+			if err != nil {
+				return nil, err
+			}
+
+			platformIDs := make([]string, 0)
+			for i := 0; i < objList.Len(); i++ {
+				platformIDs = append(platformIDs, objList.ItemAt(i).GetID())
+			}
+
+			return platformIDs, nil
 		},
 		AdditionalDetailsFunc: func(ctx context.Context, objects types.ObjectList, repository storage.Repository) (objectDetails, error) {
 			details := make(objectDetails, objects.Len())
@@ -169,6 +192,11 @@ func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.Ser
 	}
 
 	if platformTypes != nil {
+		if len(platformTypes) == 0 && len(platformIDs) == 0 {
+			// plan available on all platforms
+			return nil, nil
+		}
+
 		// fetch IDs of platform instances of the supported types from DB
 		supportedPlatforms := make([]string, 0)
 		for platform := range platformTypes {

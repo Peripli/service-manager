@@ -105,7 +105,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 					return catalogPlan.Free, nil
 				},
 				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
-					return common.ResolveSupportedPlatformIDsForPlan(ctx, plan, repository)
+					return interceptors.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerCreateCatalogInterceptorName).Register()
 
@@ -114,7 +114,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 					return catalogPlan.Free, nil
 				},
 				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
-					return common.ResolveSupportedPlatformIDsForPlan(ctx, plan, repository)
+					return interceptors.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerUpdateCatalogInterceptorName).Register()
 			return nil

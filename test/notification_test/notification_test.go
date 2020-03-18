@@ -347,7 +347,7 @@ var _ = Describe("Notifications Suite", func() {
 					return catalogPlan.Free, nil
 				},
 				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
-					return common.ResolveSupportedPlatformIDsForPlan(ctx, plan, repository)
+					return interceptors.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerCreateNotificationInterceptorName).Register()
 
@@ -356,7 +356,7 @@ var _ = Describe("Notifications Suite", func() {
 					return catalogPlan.Free, nil
 				},
 				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
-					return common.ResolveSupportedPlatformIDsForPlan(ctx, plan, repository)
+					return interceptors.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerUpdateNotificationInterceptorName).Register()
 
