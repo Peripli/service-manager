@@ -40,7 +40,6 @@ func (bc *BrokerClient) GetTransportWithTLS() (bool, *http.Transport) {
 	if len(bc.tlsConfig.Certificates) > 0 {
 		transport := http.Transport{}
 		httpclient.Configure(&transport)
-		transport.TLSClientConfig = &tls.Config{}
 		transport.TLSClientConfig.Certificates = bc.tlsConfig.Certificates
 
 		//prevents keeping idle connections when accessing to different broker hosts
