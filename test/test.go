@@ -83,6 +83,7 @@ type TestCase struct {
 	MultitenancySettings   *MultitenancySettings
 	DisableTenantResources bool
 	StrictlyTenantScoped   bool
+	DisableBasicAuth       bool
 
 	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
 	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
