@@ -42,6 +42,20 @@ func (c *ServicePlanController) Routes() []web.Route {
 	return []web.Route{
 		{
 			Endpoint: web.Endpoint{
+				Method: http.MethodOptions,
+				Path:   fmt.Sprintf("%s/{%s}", web.ServicePlansURL, web.PathParamResourceID),
+			},
+
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodOptions,
+				Path:   web.ServicePlansURL,
+			},
+
+		},
+		{
+			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
 				Path:   fmt.Sprintf("%s/{%s}", web.ServicePlansURL, web.PathParamResourceID),
 			},

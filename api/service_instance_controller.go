@@ -42,6 +42,19 @@ func (c *ServiceInstanceController) Routes() []web.Route {
 	return []web.Route{
 		{
 			Endpoint: web.Endpoint{
+				Method: http.MethodOptions,
+				Path:   c.resourceBaseURL,
+			},
+		},
+
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodOptions,
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
+			},
+		},
+		{
+			Endpoint: web.Endpoint{
 				Method: http.MethodPost,
 				Path:   c.resourceBaseURL,
 			},

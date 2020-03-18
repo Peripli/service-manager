@@ -40,7 +40,7 @@ SOURCE_FILES	= $(shell find . -type f -name '*.go' ! -name '*.gen.go' ! -name '*
 GENERATE_PREREQ_FILES = $(shell find . -name "*.go" ! -path "./vendor/*" -exec grep "go:generate" -rli {} \;)
 
 # GO_FLAGS - extra "go build" flags to use - e.g. -v (for verbose)
-GO_BUILD 		= env CGO_ENABLED=0 GOOS=$(PLATFORM) GOARCH=$(ARCH) \
+GO_BUILD 		= env CGO_ENABLED=0 GO111MODULE=on GOOS=$(PLATFORM) GOARCH=$(ARCH) \
            		$(GO) build $(GO_FLAGS) -ldflags '-s -w $(BUILD_LDFLAGS) $(VERSION_FLAGS)'
 
 # TEST_FLAGS - extra "go test" flags to use
@@ -68,7 +68,7 @@ prepare-counterfeiter:
 
 	@chmod a+x ${GOPATH}/bin/counterfeiter
 
-prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gometalinter, cover, goveralls)
+prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (gometalinter, cover, goveralls)
 ifeq ($(shell which dep),)
 	@echo "Installing dep..."
 	@go get -u github.com/golang/dep/cmd/dep
@@ -95,22 +95,9 @@ endif
 #-----------------------------------------------------------------------------
 # Builds and dependency management
 #-----------------------------------------------------------------------------
-
-build: .init dep-vendor-only service-manager ## Downloads vendored dependecies and builds the service-manager binary
-
-dep-check:
-	@which dep 2>/dev/null || (echo dep is required to build the project; exit 1)
-
-dep: dep-check ## Runs dep ensure -v
-	@dep ensure -v
-	@dep status
-
-dep-vendor-only: dep-check ## Runs dep ensure --vendor-only -v
-	@dep ensure --vendor-only -v
-	@dep status
-
-dep-reload: dep-check clean-vendor dep ## Recreates the vendored dependencies
-
+build: .init vendor service-manager ## Downloads vendored dependecies and builds the service-manager binary
+vendor:
+	@go mod vendor
 service-manager: $(BINDIR)/service-manager
 
 # Build serivce-manager under ./bin/service-manager
@@ -134,7 +121,7 @@ clean-bin: ## Cleans up the binaries
 clean-vendor: ## Cleans up the vendor folder and prints out the Gopkg.lock
 	@echo Deleting vendor folder...
 	@rm -rf vendor
-	@echo > Gopkg.lock
+
 
 build-gen-binary:
 	@go install github.com/Peripli/service-manager/cmd/smgen

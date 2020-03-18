@@ -41,6 +41,19 @@ func (c *ServiceOfferingController) Routes() []web.Route {
 	return []web.Route{
 		{
 			Endpoint: web.Endpoint{
+				Method: http.MethodOptions,
+				Path:   web.ServiceOfferingsURL,
+			},
+		},
+
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodOptions,
+				Path:   fmt.Sprintf("%s/{%s}", web.ServiceOfferingsURL, web.PathParamResourceID),
+			},
+		},
+		{
+			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
 				Path:   fmt.Sprintf("%s/{%s}", web.ServiceOfferingsURL, web.PathParamResourceID),
 			},
