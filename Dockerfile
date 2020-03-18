@@ -8,14 +8,13 @@ FROM golang:1.12.7-alpine3.10 AS builder
 # We need so that dep can fetch it's dependencies
 RUN apk --no-cache add git
 
-
 # Directory in workspace
 WORKDIR "/go/src/github.com/Peripli/service-manager"
 
+# Copy go mod
 COPY go.mod .
 ENV GO111MODULE on
 RUN go mod vendor
-
 
 # Copy and build source code
 COPY . ./
