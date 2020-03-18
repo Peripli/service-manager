@@ -558,7 +558,7 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 		},
 	}
 
-	if withBrokerTLS{
+	if withBrokerTLS {
 		osbClientConfig.TLSConfig = transportWithTLS.TLSClientConfig
 	}
 
