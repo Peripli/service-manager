@@ -1918,7 +1918,9 @@ func blueprint(ctx *TestContext, _ *SMExpect, async bool) Object {
 }
 
 func newServicePlan(ctx *TestContext, bindable bool) (string, *BrokerServer, string) {
-	brokerID, _, brokerServer := ctx.RegisterBrokerWithCatalog(NewRandomSBCatalog())
+	testContext := ctx.RegisterBrokerWithCatalog(NewRandomSBCatalog())
+	brokerID := testContext.BrokerID
+	brokerServer := testContext.BrokerServer
 	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
 	servicePlanID := findPlanIDForBrokerID(ctx, brokerID, bindable)
 	return brokerID, brokerServer, servicePlanID

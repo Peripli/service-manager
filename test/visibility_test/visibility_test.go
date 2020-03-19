@@ -62,7 +62,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			)
 
 			BeforeEach(func() {
-				existingBrokerID, _, _ = ctx.RegisterBroker()
+				existingBrokerID = ctx.RegisterBroker().BrokerID
 				Expect(existingBrokerID).ToNot(BeEmpty())
 
 				platform := ctx.TestPlatform
@@ -745,7 +745,7 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *com
 		cService := common.GenerateTestServiceWithPlans(cPaidPlan)
 		catalog := common.NewEmptySBCatalog()
 		catalog.AddService(cService)
-		brokerID, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
+		brokerID := ctx.RegisterBrokerWithCatalog(catalog)
 
 		so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
 
