@@ -141,8 +141,13 @@ func preparePlan(ctx *TestContext) (string, string) {
 	cService := GenerateTestServiceWithPlans(GenerateFreeTestPlan())
 	catalog := NewEmptySBCatalog()
 	catalog.AddService(cService)
-	brokerID, _, brokerServer := ctx.RegisterBrokerWithCatalog(catalog)
+	testContext := ctx.RegisterBrokerWithCatalog(catalog)
+	brokerID := testContext.BrokerID
+	brokerServer := testContext.BrokerServer
+	brokerServerWithTLS := testContext.BrokerServerTLS
+
 	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
+	ctx.Servers[BrokerServerPrefixTLS+brokerID] = brokerServerWithTLS
 
 	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", brokerID)
 	obj, err := ctx.SMRepository.Get(context.Background(), types.ServiceOfferingType, byBrokerID)

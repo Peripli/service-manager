@@ -18,6 +18,8 @@ package common
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -78,6 +80,11 @@ func JSONToMap(j string) map[string]interface{} {
 func NewBrokerServer() *BrokerServer {
 	return NewBrokerServerWithCatalog(NewRandomSBCatalog())
 }
+
+func NewBrokerServerTLS() *BrokerServer {
+	return NewBrokerServerWithTLSAndCatalog(NewRandomSBCatalog())
+}
+
 func NewBrokerServerWithCatalog(catalog SBCatalog) *BrokerServer {
 	brokerServer := &BrokerServer{}
 	brokerServer.mutex = &sync.RWMutex{}
@@ -86,6 +93,24 @@ func NewBrokerServerWithCatalog(catalog SBCatalog) *BrokerServer {
 	brokerServer.Reset()
 	brokerServer.Catalog = catalog
 	brokerServer.Server = httptest.NewServer(brokerServer.router)
+	return brokerServer
+}
+
+func NewBrokerServerWithTLSAndCatalog(catalog SBCatalog) *BrokerServer {
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM([]byte(ClientCertificate))
+	brokerServer := &BrokerServer{}
+	brokerServer.mutex = &sync.RWMutex{}
+	brokerServer.shouldRecordRequests = true
+	brokerServer.initRouter()
+	brokerServer.Reset()
+	brokerServer.Catalog = catalog
+	uServer := httptest.NewUnstartedServer(brokerServer.router)
+	uServer.TLS = &tls.Config{}
+	uServer.TLS.ClientCAs = caCertPool
+	uServer.TLS.ClientAuth = tls.RequireAndVerifyClientCert
+	uServer.StartTLS()
+	brokerServer.Server = uServer
 	return brokerServer
 }
 

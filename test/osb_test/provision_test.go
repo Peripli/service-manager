@@ -294,6 +294,16 @@ var _ = Describe("Provision", func() {
 		})
 	})
 
+	FContext("when call broker over tls", func() {
+		It("propagates them to the service broker", func() {
+
+			provisionRequestBody = buildRequestBody(smBrokerServiceIdPlan, smBrokerTLSPlanId)
+			common.JSONToMap(provisionRequestBody)
+			ctx.SMWithBasic.PUT(smTLSBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(common.JSONToMap(provisionRequestBody)).Expect().Status(http.StatusCreated)
+		})
+	})
+
 	Context("when broker times out", func() {
 		It("should fail with 502", func(done chan<- interface{}) {
 			brokerServer.ServiceInstanceHandler = delayingHandler(done)
