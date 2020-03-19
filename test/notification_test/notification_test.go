@@ -91,7 +91,7 @@ var _ = Describe("Notifications Suite", func() {
 		{
 			ResourceType: types.ServiceBrokerType,
 			ResourceCreateFunc: func() common.Object {
-				_, obj, _ := ctx.RegisterBroker()
+				obj := ctx.RegisterBroker().Broker
 				delete(obj, "credentials")
 				return obj
 			},
@@ -210,7 +210,7 @@ var _ = Describe("Notifications Suite", func() {
 				cService := common.GenerateTestServiceWithPlans(cPaidPlan)
 				catalog := common.NewEmptySBCatalog()
 				catalog.AddService(cService)
-				id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
+				id := ctx.RegisterBrokerWithCatalog(catalog).BrokerID
 
 				so := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", id)).First()
 
