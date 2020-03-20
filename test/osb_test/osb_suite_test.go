@@ -60,7 +60,6 @@ const (
 	plan1CatalogID              = "plan1CatalogID"
 	plan2CatalogID              = "plan2CatalogID"
 	plan3CatalogID              = "plan3CatalogID"
-
 	service0CatalogID           = "service0CatalogID"
 	service1CatalogID           = "service1CatalogID"
 	organizationGUID            = "1113aa0-124e-4af2-1526-6bfacf61b111"
@@ -93,12 +92,11 @@ var (
 	brokerID     string
 	brokerName   string
 	smBrokerURL  string
-	smTLSBrokerURL string
-	smBrokerTLSPlanId string
-	smBrokerServiceIdPlan string
+
 	provisionRequestBody string
 
 	brokerPlatformCredentialsIDMap map[string]brokerPlatformCredentials
+	utils                          *common.BrokerUtils
 )
 
 type brokerPlatformCredentials struct {
@@ -135,9 +133,9 @@ var _ = BeforeSuite(func() {
 
 	brokerPlatformCredentialsIDMap = make(map[string]brokerPlatformCredentials)
 
-	testContext := ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog())
-	emptyCatalogBrokerID = testContext.BrokerID
-	brokerServerWithEmptyCatalog = testContext.BrokerServer
+	butils := ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog())
+	emptyCatalogBrokerID = butils.Broker.ID
+	brokerServerWithEmptyCatalog = butils.Broker.BrokerServer
 
 	smUrlToEmptyCatalogBroker = brokerServerWithEmptyCatalog.URL() + "/v1/osb/" + emptyCatalogBrokerID
 	username, password := test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, emptyCatalogBrokerID)
@@ -146,9 +144,7 @@ var _ = BeforeSuite(func() {
 		password: password,
 	}
 
-	testContext = ctx.RegisterBrokerWithCatalog(simpleCatalog)
-	simpleBrokerCatalogID = testContext.BrokerID
-	brokerServerWithSimpleCatalog = testContext.BrokerServer
+	simpleBrokerCatalogID, _, brokerServerWithSimpleCatalog = ctx.RegisterBrokerWithCatalog(simpleCatalog).GetBrokerAsParams()
 	smUrlToSimpleBrokerCatalogBroker = brokerServerWithSimpleCatalog.URL() + "/v1/osb/" + simpleBrokerCatalogID
 	common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, simpleBrokerCatalogID)
 	username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, simpleBrokerCatalogID)
@@ -162,9 +158,7 @@ var _ = BeforeSuite(func() {
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(service0)
 
-	testContext = ctx.RegisterBrokerWithCatalog(catalog)
-	stoppedBrokerID = testContext.BrokerID
-	stoppedBrokerServer = testContext.BrokerServer
+	stoppedBrokerID, _, stoppedBrokerServer = ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
 	common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, stoppedBrokerID)
 	stoppedBrokerServer.Close()
 	smUrlToStoppedBroker = stoppedBrokerServer.URL() + "/v1/osb/" + stoppedBrokerID
@@ -183,34 +177,25 @@ var _ = BeforeSuite(func() {
 	catalog.AddService(service1)
 
 	var brokerObject common.Object
-	testContext = ctx.RegisterBrokerWithCatalog(catalog)
-	brokerID = testContext.BrokerID
-	brokerObject = testContext.Broker
-	brokerServer = testContext.BrokerServer
+
+	utils = ctx.RegisterBrokerWithCatalog(catalog)
+	brokerID = utils.Broker.ID
+	brokerObject = utils.Broker.JSON
+	brokerServer = utils.Broker.BrokerServer
+	utils.BrokerWithTLS = ctx.RegisterBrokerWithRandomCatalogAndTLS(ctx.SMWithOAuth).BrokerWithTLS
 
 	plans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("catalog_id in ('%s','%s')", plan1CatalogID, plan2CatalogID)).Iter()
 	for _, p := range plans {
 		common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, p.Object().Value("id").String().Raw(), ctx.TestPlatform.ID)
 	}
-
-	planId:= testContext.SetAuthContext(ctx.SMWithOAuth).GetServiceOfferings(testContext.BrokerIDtls).GetServicePlans(0,"id").GetPlan(0,"id").Get()
-	common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, planId, ctx.TestPlatform.ID)
-	smBrokerTLSPlanId = planId
-	smBrokerServiceIdPlan = string(testContext.BrokerTLSCatalog)
-	smBrokerServiceIdPlan = gjson.Get(smBrokerServiceIdPlan, `services.0.id`).Str
 	smBrokerURL = brokerServer.URL() + "/v1/osb/" + brokerID
-	smTLSBrokerURL = testContext.BrokerServerTLS.URL() + "/v1/osb/" + testContext.BrokerIDtls
 	brokerName = brokerObject["name"].(string)
 
-	//@todo register tls broker as part of the test platform
 	username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, brokerID)
-
-
 	brokerPlatformCredentialsIDMap[brokerID] = brokerPlatformCredentials{
 		username: username,
 		password: password,
 	}
-
 })
 
 var _ = BeforeEach(func() {

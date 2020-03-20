@@ -294,16 +294,6 @@ var _ = Describe("Provision", func() {
 		})
 	})
 
-	FContext("when call broker over tls", func() {
-		It("propagates them to the service broker", func() {
-
-			provisionRequestBody = buildRequestBody(smBrokerServiceIdPlan, smBrokerTLSPlanId)
-			common.JSONToMap(provisionRequestBody)
-			ctx.SMWithBasic.PUT(smTLSBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(common.JSONToMap(provisionRequestBody)).Expect().Status(http.StatusCreated)
-		})
-	})
-
 	Context("when broker times out", func() {
 		It("should fail with 502", func(done chan<- interface{}) {
 			brokerServer.ServiceInstanceHandler = delayingHandler(done)
@@ -347,7 +337,11 @@ var _ = Describe("Provision", func() {
 
 		JustBeforeEach(func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			utils.BrokerWithTLS.BrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
 			platform = common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
+
+			utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(utils.SelectBroker(&utils.BrokerWithTLS).GetPlanCatalogId("0", "0"), platform.ID, organizationGUID)
+			utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(plan1CatalogID, platform.ID, organizationGUID)
 
 			SMWithBasic := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
 				username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
@@ -355,29 +349,12 @@ var _ = Describe("Provision", func() {
 			})}
 
 			username, password := test.RegisterBrokerPlatformCredentials(SMWithBasic, brokerID)
+			utils.SetAuthContext(SMWithBasic).RegisterPlatformToBroker(username, password, utils.BrokerWithTLS.ID)
 			ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
-
-			plan1ID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("catalog_id eq '%s'", plan1CatalogID)).
-				First().Object().Value("id").String().Raw()
-
-			visibilityID := common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan1ID, platform.ID)
-			patchLabelsBody := make(map[string]interface{})
-			patchLabels := []types.LabelChange{{
-				Operation: types.AddLabelOperation,
-				Key:       "organization_guid",
-				Values:    []string{organizationGUID},
-			}}
-			patchLabelsBody["labels"] = patchLabels
-
-			ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + visibilityID).
-				WithJSON(patchLabelsBody).
-				Expect().
-				Status(http.StatusOK)
 		})
 
 		AfterEach(func() {
 			err := ctx.SMRepository.Delete(context.TODO(), types.BrokerPlatformCredentialType,
-				query.ByField(query.EqualsOperator, "broker_id", brokerID),
 				query.ByField(query.EqualsOperator, "platform_id", platform.ID))
 			Expect(err).ToNot(HaveOccurred())
 
@@ -388,6 +365,15 @@ var _ = Describe("Provision", func() {
 		Context("in CF platform", func() {
 			BeforeEach(func() {
 				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
+			})
+
+			Context("when creating a the broker over tls", func() {
+				It("creating broker with valid tls settings", func() {
+					provisionRequestBody = buildRequestBody(utils.GetServiceCatalogId("0"), utils.
+						SelectBroker(&utils.BrokerWithTLS).GetPlanCatalogId("0", "0"))
+					ctx.SMWithBasic.PUT(utils.GetBrokerOSBURL(utils.BrokerWithTLS.ID)+"/v2/service_instances/test").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						WithJSON(common.JSONToMap(provisionRequestBody)).Expect().Status(http.StatusCreated)
+				})
 			})
 
 			It("should return 404 if plan is not visible in the org", func() {

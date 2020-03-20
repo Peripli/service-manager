@@ -2,7 +2,8 @@ package osb
 
 import (
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/test/common"
+	"github.com/Peripli/service-manager/test/tls_settings"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
@@ -29,8 +30,8 @@ var _ = Describe("OSB Controller test", func() {
 					Password: "pass",
 				},
 				TLS: &types.TLS{
-					Certificate: common.ClientCertificate,
-					Key:         common.ClientKey,
+					Certificate: tls_settings.ClientCertificate,
+					Key:         tls_settings.ClientKey,
 				},
 			},
 		}

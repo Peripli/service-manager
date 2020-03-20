@@ -50,7 +50,7 @@ var _ = Describe("Service Manager Filters", func() {
 		service1 := common.GenerateTestServiceWithPlansWithID(serviceID, plan1)
 		catalog := common.NewEmptySBCatalog()
 		catalog.AddService(service1)
-		brokerID := ctx.RegisterBrokerWithCatalog(catalog).BrokerID
+		brokerID := ctx.RegisterBrokerWithCatalog(catalog).Broker.ID
 		common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
 
 		username, password := test.RegisterBrokerPlatformCredentials(ctx.SMWithBasic, brokerID)

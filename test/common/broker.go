@@ -23,6 +23,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/test/tls_settings"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -98,7 +99,7 @@ func NewBrokerServerWithCatalog(catalog SBCatalog) *BrokerServer {
 
 func NewBrokerServerWithTLSAndCatalog(catalog SBCatalog) *BrokerServer {
 	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM([]byte(ClientCertificate))
+	caCertPool.AppendCertsFromPEM([]byte(tls_settings.ClientCertificate))
 	brokerServer := &BrokerServer{}
 	brokerServer.mutex = &sync.RWMutex{}
 	brokerServer.shouldRecordRequests = true
@@ -109,8 +110,8 @@ func NewBrokerServerWithTLSAndCatalog(catalog SBCatalog) *BrokerServer {
 	uServer.TLS = &tls.Config{}
 	uServer.TLS.ClientCAs = caCertPool
 	uServer.TLS.ClientAuth = tls.RequireAndVerifyClientCert
-	uServer.StartTLS()
 	brokerServer.Server = uServer
+	brokerServer.StartTLS()
 	return brokerServer
 }
 

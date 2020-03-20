@@ -241,7 +241,7 @@ var _ = Describe("Operations", func() {
 
 			Context("operation platform is platform registered in service manager", func() {
 				const (
-					brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
+					brokerAPIVersionHeaderKey   = "X-JSON-API-Version"
 					brokerAPIVersionHeaderValue = "2.13"
 
 					serviceID = "test-service-1"
@@ -272,7 +272,7 @@ var _ = Describe("Operations", func() {
 					catalog = simpleCatalog(serviceID, planID)
 					catalog = simpleCatalog(serviceID, planID)
 					ctx.RegisterPlatform()
-					brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
+					brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
 					brokerServer.ServiceInstanceHandler = func(rw http.ResponseWriter, _ *http.Request) {
 						rw.Header().Set("Content-Type", "application/json")
 						rw.WriteHeader(http.StatusAccepted)

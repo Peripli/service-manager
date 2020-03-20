@@ -1,4 +1,4 @@
-package common
+package tls_settings
 
 var (
 	ClientCertificate = `-----BEGIN CERTIFICATE-----

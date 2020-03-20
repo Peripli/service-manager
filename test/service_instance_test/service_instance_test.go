@@ -169,11 +169,11 @@ var _ = DescribeTestsFor(TestCase{
 				ID, err := uuid.NewV4()
 				Expect(err).ToNot(HaveOccurred())
 				var plans *httpexpect.Array
-				testContext, plans := prepareBrokerWithCatalog(ctx, ctx.SMWithOAuth)
-				brokerID = testContext.BrokerID
-				brokerServer = testContext.BrokerServer
-
-				brokerServerWithTLS = testContext.BrokerServerTLS
+				brokerUtils, plans := prepareBrokerWithCatalog(ctx, ctx.SMWithOAuth)
+				brokerID = brokerUtils.Broker.ID
+				brokerUtils.BrokerWithTLS = ctx.RegisterBrokerWithRandomCatalogAndTLS(ctx.SMWithOAuth).BrokerWithTLS
+				brokerServer = brokerUtils.Broker.BrokerServer
+				brokerServerWithTLS = brokerUtils.BrokerWithTLS.BrokerServer
 				brokerServerWithTLS.ShouldRecordRequests(false)
 				brokerServer.ShouldRecordRequests(false)
 				servicePlanID = plans.Element(0).Object().Value("id").String().Raw()
@@ -186,8 +186,9 @@ var _ = DescribeTestsFor(TestCase{
 					"maintenance_info": "{}",
 				}
 
-				postInstanceRequestTLS, servicePlanIDWithTLS = testContext.SetAuthContext(ctx.SMWithOAuth).
-					GetServiceOfferings(testContext.BrokerIDtls).GetServicePlans(0, "id").
+				prepareBrokerWithCatalog(ctx, ctx.SMWithOAuth)
+				postInstanceRequestTLS, servicePlanIDWithTLS = brokerUtils.SetAuthContext(ctx.SMWithOAuth).
+					GetServiceOfferings(brokerUtils.BrokerWithTLS.ID).GetServicePlans(0, "id").
 					GetPlan(0, "id").
 					GetAsServiceInstancePayload()
 
@@ -2644,19 +2645,18 @@ func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
 	return instance
 }
 
-func prepareBrokerWithCatalog(ctx *TestContext, auth *SMExpect) (TestWithServerAndBrokerContext, *httpexpect.Array) {
+func prepareBrokerWithCatalog(ctx *TestContext, auth *SMExpect) (*BrokerUtils, *httpexpect.Array) {
 	cPaidPlan1 := GeneratePaidTestPlan()
 	cPaidPlan2 := GeneratePaidTestPlan()
 	cService := GenerateTestServiceWithPlans(cPaidPlan1, cPaidPlan2)
 	catalog := NewEmptySBCatalog()
 	catalog.AddService(cService)
-	testContext := ctx.RegisterBrokerWithCatalog(catalog)
-	ctx.TestContextData = testContext
-	brokerID := testContext.BrokerID
-	server := testContext.BrokerServer
+	brokerUtils := ctx.RegisterBrokerWithCatalog(catalog)
+	brokerID := brokerUtils.Broker.ID
+	server := brokerUtils.Broker.BrokerServer
 
 	ctx.Servers[BrokerServerPrefix+brokerID] = server
 	so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
 
-	return testContext, auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw()))
+	return brokerUtils, auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw()))
 }

@@ -357,9 +357,9 @@ var _ = Describe("Interceptors", func() {
 			clearStacks()
 		}
 
-		Context("Broker", func() {
+		Context("JSON", func() {
 			It("Should call interceptors in right order", func() {
-				brokerID := ctx.RegisterBrokerWithCatalog(common.NewRandomSBCatalog()).BrokerID // Post /v1/service_brokers
+				brokerID := ctx.RegisterBrokerWithCatalog(common.NewRandomSBCatalog()).Broker.ID // Post /v1/service_brokers
 				checkCreateStack(types.ServiceBrokerType)
 
 				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(common.Object{}).Expect().Status(http.StatusOK)
@@ -420,7 +420,7 @@ var _ = Describe("Interceptors", func() {
 		entries := []entry{
 			{
 				createEntryFunc: func() string {
-					return (ctx.RegisterBroker()).BrokerID
+					return ctx.RegisterBroker().Broker.ID
 				},
 				url:  web.ServiceBrokersURL,
 				name: string(types.ServiceBrokerType),

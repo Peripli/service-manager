@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/test/tls_settings"
 	"net/http"
 	"strconv"
 	"strings"
@@ -103,6 +104,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				if brokerWithLabelsServer != nil {
 					brokerWithLabelsServer.Close()
 				}
+
+				if brokerServerWithTLS != nil {
+					brokerServerWithTLS.Close()
+				}
 			})
 
 			BeforeEach(func() {
@@ -159,8 +164,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					"description": brokerDescription,
 					"credentials": Object{
 						"tls": Object{
-							"client_certificate": common.ClientCertificate,
-							"client_key":         common.ClientKey,
+							"client_certificate": tls_settings.ClientCertificate,
+							"client_key":         tls_settings.ClientKey,
 						},
 					},
 				}
@@ -187,8 +192,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							"password": brokerServer.Password,
 						},
 						"tls": Object{
-							"client_certificate": common.ClientCertificate,
-							"client_key":         common.ClientKey,
+							"client_certificate": tls_settings.ClientCertificate,
+							"client_key":         tls_settings.ClientKey,
 						},
 					},
 				}
@@ -203,8 +208,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							"password": brokerServer.Password,
 						},
 						"tls": Object{
-							"client_certificate": common.ClientCertificate,
-							"client_key":         common.ClientKey,
+							"client_certificate": tls_settings.ClientCertificate,
+							"client_key":         tls_settings.ClientKey,
 						},
 					},
 				}
@@ -390,6 +395,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("when broker is behind tls", func() {
 
+					BeforeEach(func() {
+						settings := httpclient.DefaultSettings()
+						settings.SkipSSLValidation = true
+						httpclient.SetHTTPClientGlobalSettings(settings)
+						httpclient.Configure(http.DefaultTransport.(*http.Transport))
+					})
+
 					Context("when broker basic and user auth are both configured", func() {
 						It("returns StatusCreated", func() {
 							reply := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLSandBasic).
@@ -412,12 +424,19 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					Context("when broker tls settings are valid but basic auth credentials are missing", func() {
-						FIt("returns StatusBadRequest", func() {
+						It("returns StatusBadRequest", func() {
 							ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLS).
 								Expect().
 								Status(http.StatusBadRequest)
 							assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 0)
 						})
+					})
+
+					AfterEach(func() {
+						settings := httpclient.DefaultSettings()
+						settings.SkipSSLValidation = false
+						httpclient.SetHTTPClientGlobalSettings(settings)
+						httpclient.Configure(http.DefaultTransport.(*http.Transport))
 					})
 				})
 
@@ -1947,7 +1966,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						brokerID string
 					)
 					BeforeEach(func() {
-						brokerID = ctx.RegisterBroker().BrokerID
+						brokerID = ctx.RegisterBroker().Broker.ID
 					})
 
 					It("transitive resources should only be updated", func() {
@@ -1977,8 +1996,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					BeforeEach(func() {
 						catalog = common.NewRandomSBCatalog()
 						testContext := ctx.RegisterBrokerWithCatalog(catalog)
-						brokerID = testContext.BrokerID
-						brokerServer = testContext.BrokerServer
+						brokerID = testContext.Broker.ID
+						brokerServer = testContext.Broker.BrokerServer
 					})
 
 					It("transitive resources should contain deleted plans", func() {
@@ -2044,7 +2063,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when there are transitive resources", func() {
 					var brokerID string
 					BeforeEach(func() {
-						brokerID = (ctx.RegisterBroker()).BrokerID
+						brokerID = ctx.RegisterBroker().Broker.ID
 					})
 
 					It("should keep them in the operation", func() {

@@ -28,7 +28,7 @@ import (
 )
 
 const brokerCatalogURL = "%s/v2/catalog"
-const brokerAPIVersionHeader = "X-Broker-API-Version"
+const brokerAPIVersionHeader = "X-JSON-API-Version"
 
 // CatalogFetcher creates a broker catalog fetcher that uses the provided request function to call the specified broker's catalog endpoint
 func CatalogFetcher(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion string) func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
