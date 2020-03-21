@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/util/slice"
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/util/slice"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -34,6 +35,7 @@ type objectDetails map[string]util.InputValidator
 type NotificationsInterceptor struct {
 	PlatformIDsProviderFunc func(ctx context.Context, object types.Object, repository storage.Repository) ([]string, error)
 	AdditionalDetailsFunc   func(ctx context.Context, objects types.ObjectList, repository storage.Repository) (objectDetails, error)
+	DeletePostConditionFunc func(ctx context.Context, object types.Object, repository storage.Repository, platformID string) error
 }
 
 func (ni *NotificationsInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
@@ -53,7 +55,13 @@ func (ni *NotificationsInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc
 			return nil, err
 		}
 
+		if !newObj.GetReady() {
+			log.C(ctx).Infof("Object %s with id %s is NOT yet ready. No notification will be created", newObj.GetType().String(), newObj.GetID())
+			return newObj, nil
+		}
+
 		for _, platformID := range platformIDs {
+			log.C(ctx).Infof("Object %s with id %s is ready. New notification of type %s will be created for platform with id %s", newObj.GetType().String(), newObj.GetID(), string(types.CREATED), platformID)
 			if err := CreateNotification(ctx, repository, types.CREATED, newObj.GetType(), platformID, &Payload{
 				New: &ObjectPayload{
 					Resource:   newObj,
@@ -80,8 +88,8 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			return nil, err
 		}
 
-		// Scheduler updates the `ready` property of resources once an operation has ended - we should not create MODIFIED notifications in these cases
-		if oldObject.GetReady() != updatedObject.GetReady() {
+		if !updatedObject.GetReady() {
+			log.C(ctx).Infof("Object %s with id %s is NOT yet ready. No notification will be created", updatedObject.GetType().String(), updatedObject.GetID())
 			return updatedObject, nil
 		}
 
@@ -96,6 +104,22 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			return nil, err
 		}
 
+		// If the updated object has just become ready, then create a CREATED notification for it
+		if !oldObject.GetReady() && updatedObject.GetReady() {
+			for _, platformID := range updatedPlatformIDs {
+				log.C(ctx).Infof("Object %s with id %s is ready. New notification of type %s will be created for platform with id %s", updatedObject.GetType().String(), updatedObject.GetID(), string(types.CREATED), platformID)
+				if err := CreateNotification(ctx, repository, types.CREATED, updatedObject.GetType(), platformID, &Payload{
+					New: &ObjectPayload{
+						Resource:   updatedObject,
+						Additional: additionalDetails,
+					},
+				}); err != nil {
+					return nil, err
+				}
+			}
+			return updatedObject, nil
+		}
+
 		preexistingPlatformIDs, addedPlatformIDs, removedPlatformIDs := determinePlatformIDs(oldPlatformIDs, updatedPlatformIDs)
 
 		oldObjectLabels := oldObject.GetLabels()
@@ -107,6 +131,7 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 		oldObject.SetLabels(nil)
 
 		for _, platformID := range addedPlatformIDs {
+			log.C(ctx).Infof("Object %s with id %s is ready. New notification of type %s will be created for platform with id %s", updatedObject.GetType().String(), updatedObject.GetID(), string(types.CREATED), platformID)
 			if err := CreateNotification(ctx, repository, types.CREATED, updatedObject.GetType(), platformID, &Payload{
 				New: &ObjectPayload{
 					Resource:   updatedObject,
@@ -118,6 +143,7 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 		}
 
 		for _, platformID := range removedPlatformIDs {
+			log.C(ctx).Infof("Object %s with id %s is ready. New notification of type %s will be created for platform with id %s", updatedObject.GetType().String(), updatedObject.GetID(), string(types.DELETED), platformID)
 			if err := CreateNotification(ctx, repository, types.DELETED, updatedObject.GetType(), platformID, &Payload{
 				Old: &ObjectPayload{
 					Resource:   oldObject,
@@ -126,10 +152,15 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			}); err != nil {
 				return nil, err
 			}
+
+			if err := ni.DeletePostConditionFunc(ctx, oldObject, repository, platformID); err != nil {
+				return nil, err
+			}
 		}
 
 		modifiedPlatformIDs := append(preexistingPlatformIDs, addedPlatformIDs...)
 		for _, platformID := range modifiedPlatformIDs {
+			log.C(ctx).Infof("Object %s with id %s is ready. New notification of type %s will be created for platform with id %s", updatedObject.GetType().String(), updatedObject.GetID(), string(types.MODIFIED), platformID)
 			if err := CreateNotification(ctx, repository, types.MODIFIED, updatedObject.GetType(), platformID, &Payload{
 				New: &ObjectPayload{
 					Resource:   updatedObject,

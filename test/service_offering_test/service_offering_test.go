@@ -51,6 +51,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	DisableTenantResources:                 true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
+	ResourcePropertiesToIgnore:             []string{"last_operation"},
 	PatchResource:                          test.APIResourcePatch,
 	AdditionalTests: func(ctx *common.TestContext, t *test.TestCase) {
 		Context("additional non-generic tests", func() {

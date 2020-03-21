@@ -108,6 +108,11 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 
 			NewServiceOfferingController(ctx, options),
 			NewServicePlanController(ctx, options),
+			NewOperationsController(ctx, options),
+
+			&credentialsController{
+				repository: options.Repository,
+			},
 
 			&info.Controller{
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
@@ -131,7 +136,10 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
 			&filters.Logging{},
+			&filters.SupportedEncodingsFilter{},
 			&filters.SelectionCriteria{},
+			&filters.ServiceInstanceStripFilter{},
+			&filters.ServiceBindingStripFilter{},
 			filters.NewProtectedLabelsFilter(options.APISettings.ProtectedLabels),
 			&filters.ProtectedSMPlatformFilter{},
 			&filters.PlatformIDInstanceValidationFilter{},

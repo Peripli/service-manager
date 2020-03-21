@@ -20,12 +20,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/tidwall/sjson"
 	"net/http"
 	"net/url"
 	"time"
 
-	"github.com/Peripli/service-manager/operations"
-
+	"github.com/Peripli/service-manager/operations/opcontext"
 	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -121,7 +121,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			return f(ctx, obj)
 		}
 
-		operation, found := operations.GetFromContext(ctx)
+		operation, found := opcontext.Get(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
 		}
@@ -135,7 +135,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		if !operation.Reschedule {
 			provisionRequest, err := i.prepareProvisionRequest(instance, service.CatalogID, plan.CatalogID)
 			if err != nil {
-				return nil, fmt.Errorf("faied to prepare provision request: %s", err)
+				return nil, fmt.Errorf("failed to prepare provision request: %s", err)
 			}
 			log.C(ctx).Infof("Sending provision request %s to broker with name %s", logProvisionRequest(provisionRequest), broker.Name)
 			provisionResponse, err = osbClient.ProvisionInstance(provisionRequest)
@@ -207,7 +207,7 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			return f(ctx, updatedObj, labelChanges...)
 		}
 
-		operation, found := operations.GetFromContext(ctx)
+		operation, found := opcontext.Get(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
 		}
@@ -333,7 +333,7 @@ func (i *ServiceInstanceInterceptor) AroundTxDelete(f storage.InterceptDeleteAro
 				return f(ctx, deletionCriteria...)
 			}
 
-			operation, found := operations.GetFromContext(ctx)
+			operation, found := opcontext.Get(ctx)
 			if !found {
 				return fmt.Errorf("operation missing from context")
 			}
@@ -557,7 +557,13 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string) (*osbc.ProvisionRequest, error) {
 	instanceContext := make(map[string]interface{})
 	if len(instance.Context) != 0 {
-		if err := json.Unmarshal(instance.Context, &instanceContext); err != nil {
+		var err error
+		instance.Context, err = sjson.SetBytes(instance.Context, "instance_name", instance.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		if err = json.Unmarshal(instance.Context, &instanceContext); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal already present OSB context: %s", err)
 		}
 	} else {

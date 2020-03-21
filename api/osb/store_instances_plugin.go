@@ -672,7 +672,7 @@ func findServicePlanIDByCatalogIDs(ctx context.Context, storage storage.Reposito
 }
 
 func parseRequestForm(request *web.Request, body commonOSBRequest) error {
-	platform, err := extractPlatformFromContext(request.Context())
+	platform, err := ExtractPlatformFromContext(request.Context())
 	if err != nil {
 		return err
 	}
@@ -692,7 +692,7 @@ func parseRequestForm(request *web.Request, body commonOSBRequest) error {
 	return nil
 }
 
-func extractPlatformFromContext(ctx context.Context) (*types.Platform, error) {
+func ExtractPlatformFromContext(ctx context.Context) (*types.Platform, error) {
 	user, ok := web.UserFromContext(ctx)
 	if !ok {
 		return nil, fmt.Errorf("user details not found in request context")

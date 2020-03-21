@@ -43,7 +43,7 @@ type ServiceBinding struct {
 	Credentials       json.RawMessage        `json:"credentials,omitempty"`
 	Parameters        map[string]interface{} `json:"parameters,omitempty"`
 
-	LastOperation *Operation `json:"last_operation,omitempty"`
+	Integrity []byte `json:"-"`
 }
 
 func (e *ServiceBinding) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {
@@ -52,6 +52,18 @@ func (e *ServiceBinding) Encrypt(ctx context.Context, encryptionFunc func(contex
 
 func (e *ServiceBinding) Decrypt(ctx context.Context, decryptionFunc func(context.Context, []byte) ([]byte, error)) error {
 	return e.transform(ctx, decryptionFunc)
+}
+
+func (e *ServiceBinding) IntegralData() []byte {
+	return e.Credentials
+}
+
+func (e *ServiceBinding) SetIntegrity(integrity []byte) {
+	e.Integrity = integrity
+}
+
+func (e *ServiceBinding) GetIntegrity() []byte {
+	return e.Integrity
 }
 
 func (e *ServiceBinding) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
@@ -85,14 +97,6 @@ func (e *ServiceBinding) Equals(obj Object) bool {
 	}
 
 	return true
-}
-
-func (e *ServiceBinding) SetLastOperation(lastOp *Operation) {
-	e.LastOperation = lastOp
-}
-
-func (e *ServiceBinding) GetLastOperation() *Operation {
-	return e.LastOperation
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

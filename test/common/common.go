@@ -80,12 +80,12 @@ func (f FlagValue) String() string {
 	return f.pflagValue.String()
 }
 
-func RemoveNonNumericArgs(obj Object) Object {
-	return removeOnCondition(isNotNumeric, obj)
+func RemoveNonNumericOrDateArgs(obj Object) Object {
+	return removeOnCondition(isNotNumericOrDate, obj)
 }
 
-func RemoveNumericArgs(obj Object) Object {
-	return removeOnCondition(isNumeric, obj)
+func RemoveNumericAndDateArgs(obj Object) Object {
+	return removeOnCondition(isNumericOrDate, obj)
 }
 
 func RemoveBooleanArgs(obj Object) Object {
@@ -139,18 +139,21 @@ func isNotJSON(arg interface{}) bool {
 	return !isJson(arg)
 }
 
-func isNumeric(arg interface{}) bool {
+func isNumericOrDate(arg interface{}) bool {
 	if _, err := strconv.Atoi(fmt.Sprintf("%v", arg)); err == nil {
 		return true
 	}
 	if _, err := strconv.ParseFloat(fmt.Sprintf("%v", arg), 64); err == nil {
 		return true
 	}
+	if _, err := time.Parse(time.RFC3339Nano, fmt.Sprintf("%v", arg)); err == nil {
+		return true
+	}
 	return false
 }
 
-func isNotNumeric(arg interface{}) bool {
-	return !isNumeric(arg)
+func isNotNumericOrDate(arg interface{}) bool {
+	return !isNumericOrDate(arg)
 }
 
 func isBoolean(arg interface{}) bool {
