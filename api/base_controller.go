@@ -111,7 +111,7 @@ func (c *BaseController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, web.PathParamResourceID, web.OperationsURL, web.PathParamID),
+				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, web.PathParamResourceID, web.ResourceOperationsURL, web.PathParamID),
 			},
 			Handler: c.GetOperation,
 		},
@@ -313,7 +313,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	cleanObject(ctx, object)
+	cleanObject(object)
 
 	if err := attachLastOperation(ctx, objectID, object, r, c.repository); err != nil {
 		return nil, err
@@ -489,15 +489,13 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	cleanObject(ctx, object)
+	cleanObject(object)
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
-func cleanObject(ctx context.Context, object types.Object) {
+func cleanObject(object types.Object) {
 	if secured, ok := object.(types.Strip); ok {
 		secured.Sanitize()
-	} else {
-		log.C(ctx).Debugf("Object of type %s with id %s is not secured, so no credentials are cleaned up on response", object.GetType(), object.GetID())
 	}
 }
 
@@ -611,7 +609,7 @@ func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count,
 
 	for i := 0; i < objectList.Len(); i++ {
 		obj := objectList.ItemAt(i)
-		cleanObject(ctx, obj)
+		cleanObject(obj)
 		page.Items = append(page.Items, obj)
 	}
 
@@ -629,5 +627,5 @@ func newAsyncResponse(operationID, resourceID, resourceBaseURL string) (*web.Res
 }
 
 func buildOperationURL(operationID, resourceID, resourceType string) string {
-	return fmt.Sprintf("%s/%s%s/%s", resourceType, resourceID, web.OperationsURL, operationID)
+	return fmt.Sprintf("%s/%s%s/%s", resourceType, resourceID, web.ResourceOperationsURL, operationID)
 }

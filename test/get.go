@@ -238,7 +238,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 
 						Context("when authenticating with global token", func() {
 							It("returns 200", func() {
-								ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s%s/%s", t.API, testResourceID, web.OperationsURL, testOperationID)).
+								ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s%s/%s", t.API, testResourceID, web.ResourceOperationsURL, testOperationID)).
 									Expect().
 									Status(http.StatusOK).JSON().Object().ContainsMap(testOperation)
 							})
@@ -246,7 +246,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 
 						Context("when authenticating with basic auth", func() {
 							It("returns 401", func() {
-								ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s%s/%s", t.API, testResourceID, web.OperationsURL, testOperationID)).
+								ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s%s/%s", t.API, testResourceID, web.ResourceOperationsURL, testOperationID)).
 									Expect().
 									Status(http.StatusUnauthorized).JSON().Object().Keys().Contains("error", "description")
 							})
@@ -255,7 +255,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 						if !t.DisableTenantResources {
 							Context("when authenticating with tenant scoped token", func() {
 								It("returns 404", func() {
-									ctx.SMWithOAuthForTenant.GET(fmt.Sprintf("%s/%s%s/%s", t.API, testResourceID, web.OperationsURL, testOperationID)).
+									ctx.SMWithOAuthForTenant.GET(fmt.Sprintf("%s/%s%s/%s", t.API, testResourceID, web.ResourceOperationsURL, testOperationID)).
 										Expect().
 										Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
 								})
@@ -271,7 +271,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 
 							Context("when authenticating with basic auth", func() {
 								It("returns 401", func() {
-									ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s%s/%s", t.API, testResourceID, web.OperationsURL, testOperationID)).
+									ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s%s/%s", t.API, testResourceID, web.ResourceOperationsURL, testOperationID)).
 										Expect().
 										Status(http.StatusUnauthorized).JSON().Object().Keys().Contains("error", "description")
 								})
@@ -279,7 +279,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 
 							Context("when authenticating with global token", func() {
 								It("returns 200", func() {
-									ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s%s/%s", t.API, testResourceID, web.OperationsURL, testOperationID)).
+									ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s%s/%s", t.API, testResourceID, web.ResourceOperationsURL, testOperationID)).
 										Expect().
 										Status(http.StatusOK).JSON().Object().ContainsMap(testOperation)
 								})
@@ -287,7 +287,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 
 							Context("when authenticating with tenant scoped token", func() {
 								It("returns 200", func() {
-									ctx.SMWithOAuthForTenant.GET(fmt.Sprintf("%s/%s%s/%s", t.API, testResourceID, web.OperationsURL, testOperationID)).
+									ctx.SMWithOAuthForTenant.GET(fmt.Sprintf("%s/%s%s/%s", t.API, testResourceID, web.ResourceOperationsURL, testOperationID)).
 										Expect().
 										Status(http.StatusOK).JSON().Object().ContainsMap(testOperation)
 								})
@@ -303,7 +303,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 
 					Context("when authenticating with basic auth", func() {
 						It("returns 401", func() {
-							ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s%s/%s", t.API, testResourceID, web.OperationsURL, testOperationID)).
+							ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s%s/%s", t.API, testResourceID, web.ResourceOperationsURL, testOperationID)).
 								Expect().
 								Status(http.StatusUnauthorized).JSON().Object().Keys().Contains("error", "description")
 						})
@@ -311,7 +311,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 
 					Context("when authenticating with global token", func() {
 						It("returns 404", func() {
-							ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s%s/%s", t.API, testResourceID, web.OperationsURL, testOperationID)).
+							ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s%s/%s", t.API, testResourceID, web.ResourceOperationsURL, testOperationID)).
 								Expect().
 								Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
 						})

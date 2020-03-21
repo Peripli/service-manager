@@ -903,7 +903,7 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										}
 
-										bindingID, _ = VerifyOperationExists(ctx, fmt.Sprintf("%s/%s%s/%s", web.ServiceBindingsURL, operation.ResourceID, web.OperationsURL, operation.ID), operationExpectation)
+										bindingID, _ = VerifyOperationExists(ctx, fmt.Sprintf("%s/%s%s/%s", web.ServiceBindingsURL, operation.ResourceID, web.ResourceOperationsURL, operation.ID), operationExpectation)
 										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
 											ID:   bindingID,
 											Type: types.ServiceBindingType,

@@ -82,6 +82,7 @@ func (s *queryListener) storeCriterion() error {
 		return err
 	}
 	s.result = append(s.result, criterion)
+	s.rightOp = []string{}
 	return nil
 }
 
