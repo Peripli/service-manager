@@ -107,7 +107,7 @@ var _ = BeforeSuite(func() {
 	ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
 		Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 	}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-		smb.EnableMultitenancy(TenantIdentifier, func(request *web.Request) (string, error) {
+		_, err := smb.EnableMultitenancy(TenantIdentifier, func(request *web.Request) (string, error) {
 			extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")
 			user, ok := web.UserFromContext(request.Context())
 			if !ok {
@@ -125,6 +125,7 @@ var _ = BeforeSuite(func() {
 			request.Request = request.WithContext(web.ContextWithUser(request.Context(), user))
 			return extractTenantFromToken(request)
 		})
+		Expect(err).ToNot(HaveOccurred())
 		return nil
 	}).Build()
 
