@@ -83,7 +83,7 @@ var _ = DescribeTestsFor(TestCase{
 	StrictlyTenantScoped:                   true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
-	ResourcePropertiesToIgnore:             []string{"platform_id"},
+	ResourcePropertiesToIgnore:             []string{"last_operation", "platform_id"},
 	PatchResource:                          APIResourcePatch,
 	AdditionalTests: func(ctx *TestContext, t *TestCase) {
 		Context("additional non-generic tests", func() {
@@ -116,6 +116,14 @@ var _ = DescribeTestsFor(TestCase{
 					expectedDeleteSuccessStatusCode: http.StatusOK,
 					expectedBrokerFailureStatusCode: http.StatusBadGateway,
 					expectedSMCrashStatusCode:       http.StatusBadGateway,
+				},
+				{
+					async:                           true,
+					expectedCreateSuccessStatusCode: http.StatusAccepted,
+					expectedUpdateSuccessStatusCode: http.StatusAccepted,
+					expectedDeleteSuccessStatusCode: http.StatusAccepted,
+					expectedBrokerFailureStatusCode: http.StatusAccepted,
+					expectedSMCrashStatusCode:       http.StatusAccepted,
 				},
 			}
 
@@ -863,7 +871,7 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										}
 
-										instanceID, _ = VerifyOperationExists(ctx, fmt.Sprintf("%s/%s%s/%s", web.ServiceInstancesURL, operation.ResourceID, web.OperationsURL, operation.ID), operationExpectation)
+										instanceID, _ = VerifyOperationExists(ctx, fmt.Sprintf("%s/%s%s/%s", web.ServiceInstancesURL, operation.ResourceID, web.ResourceOperationsURL, operation.ID), operationExpectation)
 										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
 											ID:   instanceID,
 											Type: types.ServiceInstanceType,

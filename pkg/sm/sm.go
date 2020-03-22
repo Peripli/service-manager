@@ -289,6 +289,7 @@ func (smb *ServiceManagerBuilder) registerSMPlatform() error {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 			Labels:    make(map[string][]string),
+			Ready:     true,
 		},
 		Type: types.SMPlatform,
 		Name: types.SMPlatform,

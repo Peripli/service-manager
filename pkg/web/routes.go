@@ -42,8 +42,11 @@ const (
 	// LoggingConfigURL is the Logging Configuration API URL path
 	LoggingConfigURL = ConfigURL + "/logging"
 
-	// OperationsURL is the URL path fetch operations
-	OperationsURL = "/operations"
+	// ResourceOperationsURL is the URL path fetch operations for a resource
+	ResourceOperationsURL = "/operations"
+
+	// OperationsURL is the operations API base URL path
+	OperationsURL = "/" + apiVersion + "/operations"
 
 	// BrokerPlatformCredentialsURL is the URL path to manage service broker platform credentials
 	BrokerPlatformCredentialsURL = "/" + apiVersion + "/credentials"

@@ -84,6 +84,7 @@ type TestCase struct {
 	MultitenancySettings   *MultitenancySettings
 	DisableTenantResources bool
 	StrictlyTenantScoped   bool
+	DisableBasicAuth       bool
 
 	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
 	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
@@ -191,6 +192,7 @@ func EnsurePlanVisibility(repository storage.Repository, tenantIdentifier, platf
 			UpdatedAt: currentTime,
 			CreatedAt: currentTime,
 			Labels:    labels,
+			Ready:     true,
 		},
 		ServicePlanID: planID,
 		PlatformID:    platformID,

@@ -81,7 +81,7 @@ var _ = DescribeTestsFor(TestCase{
 	StrictlyTenantScoped:                   true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
-	ResourcePropertiesToIgnore:             []string{"volume_mounts", "endpoints", "bind_resource", "credentials"},
+	ResourcePropertiesToIgnore:             []string{"last_operation", "volume_mounts", "endpoints", "bind_resource", "credentials"},
 	PatchResource:                          StorageResourcePatch,
 	AdditionalTests: func(ctx *TestContext, t *TestCase) {
 		Context("additional non-generic tests", func() {
@@ -903,7 +903,7 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										}
 
-										bindingID, _ = VerifyOperationExists(ctx, fmt.Sprintf("%s/%s%s/%s", web.ServiceBindingsURL, operation.ResourceID, web.OperationsURL, operation.ID), operationExpectation)
+										bindingID, _ = VerifyOperationExists(ctx, fmt.Sprintf("%s/%s%s/%s", web.ServiceBindingsURL, operation.ResourceID, web.ResourceOperationsURL, operation.ID), operationExpectation)
 										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
 											ID:   bindingID,
 											Type: types.ServiceBindingType,
