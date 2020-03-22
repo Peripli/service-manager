@@ -15,7 +15,7 @@ func NewMultitenancyFilters(labelKey string, extractTenantFunc func(request *web
 		return nil, errors.New("extractTenantFunc should be provided")
 	}
 
-	return NewLabelingFilters(LabelName, labelKey, []string{web.ServicePlansURL, web.ServiceBrokersURL, web.ServiceInstancesURL, web.ServiceBindingsURL}, func(request *web.Request) (string, error) {
+	return NewLabelingFilters(LabelName, labelKey, []string{web.PlatformsURL, web.ServiceBrokersURL, web.ServiceInstancesURL, web.ServiceBindingsURL}, func(request *web.Request) (string, error) {
 		ctx := request.Context()
 
 		userContext, found := web.UserFromContext(ctx)
