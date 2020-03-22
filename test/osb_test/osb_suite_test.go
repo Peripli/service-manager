@@ -125,8 +125,7 @@ var _ = BeforeSuite(func() {
 			request.Request = request.WithContext(web.ContextWithUser(request.Context(), user))
 			return extractTenantFromToken(request)
 		})
-		Expect(err).ToNot(HaveOccurred())
-		return nil
+		return err
 	}).Build()
 
 	SMWithBasicPlatform = &common.SMExpect{Expect: ctx.SMWithBasic.Expect}

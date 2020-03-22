@@ -234,8 +234,7 @@ func DescribeTestsFor(t TestCase) bool {
 							request.Request = request.WithContext(web.ContextWithUser(request.Context(), user))
 							return extractTenantFromToken(request)
 						})
-						Expect(err).ToNot(HaveOccurred())
-						return nil
+						return err
 					})
 			}
 			return ctxBuilder
