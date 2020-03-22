@@ -66,7 +66,7 @@ var _ = Describe("TenantFilters", func() {
 		})
 
 		Describe("Criteria filter", func() {
-			for _, method := range []string{http.MethodGet, http.MethodPatch, http.MethodDelete} {
+			for _, method := range []string{http.MethodGet, http.MethodPatch, http.MethodDelete, http.MethodPost} {
 				When(method+" request is sent with tenant scope", func() {
 					It("should modify the request criteria", func() {
 						newReq, err := http.NewRequest(method, "http://example.com", nil)

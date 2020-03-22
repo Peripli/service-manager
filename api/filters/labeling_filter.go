@@ -33,7 +33,7 @@ func newLabelCriteriaFilter(labelName, labelKey string, bastPaths []string, extr
 		LabelKey:     labelKey,
 		FilterName:   labelName + LabelCriteriaFilterNameSuffix,
 		BasePaths:    bastPaths,
-		Methods:      []string{http.MethodGet, http.MethodPatch, http.MethodDelete},
+		Methods:      []string{http.MethodGet, http.MethodPatch, http.MethodDelete, http.MethodPost},
 		ExtractValue: extractValueFunc,
 		LabelingFunc: func(request *web.Request, labelKey, labelValue string) error {
 			ctx := request.Context()
