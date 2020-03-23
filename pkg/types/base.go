@@ -25,6 +25,8 @@ type Base struct {
 	Labels         Labels    `json:"labels,omitempty"`
 	PagingSequence int64     `json:"-"`
 	Ready          bool      `json:"ready"`
+
+	LastOperation *Operation `json:"last_operation,omitempty"`
 }
 
 func (b *Base) SetID(id string) {
@@ -69,4 +71,12 @@ func (b *Base) SetReady(ready bool) {
 
 func (b *Base) GetReady() bool {
 	return b.Ready
+}
+
+func (b *Base) SetLastOperation(op *Operation) {
+	b.LastOperation = op
+}
+
+func (b *Base) GetLastOperation() *Operation {
+	return b.LastOperation
 }

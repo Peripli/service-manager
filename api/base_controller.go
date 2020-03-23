@@ -111,7 +111,7 @@ func (c *BaseController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, web.PathParamResourceID, web.OperationsURL, web.PathParamID),
+				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, web.PathParamResourceID, web.ResourceOperationsURL, web.PathParamID),
 			},
 			Handler: c.GetOperation,
 		},
@@ -323,12 +323,10 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	cleanObject(ctx, object)
-	displayOp := r.URL.Query().Get(web.QueryParamLastOp)
-	if displayOp == "true" {
-		if err := attachLastOperation(ctx, objectID, object, r, c.repository); err != nil {
-			return nil, err
-		}
+	cleanObject(object)
+
+	if err := attachLastOperation(ctx, objectID, object, r, c.repository); err != nil {
+		return nil, err
 	}
 
 	return util.NewJSONResponse(http.StatusOK, object)
@@ -501,42 +499,31 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	cleanObject(ctx, object)
+	cleanObject(object)
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
-func cleanObject(ctx context.Context, object types.Object) {
+func cleanObject(object types.Object) {
 	if secured, ok := object.(types.Strip); ok {
 		secured.Sanitize()
-	} else {
-		log.C(ctx).Debugf("Object of type %s with id %s is not secured, so no credentials are cleaned up on response", object.GetType(), object.GetID())
 	}
 }
 
 func attachLastOperation(ctx context.Context, objectID string, object types.Object, r *web.Request, repository storage.Repository) error {
-	if operatable, ok := object.(types.Operatable); ok {
-		orderBy := query.OrderResultBy("paging_sequence", query.DescOrder)
-		limitBy := query.LimitResultBy(1)
-		byObjectID := query.ByField(query.EqualsOperator, "resource_id", objectID)
-		criteria := query.CriteriaForContext(ctx)
-		list, err := repository.List(ctx, types.OperationType, append(criteria, byObjectID, orderBy, limitBy)...)
-		if err != nil {
-			return util.HandleStorageError(err, types.OperationType.String())
-		}
-		if list.Len() == 0 {
-			log.C(ctx).Debugf("No last operation found for entity with id %s of type %s", objectID, object.GetType().String())
-			return nil
-		}
-		lastOperation := list.ItemAt(0)
-		operatable.SetLastOperation(lastOperation.(*types.Operation))
+	orderBy := query.OrderResultBy("paging_sequence", query.DescOrder)
+	byObjectID := query.ByField(query.EqualsOperator, "resource_id", objectID)
+	// Limit cannot be applied, otherwise the query is corrupted and does not return valid result
+	list, err := repository.List(ctx, types.OperationType, byObjectID, orderBy)
+	if err != nil {
+		return util.HandleStorageError(err, types.OperationType.String())
+	}
+	if list.Len() == 0 {
+		log.C(ctx).Debugf("No last operation found for entity with id %s of type %s", objectID, object.GetType().String())
 		return nil
 	}
-
-	return &util.HTTPError{
-		ErrorType:   "LastOperationNotSupported",
-		Description: fmt.Sprintf("last operation is not supported for type %s", object.GetType().String()),
-		StatusCode:  http.StatusBadRequest,
-	}
+	lastOperation := list.ItemAt(0)
+	object.SetLastOperation(lastOperation.(*types.Operation))
+	return nil
 }
 
 func (c *BaseController) parseMaxItemsQuery(maxItems string) (int, error) {
@@ -632,7 +619,7 @@ func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count,
 
 	for i := 0; i < objectList.Len(); i++ {
 		obj := objectList.ItemAt(i)
-		cleanObject(ctx, obj)
+		cleanObject(obj)
 		page.Items = append(page.Items, obj)
 	}
 
@@ -650,5 +637,5 @@ func newAsyncResponse(operationID, resourceID, resourceBaseURL string) (*web.Res
 }
 
 func buildOperationURL(operationID, resourceID, resourceType string) string {
-	return fmt.Sprintf("%s/%s%s/%s", resourceType, resourceID, web.OperationsURL, operationID)
+	return fmt.Sprintf("%s/%s%s/%s", resourceType, resourceID, web.ResourceOperationsURL, operationID)
 }

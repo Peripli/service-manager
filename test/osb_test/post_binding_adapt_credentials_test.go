@@ -71,6 +71,6 @@ var _ = Describe("Post Binding Adapt Credentials", func() {
 			brokerServer.BindingAdaptCredentialsHandler = delayingHandler(done)
 			assertUnresponsiveBrokerError(ctx.SMWithBasic.POST(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect())
-		})
+		}, testTimeout)
 	})
 })

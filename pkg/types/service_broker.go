@@ -41,8 +41,6 @@ type ServiceBroker struct {
 
 	Catalog  json.RawMessage    `json:"-"`
 	Services []*ServiceOffering `json:"-"`
-
-	LastOperation *Operation `json:"last_operation,omitempty"`
 }
 
 func (e *ServiceBroker) Sanitize() {
@@ -57,6 +55,18 @@ func (e *ServiceBroker) Decrypt(ctx context.Context, decryptionFunc func(context
 	return e.transform(ctx, decryptionFunc)
 }
 
+func (e *ServiceBroker) IntegralData() []byte {
+	return []byte(fmt.Sprintf("%s:%s:%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, e.BrokerURL))
+}
+
+func (e *ServiceBroker) SetIntegrity(integrity []byte) {
+	e.Credentials.Integrity = integrity
+}
+
+func (e *ServiceBroker) GetIntegrity() []byte {
+	return e.Credentials.Integrity
+}
+
 func (e *ServiceBroker) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
 	if e.Credentials == nil || e.Credentials.Basic == nil {
 		return nil
@@ -67,14 +77,6 @@ func (e *ServiceBroker) transform(ctx context.Context, transformationFunc func(c
 	}
 	e.Credentials.Basic.Password = string(transformedPassword)
 	return nil
-}
-
-func (e *ServiceBroker) SetLastOperation(lastOp *Operation) {
-	e.LastOperation = lastOp
-}
-
-func (e *ServiceBroker) GetLastOperation() *Operation {
-	return e.LastOperation
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

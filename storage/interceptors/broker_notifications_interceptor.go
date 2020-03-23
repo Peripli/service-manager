@@ -3,9 +3,13 @@ package interceptors
 import (
 	"context"
 	"fmt"
+
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/storage/catalog"
 )
 
 func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
@@ -52,11 +56,34 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 			details := make(objectDetails, objects.Len())
 			for i := 0; i < objects.Len(); i++ {
 				broker := objects.ItemAt(i).(*types.ServiceBroker)
+				services := broker.Services
+				if len(services) == 0 {
+					var err error
+					serviceOfferings, err := catalog.Load(ctx, broker.ID, repository)
+					if err != nil {
+						return nil, err
+					}
+					services = serviceOfferings.ServiceOfferings
+				}
 				details[broker.ID] = &BrokerAdditional{
-					Services: broker.Services,
+					Services: services,
 				}
 			}
 			return details, nil
+		},
+		DeletePostConditionFunc: func(ctx context.Context, object types.Object, repository storage.Repository, platformID string) error {
+			criteria := []query.Criterion{
+				query.ByField(query.EqualsOperator, "broker_id", object.GetID()),
+				query.ByField(query.EqualsOperator, "platform_id", platformID),
+			}
+
+			log.C(ctx).Debugf("Proceeding with deletion of broker platform credentials for broker with id %s and platform with id %s", object.GetID(), platformID)
+			if err := repository.Delete(ctx, types.BrokerPlatformCredentialType, criteria...); err != nil {
+				if err != util.ErrNotFoundInStorage {
+					return err
+				}
+			}
+			return nil
 		},
 	}
 }

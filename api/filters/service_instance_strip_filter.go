@@ -30,7 +30,7 @@ import (
 const ServiceInstanceStripFilterName = "ServiceInstanceStripFilter"
 
 var serviceInstanceUnmodifiableProperties = []string{
-	"ready", "usable",
+	"ready", "usable", "context",
 }
 
 // ServiceInstanceStripFilter checks post/patch request body for unmodifiable properties

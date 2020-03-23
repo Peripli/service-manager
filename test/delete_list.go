@@ -145,7 +145,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				},
 				queryTemplate: "%s gt '%v'",
 				queryArgs: func() common.Object {
-					return common.RemoveNonNumericArgs(r[0])
+					return common.RemoveNonNumericOrDateArgs(r[0])
 				},
 				resourcesToExpectAfterOp: func() []common.Object {
 					return []common.Object{r[0]}
@@ -160,7 +160,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				},
 				queryTemplate: "%s lt '%v'",
 				queryArgs: func() common.Object {
-					return common.RemoveNonNumericArgs(r[1])
+					return common.RemoveNonNumericOrDateArgs(r[1])
 				},
 				resourcesToExpectAfterOp: func() []common.Object {
 					return []common.Object{r[1]}
@@ -175,7 +175,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				},
 				queryTemplate: "%s ge %v",
 				queryArgs: func() common.Object {
-					return common.RemoveNonNumericArgs(r[1])
+					return common.RemoveNonNumericOrDateArgs(r[1])
 				},
 				resourcesToExpectAfterOp: func() []common.Object {
 					return []common.Object{r[0]}
@@ -190,7 +190,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				},
 				queryTemplate: "%s ge %v",
 				queryArgs: func() common.Object {
-					return common.RemoveNumericArgs(r[0])
+					return common.RemoveNumericAndDateArgs(r[0])
 				},
 				resourcesToExpectAfterOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
@@ -205,7 +205,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				},
 				queryTemplate: "%s le %v",
 				queryArgs: func() common.Object {
-					return common.RemoveNonNumericArgs(r[1])
+					return common.RemoveNonNumericOrDateArgs(r[1])
 				},
 				resourcesNotToExpectAfterOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
@@ -219,7 +219,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				},
 				queryTemplate: "%s le %v",
 				queryArgs: func() common.Object {
-					return common.RemoveNumericArgs(r[0])
+					return common.RemoveNumericAndDateArgs(r[0])
 				},
 				resourcesToExpectAfterOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
@@ -357,7 +357,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				queryTemplate: "%s < '%v'",
 
 				queryArgs: func() common.Object {
-					return common.RemoveNumericArgs(r[0])
+					return common.RemoveNumericAndDateArgs(r[0])
 				},
 				expectedStatusCode: http.StatusBadRequest,
 			},
@@ -593,14 +593,12 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 							labelQuery := fmt.Sprintf("labelQuery=%s eq '%s'", commonLabelKey, commonLabelValue)
 							expectResources := func(resourcesToExpect []common.Object) {
 								for _, obj := range resourcesToExpect {
-									delete(obj, "updated_at")
-									delete(obj, "created_at")
+									stripObject(obj, t.ResourcePropertiesToIgnore...)
 								}
 								array := ctx.SMWithOAuth.ListWithQuery(t.API, labelQuery)
 								for _, item := range array.Iter() {
 									obj := item.Object().Raw()
-									delete(obj, "updated_at")
-									delete(obj, "created_at")
+									stripObject(obj, t.ResourcePropertiesToIgnore...)
 								}
 								for _, obj := range resourcesToExpect {
 									array.Contains(obj)
