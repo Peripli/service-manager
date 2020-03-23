@@ -155,6 +155,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 					// mark the operation as deletion scheduled meaning orphan mitigation is required
 					operation.DeletionScheduled = time.Now().UTC()
 					operation.Reschedule = false
+					operation.RescheduleTimestamp = time.Time{}
 					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
 					}
@@ -171,6 +172,9 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 				log.C(ctx).Infof("Successful asynchronous provisioning request %s to broker %s returned response %s",
 					logProvisionRequest(provisionRequest), broker.Name, logProvisionResponse(provisionResponse))
 				operation.Reschedule = true
+				if operation.RescheduleTimestamp.IsZero() {
+					operation.RescheduleTimestamp = time.Now()
+				}
 				if provisionResponse.OperationKey != nil {
 					operation.ExternalID = string(*provisionResponse.OperationKey)
 				}
@@ -283,6 +287,9 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 				log.C(ctx).Infof("Successful asynchronous update instance request %s to broker %s returned response %s",
 					logUpdateInstanceRequest(updateInstanceRequest), broker.Name, logUpdateInstanceResponse(updateInstanceResponse))
 				operation.Reschedule = true
+				if operation.RescheduleTimestamp.IsZero() {
+					operation.RescheduleTimestamp = time.Now()
+				}
 				if updateInstanceResponse.OperationKey != nil {
 					operation.ExternalID = string(*updateInstanceResponse.OperationKey)
 				}
@@ -397,6 +404,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 			if shouldStartOrphanMitigation(err) {
 				operation.DeletionScheduled = time.Now()
 				operation.Reschedule = false
+				operation.RescheduleTimestamp = time.Time{}
 				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
 				}
@@ -408,6 +416,9 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 			log.C(ctx).Infof("Successful asynchronous deprovisioning request %s to broker %s returned response %s",
 				logDeprovisionRequest(deprovisionRequest), broker.Name, logDeprovisionResponse(deprovisionResponse))
 			operation.Reschedule = true
+			if operation.RescheduleTimestamp.IsZero() {
+				operation.RescheduleTimestamp = time.Now()
+			}
 
 			if deprovisionResponse.OperationKey != nil {
 				operation.ExternalID = string(*deprovisionResponse.OperationKey)
@@ -462,6 +473,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 					log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
 
 					operation.Reschedule = false
+					operation.RescheduleTimestamp = time.Time{}
 					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return fmt.Errorf("failed to update operation with id %s to mark that next execution should not be reschedulable", operation.ID)
 					}
@@ -484,6 +496,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 				log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
 
 				operation.Reschedule = false
+				operation.RescheduleTimestamp = time.Time{}
 				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
 				}
@@ -492,6 +505,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 			case osbc.StateFailed:
 				log.C(ctx).Infof("Failed polling operation for instance with id %s and name %s with response %s", instance.ID, instance.Name, logPollInstanceResponse(pollingResponse))
 				operation.Reschedule = false
+				operation.RescheduleTimestamp = time.Time{}
 				if enableOrphanMitigation {
 					operation.DeletionScheduled = time.Now()
 				}
