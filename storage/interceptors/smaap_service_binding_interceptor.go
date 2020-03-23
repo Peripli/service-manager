@@ -217,7 +217,8 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		}
 
 		if operation.Reschedule {
-			if err := i.pollServiceBinding(ctx, osbClient, binding, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
+			maxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
+			if err := i.pollServiceBinding(ctx, osbClient, binding, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, maxPollingDuration, true); err != nil {
 				return nil, err
 			}
 		}
@@ -317,7 +318,8 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 	}
 
 	if operation.Reschedule {
-		if err := i.pollServiceBinding(ctx, osbClient, binding, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
+		maxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
+		if err := i.pollServiceBinding(ctx, osbClient, binding, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, maxPollingDuration, true); err != nil {
 			return err
 		}
 	}
@@ -442,7 +444,7 @@ func prepareUnbindRequest(instance *types.ServiceInstance, binding *types.Servic
 	return unbindRequest
 }
 
-func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbClient osbc.Client, binding *types.ServiceBinding, operation *types.Operation, brokerID, serviceCatalogID, planCatalogID, operationKey string, enableOrphanMitigation bool) error {
+func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbClient osbc.Client, binding *types.ServiceBinding, operation *types.Operation, brokerID, serviceCatalogID, planCatalogID, operationKey string, maxPollingDuration time.Duration, enableOrphanMitigation bool) error {
 	var key *osbc.OperationKey
 	if len(operation.ExternalID) != 0 {
 		opKey := osbc.OperationKey(operation.ExternalID)

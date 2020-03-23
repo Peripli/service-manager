@@ -196,7 +196,8 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		}
 
 		if operation.Reschedule {
-			if err := i.pollServiceInstance(ctx, osbClient, instance, operation, service.CatalogID, plan.CatalogID, true); err != nil {
+			maxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
+			if err := i.pollServiceInstance(ctx, osbClient, instance, operation, service.CatalogID, plan.CatalogID, maxPollingDuration, true); err != nil {
 				return nil, err
 			}
 		}
@@ -306,7 +307,8 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 		}
 
 		if operation.Reschedule {
-			if err := i.pollServiceInstance(ctx, osbClient, updatedInstance, operation, service.CatalogID, plan.CatalogID, false); err != nil {
+			maxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
+			if err := i.pollServiceInstance(ctx, osbClient, updatedInstance, operation, service.CatalogID, plan.CatalogID, maxPollingDuration, false); err != nil {
 				instance.UpdateValues = types.InstanceUpdateValues{}
 				_, updateErr := i.repository.RawRepository.Update(ctx, instance, types.LabelChanges{})
 				if updateErr != nil {
@@ -433,7 +435,8 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 	}
 
 	if operation.Reschedule {
-		if err := i.pollServiceInstance(ctx, osbClient, instance, operation, service.CatalogID, plan.CatalogID, true); err != nil {
+		maxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
+		if err := i.pollServiceInstance(ctx, osbClient, instance, operation, service.CatalogID, plan.CatalogID, maxPollingDuration, true); err != nil {
 			return err
 		}
 	}
@@ -441,7 +444,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 	return nil
 }
 
-func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, osbClient osbc.Client, instance *types.ServiceInstance, operation *types.Operation, serviceCatalogID, planCatalogID string, enableOrphanMitigation bool) error {
+func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, osbClient osbc.Client, instance *types.ServiceInstance, operation *types.Operation, serviceCatalogID, planCatalogID string, maxPollingDuration time.Duration, enableOrphanMitigation bool) error {
 	var key *osbc.OperationKey
 	if len(operation.ExternalID) != 0 {
 		opKey := osbc.OperationKey(operation.ExternalID)
