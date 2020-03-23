@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"net/http/httptest"
 	"strconv"
+	"time"
 
 	"strings"
 
@@ -64,7 +65,7 @@ var _ = Describe("Handler", func() {
 	BeforeEach(func() {
 		fakeHandler = &webfakes.FakeHandler{}
 		responseRecorder = httptest.NewRecorder()
-		handler = NewHTTPHandler(fakeHandler, bodyMaxSize)
+		handler = NewHTTPHandler(fakeHandler, time.Second, bodyMaxSize)
 	})
 
 	makeRequest := func(method, path, body string, headers map[string]string) *httptest.ResponseRecorder {

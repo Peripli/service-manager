@@ -82,6 +82,7 @@ func (s *Settings) Validate() error {
 type Options struct {
 	Repository        storage.TransactionalRepository
 	APISettings       *Settings
+	OSB               *osb.Settings
 	OperationSettings *operations.Settings
 	WSSettings        *ws.Settings
 	Notificator       storage.Notificator
@@ -119,6 +120,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,
 			},
 			&osb.Controller{
+				Settings: options.OSB,
 				BrokerFetcher: func(ctx context.Context, brokerID string) (*types.ServiceBroker, error) {
 					byID := query.ByField(query.EqualsOperator, "id", brokerID)
 					br, err := options.Repository.Get(ctx, types.ServiceBrokerType, byID)

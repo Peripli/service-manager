@@ -19,6 +19,7 @@ package osb_test
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -38,6 +39,42 @@ var _ = Describe("Deprovision", func() {
 			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).
 				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect().Status(http.StatusOK)
+		})
+	})
+
+	Context("when call to slow service broker", func() {
+		It("should timeout", func() {
+			brokerServer.ShouldRecordRequests(true)
+			brokerServer.ServiceInstanceHandler = func(rw http.ResponseWriter, req *http.Request) {
+				rw.WriteHeader(http.StatusOK)
+				if f, ok := rw.(http.Flusher); ok {
+					for i := 1; i <= 30; i++ {
+						_, err := fmt.Fprintf(rw, "Chunk #%d\n", i)
+						if err != nil {
+							break
+						}
+						f.Flush()
+						time.Sleep(100 * time.Millisecond)
+					}
+				}
+			}
+
+			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/123").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				Expect().Status(http.StatusGatewayTimeout).Body().Raw()
+		})
+	})
+
+	Context("when call to slow service broker2", func() {
+		It("should timeout", func() {
+			brokerServer.ShouldRecordRequests(true)
+			brokerServer.ServiceInstanceHandler = func(rw http.ResponseWriter, req *http.Request) {
+				rw.WriteHeader(http.StatusOK)
+				time.Sleep(time.Second * 1)
+				rw.Write([]byte("Hello"))
+			}
+
+			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/123").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				Expect().Status(http.StatusBadGateway).Body().Raw()
 		})
 	})
 
@@ -317,7 +354,7 @@ var _ = Describe("Deprovision", func() {
 		})
 	})
 
-	Context("when broker times out", func() {
+	FContext("when broker times out", func() {
 		It("should fail with 502", func(done chan<- interface{}) {
 			brokerServer.ServiceInstanceHandler = delayingHandler(done)
 			assertUnresponsiveBrokerError(ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).

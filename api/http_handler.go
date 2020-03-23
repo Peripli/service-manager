@@ -18,7 +18,9 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -29,13 +31,15 @@ import (
 // HTTPHandler converts a pkg/web.Handler and pkg/web.HandlerFunc to a standard http.Handler
 type HTTPHandler struct {
 	Handler            web.Handler
+	timeout            time.Duration
 	requestBodyMaxSize int
 }
 
 // NewHTTPHandler creates a new HTTPHandler from the provided web.Handler
-func NewHTTPHandler(handler web.Handler, requestBodyMaxSize int) *HTTPHandler {
+func NewHTTPHandler(handler web.Handler, timeout time.Duration, requestBodyMaxSize int) *HTTPHandler {
 	return &HTTPHandler{
 		Handler:            handler,
+		timeout:            timeout,
 		requestBodyMaxSize: requestBodyMaxSize,
 	}
 }
@@ -49,27 +53,68 @@ func (h *HTTPHandler) Handle(req *web.Request) (resp *web.Response, err error) {
 func (h *HTTPHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	var err error
 	ctx := req.Context()
-	defer func() {
-		if err != nil {
-			util.WriteError(ctx, err, res)
-		}
-	}()
 
 	var request *web.Request
 	req.Body = http.MaxBytesReader(res, req.Body, int64(h.requestBodyMaxSize))
 	if request, err = convertToWebRequest(req, res); err != nil {
+		util.WriteError(ctx, err, res)
 		return
 	}
 
+	done := make(chan struct{}, 1)
+	panicCh := make(chan interface{}, 1)
+	errCh := make(chan error, 1)
+	respCh := make(chan *web.Response, 1)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, h.timeout)
+	defer cancel()
+	request.Request = request.WithContext(ctxWithTimeout)
+
+	go func() {
+		defer func() {
+			// logging filter may have enriched the context with a logger and
+			// even in case of panic we want the new context
+			ctx = request.Context()
+		}()
+		defer handlePanic(ctx, panicCh, errCh)
+
+		var response *web.Response
+		response, err = h.Handler.Handle(request)
+		defer close(done)
+		if request.IsResponseWriterHijacked() {
+			err = nil
+			return
+		}
+		if err != nil {
+			errCh <- err
+			return
+		}
+		if response != nil {
+			respCh <- response
+		}
+	}()
+
 	var response *web.Response
-	response, err = h.Handler.Handle(request)
-	ctx = request.Context() // logging filter may have enriched the context with a logger
-	if request.IsResponseWriterHijacked() {
-		err = nil
+	select {
+	case p := <-panicCh:
+		panic(p)
+	case <-done:
 		return
-	}
-	if err != nil {
+	case err := <-errCh:
+		if err != nil {
+			util.WriteError(ctx, err, res)
+		}
 		return
+	case <-ctxWithTimeout.Done():
+		// fmt.Println(">>>>>>here1")
+		select {
+		case err := <-errCh:
+			// fmt.Println(">>>>>>here2")
+			util.WriteError(ctx, err, res)
+			return
+		case response = <-respCh:
+			fmt.Println(">>>>>Whyy??", response.StatusCode)
+		}
+	case response = <-respCh:
 	}
 
 	// copy response headers
@@ -79,11 +124,30 @@ func (h *HTTPHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	defer func() {
+		if err != nil {
+			util.WriteError(ctx, err, res)
+		}
+	}()
+
 	res.WriteHeader(response.StatusCode)
 	if _, err = res.Write(response.Body); err != nil {
 		// HTTP headers and status are sent already
 		// if we return an error, the error Handler will try to send them again
 		log.C(ctx).Error("Error sending response", err)
+	}
+}
+
+func handlePanic(ctx context.Context, panicCh chan interface{}, errCh chan error) {
+	if e := recover(); e != nil {
+		err, ok := e.(error)
+		if ok && err == http.ErrAbortHandler {
+			errCh <- err
+		} else if httpErr, isHTTPErr := err.(*util.HTTPError); isHTTPErr {
+			errCh <- httpErr
+		} else {
+			panicCh <- e
+		}
 	}
 }
 

@@ -19,6 +19,8 @@ package config
 import (
 	"fmt"
 
+	"github.com/Peripli/service-manager/api/osb"
+
 	"github.com/Peripli/service-manager/pkg/multitenancy"
 
 	"github.com/Peripli/service-manager/operations"
@@ -46,6 +48,7 @@ type Settings struct {
 	HTTPClient   *httpclient.Settings
 	Health       *health.Settings
 	Multitenancy *multitenancy.Settings
+	OSB          *osb.Settings
 }
 
 // AddPFlags adds the SM config flags to the provided flag set
@@ -66,6 +69,7 @@ func DefaultSettings() *Settings {
 		HTTPClient:   httpclient.DefaultSettings(),
 		Health:       health.DefaultSettings(),
 		Multitenancy: multitenancy.DefaultSettings(),
+		OSB:          osb.DefaultSettings(),
 	}
 }
 
