@@ -107,6 +107,10 @@ func (cr *integrityRepository) Delete(ctx context.Context, objectType types.Obje
 	return cr.repository.Delete(ctx, objectType, criteria...)
 }
 
+func (cr *integrityRepository) ForceDelete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) error {
+	return cr.repository.Delete(ctx, objectType, criteria...)
+}
+
 func (cr *TransactionalIntegrityRepository) InTransaction(ctx context.Context, f func(ctx context.Context, storage Repository) error) error {
 	return cr.repository.InTransaction(ctx, func(ctx context.Context, storage Repository) error {
 		return f(ctx, &integrityRepository{
