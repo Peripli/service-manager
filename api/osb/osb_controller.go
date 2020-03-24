@@ -125,7 +125,10 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 	recorder := httptest.NewRecorder()
 
 	proxy.ServeHTTP(recorder, modifiedRequest)
+	return validateBrokerResponse(recorder, broker)
+}
 
+func validateBrokerResponse(recorder *httptest.ResponseRecorder, broker *types.ServiceBroker) (*web.Response, error) {
 	brokerResponseBody, err := ioutil.ReadAll(recorder.Body)
 	if err != nil {
 		return nil, err
@@ -154,12 +157,11 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 		}
 	}
 
-	resp := &web.Response{
+	return &web.Response{
 		StatusCode: recorder.Code,
 		Header:     recorder.Header(),
 		Body:       responseBody,
-	}
-	return resp, nil
+	}, nil
 }
 
 func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.ServiceBroker) *httputil.ReverseProxy {
