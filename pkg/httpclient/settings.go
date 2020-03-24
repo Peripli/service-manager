@@ -25,6 +25,7 @@ import (
 )
 
 type Settings struct {
+	Timeout               time.Duration `mapstructure:"timeout" description:"timeout specifies a time limit for the request. The timeout includes connection time, any redirects, and reading the response body"`
 	TLSHandshakeTimeout   time.Duration `mapstructure:"tls_handshake_timeout"`
 	IdleConnTimeout       time.Duration `mapstructure:"idle_conn_timeout"`
 	ResponseHeaderTimeout time.Duration `mapstructure:"response_header_timeout"`
@@ -35,6 +36,7 @@ type Settings struct {
 // DefaultSettings return the default values for httpclient settings
 func DefaultSettings() *Settings {
 	return &Settings{
+		Timeout:               time.Second * 15,
 		TLSHandshakeTimeout:   time.Second * 10,
 		IdleConnTimeout:       time.Second * 10,
 		ResponseHeaderTimeout: time.Second * 10,
@@ -45,6 +47,9 @@ func DefaultSettings() *Settings {
 
 // Validate validates the httpclient settings
 func (s *Settings) Validate() error {
+	if s.Timeout < 0 {
+		return fmt.Errorf("validate httpclient settings: timeout should be >= 0")
+	}
 	if s.TLSHandshakeTimeout < 0 {
 		return fmt.Errorf("validate httpclient settings: tls_handshake_timeout should be >= 0")
 	}
@@ -64,6 +69,7 @@ func (s *Settings) Validate() error {
 func Configure(settings *Settings) {
 	transport := http.DefaultTransport.(*http.Transport)
 
+	http.DefaultClient.Timeout = settings.Timeout
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation}
 	transport.ResponseHeaderTimeout = settings.ResponseHeaderTimeout
 	transport.TLSHandshakeTimeout = settings.TLSHandshakeTimeout
