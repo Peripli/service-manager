@@ -26,7 +26,7 @@ FROM {{.ENTITY_TABLE}}
 		ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
 	{{end}}
 {{.WHERE}}
-{{.FOR_SHARE_OF}}
+{{.FOR_UPDATE_OF}}
 {{.LIMIT}};`
 
 const SelectQueryTemplate = `
@@ -57,7 +57,7 @@ WHERE {{.ENTITY_TABLE}}.paging_sequence IN
 	(SELECT matching_resources.paging_sequence FROM matching_resources)
 {{end}}
 {{.ORDER_BY}}
-{{.FOR_SHARE_OF}};`
+{{.FOR_UPDATE_OF}};`
 
 const DeleteQueryTemplate = `
 DELETE FROM {{.ENTITY_TABLE}}
@@ -199,7 +199,7 @@ func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, template string) (s
 		"REF_COLUMN":        pq.labelEntity.ReferenceColumn(),
 		"JOIN":              pq.joinSQL(),
 		"WHERE":             pq.whereSQL(),
-		"FOR_SHARE_OF":      pq.lockSQL(),
+		"FOR_UPDATE_OF":     pq.lockSQL(),
 		"ORDER_BY":          pq.orderBySQL(),
 		"ORDER_BY_SEQUENCE": pq.orderBySequenceSQL(),
 		"LIMIT":             pq.limitSQL(),
@@ -330,7 +330,7 @@ func (pq *pgQuery) lockSQL() string {
 		// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
 		// This allows us to handle concurrent updates on the same rows by executing them sequentially as
 		// before updating we have to anyway select the rows and can therefore lock them
-		return fmt.Sprintf("FOR SHARE OF %s", pq.entityTableName)
+		return fmt.Sprintf("FOR UPDATE OF %s", pq.entityTableName)
 	}
 	return ""
 }
