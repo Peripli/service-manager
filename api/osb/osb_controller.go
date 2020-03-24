@@ -177,13 +177,15 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 		logger.Infof("Forwarded OSB request to service broker %s at %s", broker.Name, request.URL)
 	}
 
-	brokerClient, err := client.New(broker, nil)
+	tlsConfig, err := broker.GetTLSConfig()
 
 	if err != nil {
 		return nil, err
 	}
 
-	useBrokerTLSConfig, transportWithTLS := brokerClient.GetTransportWithTLS()
+	bt := client.NewBrokerTransport(tlsConfig)
+
+	useBrokerTLSConfig, transportWithTLS := bt.GetTransportWithTLS()
 	if useBrokerTLSConfig {
 		proxy.Transport = transportWithTLS
 	}
@@ -192,6 +194,7 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 		logger.Infof("Service broker %s replied with status %d", broker.Name, response.StatusCode)
 		return nil
 	}
+
 	proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, e error) {
 		logger.WithError(e).Errorf("Error while forwarding request to service broker %s", broker.Name)
 		util.WriteError(request.Context(), &util.HTTPError{

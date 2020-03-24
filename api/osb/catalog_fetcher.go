@@ -34,8 +34,7 @@ const brokerAPIVersionHeader = "X-Broker-API-Version"
 func CatalogFetcher(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion string) func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
 	return func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
 		log.C(ctx).Debugf("Attempting to fetch catalog from broker with name %s and URL %s", broker.Name, broker.BrokerURL)
-		brokerClient, err := client.New(broker, doRequestWithClient)
-
+		brokerClient, err := client.NewBrokerClient(broker, doRequestWithClient)
 		if err != nil {
 			log.C(ctx).WithError(err).Errorf(err.Error())
 			return nil, &util.HTTPError{

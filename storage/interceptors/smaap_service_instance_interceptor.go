@@ -537,13 +537,13 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 	}
 	broker := brokerObject.(*types.ServiceBroker)
 
-	brokerClient, err := client.New(broker, nil)
-
+	tlsConfig, err := broker.GetTLSConfig()
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 
-	withBrokerTLS, transportWithTLS := brokerClient.GetTransportWithTLS()
+	bt := client.NewBrokerTransport(tlsConfig)
+	withBrokerTLS, transportWithTLS := bt.GetTransportWithTLS()
 
 	osbClientConfig := &osbc.ClientConfiguration{
 		Name:                broker.Name + " broker client",

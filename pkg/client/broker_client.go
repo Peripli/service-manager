@@ -2,28 +2,32 @@ package client
 
 import (
 	"context"
-	"crypto/tls"
+	"errors"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/httpclient"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"net/http"
 )
 
 type BrokerClient struct {
-	tlsConfig                *tls.Config
+	transport                *BrokerTransport
 	broker                   *types.ServiceBroker
 	requestWithClientHandler util.DoRequestWithClientFunc
 	requestHandlerDecorated  util.DoRequestFunc
 }
 
-func New(broker *types.ServiceBroker, requestHandler util.DoRequestWithClientFunc) (*BrokerClient, error) {
+func NewBrokerClient(broker *types.ServiceBroker, requestHandler util.DoRequestWithClientFunc) (*BrokerClient, error) {
 	tlsConfig, err := broker.GetTLSConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get client for broker %s: %v", broker.Name, err)
 	}
+
+	if requestHandler == nil {
+		return nil, errors.New("a request handler func is required")
+	}
+
 	bc := &BrokerClient{}
-	bc.tlsConfig = tlsConfig
+	bc.transport = NewBrokerTransport(tlsConfig)
 	bc.broker = broker
 	bc.requestWithClientHandler = requestHandler
 	bc.requestHandlerDecorated = bc.authAndTlsDecorator()
@@ -35,21 +39,6 @@ func (bc *BrokerClient) addBasicAuth(req *http.Request) *BrokerClient {
 	return bc
 }
 
-func (bc *BrokerClient) GetTransportWithTLS() (bool, *http.Transport) {
-
-	if len(bc.tlsConfig.Certificates) > 0 {
-		transport := http.Transport{}
-		httpclient.Configure(&transport)
-		transport.TLSClientConfig.Certificates = bc.tlsConfig.Certificates
-
-		//prevents keeping idle connections when accessing to different broker hosts
-		transport.DisableKeepAlives = true
-		return true, &transport
-	}
-
-	return false, nil
-}
-
 func (bc *BrokerClient) authAndTlsDecorator() util.DoRequestFunc {
 	return func(req *http.Request) (*http.Response, error) {
 		client := http.DefaultClient
@@ -58,7 +47,7 @@ func (bc *BrokerClient) authAndTlsDecorator() util.DoRequestFunc {
 			bc.addBasicAuth(req)
 		}
 
-		useDedicatedClient, transportWithTLS := bc.GetTransportWithTLS()
+		useDedicatedClient, transportWithTLS := bc.transport.GetTransportWithTLS()
 
 		if useDedicatedClient {
 			client = &http.Client{}
