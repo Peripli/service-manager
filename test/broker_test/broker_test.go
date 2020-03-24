@@ -296,8 +296,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						timeoutDuration             = time.Millisecond * 500
 						additionalDelayAfterTimeout = time.Second
 					)
-
+					var httpClientConfig *httpclient.Settings
 					BeforeEach(func() {
+						httpClientConfig = ctx.Config.HTTPClient
 						settings := httpclient.DefaultSettings()
 						settings.ResponseHeaderTimeout = timeoutDuration
 						httpclient.Configure(settings)
@@ -312,7 +313,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					AfterEach(func() {
-						httpclient.Configure(httpclient.DefaultSettings())
+						httpclient.Configure(httpClientConfig)
 					})
 
 					It("returns 502", func() {
@@ -569,6 +570,25 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							}
 						}
 						Expect(transitiveResourcesActualCount).To(Equal(transitiveResourcesExpectedCount))
+					})
+				})
+
+				Context("when broker is responding slow", func() {
+					It("should timeout", func() {
+						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
+							rw.WriteHeader(http.StatusOK)
+							if fl, ok := rw.(http.Flusher); ok {
+								for i := 0; i < 30; i++ {
+									fmt.Fprintf(rw, "Chunk %d", i)
+									fl.Flush()
+									time.Sleep(time.Millisecond * 100)
+								}
+							}
+						}
+
+						ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithNoLabels).
+							Expect().
+							Status(http.StatusGatewayTimeout)
 					})
 				})
 			})

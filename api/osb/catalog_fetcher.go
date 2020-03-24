@@ -63,7 +63,7 @@ func CatalogFetcher(doRequestFunc util.DoRequestFunc, brokerAPIVersion string) f
 				return nil, &util.HTTPError{
 					ErrorType:   "ServiceBrokerErr",
 					Description: fmt.Sprintf("error fetching catalog for broker with name %s: timed out", broker.Name),
-					StatusCode:  http.StatusBadGateway,
+					StatusCode:  http.StatusGatewayTimeout,
 				}
 			}
 			return nil, fmt.Errorf("error getting content from body of response with status %s: %s", response.Status, err)
