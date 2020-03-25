@@ -30,13 +30,15 @@ import (
 //go:generate smgen storage broker github.com/Peripli/service-manager/pkg/types:ServiceBroker
 type Broker struct {
 	BaseEntity
-	Name        string             `db:"name"`
-	Description sql.NullString     `db:"description"`
-	BrokerURL   string             `db:"broker_url"`
-	Username    string             `db:"username"`
-	Password    string             `db:"password"`
-	Integrity   []byte             `db:"integrity"`
-	Catalog     sqlxtypes.JSONText `db:"catalog"`
+	Name                 string             `db:"name"`
+	Description          sql.NullString     `db:"description"`
+	BrokerURL            string             `db:"broker_url"`
+	Username             string             `db:"username"`
+	Password             string             `db:"password"`
+	Integrity            []byte             `db:"integrity"`
+	TlsClientKey         string             `db:"tls_client_key"`
+	TlsClientCertificate string             `db:"tls_client_certificate"`
+	Catalog              sqlxtypes.JSONText `db:"catalog"`
 
 	Services []*ServiceOffering `db:"-"`
 }
@@ -50,6 +52,20 @@ func (e *Broker) ToObject() (types.Object, error) {
 		}
 		services = append(services, serviceObject.(*types.ServiceOffering))
 	}
+
+	var tls *types.TLS
+	if e.TlsClientCertificate != "" || e.TlsClientKey != "" {
+		tls = &types.TLS{Certificate: e.TlsClientCertificate, Key: e.TlsClientKey}
+	}
+
+	var basic *types.Basic
+	if e.Username != "" || e.Password != "" {
+		basic = &types.Basic{
+			Username: e.Username,
+			Password: e.Password,
+		}
+	}
+
 	broker := &types.ServiceBroker{
 		Base: types.Base{
 			ID:             e.ID,
@@ -63,10 +79,8 @@ func (e *Broker) ToObject() (types.Object, error) {
 		Description: e.Description.String,
 		BrokerURL:   e.BrokerURL,
 		Credentials: &types.Credentials{
-			Basic: &types.Basic{
-				Username: e.Username,
-				Password: e.Password,
-			},
+			Basic:     basic,
+			TLS:       tls,
 			Integrity: e.Integrity,
 		},
 		Catalog:  getJSONRawMessage(e.Catalog),
@@ -104,10 +118,18 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, error) {
 		Catalog:     getJSONText(broker.Catalog),
 		Services:    services,
 	}
-	if broker.Credentials != nil && broker.Credentials.Basic != nil {
-		b.Username = broker.Credentials.Basic.Username
-		b.Password = broker.Credentials.Basic.Password
+	if broker.Credentials != nil {
 		b.Integrity = broker.Credentials.Integrity
+
+		if broker.Credentials.Basic != nil {
+			b.Username = broker.Credentials.Basic.Username
+			b.Password = broker.Credentials.Basic.Password
+		}
+
+		if broker.Credentials.TLS != nil {
+			b.TlsClientCertificate = broker.Credentials.TLS.Certificate
+			b.TlsClientKey = broker.Credentials.TLS.Key
+		}
 	}
 	return b, nil
 }
