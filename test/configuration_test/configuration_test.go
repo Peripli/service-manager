@@ -72,7 +72,7 @@ var _ = Describe("Service Manager Config API", func() {
 					"dial_timeout": "1000ms",
 					"idle_conn_timeout": "1000ms",
 					"response_header_timeout": "1000ms",
-					"skip_ssl_validation": false,
+					"skip_ssl_validation": true,
 					"tls_handshake_timeout": "1000ms"
 				},
 				"log": {

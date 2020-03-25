@@ -7,6 +7,7 @@ httpclient:
   response_header_timeout: 1000ms
   tls_handshake_timeout: 1000ms
   idle_conn_timeout: 1000ms
+  skip_ssl_validation: true
   dial_timeout: 1000ms
 websocket:
   ping_timeout: 4000ms

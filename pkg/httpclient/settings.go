@@ -33,6 +33,8 @@ type Settings struct {
 	SkipSSLValidation     bool          `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when making calls to external services"`
 }
 
+var globalSettings Settings
+
 // DefaultSettings return the default values for httpclient settings
 func DefaultSettings() *Settings {
 	return &Settings{
@@ -65,16 +67,26 @@ func (s *Settings) Validate() error {
 	return nil
 }
 
-// Configure configures the default http client and transport
-func Configure(settings *Settings) {
-	transport := http.DefaultTransport.(*http.Transport)
+func GetHttpClientGlobalSettings() *Settings {
+	return &globalSettings
+}
 
+func SetHTTPClientGlobalSettings(settings *Settings) {
+	globalSettings = *settings
+}
+
+// Configures the http client transport
+func Configure() {
+	settings := GetHttpClientGlobalSettings()
 	http.DefaultClient.Timeout = settings.Timeout
+	ConfigureTransport(http.DefaultTransport.(*http.Transport))
+}
+
+func ConfigureTransport(transport *http.Transport) {
+	settings := GetHttpClientGlobalSettings()
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation}
 	transport.ResponseHeaderTimeout = settings.ResponseHeaderTimeout
 	transport.TLSHandshakeTimeout = settings.TLSHandshakeTimeout
 	transport.IdleConnTimeout = settings.IdleConnTimeout
 	transport.DialContext = (&net.Dialer{Timeout: settings.DialTimeout}).DialContext
-
-	http.DefaultClient.Transport = transport
 }

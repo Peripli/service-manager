@@ -171,7 +171,7 @@ var _ = Describe("Catalog", func() {
 			catalog.AddService(service1)
 			service2 := common.GenerateTestServiceWithPlans(plan3)
 			catalog.AddService(service2)
-			brokerID, _, _ = ctx.RegisterBrokerWithCatalog(catalog)
+			brokerID = ctx.RegisterBrokerWithCatalog(catalog).Broker.ID
 
 			plan1CatalogID = gjson.Get(plan1, "id").String()
 			plan2CatalogID = gjson.Get(plan2, "id").String()
