@@ -183,10 +183,8 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 		return nil, err
 	}
 
-	bt := client.NewBrokerTransport(tlsConfig)
-
-	useBrokerTLSConfig, transportWithTLS := bt.GetTransportWithTLS()
-	if useBrokerTLSConfig {
+	transportWithTLS := client.GetTransportWithTLS(tlsConfig)
+	if transportWithTLS != nil {
 		proxy.Transport = transportWithTLS
 	}
 

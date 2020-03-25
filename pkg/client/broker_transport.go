@@ -21,27 +21,17 @@ import (
 	"net/http"
 )
 
-type BrokerTransport struct {
-	tlsConfig *tls.Config
-}
+func GetTransportWithTLS(tlsConfig *tls.Config) *http.Transport {
 
-func NewBrokerTransport(tlsConfig *tls.Config) *BrokerTransport {
-	bt := &BrokerTransport{}
-	bt.tlsConfig = tlsConfig
-	return bt
-}
-
-func (bt *BrokerTransport) GetTransportWithTLS() (bool, *http.Transport) {
-
-	if len(bt.tlsConfig.Certificates) > 0 {
+	if len(tlsConfig.Certificates) > 0 {
 		transport := http.Transport{}
 		httpclient.Configure(&transport)
-		transport.TLSClientConfig.Certificates = bt.tlsConfig.Certificates
+		transport.TLSClientConfig.Certificates = tlsConfig.Certificates
 
 		//prevents keeping idle connections when accessing to different broker hosts
 		transport.DisableKeepAlives = true
-		return true, &transport
+		return &transport
 	}
 
-	return false, nil
+	return nil
 }

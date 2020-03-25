@@ -17,6 +17,7 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -25,7 +26,7 @@ import (
 )
 
 type BrokerClient struct {
-	transport                *BrokerTransport
+	tlsConfig                *tls.Config
 	broker                   *types.ServiceBroker
 	requestWithClientHandler util.DoRequestWithClientFunc
 	requestHandlerDecorated  util.DoRequestFunc
@@ -42,7 +43,7 @@ func NewBrokerClient(broker *types.ServiceBroker, requestHandler util.DoRequestW
 	}
 
 	bc := &BrokerClient{}
-	bc.transport = NewBrokerTransport(tlsConfig)
+	bc.tlsConfig = tlsConfig
 	bc.broker = broker
 	bc.requestWithClientHandler = requestHandler
 	bc.requestHandlerDecorated = bc.authAndTlsDecorator()
@@ -62,9 +63,9 @@ func (bc *BrokerClient) authAndTlsDecorator() util.DoRequestFunc {
 			bc.addBasicAuth(req)
 		}
 
-		useDedicatedClient, transportWithTLS := bc.transport.GetTransportWithTLS()
+		transportWithTLS := GetTransportWithTLS(bc.tlsConfig)
 
-		if useDedicatedClient {
+		if transportWithTLS != nil {
 			client = &http.Client{}
 			client.Transport = transportWithTLS
 			return bc.requestWithClientHandler(req, client)
