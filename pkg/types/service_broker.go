@@ -45,8 +45,8 @@ type ServiceBroker struct {
 }
 
 func (e *ServiceBroker) GetTLSConfig() (*tls.Config, error) {
-	var tlsConfig tls.Config
 	if e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
+		var tlsConfig tls.Config
 		cert, err := tls.X509KeyPair([]byte(e.Credentials.TLS.Certificate), []byte(e.Credentials.TLS.Key))
 		if err != nil {
 			return nil, err
@@ -55,7 +55,7 @@ func (e *ServiceBroker) GetTLSConfig() (*tls.Config, error) {
 		return &tlsConfig, nil
 	}
 
-	return &tlsConfig, nil
+	return nil, nil
 }
 
 func (e *ServiceBroker) Sanitize() {
@@ -102,7 +102,7 @@ func (e *ServiceBroker) transform(ctx context.Context, transformationFunc func(c
 		e.Credentials.Basic.Password = string(transformedPassword)
 	}
 
-	if e.Credentials.TLS != nil && e.Credentials.TLS.Key != "" {
+	if e.Credentials != nil && e.Credentials.TLS != nil {
 		transformedPrivateKey, err := transformationFunc(ctx, []byte(e.Credentials.TLS.Key))
 		if err != nil {
 			return err

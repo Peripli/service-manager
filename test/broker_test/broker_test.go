@@ -402,7 +402,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						httpclient.Configure(http.DefaultTransport.(*http.Transport))
 					})
 
-					Context("when broker basic and user auth are both configured", func() {
+					FContext("when broker basic and user auth are both configured", func() {
 						It("returns StatusCreated", func() {
 							reply := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLSandBasic).
 								Expect().

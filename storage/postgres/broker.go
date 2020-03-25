@@ -118,16 +118,18 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, error) {
 		Catalog:     getJSONText(broker.Catalog),
 		Services:    services,
 	}
-	if broker.Credentials != nil && broker.Credentials.Basic != nil {
-		b.Username = broker.Credentials.Basic.Username
-		b.Password = broker.Credentials.Basic.Password
+	if broker.Credentials != nil {
 		b.Integrity = broker.Credentials.Integrity
-	}
 
-	if broker.Credentials != nil && broker.Credentials.TLS != nil {
-		b.TlsClientCertificate = broker.Credentials.TLS.Certificate
-		b.TlsClientKey = broker.Credentials.TLS.Key
-		b.Integrity = broker.Credentials.Integrity
+		if broker.Credentials.Basic != nil {
+			b.Username = broker.Credentials.Basic.Username
+			b.Password = broker.Credentials.Basic.Password
+		}
+
+		if broker.Credentials.TLS != nil {
+			b.TlsClientCertificate = broker.Credentials.TLS.Certificate
+			b.TlsClientKey = broker.Credentials.TLS.Key
+		}
 	}
 	return b, nil
 }

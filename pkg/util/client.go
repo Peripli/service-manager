@@ -19,7 +19,6 @@ package util
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"github.com/gofrs/uuid"
 	"github.com/sirupsen/logrus"
@@ -33,7 +32,6 @@ import (
 // DoRequestFunc is an alias for any function that takes an http request and returns a response and error
 type DoRequestFunc func(request *http.Request) (*http.Response, error)
 type DoRequestWithClientFunc func(request *http.Request, client *http.Client) (*http.Response, error)
-type GetTransportSettings func(certs []tls.Certificate) *http.Transport
 
 func ClientRequest(request *http.Request, client *http.Client) (*http.Response, error) {
 	return client.Do(request)

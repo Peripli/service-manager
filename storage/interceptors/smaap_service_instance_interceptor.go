@@ -554,7 +554,7 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 		},
 	}
 
-	if len(tlsConfig.Certificates) > 0 {
+	if tlsConfig != nil {
 		osbClientConfig.TLSConfig = tlsConfig
 	}
 
