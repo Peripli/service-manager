@@ -340,7 +340,7 @@ var _ = Describe("Provision", func() {
 			utils.BrokerWithTLS.BrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
 			platform = common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
 
-			utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(utils.SelectBroker(&utils.BrokerWithTLS).GetPlanCatalogId("0", "0"), platform.ID, organizationGUID)
+			utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(utils.SelectBroker(&utils.BrokerWithTLS).GetPlanCatalogId(0, 0), platform.ID, organizationGUID)
 			utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(plan1CatalogID, platform.ID, organizationGUID)
 
 			SMWithBasic := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
@@ -369,8 +369,8 @@ var _ = Describe("Provision", func() {
 
 			Context("when creating a the broker over tls", func() {
 				It("creating broker with valid tls settings", func() {
-					provisionRequestBody = buildRequestBody(utils.GetServiceCatalogId("0"), utils.
-						SelectBroker(&utils.BrokerWithTLS).GetPlanCatalogId("0", "0"))
+					provisionRequestBody = buildRequestBody(utils.GetServiceCatalogId(0), utils.
+						SelectBroker(&utils.BrokerWithTLS).GetPlanCatalogId(0, 0))
 					ctx.SMWithBasic.PUT(utils.GetBrokerOSBURL(utils.BrokerWithTLS.ID)+"/v2/service_instances/test").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						WithJSON(common.JSONToMap(provisionRequestBody)).Expect().Status(http.StatusCreated)
 				})

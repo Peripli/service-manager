@@ -81,9 +81,6 @@ type TestContextBuilder struct {
 	useSeparateOAuthServerForTenantAccess bool
 }
 
-/**
-string, Object, *BrokerServer
-*/
 type BrokerContext struct {
 	BrokerServer     *BrokerServer
 	JSON             Object
@@ -117,18 +114,18 @@ func (ctx *BrokerUtils) SelectBroker(broker *BrokerContext) *BrokerUtils {
 	return ctx
 }
 
-func (ctx *BrokerUtils) GetPlanCatalogId(service, plan string) string {
+func (ctx *BrokerUtils) GetPlanCatalogId(service, plan int) string {
 	catalog := string(ctx.Context.selected.GeneratedCatalog)
-	return gjson.Get(catalog, fmt.Sprintf("services.%s.plans.%s.id", service, plan)).Str
+	return gjson.Get(catalog, fmt.Sprintf("services.%d.plans.%d.id", service, plan)).Str
 }
 
 func (ctx *BrokerUtils) GetBrokerOSBURL(brokerID string) string {
 	return ctx.Context.selected.BrokerServer.URL() + "/v1/osb/" + brokerID
 }
 
-func (ctx *BrokerUtils) GetServiceCatalogId(service string) string {
+func (ctx *BrokerUtils) GetServiceCatalogId(service int) string {
 	smBrokerServiceIdPlan := string(ctx.Context.selected.GeneratedCatalog)
-	return gjson.Get(smBrokerServiceIdPlan, fmt.Sprintf("services.%s.id", service)).Str
+	return gjson.Get(smBrokerServiceIdPlan, fmt.Sprintf("services.%d.id", service)).Str
 }
 
 func (ctx *BrokerUtils) RegisterPlatformToBroker(username, password, brokerID string) {
