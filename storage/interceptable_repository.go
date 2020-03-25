@@ -273,7 +273,7 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 		}
 
 		operation, found := opcontext.Get(ctx)
-		if found && operation.ResourceID != object.GetID() && operation.ID != object.GetID() {
+		if found && operation.ResourceID != object.GetID() && operation.ID != object.GetID() && object.GetType() != types.OperationType {
 			operation.TransitiveResources = append(operation.TransitiveResources, &types.RelatedType{
 				ID:            object.GetID(),
 				Type:          object.GetType(),
