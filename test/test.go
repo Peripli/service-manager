@@ -20,11 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"strconv"
 
-	"github.com/spf13/pflag"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Peripli/service-manager/pkg/util"
 

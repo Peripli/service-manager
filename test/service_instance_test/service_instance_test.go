@@ -19,13 +19,15 @@ package service_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/query"
 	"sync/atomic"
 	"time"
 
+	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -58,10 +60,11 @@ func TestServiceInstances(t *testing.T) {
 }
 
 const (
-	TenantIdentifier  = "tenant"
-	TenantIDValue     = "tenantID"
-	service1CatalogID = "service1CatalogID"
-	plan1CatalogID    = "plan1CatalogID"
+	TenantIdentifier            = "tenant"
+	TenantIDValue               = "tenantID"
+	service1CatalogID           = "service1CatalogID"
+	plan1CatalogID              = "plan1CatalogID"
+	planNotSupportingSMPlatform = "planNotSupportingSmID"
 )
 
 var _ = DescribeTestsFor(TestCase{
@@ -1177,19 +1180,30 @@ var _ = DescribeTestsFor(TestCase{
 								SID                         = "abc1234"
 							)
 
+							var planID string
+
 							BeforeEach(func() {
-								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, ctx.TestPlatform.ID, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
+								planID = ""
 								brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut, verificationHandler(map[string]string{
+									"context." + TenantIdentifier: TenantIDValue,
+								}, http.StatusCreated))
+								brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut, verificationHandler(map[string]string{
 									"context." + TenantIdentifier: TenantIDValue,
 								}, http.StatusCreated))
 								brokerServer.ServiceInstanceHandlerFunc(http.MethodPatch, http.MethodPatch, verificationHandler(map[string]string{
 									"context." + TenantIdentifier: TenantIDValue,
 								}, http.StatusOK))
+							})
+
+							JustBeforeEach(func() {
+								Expect(planID).ToNot(BeEmpty())
+								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, ctx.TestPlatform.ID, findPlanIDForCatalogID(ctx, brokerID, planID), TenantIDValue)
+
 								ctx.SMWithBasic.PUT("/v1/osb/"+brokerID+"/v2/service_instances/"+SID).
 									WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 									WithJSON(Object{
 										"service_id": service1CatalogID,
-										"plan_id":    plan1CatalogID,
+										"plan_id":    planID,
 										"context": Object{
 											TenantIdentifier: TenantIDValue,
 										},
@@ -1221,29 +1235,147 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								Context("which is service-manager platform", func() {
-									It("should return 2xx", func() {
-										resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
-											WithQuery("async", testCase.async).
-											WithJSON(Object{"platform_id": types.SMPlatform}).
-											Expect().Status(testCase.expectedUpdateSuccessStatusCode)
-
-										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-											Category:          types.UPDATE,
-											State:             types.SUCCEEDED,
-											ResourceType:      types.ServiceInstanceType,
-											Reschedulable:     false,
-											DeletionScheduled: false,
+									Context("when plan does not support the platform", func() {
+										BeforeEach(func() {
+											planID = planNotSupportingSMPlatform
 										})
 
-										Expect(instanceID).To(Equal(SID))
+										It("should return 400", func() {
+											ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+												WithQuery("async", testCase.async).
+												WithJSON(Object{"platform_id": types.SMPlatform}).
+												Expect().Status(http.StatusBadRequest)
+										})
+									})
 
-										objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-											ID:    instanceID,
-											Type:  types.ServiceInstanceType,
-											Ready: true,
+									Context("when plan does supports the platform", func() {
+										BeforeEach(func() {
+											planID = plan1CatalogID
 										})
 
-										objAfterOp.Value("platform_id").Equal(types.SMPlatform)
+										It("should return 2xx and allow management of the transferred instance in SMaaP but not in old platform", func() {
+											var bindingID string
+
+											By("verify patch request for instance transfer to SMaaP succeeds")
+											resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+												WithQuery("async", testCase.async).
+												WithJSON(Object{"platform_id": types.SMPlatform}).
+												Expect().Status(testCase.expectedUpdateSuccessStatusCode)
+
+											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.UPDATE,
+												State:             types.SUCCEEDED,
+												ResourceType:      types.ServiceInstanceType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											Expect(instanceID).To(Equal(SID))
+
+											objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:    instanceID,
+												Type:  types.ServiceInstanceType,
+												Ready: true,
+											})
+
+											By("verify instance is transferred to SMaaP")
+											objAfterOp.Value("platform_id").Equal(types.SMPlatform)
+
+											By("verify instance updates in SMaaP still work after transfer")
+											resp = ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+												WithQuery("async", testCase.async).
+												WithJSON(Object{}).
+												Expect().Status(testCase.expectedUpdateSuccessStatusCode)
+
+											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.UPDATE,
+												State:             types.SUCCEEDED,
+												ResourceType:      types.ServiceInstanceType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											By("verify instance updates old platform does not work after transfer")
+											ctx.SMWithBasic.PATCH("/v1/osb/"+brokerID+"/v2/service_instances/"+SID).
+												WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+												WithJSON(Object{
+													"service_id": service1CatalogID,
+												}).
+												Expect().Status(http.StatusNotFound)
+
+											By("verify instance binds in SMaaP still work after transfer")
+											resp = ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+												WithQuery("async", testCase.async).
+												WithJSON(Object{
+													"name":                "binding-to-transferred-instance",
+													"service_instance_id": SID,
+												}).
+												Expect().
+												Status(testCase.expectedCreateSuccessStatusCode)
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.CREATE,
+												State:             types.SUCCEEDED,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											By("verify instance unbind in SMaaP still work after transfer")
+											resp = ctx.SMWithOAuthForTenant.DELETE(web.ServiceBindingsURL+"/"+bindingID).
+												WithQuery("async", testCase.async).
+												Expect().
+												Status(testCase.expectedDeleteSuccessStatusCode)
+
+											VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.SUCCEEDED,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:   bindingID,
+												Type: types.ServiceBindingType,
+											})
+
+											By("verify instance binds in old platform does not work after transfer")
+											ctx.SMWithBasic.PUT("/v1/osb/"+brokerID+"/v2/service_instances/"+SID+"/service_bindings/"+bindingID).
+												WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+												WithJSON(Object{}).
+												Expect().Status(http.StatusNotFound)
+
+											By("verify instance unbind in old platform does not after transfer")
+											ctx.SMWithBasic.DELETE("/v1/osb/"+brokerID+"/v2/service_instances/"+SID+"/service_bindings/"+bindingID).
+												WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+												WithJSON(Object{}).
+												Expect().Status(http.StatusNotFound)
+
+											By("verify instance deprovision in old platform does not after transfer")
+											ctx.SMWithBasic.DELETE("/v1/osb/"+brokerID+"/v2/service_instances/"+SID).
+												WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+												Expect().Status(http.StatusNotFound)
+
+											By("verify instance deprovision in SMaaP still work after transfer")
+											resp = ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+SID).
+												WithQuery("async", testCase.async).
+												WithJSON(Object{}).
+												Expect().Status(testCase.expectedDeleteSuccessStatusCode)
+
+											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.SUCCEEDED,
+												ResourceType:      types.ServiceInstanceType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:   instanceID,
+												Type: types.ServiceInstanceType,
+											})
+										})
 									})
 								})
 							})
@@ -2645,7 +2777,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									VerifyResourceDoesNotExist(newCtx.SMWithOAuthForTenant, ResourceExpectations{
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
 										ID:   instanceID,
 										Type: types.ServiceInstanceType,
 									})
@@ -2698,9 +2830,16 @@ func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
 }
 
 func prepareBrokerWithCatalog(ctx *TestContext, auth *SMExpect) (string, *BrokerServer, *httpexpect.Array) {
+	planNotSupportingSM := GenerateTestPlanWithID(planNotSupportingSMPlatform)
+	var err error
+	planNotSupportingSM, err = sjson.Set(planNotSupportingSM, "metadata.supportedPlatforms.-1", "kubernetes")
+	if err != nil {
+		panic(err)
+	}
+
 	cPaidPlan1 := GenerateTestPlanWithID(plan1CatalogID)
 	cPaidPlan2 := GeneratePaidTestPlan()
-	cService := GenerateTestServiceWithPlansWithID(service1CatalogID, cPaidPlan1, cPaidPlan2)
+	cService := GenerateTestServiceWithPlansWithID(service1CatalogID, cPaidPlan1, cPaidPlan2, planNotSupportingSM)
 	catalog := NewEmptySBCatalog()
 	catalog.AddService(cService)
 	brokerID, _, server := ctx.RegisterBrokerWithCatalog(catalog)
@@ -2709,4 +2848,12 @@ func prepareBrokerWithCatalog(ctx *TestContext, auth *SMExpect) (string, *Broker
 	so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
 
 	return brokerID, server, auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw()))
+}
+
+func findPlanIDForCatalogID(ctx *TestContext, brokerID, catalogID string) string {
+	soID := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).
+		First().Object().Value("id").String().Raw()
+
+	return ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_id eq '%s' and service_offering_id eq '%s'", catalogID, soID)).
+		First().Object().Value("id").String().Raw()
 }

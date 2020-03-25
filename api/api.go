@@ -150,6 +150,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			filters.NewPlansFilterByVisibility(options.Repository),
 			filters.NewServicesFilterByVisibility(options.Repository),
 			&filters.CheckBrokerCredentialsFilter{},
+			filters.NewServiceInstanceTransferFilter(options.Repository),
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil
