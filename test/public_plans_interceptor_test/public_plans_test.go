@@ -19,6 +19,7 @@ package interceptor_test
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gavv/httpexpect"
 	"math/rand"
@@ -488,4 +489,75 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 			})
 		})
 	})
+
+	Context("when a plan has specified supported platform IDs", func() {
+		var supportedPlatformIDs []string
+		var planID string
+
+		JustBeforeEach(func() {
+			catalog, err := sjson.Set(testCatalog, "services.0.plans.0.metadata.supportedPlatformIDs", supportedPlatformIDs)
+			Expect(err).ToNot(HaveOccurred())
+
+			existingBrokerServer.Catalog = common.SBCatalog(catalog)
+
+			plan := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_name eq '%s'", oldPublicPlanCatalogName))
+
+			plan.Path("$[*].metadata.supportedPlatformIDs").NotNull().Array().Empty()
+
+			planID = plan.First().Object().Value("id").String().Raw()
+			Expect(planID).ToNot(BeEmpty())
+
+			visibilities := findOneVisibilityForServicePlanID(planID)
+			Expect(visibilities["platform_id"]).To(Equal(""))
+		})
+
+		Context("when a plan supports only one platform ID", func() {
+
+			BeforeEach(func() {
+				platform := ctx.RegisterPlatform()
+				supportedPlatformIDs = []string{platform.ID}
+			})
+
+			It("creates a single public visibility for that platform", func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+
+				vis := findOneVisibilityForServicePlanID(planID)
+				Expect(vis["platform_id"]).To(Equal(supportedPlatformIDs[0]))
+			})
+		})
+
+		Context("when a plan supports multiple platform types", func() {
+
+			BeforeEach(func() {
+				firstPlatform := ctx.RegisterPlatform()
+				secondPlatform := ctx.RegisterPlatform()
+				supportedPlatformIDs = []string{firstPlatform.ID, secondPlatform.ID}
+			})
+
+			It("creates a single visibility for each supported platform", func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+
+				vis := findVisibilitiesForServicePlanID(planID)
+				vis.Length().Equal(len(supportedPlatformIDs))
+
+				visPlatformIDs := make([]string, 0)
+				for i := 0; i < len(supportedPlatformIDs); i++ {
+					plt := vis.Element(i).Object()
+					plt.NotContainsKey("labels")
+
+					pltID := plt.Value("platform_id").String().Raw()
+					visPlatformIDs = append(visPlatformIDs, pltID)
+				}
+
+				Expect(len(slice.StringsDistinct(visPlatformIDs, supportedPlatformIDs))).To(BeEquivalentTo(0))
+			})
+		})
+	})
+
 })
