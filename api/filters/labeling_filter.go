@@ -88,7 +88,7 @@ func newResourceLabelingFilter(labelName, labelKey string, bastPaths []string, e
 
 // LabelingFilter applies labeling on the resources based on extracted values
 type LabelingFilter struct {
-	// LabelKey is the key of the label, the value of which will be used to apply multitenancy rules
+	// LabelKey is the key of the label
 	LabelKey     string
 	ExtractValue func(request *web.Request) (string, error)
 	LabelingFunc func(request *web.Request, labelKey, labelValue string) error
