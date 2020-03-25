@@ -36,19 +36,13 @@ func CatalogFetcher(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIV
 		log.C(ctx).Debugf("Attempting to fetch catalog from broker with name %s and URL %s", broker.Name, broker.BrokerURL)
 		brokerClient, err := client.NewBrokerClient(broker, doRequestWithClient)
 		if err != nil {
-			log.C(ctx).WithError(err).Errorf(err.Error())
-			return nil, &util.HTTPError{
-				ErrorType:   "ServiceBrokerErr",
-				Description: err.Error(),
-				StatusCode:  http.StatusBadGateway,
-			}
+			return nil, err
 		}
 
 		response, err := brokerClient.SendRequest(ctx, http.MethodGet, fmt.Sprintf(brokerCatalogURL, broker.BrokerURL),
 			map[string]string{}, nil, map[string]string{
 				brokerAPIVersionHeader: brokerAPIVersion,
 			})
-
 		if err != nil {
 			log.C(ctx).WithError(err).Errorf("Error while forwarding request to service broker %s", broker.Name)
 			return nil, &util.HTTPError{

@@ -26,10 +26,9 @@ import (
 )
 
 type BrokerClient struct {
-	tlsConfig                *tls.Config
-	broker                   *types.ServiceBroker
-	requestWithClientHandler util.DoRequestWithClientFunc
-	requestHandlerDecorated  util.DoRequestFunc
+	tlsConfig               *tls.Config
+	broker                  *types.ServiceBroker
+	requestHandlerDecorated util.DoRequestFunc
 }
 
 func NewBrokerClient(broker *types.ServiceBroker, requestHandler util.DoRequestWithClientFunc) (*BrokerClient, error) {
@@ -45,8 +44,7 @@ func NewBrokerClient(broker *types.ServiceBroker, requestHandler util.DoRequestW
 	bc := &BrokerClient{}
 	bc.tlsConfig = tlsConfig
 	bc.broker = broker
-	bc.requestWithClientHandler = requestHandler
-	bc.requestHandlerDecorated = bc.authAndTlsDecorator()
+	bc.requestHandlerDecorated = bc.authAndTlsDecorator(requestHandler)
 	return bc, nil
 }
 
@@ -55,7 +53,7 @@ func (bc *BrokerClient) addBasicAuth(req *http.Request) *BrokerClient {
 	return bc
 }
 
-func (bc *BrokerClient) authAndTlsDecorator() util.DoRequestFunc {
+func (bc *BrokerClient) authAndTlsDecorator(requestHandler util.DoRequestWithClientFunc) util.DoRequestFunc {
 	return func(req *http.Request) (*http.Response, error) {
 		client := http.DefaultClient
 
@@ -68,10 +66,10 @@ func (bc *BrokerClient) authAndTlsDecorator() util.DoRequestFunc {
 		if transportWithTLS != nil {
 			client = &http.Client{}
 			client.Transport = transportWithTLS
-			return bc.requestWithClientHandler(req, client)
+			return requestHandler(req, client)
 		}
 
-		return bc.requestWithClientHandler(req, client)
+		return requestHandler(req, client)
 	}
 }
 
