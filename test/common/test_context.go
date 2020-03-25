@@ -21,6 +21,9 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"github.com/Peripli/service-manager/test/tls_settings"
+	"github.com/tidwall/gjson"
+	"golang.org/x/crypto/bcrypt"
 	"math/rand"
 	"net"
 	"net/http"
@@ -59,6 +62,7 @@ const SMServer = "sm-server"
 const OauthServer = "oauth-server"
 const TenantOauthServer = "tenant-oauth-server"
 const BrokerServerPrefix = "broker-"
+const BrokerServerPrefixTLS = "broker-tls-"
 
 type TestContextBuilder struct {
 	envPreHooks  []func(set *pflag.FlagSet)
@@ -77,10 +81,132 @@ type TestContextBuilder struct {
 	useSeparateOAuthServerForTenantAccess bool
 }
 
+type BrokerContext struct {
+	BrokerServer     *BrokerServer
+	JSON             Object
+	ID               string
+	GeneratedCatalog SBCatalog
+}
+
+type BrokerUtilsContext struct {
+	value      *httpexpect.Array
+	fieldValue string
+	selected   *BrokerContext
+}
+
+type BrokerUtils struct {
+	Broker        BrokerContext
+	BrokerWithTLS BrokerContext
+	authContext   *SMExpect
+	Context       BrokerUtilsContext
+}
+
+func (ctx *BrokerUtils) Cleanup(broker BrokerContext) {
+	ctx.authContext.DELETE(web.ServiceBrokersURL + "/" + broker.ID).Expect()
+	broker.BrokerServer.Close()
+}
+func (ctx *BrokerUtils) GetBrokerAsParams() (string, Object, *BrokerServer) {
+	return ctx.Broker.ID, ctx.Broker.JSON, ctx.Broker.BrokerServer
+}
+
+func (ctx *BrokerUtils) SelectBroker(broker *BrokerContext) *BrokerUtils {
+	ctx.Context.selected = broker
+	return ctx
+}
+
+func (ctx *BrokerUtils) GetPlanCatalogId(service, plan int) string {
+	catalog := string(ctx.Context.selected.GeneratedCatalog)
+	return gjson.Get(catalog, fmt.Sprintf("services.%d.plans.%d.id", service, plan)).Str
+}
+
+func (ctx *BrokerUtils) GetBrokerOSBURL(brokerID string) string {
+	return ctx.Context.selected.BrokerServer.URL() + "/v1/osb/" + brokerID
+}
+
+func (ctx *BrokerUtils) GetServiceCatalogId(service int) string {
+	smBrokerServiceIdPlan := string(ctx.Context.selected.GeneratedCatalog)
+	return gjson.Get(smBrokerServiceIdPlan, fmt.Sprintf("services.%d.id", service)).Str
+}
+
+func (ctx *BrokerUtils) RegisterPlatformToBroker(username, password, brokerID string) {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		panic(err)
+	}
+
+	payload := map[string]interface{}{
+		"broker_id":       brokerID,
+		"username":        username,
+		"password_hash":   string(passwordHash),
+		"notification_id": "",
+	}
+
+	ctx.authContext.Request(http.MethodPut, web.BrokerPlatformCredentialsURL).
+		WithJSON(payload).Expect().Status(http.StatusOK)
+}
+
+func (ctx *BrokerUtils) SetAuthContext(authContext *SMExpect) *BrokerUtils {
+	ctx.authContext = authContext
+	return ctx
+}
+func (ctx *BrokerUtils) GetServiceOfferings(brokerId string) *BrokerUtils {
+	ctx.Context.value = ctx.authContext.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerId))
+	return ctx
+}
+
+func (ctx *BrokerUtils) AddPlanVisibilityForPlatform(planCatalogID string, platformID string, orgID string) *BrokerUtils {
+
+	smPlanID := ctx.authContext.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("catalog_id eq '%s'", planCatalogID)).
+		First().Object().Value("id").String().Raw()
+
+	visibilityID := RegisterVisibilityForPlanAndPlatform(ctx.authContext, smPlanID, platformID)
+	patchLabelsBody := make(map[string]interface{})
+	patchLabels := []types.LabelChange{{
+		Operation: types.AddLabelOperation,
+		Key:       "organization_guid",
+		Values:    []string{orgID},
+	}}
+	patchLabelsBody["labels"] = patchLabels
+
+	ctx.authContext.PATCH(web.VisibilitiesURL + "/" + visibilityID).
+		WithJSON(patchLabelsBody).
+		Expect().
+		Status(http.StatusOK)
+	return ctx
+}
+
+func (ctx *BrokerUtils) GetServicePlans(forOffering int, key string) *BrokerUtils {
+	ctx.Context.value = ctx.authContext.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", ctx.Context.value.Element(forOffering).Object().Value(key).String().Raw()))
+	return ctx
+}
+
+func (ctx *BrokerUtils) GetPlan(forPlan int, key string) *BrokerUtils {
+	ctx.Context.fieldValue = ctx.Context.value.Element(1).Object().Value(key).String().Raw()
+	return ctx
+}
+
+func (ctx *BrokerUtils) GetAsServiceInstancePayload() (Object, string) {
+	ID, _ := uuid.NewV4()
+	payload := Object{
+		"name":             "test-instance" + ID.String(),
+		"service_plan_id":  ctx.Get(),
+		"maintenance_info": "{}",
+	}
+
+	return payload, ctx.Get()
+}
+
+func (ctx *BrokerUtils) Get() string {
+	return ctx.Context.fieldValue
+}
+
+//ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", planId))
+
 type TestContext struct {
 	wg            *sync.WaitGroup
 	wsConnections []*websocket.Conn
 
+	Config      *config.Settings
 	SM          *SMExpect
 	SMWithOAuth *SMExpect
 	// Requests a token the the "multitenant" oauth client - then token issued by this client contains
@@ -94,9 +220,9 @@ type TestContext struct {
 	SMScheduler          *operations.Scheduler
 	TestPlatform         *types.Platform
 	TenantTokenProvider  func() string
-
-	Servers    map[string]FakeServer
-	HttpClient *http.Client
+	TestContextData      BrokerUtils
+	Servers              map[string]FakeServer
+	HttpClient           *http.Client
 }
 
 type SMExpect struct {
@@ -341,7 +467,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 	}
 	wg := &sync.WaitGroup{}
 
-	smServer, smRepository, smScheduler := newSMServer(environment, wg, tcb.smExtensions, listener)
+	smServer, smRepository, smScheduler, config := newSMServer(environment, wg, tcb.smExtensions, listener)
 	tcb.Servers[SMServer] = smServer
 
 	SM := httpexpect.New(ginkgo.GinkgoT(), smServer.URL())
@@ -359,6 +485,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 
 	testContext := &TestContext{
 		wg:                   wg,
+		Config:               config,
 		SM:                   &SMExpect{Expect: SM},
 		SMWithOAuth:          &SMExpect{Expect: SMWithOAuth},
 		SMWithOAuthForTenant: &SMExpect{Expect: SMWithOAuthForTenant},
@@ -415,7 +542,7 @@ func NewSMListener() (net.Listener, error) {
 	return nil, fmt.Errorf("unable to create sm listener: %s", err)
 }
 
-func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.TransactionalRepository, *operations.Scheduler) {
+func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.TransactionalRepository, *operations.Scheduler, *config.Settings) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	cfg, err := config.New(smEnv)
@@ -455,15 +582,62 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	return &testSMServer{
 		cancel: cancel,
 		Server: testServer,
-	}, smb.Storage, scheduler
+	}, smb.Storage, scheduler, cfg
 }
 
-func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) (string, Object, *BrokerServer) {
+func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) *BrokerUtils {
 	return ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, brokerData, ctx.SMWithOAuth)
 }
 
-func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatalog, brokerData Object, expect *SMExpect) (string, Object, *BrokerServer) {
+func (ctx *TestContext) RegisterBrokerWithRandomCatalogAndTLS(expect *SMExpect) *BrokerUtils {
+	generatedCatalog := NewRandomSBCatalog()
+	brokerServerWithTLS := NewBrokerServerWithTLSAndCatalog(generatedCatalog)
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	UUID2, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+
+	brokerJSONWithTLS := Object{
+		"name":        BrokerServerPrefixTLS + UUID.String(),
+		"broker_url":  brokerServerWithTLS.URL(),
+		"description": BrokerServerPrefixTLS + UUID2.String(),
+		"credentials": Object{
+			"basic": Object{
+				"username": brokerServerWithTLS.Username,
+				"password": brokerServerWithTLS.Password,
+			},
+			"tls": Object{
+				"client_certificate": tls_settings.ClientCertificate,
+				"client_key":         tls_settings.ClientKey,
+			},
+		},
+	}
+	brokerTLS := RegisterBrokerInSM(brokerJSONWithTLS, expect, map[string]string{})
+	tlsBrokerID := brokerTLS["id"].(string)
+	brokerJSONWithTLS["id"] = tlsBrokerID
+
+	brokerUtils := BrokerUtils{
+		BrokerWithTLS: BrokerContext{
+			BrokerServer:     brokerServerWithTLS,
+			JSON:             brokerTLS,
+			ID:               tlsBrokerID,
+			GeneratedCatalog: generatedCatalog,
+		},
+	}
+	ctx.Servers[BrokerServerPrefix+tlsBrokerID] = brokerServerWithTLS
+	return &brokerUtils
+
+}
+
+func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatalog, brokerData Object, expect *SMExpect) *BrokerUtils {
 	brokerServer := NewBrokerServerWithCatalog(catalog)
+	generatedCatalog := NewRandomSBCatalog()
+	brokerServerWithTLS := NewBrokerServerWithTLSAndCatalog(generatedCatalog)
+
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
@@ -485,13 +659,23 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatal
 	}
 
 	MergeObjects(brokerJSON, brokerData)
-
 	broker := RegisterBrokerInSM(brokerJSON, expect, map[string]string{})
 	brokerID := broker["id"].(string)
+
 	brokerServer.ResetCallHistory()
+	brokerServerWithTLS.ResetCallHistory()
 	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
 	brokerJSON["id"] = brokerID
-	return brokerID, broker, brokerServer
+
+	brokerUtils := BrokerUtils{
+		Broker: BrokerContext{
+			BrokerServer: brokerServer,
+			JSON:         broker,
+			ID:           brokerID,
+		},
+	}
+
+	return &brokerUtils
 }
 
 func MergeObjects(target, source Object) {
@@ -518,11 +702,11 @@ func MergeObjects(target, source Object) {
 	}
 }
 
-func (ctx *TestContext) RegisterBrokerWithCatalog(catalog SBCatalog) (string, Object, *BrokerServer) {
+func (ctx *TestContext) RegisterBrokerWithCatalog(catalog SBCatalog) *BrokerUtils {
 	return ctx.RegisterBrokerWithCatalogAndLabels(catalog, Object{})
 }
 
-func (ctx *TestContext) RegisterBroker() (string, Object, *BrokerServer) {
+func (ctx *TestContext) RegisterBroker() *BrokerUtils {
 	return ctx.RegisterBrokerWithCatalog(NewRandomSBCatalog())
 }
 

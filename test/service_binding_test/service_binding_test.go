@@ -19,12 +19,13 @@ package service_binding_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/query"
 	"net/http"
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/gofrs/uuid"
@@ -511,6 +512,61 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 
+							for _, bindingRetrievable := range []bool{true, false} {
+								bindingRetrievable := bindingRetrievable
+								When(fmt.Sprintf("plan specifies binding_retrievable %t", bindingRetrievable), func() {
+									BeforeEach(func() {
+										brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut, func(req *http.Request) (int, map[string]interface{}) {
+											acceptsIncomplete := req.FormValue("accepts_incomplete")
+											if len(acceptsIncomplete) == 0 {
+												acceptsIncomplete = "false"
+											}
+											Expect(acceptsIncomplete).To(Equal(strconv.FormatBool(bindingRetrievable)))
+
+											return http.StatusCreated, Object{}
+										})
+										servicePlanID = findPlanIDForBrokerIDAndBindingRetrievable(ctx, brokerID, bindingRetrievable)
+										EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+										resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    instanceID,
+											Type:  types.ServiceInstanceType,
+											Ready: true,
+										})
+
+										postBindingRequest["name"] = "test-binding-retrievable-name"
+										postBindingRequest["service_instance_id"] = instanceID
+									})
+
+									It("successfully creates binding", func() {
+										resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceBindingType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    bindingID,
+											Type:  types.ServiceBindingType,
+											Ready: true,
+										})
+									})
+								})
+							}
+
 							When("a create operation is already in progress", func() {
 								var doneChannel chan interface{}
 
@@ -903,7 +959,7 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										}
 
-										bindingID, _ = VerifyOperationExists(ctx, fmt.Sprintf("%s/%s%s/%s", web.ServiceBindingsURL, operation.ResourceID, web.OperationsURL, operation.ID), operationExpectation)
+										bindingID, _ = VerifyOperationExists(ctx, fmt.Sprintf("%s/%s%s/%s", web.ServiceBindingsURL, operation.ResourceID, web.ResourceOperationsURL, operation.ID), operationExpectation)
 										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
 											ID:   bindingID,
 											Type: types.ServiceBindingType,
@@ -1297,6 +1353,76 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 							})
+
+							for _, bindingRetrievable := range []bool{true, false} {
+								bindingRetrievable := bindingRetrievable
+								When(fmt.Sprintf("plan specifies binding_retrievable %t", bindingRetrievable), func() {
+									BeforeEach(func() {
+										brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete, func(req *http.Request) (int, map[string]interface{}) {
+											acceptsIncomplete := req.FormValue("accepts_incomplete")
+											if len(acceptsIncomplete) == 0 {
+												acceptsIncomplete = "false"
+											}
+											Expect(acceptsIncomplete).To(Equal(strconv.FormatBool(bindingRetrievable)))
+
+											return http.StatusOK, Object{}
+										})
+										servicePlanID = findPlanIDForBrokerIDAndBindingRetrievable(ctx, brokerID, bindingRetrievable)
+										EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+
+										resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    instanceID,
+											Type:  types.ServiceInstanceType,
+											Ready: true,
+										})
+
+										postBindingRequest["name"] = "test-binding-retrievable-name"
+										postBindingRequest["service_instance_id"] = instanceID
+										resp = createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceBindingType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    bindingID,
+											Type:  types.ServiceBindingType,
+											Ready: true,
+										})
+									})
+
+									It("successfully deletes binding", func() {
+										resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceBindingType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:   bindingID,
+											Type: types.ServiceBindingType,
+										})
+									})
+								})
+							}
 
 							When("a delete operation is already in progress", func() {
 								var doneChannel chan interface{}
@@ -1918,7 +2044,7 @@ func blueprint(ctx *TestContext, _ *SMExpect, async bool) Object {
 }
 
 func newServicePlan(ctx *TestContext, bindable bool) (string, *BrokerServer, string) {
-	brokerID, _, brokerServer := ctx.RegisterBrokerWithCatalog(NewRandomSBCatalog())
+	brokerID, _, brokerServer := ctx.RegisterBrokerWithCatalog(NewRandomSBCatalog()).GetBrokerAsParams()
 	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
 	servicePlanID := findPlanIDForBrokerID(ctx, brokerID, bindable)
 	return brokerID, brokerServer, servicePlanID
@@ -1928,6 +2054,15 @@ func findPlanIDForBrokerID(ctx *TestContext, brokerID string, bindable bool) str
 	so := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
 	servicePlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s' and bindable eq %t", so.Object().Value("id").String().Raw(), bindable)).
 		First().Object().Value("id").String().Raw()
+
+	return servicePlanID
+}
+
+func findPlanIDForBrokerIDAndBindingRetrievable(ctx *TestContext, brokerID string, bindingRetrievable bool) string {
+	so := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s' and bindings_retrievable eq %t", brokerID, bindingRetrievable)).First()
+	servicePlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).
+		First().Object().Value("id").String().Raw()
+	Expect(servicePlanID).ToNot(BeEmpty())
 
 	return servicePlanID
 }

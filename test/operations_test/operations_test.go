@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Peripli/service-manager/test"
+	"github.com/gofrs/uuid"
 	"net/http"
 	"sync"
 	"testing"
@@ -47,328 +48,386 @@ func TestOperations(t *testing.T) {
 	RunSpecs(t, "Operations Tests Suite")
 }
 
-var _ = Describe("Operations", func() {
-	var ctx *TestContext
+var _ = test.DescribeTestsFor(test.TestCase{
+	API: web.OperationsURL,
+	SupportedOps: []test.Op{
+		test.List, test.Delete,
+	},
+	DisableTenantResources:                 true,
+	DisableBasicAuth:                       true,
+	ResourceBlueprint:                      blueprint,
+	ResourceWithoutNullableFieldsBlueprint: blueprint,
+	PatchResource:                          test.StorageResourcePatch,
+	ResourcePropertiesToIgnore:             []string{"transitive_resources"},
+	AdditionalTests: func(ctx *TestContext, t *test.TestCase) {
+		Describe("Operations", func() {
+			var ctx *TestContext
 
-	AfterEach(func() {
-		ctx.Cleanup()
-	})
-
-	Context("Scheduler", func() {
-		BeforeEach(func() {
-			postHook := func(e env.Environment, servers map[string]FakeServer) {
-				e.Set("operations.action_timeout", 5*time.Nanosecond)
-				e.Set("operations.mark_orphans_interval", 1*time.Hour)
-			}
-
-			ctx = NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
-		})
-
-		When("job timeout runs out", func() {
-			It("marks operation as failed", func() {
-				brokerServer := NewBrokerServer()
-				ctx.Servers[BrokerServerPrefix+"123"] = brokerServer
-				postBrokerRequestWithNoLabels := Object{
-					"id":         "123",
-					"name":       "test-broker",
-					"broker_url": brokerServer.URL(),
-					"credentials": Object{
-						"basic": Object{
-							"username": brokerServer.Username,
-							"password": brokerServer.Password,
-						},
-					},
-				}
-
-				resp := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithNoLabels).
-					WithQuery("async", "true").
-					Expect().
-					Status(http.StatusAccepted)
-
-				VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-					Category:          types.CREATE,
-					State:             types.FAILED,
-					ResourceType:      types.ServiceBrokerType,
-					Reschedulable:     false,
-					DeletionScheduled: false,
-					Error:             "could not reach service broker",
-				})
+			AfterEach(func() {
+				ctx.Cleanup()
 			})
-		})
 
-		When("when there are no available workers", func() {
-			It("returns 503", func() {
-				brokerServer := NewBrokerServer()
-				postBrokerRequestWithNoLabels := Object{
-					"name":       "test-broker",
-					"broker_url": brokerServer.URL(),
-					"credentials": Object{
-						"basic": Object{
-							"username": brokerServer.Username,
-							"password": brokerServer.Password,
-						},
-					},
-				}
-
-				requestCount := 100
-				resultChan := make(chan struct{}, requestCount)
-				executeReq := func() {
-					resp := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithNoLabels).
-						WithQuery("async", "true").Expect()
-					if resp.Raw().StatusCode == http.StatusServiceUnavailable {
-						resultChan <- struct{}{}
+			Context("Scheduler", func() {
+				BeforeEach(func() {
+					postHook := func(e env.Environment, servers map[string]FakeServer) {
+						e.Set("operations.action_timeout", 5*time.Nanosecond)
+						e.Set("operations.mark_orphans_interval", 1*time.Hour)
 					}
-				}
 
-				for i := 0; i < requestCount; i++ {
-					go executeReq()
-				}
-
-				ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-
-				select {
-				case <-ctxWithTimeout.Done():
-					Fail("expected to get 503 from server due to too many async requests but didn't")
-				case <-resultChan:
-				}
-			})
-		})
-
-	})
-
-	Context("Jobs", func() {
-
-		var operation *types.Operation
-
-		BeforeEach(func() {
-			operation = &types.Operation{
-				Base: types.Base{
-					ID:        defaultOperationID,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-					Labels:    make(map[string][]string),
-					Ready:     true,
-				},
-				Description:       "",
-				Type:              types.CREATE,
-				State:             types.IN_PROGRESS,
-				ResourceID:        "test-resource-id",
-				ResourceType:      web.ServiceBrokersURL,
-				CorrelationID:     "test-correlation-id",
-				Reschedule:        false,
-				DeletionScheduled: time.Time{},
-			}
-
-			ctx = NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-				testController := panicController{
-					operation: operation,
-					scheduler: operations.NewScheduler(ctx, smb.Storage, operations.DefaultSettings(), 10, &sync.WaitGroup{}),
-				}
-
-				smb.RegisterControllers(testController)
-				return nil
-			}).Build()
-
-		})
-
-		When("job panics", func() {
-			It("recovers successfully and marks operation as failed", func() {
-				ctx.SM.GET(web.MonitorHealthURL).Expect().Status(http.StatusOK)
-				ctx.SM.GET(testControllerURL).Expect()
-				ctx.SM.GET(web.MonitorHealthURL).Expect().Status(http.StatusOK)
-
-				var respBody *httpexpect.Object
-				Eventually(func() string {
-					respBody = ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s%s/%s", operation.ResourceType, operation.ResourceID, web.OperationsURL, operation.ID)).
-						Expect().Status(http.StatusOK).JSON().Object()
-					return respBody.Value("state").String().Raw()
-				}, 2*time.Second).Should(Equal("failed"))
-
-				Expect(respBody.Value("errors").Object().Value("description").String().Raw()).To(ContainSubstring("job interrupted"))
-			})
-		})
-	})
-
-	Context("Maintainer", func() {
-		const (
-			actionTimeout       = 1 * time.Second
-			cleanupInterval     = 2 * time.Second
-			operationExpiration = 2 * time.Second
-		)
-
-		var ctxBuilder *TestContextBuilder
-
-		postHookWithOperationsConfig := func() func(e env.Environment, servers map[string]FakeServer) {
-			return func(e env.Environment, servers map[string]FakeServer) {
-				e.Set("operations.action_timeout", actionTimeout)
-				e.Set("operations.cleanup_interval", cleanupInterval)
-				e.Set("operations.lifespan", operationExpiration)
-				e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)
-			}
-		}
-
-		assertOperationCount := func(expectedCount int, criterion ...query.Criterion) {
-			count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, criterion...)
-			Expect(err).To(BeNil())
-			Expect(count).To(Equal(expectedCount))
-		}
-
-		BeforeEach(func() {
-			postHook := postHookWithOperationsConfig()
-			ctxBuilder = NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook)
-			ctx = ctxBuilder.Build()
-		})
-
-		When("Specified cleanup interval passes", func() {
-			Context("operation platform is service Manager", func() {
-				It("Deletes operations older than that interval", func() {
-					ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
-						Expect().
-						Status(http.StatusAccepted)
-
-					byPlatformID := query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform)
-					assertOperationCount(2, byPlatformID)
-
-					Eventually(func() int {
-						count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
-						Expect(err).To(BeNil())
-
-						return count
-					}, cleanupInterval*2).Should(Equal(0))
+					ctx = NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
 				})
+
+				When("job timeout runs out", func() {
+					It("marks operation as failed", func() {
+						brokerServer := NewBrokerServer()
+						ctx.Servers[BrokerServerPrefix+"123"] = brokerServer
+						postBrokerRequestWithNoLabels := Object{
+							"id":         "123",
+							"name":       "test-broker",
+							"broker_url": brokerServer.URL(),
+							"credentials": Object{
+								"basic": Object{
+									"username": brokerServer.Username,
+									"password": brokerServer.Password,
+								},
+							},
+						}
+
+						resp := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithNoLabels).
+							WithQuery("async", "true").
+							Expect().
+							Status(http.StatusAccepted)
+
+						VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+							Category:          types.CREATE,
+							State:             types.FAILED,
+							ResourceType:      types.ServiceBrokerType,
+							Reschedulable:     false,
+							DeletionScheduled: false,
+							Error:             "could not reach service broker",
+						})
+					})
+				})
+
+				When("when there are no available workers", func() {
+					It("returns 503", func() {
+						brokerServer := NewBrokerServer()
+						postBrokerRequestWithNoLabels := Object{
+							"name":       "test-broker",
+							"broker_url": brokerServer.URL(),
+							"credentials": Object{
+								"basic": Object{
+									"username": brokerServer.Username,
+									"password": brokerServer.Password,
+								},
+							},
+						}
+
+						requestCount := 100
+						resultChan := make(chan struct{}, requestCount)
+						executeReq := func() {
+							resp := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithNoLabels).
+								WithQuery("async", "true").Expect()
+							if resp.Raw().StatusCode == http.StatusServiceUnavailable {
+								resultChan <- struct{}{}
+							}
+						}
+
+						for i := 0; i < requestCount; i++ {
+							go executeReq()
+						}
+
+						ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+						defer cancel()
+
+						select {
+						case <-ctxWithTimeout.Done():
+							Fail("expected to get 503 from server due to too many async requests but didn't")
+						case <-resultChan:
+						}
+					})
+				})
+
 			})
 
-			Context("operation platform is platform registered in service manager", func() {
-				const (
-					brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
-					brokerAPIVersionHeaderValue = "2.13"
+			Context("Jobs", func() {
 
-					serviceID = "test-service-1"
-					planID    = "test-service-plan-1"
-				)
-
-				var (
-					brokerID     string
-					catalog      SBCatalog
-					brokerServer *BrokerServer
-				)
-
-				asyncProvision := func() {
-					username, password := test.RegisterBrokerPlatformCredentials(ctx.SMWithBasic, brokerID)
-					ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
-					ctx.SMWithBasic.PUT(brokerServer.URL()+"/v1/osb/"+brokerID+"/v2/service_instances/12345").
-						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-						WithQuery("async", true).
-						WithJSON(map[string]interface{}{
-							"service_id":        serviceID,
-							"plan_id":           planID,
-							"organization_guid": "my-org",
-						}).
-						Expect().Status(http.StatusAccepted)
-				}
+				var operation *types.Operation
 
 				BeforeEach(func() {
-					catalog = simpleCatalog(serviceID, planID)
-					catalog = simpleCatalog(serviceID, planID)
-					ctx.RegisterPlatform()
-					brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
-					brokerServer.ServiceInstanceHandler = func(rw http.ResponseWriter, _ *http.Request) {
-						rw.Header().Set("Content-Type", "application/json")
-						rw.WriteHeader(http.StatusAccepted)
-					}
-					CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
-				})
-
-				AfterEach(func() {
-					RemoveAllInstances(ctx)
-					ctx.CleanupBroker(brokerID)
-				})
-
-				It("Deletes operations older than that interval", func() {
-					asyncProvision()
-					byPlatformID := query.ByField(query.NotEqualsOperator, "platform_id", types.SMPlatform)
-
-					assertOperationCount(1, byPlatformID)
-
-					Eventually(func() int {
-						count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
-						Expect(err).To(BeNil())
-
-						return count
-					}, cleanupInterval*2).Should(Equal(0))
-				})
-			})
-
-			Context("with external operations for Service Manager", func() {
-				BeforeEach(func() {
-					operation := &types.Operation{
+					operation = &types.Operation{
 						Base: types.Base{
 							ID:        defaultOperationID,
-							UpdatedAt: time.Now().Add(-cleanupInterval + time.Second),
+							CreatedAt: time.Now(),
+							UpdatedAt: time.Now(),
 							Labels:    make(map[string][]string),
 							Ready:     true,
 						},
-						Reschedule:    false,
-						Type:          types.CREATE,
-						State:         types.IN_PROGRESS,
-						ResourceID:    "test-resource-id",
-						ResourceType:  web.ServiceBrokersURL,
-						PlatformID:    "cloudfoundry",
-						CorrelationID: "test-correlation-id",
+						Description:       "",
+						Type:              types.CREATE,
+						State:             types.IN_PROGRESS,
+						ResourceID:        "test-resource-id",
+						ResourceType:      web.ServiceBrokersURL,
+						CorrelationID:     "test-correlation-id",
+						Reschedule:        false,
+						DeletionScheduled: time.Time{},
 					}
-					object, err := ctx.SMRepository.Create(context.Background(), operation)
-					Expect(err).To(BeNil())
-					Expect(object).To(Not(BeNil()))
+
+					ctx = NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+						testController := panicController{
+							operation: operation,
+							scheduler: operations.NewScheduler(ctx, smb.Storage, operations.DefaultSettings(), 10, &sync.WaitGroup{}),
+						}
+
+						smb.RegisterControllers(testController)
+						return nil
+					}).Build()
+
 				})
 
-				It("should cleanup external old ones", func() {
-					byPlatformID := query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform)
-					assertOperationCount(1, byPlatformID)
-					Eventually(func() int {
-						count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
-						Expect(err).To(BeNil())
+				When("job panics", func() {
+					It("recovers successfully and marks operation as failed", func() {
+						ctx.SM.GET(web.MonitorHealthURL).Expect().Status(http.StatusOK)
+						ctx.SM.GET(testControllerURL).Expect()
+						ctx.SM.GET(web.MonitorHealthURL).Expect().Status(http.StatusOK)
 
-						return count
-					}, operationExpiration*2).Should(Equal(0))
+						var respBody *httpexpect.Object
+						Eventually(func() string {
+							respBody = ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s%s/%s", operation.ResourceType, operation.ResourceID, web.ResourceOperationsURL, operation.ID)).
+								Expect().Status(http.StatusOK).JSON().Object()
+							return respBody.Value("state").String().Raw()
+						}, 2*time.Second).Should(Equal("failed"))
+
+						Expect(respBody.Value("errors").Object().Value("description").String().Raw()).To(ContainSubstring("job interrupted"))
+					})
 				})
 			})
-		})
 
-		When("Specified job timeout passes", func() {
-			It("Marks orphans as failed operations", func() {
-				operation := &types.Operation{
-					Base: types.Base{
-						ID:        defaultOperationID,
-						UpdatedAt: time.Now(),
-						Labels:    make(map[string][]string),
-						Ready:     true,
-					},
-					Reschedule:    false,
-					Type:          types.CREATE,
-					State:         types.IN_PROGRESS,
-					ResourceID:    "test-resource-id",
-					ResourceType:  web.ServiceBrokersURL,
-					PlatformID:    types.SMPlatform,
-					CorrelationID: "test-correlation-id",
+			Context("Maintainer", func() {
+				const (
+					actionTimeout       = 1 * time.Second
+					cleanupInterval     = 2 * time.Second
+					operationExpiration = 2 * time.Second
+				)
+
+				var ctxBuilder *TestContextBuilder
+
+				postHookWithOperationsConfig := func() func(e env.Environment, servers map[string]FakeServer) {
+					return func(e env.Environment, servers map[string]FakeServer) {
+						e.Set("operations.action_timeout", actionTimeout)
+						e.Set("operations.cleanup_interval", cleanupInterval)
+						e.Set("operations.lifespan", operationExpiration)
+						e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)
+					}
 				}
 
-				object, err := ctx.SMRepository.Create(context.Background(), operation)
-				Expect(err).To(BeNil())
-				Expect(object).To(Not(BeNil()))
-
-				Eventually(func() types.OperationState {
-					byID := query.ByField(query.EqualsOperator, "id", defaultOperationID)
-					object, err := ctx.SMRepository.Get(context.Background(), types.OperationType, byID)
+				assertOperationCount := func(expectedCount int, criterion ...query.Criterion) {
+					count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, criterion...)
 					Expect(err).To(BeNil())
+					Expect(count).To(Equal(expectedCount))
+				}
 
-					op := object.(*types.Operation)
-					return op.State
-				}, actionTimeout*5).Should(Equal(types.FAILED))
+				BeforeEach(func() {
+					postHook := postHookWithOperationsConfig()
+					ctxBuilder = NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook)
+					ctx = ctxBuilder.Build()
+				})
+
+				When("Specified cleanup interval passes", func() {
+					Context("operation platform is service Manager", func() {
+						It("Deletes operations older than that interval", func() {
+							ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
+								Expect().
+								Status(http.StatusAccepted)
+
+							byPlatformID := query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform)
+							assertOperationCount(2, byPlatformID)
+
+							Eventually(func() int {
+								count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
+								Expect(err).To(BeNil())
+
+								return count
+							}, cleanupInterval*2).Should(Equal(0))
+						})
+					})
+
+					Context("operation platform is platform registered in service manager", func() {
+						const (
+							brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
+							brokerAPIVersionHeaderValue = "2.13"
+
+							serviceID = "test-service-1"
+							planID    = "test-service-plan-1"
+						)
+
+						var (
+							brokerID     string
+							catalog      SBCatalog
+							brokerServer *BrokerServer
+						)
+
+						asyncProvision := func() {
+							ctx.SMWithBasic.PUT(brokerServer.URL()+"/v1/osb/"+brokerID+"/v2/service_instances/12345").
+								WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+								WithQuery("async", true).
+								WithJSON(map[string]interface{}{
+									"service_id":        serviceID,
+									"plan_id":           planID,
+									"organization_guid": "my-org",
+								}).
+								Expect().Status(http.StatusAccepted)
+						}
+
+						BeforeEach(func() {
+							catalog = simpleCatalog(serviceID, planID)
+							catalog = simpleCatalog(serviceID, planID)
+							ctx.RegisterPlatform()
+							brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
+							brokerServer.ServiceInstanceHandler = func(rw http.ResponseWriter, _ *http.Request) {
+								rw.Header().Set("Content-Type", "application/json")
+								rw.WriteHeader(http.StatusAccepted)
+							}
+							CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
+						})
+
+						AfterEach(func() {
+							RemoveAllInstances(ctx)
+							ctx.CleanupBroker(brokerID)
+						})
+
+						It("Deletes operations older than that interval", func() {
+							asyncProvision()
+							byPlatformID := query.ByField(query.NotEqualsOperator, "platform_id", types.SMPlatform)
+
+							assertOperationCount(1, byPlatformID)
+
+							Eventually(func() int {
+								count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
+								Expect(err).To(BeNil())
+
+								return count
+							}, cleanupInterval*2).Should(Equal(0))
+						})
+					})
+
+					Context("with external operations for Service Manager", func() {
+						BeforeEach(func() {
+							operation := &types.Operation{
+								Base: types.Base{
+									ID:        defaultOperationID,
+									UpdatedAt: time.Now().Add(-cleanupInterval + time.Second),
+									Labels:    make(map[string][]string),
+									Ready:     true,
+								},
+								Reschedule:    false,
+								Type:          types.CREATE,
+								State:         types.IN_PROGRESS,
+								ResourceID:    "test-resource-id",
+								ResourceType:  web.ServiceBrokersURL,
+								PlatformID:    "cloudfoundry",
+								CorrelationID: "test-correlation-id",
+							}
+							object, err := ctx.SMRepository.Create(context.Background(), operation)
+							Expect(err).To(BeNil())
+							Expect(object).To(Not(BeNil()))
+						})
+
+						It("should cleanup external old ones", func() {
+							byPlatformID := query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform)
+							assertOperationCount(1, byPlatformID)
+							Eventually(func() int {
+								count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
+								Expect(err).To(BeNil())
+
+								return count
+							}, operationExpiration*2).Should(Equal(0))
+						})
+					})
+				})
+
+				When("Specified job timeout passes", func() {
+					It("Marks orphans as failed operations", func() {
+						operation := &types.Operation{
+							Base: types.Base{
+								ID:        defaultOperationID,
+								UpdatedAt: time.Now(),
+								Labels:    make(map[string][]string),
+								Ready:     true,
+							},
+							Reschedule:    false,
+							Type:          types.CREATE,
+							State:         types.IN_PROGRESS,
+							ResourceID:    "test-resource-id",
+							ResourceType:  web.ServiceBrokersURL,
+							PlatformID:    types.SMPlatform,
+							CorrelationID: "test-correlation-id",
+						}
+
+						object, err := ctx.SMRepository.Create(context.Background(), operation)
+						Expect(err).To(BeNil())
+						Expect(object).To(Not(BeNil()))
+
+						Eventually(func() types.OperationState {
+							byID := query.ByField(query.EqualsOperator, "id", defaultOperationID)
+							object, err := ctx.SMRepository.Get(context.Background(), types.OperationType, byID)
+							Expect(err).To(BeNil())
+
+							op := object.(*types.Operation)
+							return op.State
+						}, actionTimeout*5).Should(Equal(types.FAILED))
+					})
+				})
 			})
 		})
-	})
+	},
 })
+
+func blueprint(ctx *TestContext, auth *SMExpect, _ bool) Object {
+	cPaidPlan := GeneratePaidTestPlan()
+	cService := GenerateTestServiceWithPlans(cPaidPlan)
+	catalog := NewEmptySBCatalog()
+	catalog.AddService(cService)
+
+	brokerServer := NewBrokerServerWithCatalog(catalog)
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	UUID2, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	brokerJSON := Object{
+		"name":        UUID.String(),
+		"broker_url":  brokerServer.URL(),
+		"description": UUID2.String(),
+		"credentials": Object{
+			"basic": Object{
+				"username": brokerServer.Username,
+				"password": brokerServer.Password,
+			},
+		},
+	}
+	resp := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(brokerJSON).
+		WithQuery("async", "true").
+		Expect().
+		Status(http.StatusAccepted)
+
+	ctx.Servers[BrokerServerPrefix+UUID.String()] = brokerServer
+
+	operationURL := resp.Header("Location").Raw()
+
+	VerifyOperationExists(ctx, operationURL, OperationExpectations{
+		Category:          types.CREATE,
+		State:             types.SUCCEEDED,
+		ResourceType:      types.ServiceBrokerType,
+		Reschedulable:     false,
+		DeletionScheduled: false,
+	})
+
+	return ctx.SMWithOAuth.GET(operationURL).Expect().Status(http.StatusOK).JSON().Object().Raw()
+}
 
 func simpleCatalog(serviceID, planID string) SBCatalog {
 	return SBCatalog(fmt.Sprintf(`{

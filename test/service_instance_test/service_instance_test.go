@@ -62,6 +62,17 @@ const (
 	TenantIDValue    = "tenantID"
 )
 
+func checkInstance(req *http.Request) (int, map[string]interface{}) {
+	body, err := util.BodyToBytes(req.Body)
+	Expect(err).ToNot(HaveOccurred())
+	tenantValue := gjson.GetBytes(body, "context."+TenantIdentifier).String()
+	Expect(tenantValue).To(Equal(TenantIDValue))
+	platformValue := gjson.GetBytes(body, "context.platform").String()
+	Expect(platformValue).To(Equal(types.SMPlatform))
+
+	return http.StatusCreated, Object{}
+}
+
 var _ = DescribeTestsFor(TestCase{
 	API: web.ServiceInstancesURL,
 	SupportedOps: []Op{
@@ -88,14 +99,17 @@ var _ = DescribeTestsFor(TestCase{
 	AdditionalTests: func(ctx *TestContext, t *TestCase) {
 		Context("additional non-generic tests", func() {
 			var (
-				postInstanceRequest  Object
-				patchInstanceRequest Object
+				postInstanceRequest    Object
+				postInstanceRequestTLS Object
+				patchInstanceRequest   Object
 
 				servicePlanID               string
+				servicePlanIDWithTLS        string
 				anotherServicePlanCatalogID string
 				anotherServicePlanID        string
 				brokerID                    string
 				brokerServer                *BrokerServer
+				brokerServerWithTLS         *BrokerServer
 				instanceID                  string
 			)
 
@@ -116,6 +130,14 @@ var _ = DescribeTestsFor(TestCase{
 					expectedDeleteSuccessStatusCode: http.StatusOK,
 					expectedBrokerFailureStatusCode: http.StatusBadGateway,
 					expectedSMCrashStatusCode:       http.StatusBadGateway,
+				},
+				{
+					async:                           true,
+					expectedCreateSuccessStatusCode: http.StatusAccepted,
+					expectedUpdateSuccessStatusCode: http.StatusAccepted,
+					expectedDeleteSuccessStatusCode: http.StatusAccepted,
+					expectedBrokerFailureStatusCode: http.StatusAccepted,
+					expectedSMCrashStatusCode:       http.StatusAccepted,
 				},
 			}
 
@@ -155,16 +177,28 @@ var _ = DescribeTestsFor(TestCase{
 				ID, err := uuid.NewV4()
 				Expect(err).ToNot(HaveOccurred())
 				var plans *httpexpect.Array
-				brokerID, brokerServer, plans = prepareBrokerWithCatalog(ctx, ctx.SMWithOAuth)
+				brokerUtils, plans := prepareBrokerWithCatalog(ctx, ctx.SMWithOAuth)
+				brokerID = brokerUtils.Broker.ID
+				brokerUtils.BrokerWithTLS = ctx.RegisterBrokerWithRandomCatalogAndTLS(ctx.SMWithOAuth).BrokerWithTLS
+				brokerServer = brokerUtils.Broker.BrokerServer
+				brokerServerWithTLS = brokerUtils.BrokerWithTLS.BrokerServer
+				brokerServerWithTLS.ShouldRecordRequests(false)
 				brokerServer.ShouldRecordRequests(false)
 				servicePlanID = plans.Element(0).Object().Value("id").String().Raw()
 				anotherServicePlanCatalogID = plans.Element(1).Object().Value("catalog_id").String().Raw()
 				anotherServicePlanID = plans.Element(1).Object().Value("id").String().Raw()
+
 				postInstanceRequest = Object{
 					"name":             "test-instance" + ID.String(),
 					"service_plan_id":  servicePlanID,
 					"maintenance_info": "{}",
 				}
+
+				prepareBrokerWithCatalog(ctx, ctx.SMWithOAuth)
+				postInstanceRequestTLS, servicePlanIDWithTLS = brokerUtils.SetAuthContext(ctx.SMWithOAuth).
+					GetServiceOfferings(brokerUtils.BrokerWithTLS.ID).GetServicePlans(0, "id").
+					GetPlan(0, "id").
+					GetAsServiceInstancePayload()
 
 				patchInstanceRequest = Object{}
 			})
@@ -230,6 +264,25 @@ var _ = DescribeTestsFor(TestCase{
 									Status(http.StatusUnsupportedMediaType).
 									JSON().Object().
 									Keys().Contains("error", "description")
+							})
+						})
+
+						When("Create service instance sm as a platform tls broker", func() {
+							It("returns 202", func() {
+								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanIDWithTLS, TenantIDValue)
+								ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+									WithQuery("async", true).
+									WithJSON(postInstanceRequestTLS).
+									Expect().Status(http.StatusAccepted)
+
+							})
+
+							It("returns 201", func() {
+								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanIDWithTLS, TenantIDValue)
+								ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+									WithQuery("async", false).
+									WithJSON(postInstanceRequestTLS).
+									Expect().Status(http.StatusCreated)
 							})
 						})
 
@@ -344,16 +397,8 @@ var _ = DescribeTestsFor(TestCase{
 
 						Context("OSB context", func() {
 							BeforeEach(func() {
-								brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", func(req *http.Request) (int, map[string]interface{}) {
-									body, err := util.BodyToBytes(req.Body)
-									Expect(err).ToNot(HaveOccurred())
-									tenantValue := gjson.GetBytes(body, "context."+TenantIdentifier).String()
-									Expect(tenantValue).To(Equal(TenantIDValue))
-									platformValue := gjson.GetBytes(body, "context.platform").String()
-									Expect(platformValue).To(Equal(types.SMPlatform))
-
-									return http.StatusCreated, Object{}
-								})
+								brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", checkInstance)
+								brokerServerWithTLS.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", checkInstance)
 							})
 
 							It("enriches the osb context with the tenant and sm platform", func() {
@@ -863,7 +908,7 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										}
 
-										instanceID, _ = VerifyOperationExists(ctx, fmt.Sprintf("%s/%s%s/%s", web.ServiceInstancesURL, operation.ResourceID, web.OperationsURL, operation.ID), operationExpectation)
+										instanceID, _ = VerifyOperationExists(ctx, fmt.Sprintf("%s/%s%s/%s", web.ServiceInstancesURL, operation.ResourceID, web.ResourceOperationsURL, operation.ID), operationExpectation)
 										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
 											ID:   instanceID,
 											Type: types.ServiceInstanceType,
@@ -2578,7 +2623,7 @@ func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
 
 	instanceReqBody := make(Object, 0)
 	instanceReqBody["name"] = "test-service-instance-" + ID.String()
-	_, _, array := prepareBrokerWithCatalog(ctx, auth)
+	_, array := prepareBrokerWithCatalog(ctx, auth)
 	instanceReqBody["service_plan_id"] = array.First().Object().Value("id").String().Raw()
 
 	EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, instanceReqBody["service_plan_id"].(string), TenantIDValue)
@@ -2608,16 +2653,18 @@ func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
 	return instance
 }
 
-func prepareBrokerWithCatalog(ctx *TestContext, auth *SMExpect) (string, *BrokerServer, *httpexpect.Array) {
+func prepareBrokerWithCatalog(ctx *TestContext, auth *SMExpect) (*BrokerUtils, *httpexpect.Array) {
 	cPaidPlan1 := GeneratePaidTestPlan()
 	cPaidPlan2 := GeneratePaidTestPlan()
 	cService := GenerateTestServiceWithPlans(cPaidPlan1, cPaidPlan2)
 	catalog := NewEmptySBCatalog()
 	catalog.AddService(cService)
-	brokerID, _, server := ctx.RegisterBrokerWithCatalog(catalog)
-	ctx.Servers[BrokerServerPrefix+brokerID] = server
+	brokerUtils := ctx.RegisterBrokerWithCatalog(catalog)
+	brokerID := brokerUtils.Broker.ID
+	server := brokerUtils.Broker.BrokerServer
 
+	ctx.Servers[BrokerServerPrefix+brokerID] = server
 	so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
 
-	return brokerID, server, auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw()))
+	return brokerUtils, auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw()))
 }
