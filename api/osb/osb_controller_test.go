@@ -63,7 +63,7 @@ var _ = Describe("OSB Controller test", func() {
 			reverseProxy, _ := buildProxy(targetBrokerURL, &logger, &brokerTLS)
 			Expect(reverseProxy).NotTo(Equal(nil))
 			reverseProxy2, _ := buildProxy(targetBrokerURL, &logger, &brokerTLS)
-			Expect(reverseProxy2.Transport == reverseProxy.Transport).To(Equal(false))
+			Expect(reverseProxy2.Transport).ToNot(BeIdenticalTo(reverseProxy.Transport))
 		})
 	})
 })

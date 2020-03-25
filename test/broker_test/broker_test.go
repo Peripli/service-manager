@@ -827,12 +827,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						It("when credentials do not contain a certificate", func() {
 							updatedCredentials := Object{
-								"credentials": Object{
-									"tls": Object{
-										"client_certificate": "",
-										"client_key":         "",
-									},
-								},
+								"credentials": Object{},
 							}
 							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).
 								Expect().

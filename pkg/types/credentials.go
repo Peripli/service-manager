@@ -58,23 +58,26 @@ func (c *Credentials) MarshalJSON() ([]byte, error) {
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (c *Credentials) Validate() error {
-
-	if c.TLS == nil || (TLS{}) == *c.TLS {
-		if c.Basic == nil {
-			return errors.New("missing broker credentials")
-		}
+	if c.Basic != nil {
 		if c.Basic.Username == "" {
 			return errors.New("missing broker username")
 		}
 		if c.Basic.Password == "" {
 			return errors.New("missing broker password")
 		}
-	} else {
+	}
+
+	if c.TLS != nil {
 		_, err := tls.X509KeyPair([]byte(c.TLS.Certificate), []byte(c.TLS.Key))
 		if err != nil {
 			return errors.New("invalidate TLS configuration: " + err.Error())
 		}
 	}
+
+	if c.TLS == nil && c.Basic == nil {
+		return errors.New("missing broker credentials, basic or tls credentials are required")
+	}
+
 	return nil
 }
 

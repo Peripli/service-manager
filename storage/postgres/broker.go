@@ -52,6 +52,20 @@ func (e *Broker) ToObject() (types.Object, error) {
 		}
 		services = append(services, serviceObject.(*types.ServiceOffering))
 	}
+
+	var tls *types.TLS
+	if e.TlsClientCertificate != "" || e.TlsClientKey != "" {
+		tls = &types.TLS{Certificate: e.TlsClientCertificate, Key: e.TlsClientKey}
+	}
+
+	var basic *types.Basic
+	if e.Username != "" || e.Password != "" {
+		basic = &types.Basic{
+			Username: e.Username,
+			Password: e.Password,
+		}
+	}
+
 	broker := &types.ServiceBroker{
 		Base: types.Base{
 			ID:             e.ID,
@@ -65,11 +79,8 @@ func (e *Broker) ToObject() (types.Object, error) {
 		Description: e.Description.String,
 		BrokerURL:   e.BrokerURL,
 		Credentials: &types.Credentials{
-			Basic: &types.Basic{
-				Username: e.Username,
-				Password: e.Password,
-			},
-			TLS:       &types.TLS{Certificate: e.TlsClientCertificate, Key: e.TlsClientKey},
+			Basic:     basic,
+			TLS:       tls,
 			Integrity: e.Integrity,
 		},
 		Catalog:  getJSONRawMessage(e.Catalog),
