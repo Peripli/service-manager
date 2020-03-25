@@ -206,6 +206,7 @@ type TestContext struct {
 	wg            *sync.WaitGroup
 	wsConnections []*websocket.Conn
 
+	Config      *config.Settings
 	SM          *SMExpect
 	SMWithOAuth *SMExpect
 	// Requests a token the the "multitenant" oauth client - then token issued by this client contains
@@ -466,7 +467,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 	}
 	wg := &sync.WaitGroup{}
 
-	smServer, smRepository, smScheduler := newSMServer(environment, wg, tcb.smExtensions, listener)
+	smServer, smRepository, smScheduler, config := newSMServer(environment, wg, tcb.smExtensions, listener)
 	tcb.Servers[SMServer] = smServer
 
 	SM := httpexpect.New(ginkgo.GinkgoT(), smServer.URL())
@@ -484,6 +485,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 
 	testContext := &TestContext{
 		wg:                   wg,
+		Config:               config,
 		SM:                   &SMExpect{Expect: SM},
 		SMWithOAuth:          &SMExpect{Expect: SMWithOAuth},
 		SMWithOAuthForTenant: &SMExpect{Expect: SMWithOAuthForTenant},
@@ -540,7 +542,7 @@ func NewSMListener() (net.Listener, error) {
 	return nil, fmt.Errorf("unable to create sm listener: %s", err)
 }
 
-func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.TransactionalRepository, *operations.Scheduler) {
+func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.TransactionalRepository, *operations.Scheduler, *config.Settings) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	cfg, err := config.New(smEnv)
@@ -580,7 +582,7 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	return &testSMServer{
 		cancel: cancel,
 		Server: testServer,
-	}, smb.Storage, scheduler
+	}, smb.Storage, scheduler, cfg
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) *BrokerUtils {

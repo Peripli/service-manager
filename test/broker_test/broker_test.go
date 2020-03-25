@@ -402,7 +402,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						httpclient.Configure(http.DefaultTransport.(*http.Transport))
 					})
 
-					FContext("when broker basic and user auth are both configured", func() {
+					Context("when broker basic and user auth are both configured", func() {
 						It("returns StatusCreated", func() {
 							reply := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLSandBasic).
 								Expect().
@@ -682,6 +682,25 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							}
 						}
 						Expect(transitiveResourcesActualCount).To(Equal(transitiveResourcesExpectedCount))
+					})
+				})
+
+				Context("when broker is responding slow", func() {
+					It("should timeout", func() {
+						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
+							rw.WriteHeader(http.StatusOK)
+							if fl, ok := rw.(http.Flusher); ok {
+								for i := 0; i < 30; i++ {
+									fmt.Fprintf(rw, "Chunk %d", i)
+									fl.Flush()
+									time.Sleep(time.Millisecond * 100)
+								}
+							}
+						}
+
+						ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithNoLabels).
+							Expect().
+							Status(http.StatusGatewayTimeout)
 					})
 				})
 			})

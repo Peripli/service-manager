@@ -93,6 +93,21 @@ type FakeStorage struct {
 		result1 types.Object
 		result2 error
 	}
+	GetForUpdateStub        func(context.Context, types.ObjectType, ...query.Criterion) (types.Object, error)
+	getForUpdateMutex       sync.RWMutex
+	getForUpdateArgsForCall []struct {
+		arg1 context.Context
+		arg2 types.ObjectType
+		arg3 []query.Criterion
+	}
+	getForUpdateReturns struct {
+		result1 types.Object
+		result2 error
+	}
+	getForUpdateReturnsOnCall map[int]struct {
+		result1 types.Object
+		result2 error
+	}
 	InTransactionStub        func(context.Context, func(ctx context.Context, storage storage.Repository) error) error
 	inTransactionMutex       sync.RWMutex
 	inTransactionArgsForCall []struct {
@@ -540,6 +555,71 @@ func (fake *FakeStorage) GetReturnsOnCall(i int, result1 types.Object, result2 e
 	}{result1, result2}
 }
 
+func (fake *FakeStorage) GetForUpdate(arg1 context.Context, arg2 types.ObjectType, arg3 ...query.Criterion) (types.Object, error) {
+	fake.getForUpdateMutex.Lock()
+	ret, specificReturn := fake.getForUpdateReturnsOnCall[len(fake.getForUpdateArgsForCall)]
+	fake.getForUpdateArgsForCall = append(fake.getForUpdateArgsForCall, struct {
+		arg1 context.Context
+		arg2 types.ObjectType
+		arg3 []query.Criterion
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("GetForUpdate", []interface{}{arg1, arg2, arg3})
+	fake.getForUpdateMutex.Unlock()
+	if fake.GetForUpdateStub != nil {
+		return fake.GetForUpdateStub(arg1, arg2, arg3...)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.getForUpdateReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeStorage) GetForUpdateCallCount() int {
+	fake.getForUpdateMutex.RLock()
+	defer fake.getForUpdateMutex.RUnlock()
+	return len(fake.getForUpdateArgsForCall)
+}
+
+func (fake *FakeStorage) GetForUpdateCalls(stub func(context.Context, types.ObjectType, ...query.Criterion) (types.Object, error)) {
+	fake.getForUpdateMutex.Lock()
+	defer fake.getForUpdateMutex.Unlock()
+	fake.GetForUpdateStub = stub
+}
+
+func (fake *FakeStorage) GetForUpdateArgsForCall(i int) (context.Context, types.ObjectType, []query.Criterion) {
+	fake.getForUpdateMutex.RLock()
+	defer fake.getForUpdateMutex.RUnlock()
+	argsForCall := fake.getForUpdateArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeStorage) GetForUpdateReturns(result1 types.Object, result2 error) {
+	fake.getForUpdateMutex.Lock()
+	defer fake.getForUpdateMutex.Unlock()
+	fake.GetForUpdateStub = nil
+	fake.getForUpdateReturns = struct {
+		result1 types.Object
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeStorage) GetForUpdateReturnsOnCall(i int, result1 types.Object, result2 error) {
+	fake.getForUpdateMutex.Lock()
+	defer fake.getForUpdateMutex.Unlock()
+	fake.GetForUpdateStub = nil
+	if fake.getForUpdateReturnsOnCall == nil {
+		fake.getForUpdateReturnsOnCall = make(map[int]struct {
+			result1 types.Object
+			result2 error
+		})
+	}
+	fake.getForUpdateReturnsOnCall[i] = struct {
+		result1 types.Object
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeStorage) InTransaction(arg1 context.Context, arg2 func(ctx context.Context, storage storage.Repository) error) error {
 	fake.inTransactionMutex.Lock()
 	ret, specificReturn := fake.inTransactionReturnsOnCall[len(fake.inTransactionArgsForCall)]
@@ -898,6 +978,8 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.deleteReturningMutex.RUnlock()
 	fake.getMutex.RLock()
 	defer fake.getMutex.RUnlock()
+	fake.getForUpdateMutex.RLock()
+	defer fake.getForUpdateMutex.RUnlock()
 	fake.inTransactionMutex.RLock()
 	defer fake.inTransactionMutex.RUnlock()
 	fake.introduceMutex.RLock()

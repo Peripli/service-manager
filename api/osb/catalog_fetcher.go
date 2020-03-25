@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/client"
+	"net"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -63,6 +64,14 @@ func CatalogFetcher(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIV
 
 		var responseBytes []byte
 		if responseBytes, err = util.BodyToBytes(response.Body); err != nil {
+			if nErr, ok := err.(net.Error); ok && nErr.Timeout() {
+				log.C(ctx).WithError(err).Errorf("error fetching catalog for broker with name %s: %s", broker.Name, err)
+				return nil, &util.HTTPError{
+					ErrorType:   "ServiceBrokerErr",
+					Description: fmt.Sprintf("error fetching catalog for broker with name %s: timed out", broker.Name),
+					StatusCode:  http.StatusGatewayTimeout,
+				}
+			}
 			return nil, fmt.Errorf("error getting content from body of response with status %s: %s", response.Status, err)
 		}
 

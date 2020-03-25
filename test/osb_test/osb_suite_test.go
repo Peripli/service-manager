@@ -22,12 +22,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/test"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Peripli/service-manager/test"
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/multitenancy"
@@ -106,7 +107,9 @@ type brokerPlatformCredentials struct {
 
 var _ = BeforeSuite(func() {
 	ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+		Expect(set.Set("server.request_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 		Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
+		Expect(set.Set("httpclient.timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 	}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 		smb.EnableMultitenancy(TenantIdentifier, func(request *web.Request) (string, error) {
 			extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")

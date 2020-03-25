@@ -212,13 +212,33 @@ func (ps *Storage) Get(ctx context.Context, objectType types.ObjectType, criteri
 	return result.ItemAt(0), nil
 }
 
+func (ps *Storage) GetForUpdate(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
+	result, err := ps.list(ctx, objectType, true, criteria...)
+	if err != nil {
+		return nil, err
+	}
+	if result.Len() == 0 {
+		return nil, util.ErrNotFoundInStorage
+	}
+	return result.ItemAt(0), nil
+}
+
 func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	return ps.list(ctx, objType, false, criteria...)
+}
+
+func (ps *Storage) list(ctx context.Context, objType types.ObjectType, forUpdate bool, criteria ...query.Criterion) (types.ObjectList, error) {
 	entity, err := ps.scheme.provide(objType)
 	if err != nil {
 		return nil, err
 	}
 
-	rows, err := ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).WithLock().List(ctx)
+	queryBuilder := ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...)
+	if forUpdate {
+		queryBuilder = queryBuilder.WithLock()
+	}
+
+	rows, err := queryBuilder.List(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +262,7 @@ func (ps *Storage) Count(ctx context.Context, objType types.ObjectType, criteria
 	if err != nil {
 		return 0, err
 	}
-	return ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).WithLock().Count(ctx)
+	return ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).Count(ctx)
 }
 
 func (ps *Storage) DeleteReturning(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
