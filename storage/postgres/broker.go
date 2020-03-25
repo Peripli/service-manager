@@ -26,7 +26,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-// JSON entity
+// Broker entity
 //go:generate smgen storage broker github.com/Peripli/service-manager/pkg/types:ServiceBroker
 type Broker struct {
 	BaseEntity

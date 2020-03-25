@@ -147,8 +147,8 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 
 	BeforeEach(func() {
 		expectedHeaders = map[string]string{
-			"Authorization":      "Basic " + basicAuth(username, password),
-			"X-JSON-API-Version": version,
+			"Authorization":        "Basic " + basicAuth(username, password),
+			"X-Broker-API-Version": version,
 		}
 	})
 

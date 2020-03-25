@@ -357,7 +357,7 @@ var _ = Describe("Interceptors", func() {
 			clearStacks()
 		}
 
-		Context("JSON", func() {
+		Context("Broker", func() {
 			It("Should call interceptors in right order", func() {
 				brokerID := ctx.RegisterBrokerWithCatalog(common.NewRandomSBCatalog()).Broker.ID // Post /v1/service_brokers
 				checkCreateStack(types.ServiceBrokerType)
