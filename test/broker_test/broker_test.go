@@ -367,10 +367,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					)
 
 					BeforeEach(func() {
-						settings := httpclient.DefaultSettings()
+						settings := ctx.Config.HTTPClient
 						settings.ResponseHeaderTimeout = timeoutDuration
 						httpclient.SetHTTPClientGlobalSettings(settings)
-						httpclient.Configure(http.DefaultTransport.(*http.Transport))
+						httpclient.Configure()
 						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
 							catalogStopDuration := timeoutDuration + additionalDelayAfterTimeout
 							continueCtx, _ := context.WithTimeout(req.Context(), catalogStopDuration)
@@ -382,8 +382,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					AfterEach(func() {
-						httpclient.SetHTTPClientGlobalSettings(httpclient.DefaultSettings())
-						httpclient.Configure(http.DefaultTransport.(*http.Transport))
+						httpclient.SetHTTPClientGlobalSettings(ctx.Config.HTTPClient)
+						httpclient.Configure()
 					})
 
 					It("returns 502", func() {
@@ -396,10 +396,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when broker is behind tls", func() {
 
 					BeforeEach(func() {
-						settings := httpclient.DefaultSettings()
+						settings := ctx.Config.HTTPClient
 						settings.SkipSSLValidation = true
 						httpclient.SetHTTPClientGlobalSettings(settings)
-						httpclient.Configure(http.DefaultTransport.(*http.Transport))
+						httpclient.Configure()
 					})
 
 					Context("when broker basic and user auth are both configured", func() {
@@ -845,9 +845,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("when broker is behind tls", func() {
 
-						It("when credentials do not contain a certificate", func() {
+						It("when credentials contain an invalid certificate", func() {
 							updatedCredentials := Object{
-								"credentials": Object{},
+								"credentials": Object{
+									"tls": Object{
+										"client_certificate": tls_settings.InvalidClientCertificate,
+										"client_key":         tls_settings.InvalidClientKey,
+									},
+								},
 							}
 							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).
 								Expect().

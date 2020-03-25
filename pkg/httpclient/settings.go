@@ -76,9 +76,14 @@ func SetHTTPClientGlobalSettings(settings *Settings) {
 }
 
 // Configures the http client transport
-func Configure(transport *http.Transport) {
+func Configure() {
 	settings := GetHttpClientGlobalSettings()
 	http.DefaultClient.Timeout = settings.Timeout
+	ConfigureTransport(http.DefaultTransport.(*http.Transport))
+}
+
+func ConfigureTransport(transport *http.Transport) {
+	settings := GetHttpClientGlobalSettings()
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation}
 	transport.ResponseHeaderTimeout = settings.ResponseHeaderTimeout
 	transport.TLSHandshakeTimeout = settings.TLSHandshakeTimeout

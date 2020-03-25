@@ -23,7 +23,7 @@ import (
 
 func GetTransportWithTLS(tlsConfig *tls.Config) *http.Transport {
 	transport := http.Transport{}
-	httpclient.Configure(&transport)
+	httpclient.ConfigureTransport(&transport)
 	transport.TLSClientConfig.Certificates = tlsConfig.Certificates
 
 	//prevents keeping idle connections when accessing to different broker hosts

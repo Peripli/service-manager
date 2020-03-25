@@ -91,7 +91,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	httpclient.SetHTTPClientGlobalSettings(cfg.HTTPClient)
-	httpclient.Configure(http.DefaultTransport.(*http.Transport))
+	httpclient.Configure()
 
 	// Setup logging
 	ctx, err = log.Configure(ctx, cfg.Log)
