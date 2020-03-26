@@ -167,8 +167,8 @@ func (api *API) RegisterPluginsBefore(beforePluginName string, plugins ...Plugin
 		}
 
 		pluginSegments := api.decomposePluginOrDie(plugin)
+		beforePluginFirstFilterName := api.getFirstFilterNameOfPlugin(beforePluginName)
 		for _, pluginSegment := range pluginSegments {
-			beforePluginFirstFilterName := api.getFirstFilterNameOfPlugin(beforePluginName)
 			api.registerFilterRelatively(beforePluginFirstFilterName, pluginSegment, func(beforeFilterPosition int) int {
 				return beforeFilterPosition
 			})
