@@ -172,16 +172,18 @@ func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.Ser
 	platformIDs := make(map[string]bool)
 	for _, plan := range plans {
 		planSupportedPlatformIDs := plan.SupportedPlatformIDs()
-		if len(planSupportedPlatformIDs) == 0 {
+		if planSupportedPlatformIDs == nil {
 			// no explicit supported platform IDs defined - collect the supported platform types
 			if platformTypes == nil {
 				//only initialize this map if any plan not specifying explicit platform IDs is found
 				platformTypes = make(map[string]bool)
 			}
 
-			types := plan.SupportedPlatformTypes()
-			for _, t := range types {
-				platformTypes[t] = true
+			supportedPlatformTypes := plan.SupportedPlatformTypes()
+			if supportedPlatformTypes != nil {
+				for _, t := range supportedPlatformTypes {
+					platformTypes[t] = true
+				}
 			}
 		} else {
 			// explicit platform IDs are defined for the plan

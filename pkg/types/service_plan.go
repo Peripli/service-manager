@@ -102,48 +102,52 @@ func (e *ServicePlan) Validate() error {
 		}
 	}
 
+	if e.SupportedPlatformIDs() != nil && e.SupportedPlatformTypes() != nil {
+		return fmt.Errorf("only one of supportedPlatforms and supportedPlatformIDs can be defined in plan metadata")
+	}
+
 	return nil
 }
 
 // SupportedPlatformTypes returns the supportedPlatforms provided in a plan's metadata (if a value is provided at all).
-// If there are no supported platforms, an empty array is returned denoting that the plan is available to platforms of all types.
+// If there are no supported platforms, nil is returned denoting that the plan is available to platforms of all types.
 func (e *ServicePlan) SupportedPlatformTypes() []string {
-	return e.supportedPlatforms("supportedPlatforms")
+	return e.metadataPropertyAsStringArray("supportedPlatforms")
 }
 
 // SupportedPlatformIDs returns the supportedPlatformIDs provided in a plan's metadata (if a value is provided at all).
-// If there are no supported platforms IDs, an empty array is returned denoting that the plan is available to platforms of any ID.
+// If there are no supported platforms IDs, nil is returned
 func (e *ServicePlan) SupportedPlatformIDs() []string {
-	return e.supportedPlatforms("supportedPlatformIDs")
+	return e.metadataPropertyAsStringArray("supportedPlatformIDs")
 }
 
-func (e *ServicePlan) supportedPlatforms(propertyKey string) []string {
-	supportedPlatforms := gjson.GetBytes(e.Metadata, propertyKey)
-	if !supportedPlatforms.IsArray() {
-		return []string{}
+func (e *ServicePlan) metadataPropertyAsStringArray(propertyKey string) []string {
+	propertyValue := gjson.GetBytes(e.Metadata, propertyKey)
+	if !propertyValue.IsArray() || len(propertyValue.Array()) == 0 {
+		return nil
 	}
-	array := supportedPlatforms.Array()
-	platforms := make([]string, len(array))
-	for i, p := range supportedPlatforms.Array() {
-		platforms[i] = p.String()
+	array := propertyValue.Array()
+	result := make([]string, len(array))
+	for i, p := range propertyValue.Array() {
+		result[i] = p.String()
 	}
-	return platforms
+	return result
 }
 
-// SupportsPlatform determines whether a specific platform is among the ones that a plan supports
+// SupportsPlatform determines whether a specific platform type is among the ones that a plan supports
 func (e *ServicePlan) SupportsPlatformType(platform string) bool {
 	platformTypes := e.SupportedPlatformTypes()
 
-	return len(platformTypes) == 0 || slice.StringsAnyEquals(platformTypes, platform)
+	return platformTypes == nil || slice.StringsAnyEquals(platformTypes, platform)
 }
 
-// SupportsPlatform determines whether a specific platform is among the ones that a plan supports
+// SupportsPlatform determines whether a specific platform instance is among the ones that a plan supports
 func (e *ServicePlan) SupportsPlatformInstance(platform Platform) bool {
 	platformIDs := e.SupportedPlatformIDs()
 
-	if len(platformIDs) == 0 {
+	if platformIDs == nil {
 		platformTypes := e.SupportedPlatformTypes()
-		return len(platformTypes) == 0 || slice.StringsAnyEquals(platformTypes, platform.Type)
+		return platformTypes == nil || slice.StringsAnyEquals(platformTypes, platform.Type)
 	} else {
 		return slice.StringsAnyEquals(platformIDs, platform.ID)
 	}
