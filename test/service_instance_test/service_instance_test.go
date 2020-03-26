@@ -269,7 +269,7 @@ var _ = DescribeTestsFor(TestCase{
 				})
 			})
 
-			FDescribe("POST", func() {
+			Describe("POST", func() {
 				for _, testCase := range testCases {
 					testCase := testCase
 					Context(fmt.Sprintf("async = %t", testCase.async), func() {
@@ -674,7 +674,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 									})
 
-									FWhen("SM crashes while polling", func() {
+									When("SM crashes while polling", func() {
 										var newSMCtx *TestContext
 										var isProvisioned atomic.Value
 
@@ -866,7 +866,7 @@ var _ = DescribeTestsFor(TestCase{
 							})
 
 							if testCase.async {
-								FWhen("SM crashes after storing operation before storing resource", func() {
+								When("SM crashes after storing operation before storing resource", func() {
 									var newSMCtx *TestContext
 
 									BeforeEach(func() {
@@ -1073,7 +1073,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 								}
 
-								FWhen("SM crashes while orphan mitigating", func() {
+								When("SM crashes while orphan mitigating", func() {
 									var newSMCtx *TestContext
 									var isDeprovisioned atomic.Value
 
@@ -1090,6 +1090,10 @@ var _ = DescribeTestsFor(TestCase{
 												return http.StatusOK, Object{"state": "in progress"}
 											}
 										})
+									})
+
+									AfterEach(func() {
+										ctx.SMWithBasic = newSMCtx.SMWithBasic
 									})
 
 									It("should restart orphan mitigation through maintainer and eventually succeeds", func() {
@@ -1122,7 +1126,6 @@ var _ = DescribeTestsFor(TestCase{
 											Type: types.ServiceInstanceType,
 										})
 									})
-
 								})
 
 								When("broker orphan mitigation deprovision asynchronously fails with an error that will continue further orphan mitigation and eventually succeed", func() {
@@ -1154,7 +1157,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 
-							FWhen("provision responds with error due to time out", func() {
+							When("provision responds with error due to time out", func() {
 								var doneChannel chan interface{}
 								var newCtx *TestContext
 
@@ -2366,7 +2369,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								if testCase.async {
-									FWhen("SM crashes while polling", func() {
+									When("SM crashes while polling", func() {
 										var newSMCtx *TestContext
 										var isDeprovisioned atomic.Value
 
@@ -2382,6 +2385,10 @@ var _ = DescribeTestsFor(TestCase{
 													return http.StatusOK, Object{"state": "in progress"}
 												}
 											})
+										})
+
+										AfterEach(func() {
+											ctx.SMWithBasic = newSMCtx.SMWithBasic
 										})
 
 										It("should restart polling through maintainer and eventually deletes the instance", func() {

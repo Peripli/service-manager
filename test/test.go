@@ -243,6 +243,10 @@ func DescribeTestsFor(t TestCase) bool {
 
 		t.ContextBuilder = ctxBuilder()
 
+		BeforeEach(func() {
+			t.ContextBuilder = ctxBuilder()
+		})
+
 		func() {
 			By("==== Preparation for SM tests... ====")
 
