@@ -180,10 +180,8 @@ func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.Ser
 			}
 
 			supportedPlatformTypes := plan.SupportedPlatformTypes()
-			if supportedPlatformTypes != nil {
-				for _, t := range supportedPlatformTypes {
-					platformTypes[t] = true
-				}
+			for _, t := range supportedPlatformTypes {
+				platformTypes[t] = true
 			}
 		} else {
 			// explicit platform IDs are defined for the plan
