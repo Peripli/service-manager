@@ -269,7 +269,7 @@ var _ = DescribeTestsFor(TestCase{
 				})
 			})
 
-			Describe("POST", func() {
+			FDescribe("POST", func() {
 				for _, testCase := range testCases {
 					testCase := testCase
 					Context(fmt.Sprintf("async = %t", testCase.async), func() {
@@ -1255,6 +1255,10 @@ var _ = DescribeTestsFor(TestCase{
 
 							When("platform_id provided in request body", func() {
 								Context("which not is service-manager platform", func() {
+									BeforeEach(func() {
+										planID = plan1CatalogID
+									})
+
 									It("should return 400", func() {
 										ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
 											WithQuery("async", testCase.async).
