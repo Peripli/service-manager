@@ -674,7 +674,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 									})
 
-									When("SM crashes while polling", func() {
+									FWhen("SM crashes while polling", func() {
 										var newSMCtx *TestContext
 										var isProvisioned atomic.Value
 
@@ -866,7 +866,7 @@ var _ = DescribeTestsFor(TestCase{
 							})
 
 							if testCase.async {
-								When("SM crashes after storing operation before storing resource", func() {
+								FWhen("SM crashes after storing operation before storing resource", func() {
 									var newSMCtx *TestContext
 
 									BeforeEach(func() {
@@ -1073,7 +1073,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 								}
 
-								When("SM crashes while orphan mitigating", func() {
+								FWhen("SM crashes while orphan mitigating", func() {
 									var newSMCtx *TestContext
 									var isDeprovisioned atomic.Value
 
@@ -1154,7 +1154,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 
-							When("provision responds with error due to time out", func() {
+							FWhen("provision responds with error due to time out", func() {
 								var doneChannel chan interface{}
 								var newCtx *TestContext
 
@@ -2366,7 +2366,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								if testCase.async {
-									When("SM crashes while polling", func() {
+									FWhen("SM crashes while polling", func() {
 										var newSMCtx *TestContext
 										var isDeprovisioned atomic.Value
 
