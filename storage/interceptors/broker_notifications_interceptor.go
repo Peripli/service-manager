@@ -3,7 +3,6 @@ package interceptors
 import (
 	"context"
 	"fmt"
-
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -35,25 +34,7 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 				return nil, err
 			}
 
-			if supportedPlatforms != nil {
-				return supportedPlatforms, nil
-			}
-
-			criteria := []query.Criterion{
-				query.ByField(query.NotEqualsOperator, "type", types.SMPlatform),
-			}
-
-			objList, err := repository.List(ctx, types.PlatformType, criteria...)
-			if err != nil {
-				return nil, err
-			}
-
-			platformIDs := make([]string, 0)
-			for i := 0; i < objList.Len(); i++ {
-				platformIDs = append(platformIDs, objList.ItemAt(i).GetID())
-			}
-
-			return platformIDs, nil
+			return removeSMPlatform(supportedPlatforms), nil
 		},
 		AdditionalDetailsFunc: func(ctx context.Context, objects types.ObjectList, repository storage.Repository) (objectDetails, error) {
 			details := make(objectDetails, objects.Len())
@@ -89,6 +70,16 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 			return nil
 		},
 	}
+}
+
+func removeSMPlatform(platforms []string) []string {
+	for i := range platforms {
+		if platforms[i] == types.SMPlatform {
+			platforms[i] = platforms[len(platforms)-1]
+			return platforms[:len(platforms)-1]
+		}
+	}
+	return platforms
 }
 
 type BrokerAdditional struct {
@@ -192,23 +183,15 @@ func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.Ser
 	}
 
 	if platformTypes != nil {
-		if len(platformTypes) == 0 && len(platformIDs) == 0 {
-			// plan available on all platforms
-			return nil, nil
-		}
-
 		// fetch IDs of platform instances of the supported types from DB
 		supportedPlatforms := make([]string, 0)
 		for platform := range platformTypes {
 			supportedPlatforms = append(supportedPlatforms, platform)
 		}
 
-		criteria := []query.Criterion{
-			query.ByField(query.NotEqualsOperator, "type", types.SMPlatform),
-		}
-
+		var criteria []query.Criterion
 		if len(supportedPlatforms) != 0 {
-			criteria = append(criteria, query.ByField(query.InOperator, "type", supportedPlatforms...))
+			criteria = []query.Criterion{query.ByField(query.InOperator, "type", supportedPlatforms...)}
 		}
 
 		objList, err := repository.List(ctx, types.PlatformType, criteria...)

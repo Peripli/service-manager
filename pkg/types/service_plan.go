@@ -141,7 +141,7 @@ func (e *ServicePlan) SupportsPlatformType(platform string) bool {
 	return platformTypes == nil || slice.StringsAnyEquals(platformTypes, platform)
 }
 
-// SupportsPlatform determines whether a specific platform instance is among the ones that a plan supports
+// SupportsPlatformInstance determines whether a specific platform instance is among the ones that a plan supports
 func (e *ServicePlan) SupportsPlatformInstance(platform Platform) bool {
 	platformIDs := e.SupportedPlatformIDs()
 
@@ -151,4 +151,9 @@ func (e *ServicePlan) SupportsPlatformInstance(platform Platform) bool {
 	} else {
 		return slice.StringsAnyEquals(platformIDs, platform.ID)
 	}
+}
+
+// SupportsAllPlatforms determines whether the plan supports all platforms
+func (e *ServicePlan) SupportsAllPlatforms() bool {
+	return len(e.SupportedPlatformIDs()) == 0 && len(e.SupportedPlatformTypes()) == 0
 }
