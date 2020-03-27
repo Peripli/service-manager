@@ -687,7 +687,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("when broker is responding slow", func() {
-					FIt("should timeout", func() {
+					It("should timeout", func() {
 						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
 							rw.WriteHeader(http.StatusOK)
 							if fl, ok := rw.(http.Flusher); ok {
