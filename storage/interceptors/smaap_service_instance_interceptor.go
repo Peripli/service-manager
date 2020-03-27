@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/tidwall/sjson"
+	"math"
 	"net/http"
 	"net/url"
 	"time"
@@ -460,6 +461,21 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 		OriginatingIdentity: nil,
 	}
 
+	var maximumPollingDurationTicker *time.Ticker
+	if maxPollingDuration > 0 {
+		// MaximumPollingDuration can span multiple reschedules
+		leftPollingDuration := maxPollingDuration - (time.Since(operation.RescheduleTimestamp))
+		if leftPollingDuration <= 0 { // The Maximum Polling Duration elapsed before this polling start
+			return i.processMaxPollingDurationElapsed(ctx, instance, operation, enableOrphanMitigation)
+		}
+		maximumPollingDurationTicker = time.NewTicker(leftPollingDuration)
+		defer maximumPollingDurationTicker.Stop()
+	} else {
+		// Never ticking ticker
+		maximumPollingDurationTicker = time.NewTicker(math.MaxInt64)
+		maximumPollingDurationTicker.Stop()
+	}
+
 	ticker := time.NewTicker(i.pollingInterval)
 	defer ticker.Stop()
 	for {
@@ -468,6 +484,8 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 			log.C(ctx).Errorf("Terminating poll last operation for instance with id %s and name %s due to context done event", instance.ID, instance.Name)
 			//operation should be kept in progress in this case
 			return nil
+		case <-maximumPollingDurationTicker.C:
+			return i.processMaxPollingDurationElapsed(ctx, instance, operation, enableOrphanMitigation)
 		case <-ticker.C:
 			log.C(ctx).Infof("Sending poll last operation request %s for instance with id %s and name %s", logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
 			pollingResponse, err := osbClient.PollLastOperation(pollingRequest)
@@ -531,6 +549,23 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 				log.C(ctx).Errorf("invalid state during poll last operation for instance with id %s and name %s: %s. Continuing polling...", instance.ID, instance.Name, pollingResponse.State)
 			}
 		}
+	}
+}
+
+func (i *ServiceInstanceInterceptor) processMaxPollingDurationElapsed(ctx context.Context, instance *types.ServiceInstance, operation *types.Operation, enableOrphanMitigation bool) error {
+	log.C(ctx).Errorf("Terminating poll last operataion for instance with id %s and name %s due to maximum_polling_duration for it's plan is reached", instance.ID, instance.Name)
+	operation.Reschedule = false
+	operation.RescheduleTimestamp = time.Time{}
+	if enableOrphanMitigation {
+		operation.DeletionScheduled = time.Now()
+	}
+	if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+		return fmt.Errorf("failed to update operation with id %s after failed of last operation for instance with id %s: %s", operation.ID, instance.ID, err)
+	}
+	return &util.HTTPError{
+		ErrorType:   "BrokerError",
+		Description: fmt.Sprintf("failed polling operation for instance with id %s and name %s due to maximum_polling_duration for it's plan is reached", instance.ID, instance.Name),
+		StatusCode:  http.StatusBadGateway,
 	}
 }
 

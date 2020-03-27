@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/tidwall/sjson"
+	"math"
 	"net/http"
 	"time"
 
@@ -461,6 +462,21 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 		OriginatingIdentity: nil,
 	}
 
+	var maximumPollingDurationTicker *time.Ticker
+	if maxPollingDuration > 0 {
+		// MaximumPollingDuration can span multiple reschedules
+		leftPollingDuration := maxPollingDuration - (time.Since(operation.RescheduleTimestamp))
+		if leftPollingDuration <= 0 { // The Maximum Polling Duration elapsed before this polling start
+			return i.processMaxPollingDurationElapsed(ctx, binding, operation, enableOrphanMitigation)
+		}
+		maximumPollingDurationTicker = time.NewTicker(leftPollingDuration)
+		defer maximumPollingDurationTicker.Stop()
+	} else {
+		// Never ticking ticker
+		maximumPollingDurationTicker = time.NewTicker(math.MaxInt64)
+		maximumPollingDurationTicker.Stop()
+	}
+
 	ticker := time.NewTicker(i.pollingInterval)
 	defer ticker.Stop()
 	for {
@@ -469,6 +485,8 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 			log.C(ctx).Errorf("Terminating poll last operation for binding with id %s and name %s due to context done event", binding.ID, binding.Name)
 			//operation should be kept in progress in this case
 			return nil
+		case <-maximumPollingDurationTicker.C:
+			return i.processMaxPollingDurationElapsed(ctx, binding, operation, enableOrphanMitigation)
 		case <-ticker.C:
 			log.C(ctx).Infof("Sending poll last operation request %s for binding with id %s and name %s",
 				logPollBindingRequest(pollingRequest), binding.ID, binding.Name)
@@ -546,6 +564,23 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 				log.C(ctx).Errorf("invalid state during poll last operation for binding with id %s and name %s: %s", binding.ID, binding.Name, pollingResponse.State)
 			}
 		}
+	}
+}
+
+func (i *ServiceBindingInterceptor) processMaxPollingDurationElapsed(ctx context.Context, binding *types.ServiceBinding, operation *types.Operation, enableOrphanMitigation bool) error {
+	log.C(ctx).Errorf("Terminating poll last operataion for binding with id %s and name %s due to maximum_polling_duration for it's plan is reached", binding.ID, binding.Name)
+	operation.Reschedule = false
+	operation.RescheduleTimestamp = time.Time{}
+	if enableOrphanMitigation {
+		operation.DeletionScheduled = time.Now()
+	}
+	if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+		return fmt.Errorf("failed to update operation with id %s after failed of last operation for binding with id %s: %s", operation.ID, binding.ID, err)
+	}
+	return &util.HTTPError{
+		ErrorType:   "BrokerError",
+		Description: fmt.Sprintf("failed polling operation for binding with id %s and name %s due to maximum_polling_duration for it's plan is reached", binding.ID, binding.Name),
+		StatusCode:  http.StatusBadGateway,
 	}
 }
 

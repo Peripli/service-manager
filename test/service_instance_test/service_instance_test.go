@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/tidwall/sjson"
 	"sync/atomic"
 	"time"
 
@@ -58,8 +59,9 @@ func TestServiceInstances(t *testing.T) {
 }
 
 const (
-	TenantIdentifier = "tenant"
-	TenantIDValue    = "tenantID"
+	TenantIdentifier       = "tenant"
+	TenantIDValue          = "tenantID"
+	MaximumPollingDuration = 5 // seconds
 )
 
 var _ = DescribeTestsFor(TestCase{
@@ -584,6 +586,91 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								if testCase.async {
+									When("maximum polling duration is reached while polling", func() {
+										var oldCtx *TestContext
+
+										BeforeEach(func() {
+											ID, err := uuid.NewV4()
+											Expect(err).ToNot(HaveOccurred())
+											var plans *httpexpect.Array
+											brokerID, brokerServer, plans = prepareBrokerWithCatalogAndPollingDuration(ctx, ctx.SMWithOAuth, MaximumPollingDuration)
+											brokerServer.ShouldRecordRequests(false)
+											servicePlanID = plans.Element(0).Object().Value("id").String().Raw()
+											anotherServicePlanCatalogID = plans.Element(1).Object().Value("catalog_id").String().Raw()
+											anotherServicePlanID = plans.Element(1).Object().Value("id").String().Raw()
+											postInstanceRequest = Object{
+												"name":             "test-instance" + ID.String(),
+												"service_plan_id":  servicePlanID,
+												"maintenance_info": "{}",
+											}
+
+											patchInstanceRequest = Object{}
+
+											oldCtx = ctx
+											ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+												Expect(set.Set("operations.action_timeout", ((MaximumPollingDuration + 5) * time.Second).String())).ToNot(HaveOccurred())
+											}).BuildWithoutCleanup()
+
+											brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", ParameterizedHandler(http.StatusOK, Object{"state": "in progress"}))
+										})
+
+										AfterEach(func() {
+											ctx = oldCtx
+										})
+
+										When("orphan mitigation deprovision synchronously succeeds", func() {
+											BeforeEach(func() {
+												brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusOK, Object{"async": false}))
+											})
+
+											It("deletes the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
+												resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+												instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+													Category:          types.CREATE,
+													State:             types.FAILED,
+													ResourceType:      types.ServiceInstanceType,
+													Reschedulable:     false,
+													DeletionScheduled: false,
+												})
+
+												VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+													ID:   instanceID,
+													Type: types.ServiceInstanceType,
+												})
+											})
+										})
+
+										When("broker orphan mitigation deprovision synchronously fails with an unexpected status code", func() {
+											BeforeEach(func() {
+												brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
+											})
+
+											AfterEach(func() {
+												brokerServer.ResetHandlers()
+											})
+
+											It("keeps in the instance with ready false and marks the operation with deletion scheduled", func() {
+												resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+												instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+													Category:          types.CREATE,
+													State:             types.FAILED,
+													ResourceType:      types.ServiceInstanceType,
+													Reschedulable:     false,
+													DeletionScheduled: true,
+												})
+
+												VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+													ID:    instanceID,
+													Type:  types.ServiceInstanceType,
+													Ready: false,
+												})
+											})
+										})
+									})
+
 									When("action timeout is reached while polling", func() {
 										var oldCtx *TestContext
 
@@ -1706,6 +1793,75 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									if testCase.async {
+										When("maximum polling duration is reached while polling", func() {
+											var oldCtx *TestContext
+
+											BeforeEach(func() {
+												ID, err := uuid.NewV4()
+												Expect(err).ToNot(HaveOccurred())
+												var plans *httpexpect.Array
+												brokerID, brokerServer, plans = prepareBrokerWithCatalogAndPollingDuration(ctx, ctx.SMWithOAuth, MaximumPollingDuration)
+												brokerServer.ShouldRecordRequests(false)
+												servicePlanID = plans.Element(0).Object().Value("id").String().Raw()
+												anotherServicePlanCatalogID = plans.Element(1).Object().Value("catalog_id").String().Raw()
+												anotherServicePlanID = plans.Element(1).Object().Value("id").String().Raw()
+												postInstanceRequest = Object{
+													"name":             "test-instance" + ID.String(),
+													"service_plan_id":  servicePlanID,
+													"maintenance_info": "{}",
+												}
+
+												patchInstanceRequest = Object{}
+
+												EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
+												resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+												instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+													Category:          types.CREATE,
+													State:             types.SUCCEEDED,
+													ResourceType:      types.ServiceInstanceType,
+													Reschedulable:     false,
+													DeletionScheduled: false,
+												})
+
+												VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+													ID:    instanceID,
+													Type:  types.ServiceInstanceType,
+													Ready: true,
+												})
+
+												oldCtx = ctx
+												ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+													Expect(set.Set("operations.action_timeout", ((MaximumPollingDuration + 5) * time.Second).String())).ToNot(HaveOccurred())
+												}).BuildWithoutCleanup()
+
+												brokerServer.ServiceInstanceHandlerFunc(http.MethodPatch, http.MethodPatch+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+												brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPatch+"1", ParameterizedHandler(http.StatusOK, Object{"state": "in progress"}))
+											})
+
+											AfterEach(func() {
+												ctx = oldCtx
+											})
+
+											It("keeps instance as ready true and stores the operation as failed", func() {
+												resp := patchInstance(ctx.SMWithOAuthForTenant, true, instanceID, http.StatusAccepted)
+
+												instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+													Category:          types.UPDATE,
+													State:             types.FAILED,
+													ResourceType:      types.ServiceInstanceType,
+													Reschedulable:     false,
+													DeletionScheduled: false,
+												})
+
+												VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+													ID:    instanceID,
+													Type:  types.ServiceInstanceType,
+													Ready: true,
+												})
+											})
+										})
+
 										When("action timeout is reached while polling", func() {
 											var oldCtx *TestContext
 
@@ -2617,8 +2773,20 @@ func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
 }
 
 func prepareBrokerWithCatalog(ctx *TestContext, auth *SMExpect) (string, *BrokerServer, *httpexpect.Array) {
+	return prepareBrokerWithCatalogAndPollingDuration(ctx, auth, 0)
+}
+
+func prepareBrokerWithCatalogAndPollingDuration(ctx *TestContext, auth *SMExpect, maxPollingDuration int) (string, *BrokerServer, *httpexpect.Array) {
 	cPaidPlan1 := GeneratePaidTestPlan()
+	cPaidPlan1, err := sjson.Set(cPaidPlan1, "maximum_polling_duration", maxPollingDuration)
+	if err != nil {
+		panic(err)
+	}
 	cPaidPlan2 := GeneratePaidTestPlan()
+	cPaidPlan2, err = sjson.Set(cPaidPlan2, "maximum_polling_duration", maxPollingDuration)
+	if err != nil {
+		panic(err)
+	}
 	cService := GenerateTestServiceWithPlans(cPaidPlan1, cPaidPlan2)
 	catalog := NewEmptySBCatalog()
 	catalog.AddService(cService)
