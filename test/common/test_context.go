@@ -21,9 +21,6 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"github.com/Peripli/service-manager/test/tls_settings"
-	"github.com/tidwall/gjson"
-	"golang.org/x/crypto/bcrypt"
 	"math/rand"
 	"net"
 	"net/http"
@@ -34,6 +31,10 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/Peripli/service-manager/test/tls_settings"
+	"github.com/tidwall/gjson"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Peripli/service-manager/operations"
 
@@ -727,12 +728,16 @@ func (ctx *TestContext) RegisterPlatformWithType(platformType string) *types.Pla
 	return RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
 }
 
-func (ctx *TestContext) NewTenantExpect(tenantIdentifier string) *SMExpect {
+func (ctx *TestContext) NewTenantExpect(tenantIdentifier string, scopes ...string) *SMExpect {
 	tenantOauthServer := ctx.Servers[TenantOauthServer].(*OAuthServer)
+
 	accessToken := tenantOauthServer.CreateToken(map[string]interface{}{
-		"cid": "tenancyClient",
-		"zid": tenantIdentifier,
+		"cid":        "tenancyClient",
+		"zid":        tenantIdentifier,
+		"grant_type": "password",
+		"scope":      scopes,
 	})
+
 	return &SMExpect{
 		Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
 			req.WithHeader("Authorization", "Bearer "+accessToken)

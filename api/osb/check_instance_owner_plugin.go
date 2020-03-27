@@ -42,6 +42,16 @@ func (p *checkInstanceOwnershipPlugin) UpdateService(req *web.Request, next web.
 	return p.assertOwner(req, next)
 }
 
+// FetchService intercepts get service instance requests and check if the instance owner is the same as the one requesting the operation
+func (p *checkInstanceOwnershipPlugin) FetchService(req *web.Request, next web.Handler) (*web.Response, error) {
+	return p.assertOwner(req, next)
+}
+
+// FetchBinding intercepts get service binding requests and check if the instance owner is the same as the one requesting the operation
+func (p *checkInstanceOwnershipPlugin) FetchBinding(req *web.Request, next web.Handler) (*web.Response, error) {
+	return p.assertOwner(req, next)
+}
+
 func (p *checkInstanceOwnershipPlugin) assertOwner(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	callerTenantID := gjson.GetBytes(req.Body, "context."+p.tenantIdentifier).String()
