@@ -124,7 +124,8 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 			if servicePlan.SupportsAllPlatforms() {
 				err = resyncPublicPlanVisibilities(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker)
 			} else { // not all platforms are supported -> create single visibility for each supported platform
-				supportedPlatformIDs, err := supportedPlatforms(ctx, servicePlan, txStorage)
+				var supportedPlatformIDs []string
+				supportedPlatformIDs, err = supportedPlatforms(ctx, servicePlan, txStorage)
 				if err != nil {
 					return err
 				}
