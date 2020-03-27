@@ -93,6 +93,21 @@ func (f *serviceInstanceTransferFilter) Run(req *web.Request, next web.Handler) 
 		}
 	}
 
+	byID = query.ByField(query.EqualsOperator, "id", plan.ServiceOfferingID)
+	serviceObject, err := f.repository.Get(ctx, types.ServiceOfferingType, byID)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceOfferingType.String())
+	}
+	service := serviceObject.(*types.ServiceOffering)
+
+	if !service.AllowContextUpdates {
+		return nil, &util.HTTPError{
+			ErrorType:   "UnsupportedContextUpdate",
+			Description: fmt.Sprintf("Instance transfer to platform of type %s failed because instance service offering %s does not support context updates", service.Name, plan.Name),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
 	return next.Handle(req)
 }
 
