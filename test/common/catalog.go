@@ -100,6 +100,7 @@ var testService = `
     "tags": ["another-no-sql", "another-relational"],
     "bindable": true,	
     "instances_retrievable": true,	
+    "allow_context_updates": true,	
     "bindings_retrievable": true,	
     "metadata": {	
       "provider": {	
