@@ -723,6 +723,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										AfterEach(func() {
+											oldCtx.SMWithBasic = ctx.SMWithBasic
 											ctx = oldCtx
 										})
 
@@ -1214,6 +1215,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								AfterEach(func() {
+									oldCtx.SMWithBasic = ctx.SMWithBasic
 									ctx = oldCtx
 								})
 
@@ -1971,6 +1973,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								AfterEach(func() {
+									oldCtx.SMWithBasic = ctx.SMWithBasic
 									ctx = oldCtx
 								})
 

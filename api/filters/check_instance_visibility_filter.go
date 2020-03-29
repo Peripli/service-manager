@@ -69,10 +69,6 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		return nil, err
 	}
 
-	if req.Method == http.MethodDelete {
-		return next.Handle(req)
-	}
-
 	planID := gjson.GetBytes(req.Body, planIDProperty).String()
 
 	if planID == "" {
@@ -127,7 +123,7 @@ func (*serviceInstanceVisibilityFilter) FilterMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Path(web.ServiceInstancesURL + "/**"),
-				web.Methods(http.MethodPost, http.MethodPatch, http.MethodDelete),
+				web.Methods(http.MethodPost, http.MethodPatch),
 			},
 		},
 	}
