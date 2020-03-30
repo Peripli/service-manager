@@ -728,11 +728,11 @@ func (ctx *TestContext) RegisterPlatformWithType(platformType string) *types.Pla
 	return RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
 }
 
-func (ctx *TestContext) NewTenantExpect(tenantIdentifier string, scopes ...string) *SMExpect {
+func (ctx *TestContext) NewTenantExpect(clientID, tenantIdentifier string, scopes ...string) *SMExpect {
 	tenantOauthServer := ctx.Servers[TenantOauthServer].(*OAuthServer)
 
 	accessToken := tenantOauthServer.CreateToken(map[string]interface{}{
-		"cid":        "tenancyClient",
+		"cid":        clientID,
 		"zid":        tenantIdentifier,
 		"grant_type": "password",
 		"scope":      scopes,
