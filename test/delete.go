@@ -21,8 +21,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gavv/httpexpect"
-
 	"github.com/Peripli/service-manager/pkg/types"
 	. "github.com/onsi/gomega"
 
@@ -181,9 +179,26 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 			})
 
 			Context("when authenticating with global token", func() {
-				It("returns 4xx", func() {
-					ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).
-						Expect().StatusRange(httpexpect.Status4xx)
+				It("returns error", func() {
+					resp := ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).
+						Expect()
+					statusCode := resp.Raw().StatusCode
+					if statusCode == http.StatusAccepted {
+						common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
+							Category:          types.DELETE,
+							State:             types.FAILED,
+							ResourceType:      types.ObjectType(t.API),
+							Reschedulable:     false,
+							DeletionScheduled: false,
+							Error:             notFoundMsg,
+						})
+					} else {
+						if !t.StrictlyTenantScoped {
+							Expect(statusCode).To(Equal(http.StatusNotFound))
+						} else {
+							Expect(statusCode).To(Equal(http.StatusBadRequest))
+						}
+					}
 				})
 			})
 		})

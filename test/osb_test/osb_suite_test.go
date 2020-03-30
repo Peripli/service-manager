@@ -110,6 +110,9 @@ var _ = BeforeSuite(func() {
 		Expect(set.Set("server.request_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 		Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 		Expect(set.Set("httpclient.timeout", timeoutDuration.String())).ToNot(HaveOccurred())
+	}).WithTenantTokenClaims(map[string]interface{}{
+		"cid": "tenancyClient",
+		"zid": TenantValue,
 	}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 		smb.EnableMultitenancy(TenantIdentifier, func(request *web.Request) (string, error) {
 			extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")
