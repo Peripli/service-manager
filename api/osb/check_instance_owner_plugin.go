@@ -1,6 +1,7 @@
 package osb
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -56,21 +57,15 @@ func (p *checkInstanceOwnershipPlugin) assertOwner(req *web.Request, next web.Ha
 	ctx := req.Context()
 	callerTenantID := gjson.GetBytes(req.Body, "context."+p.tenantIdentifier).String()
 	// if the request is GET there will be no request body, so we have to check the context for platform
-	user, found := web.UserFromContext(ctx)
-	if !found {
-		return nil, &util.HTTPError{
-			ErrorType:   "NotFound",
-			Description: "No authenticated user found",
-			StatusCode:  http.StatusNotFound,
+	if req.Method == http.MethodGet {
+		platform, err := extractPlatformFromContext(ctx)
+		if err != nil {
+			return nil, err
 		}
-	}
-	var platform types.Platform
-	if err := user.Data(&platform); err != nil {
-		return nil, err
-	}
 
-	if platform.HasLabel(p.tenantIdentifier) {
-		callerTenantID = platform.Labels[p.tenantIdentifier][0]
+		if platform.HasLabel(p.tenantIdentifier) {
+			callerTenantID = platform.Labels[p.tenantIdentifier][0]
+		}
 	}
 
 	if len(callerTenantID) == 0 {
@@ -110,4 +105,21 @@ func (p *checkInstanceOwnershipPlugin) assertOwner(req *web.Request, next web.Ha
 	}
 
 	return next.Handle(req)
+}
+
+func extractPlatformFromContext(ctx context.Context) (*types.Platform, error) {
+	user, found := web.UserFromContext(ctx)
+	if !found {
+		return nil, &util.HTTPError{
+			ErrorType:   "NotFound",
+			Description: "No authenticated user found",
+			StatusCode:  http.StatusNotFound,
+		}
+	}
+	var platform types.Platform
+	if err := user.Data(&platform); err != nil {
+		return nil, err
+	}
+
+	return &platform, nil
 }
