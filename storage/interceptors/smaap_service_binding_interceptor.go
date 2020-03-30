@@ -20,10 +20,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/tidwall/sjson"
 	"math"
 	"net/http"
 	"time"
+
+	"github.com/tidwall/sjson"
 
 	"github.com/Peripli/service-manager/operations/opcontext"
 
@@ -272,7 +273,7 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 
 	var unbindResponse *osbc.UnbindResponse
 	if !operation.Reschedule {
-		unbindRequest := prepareUnbindRequest(instance, binding, service.CatalogID, plan.CatalogID)
+		unbindRequest := prepareUnbindRequest(instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable)
 
 		log.C(ctx).Infof("Sending unbind request %s to broker with name %s", logUnbindRequest(unbindRequest), broker.Name)
 		unbindResponse, err = osbClient.Unbind(unbindRequest)
@@ -431,11 +432,11 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceIn
 	return bindRequest, nil
 }
 
-func prepareUnbindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string) *osbc.UnbindRequest {
+func prepareUnbindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool) *osbc.UnbindRequest {
 	unbindRequest := &osbc.UnbindRequest{
 		BindingID:         binding.ID,
 		InstanceID:        instance.ID,
-		AcceptsIncomplete: true,
+		AcceptsIncomplete: bindingRetrievable,
 		ServiceID:         serviceCatalogID,
 		PlanID:            planCatalogID,
 		//TODO no OI for SM platform yet

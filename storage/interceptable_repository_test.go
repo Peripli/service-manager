@@ -182,6 +182,13 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			},
 		}, nil)
 
+		fakeStorage.GetForUpdateReturns(&types.ServiceBroker{
+			Base: types.Base{
+				UpdatedAt: updateTime,
+				Ready:     true,
+			},
+		}, nil)
+
 		interceptableRepository = storage.NewInterceptableTransactionalRepository(fakeStorage)
 
 		orderNone := storage.InterceptorOrder{

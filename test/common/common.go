@@ -515,45 +515,55 @@ func Closer(s string) io.ReadCloser {
 	return NopCloser{bytes.NewBufferString(s)}
 }
 
-func DoHTTP(reaction *HTTPReaction, checks *HTTPExpectations) func(*http.Request) (*http.Response, error) {
-	return func(request *http.Request) (*http.Response, error) {
-		if checks != nil {
-			if len(checks.URL) > 0 && !strings.Contains(checks.URL, request.URL.Host) {
-				Fail(fmt.Sprintf("unexpected URL; expected %v, got %v", checks.URL, request.URL.Path))
-			}
+func httpCommonChecks(request *http.Request, reaction *HTTPReaction, checks *HTTPExpectations) (*http.Response, error) {
+	if checks != nil {
+		if len(checks.URL) > 0 && !strings.Contains(checks.URL, request.URL.Host) {
+			Fail(fmt.Sprintf("unexpected URL; expected %v, got %v", checks.URL, request.URL.Path))
+		}
 
-			for k, v := range checks.Headers {
-				actualValue := request.Header.Get(k)
-				if e, a := v, actualValue; e != a {
-					Fail(fmt.Sprintf("unexpected header value for key %q; expected %v, got %v", k, e, a))
-				}
-			}
-
-			for k, v := range checks.Params {
-				actualValue := request.URL.Query().Get(k)
-				if e, a := v, actualValue; e != a {
-					Fail(fmt.Sprintf("unexpected parameter value for key %q; expected %v, got %v", k, e, a))
-				}
-			}
-
-			var bodyBytes []byte
-			if request.Body != nil {
-				var err error
-				bodyBytes, err = ioutil.ReadAll(request.Body)
-				if err != nil {
-					Fail(fmt.Sprintf("error reading request Body bytes: %v", err))
-				}
-			}
-
-			if e, a := checks.Body, string(bodyBytes); e != a {
-				Fail(fmt.Sprintf("unexpected request Body: expected %v, got %v", e, a))
+		for k, v := range checks.Headers {
+			actualValue := request.Header.Get(k)
+			if e, a := v, actualValue; e != a {
+				Fail(fmt.Sprintf("unexpected header value for key %q; expected %v, got %v", k, e, a))
 			}
 		}
-		return &http.Response{
-			StatusCode: reaction.Status,
-			Body:       Closer(reaction.Body),
-			Request:    request,
-		}, reaction.Err
+
+		for k, v := range checks.Params {
+			actualValue := request.URL.Query().Get(k)
+			if e, a := v, actualValue; e != a {
+				Fail(fmt.Sprintf("unexpected parameter value for key %q; expected %v, got %v", k, e, a))
+			}
+		}
+
+		var bodyBytes []byte
+		if request.Body != nil {
+			var err error
+			bodyBytes, err = ioutil.ReadAll(request.Body)
+			if err != nil {
+				Fail(fmt.Sprintf("error reading request Body bytes: %v", err))
+			}
+		}
+
+		if e, a := checks.Body, string(bodyBytes); e != a {
+			Fail(fmt.Sprintf("unexpected request Body: expected %v, got %v", e, a))
+		}
+	}
+	return &http.Response{
+		StatusCode: reaction.Status,
+		Body:       Closer(reaction.Body),
+		Request:    request,
+	}, reaction.Err
+}
+
+func DoHTTPWithClient(reaction *HTTPReaction, checks *HTTPExpectations) util.DoRequestWithClientFunc {
+	return func(request *http.Request, client *http.Client) (*http.Response, error) {
+		return httpCommonChecks(request, reaction, checks)
+	}
+}
+
+func DoHTTP(reaction *HTTPReaction, checks *HTTPExpectations) util.DoRequestFunc {
+	return func(request *http.Request) (*http.Response, error) {
+		return httpCommonChecks(request, reaction, checks)
 	}
 }
 
@@ -562,7 +572,7 @@ type HTTPCouple struct {
 	Reaction     *HTTPReaction
 }
 
-func DoHTTPSequence(sequence []HTTPCouple) func(*http.Request) (*http.Response, error) {
+func DoHTTPSequence(sequence []HTTPCouple) util.DoRequestFunc {
 	i := 0
 	return func(request *http.Request) (*http.Response, error) {
 		r, err := DoHTTP(sequence[i].Reaction, sequence[i].Expectations)(request)

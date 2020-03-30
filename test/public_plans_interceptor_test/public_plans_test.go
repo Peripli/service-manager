@@ -132,7 +132,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 		c.AddService(oldService)
 		testCatalog = string(c)
 
-		existingBrokerID, _, existingBrokerServer = ctx.RegisterBrokerWithCatalog(c)
+		existingBrokerID, _, existingBrokerServer = ctx.RegisterBrokerWithCatalog(c).GetBrokerAsParams()
 		Expect(existingBrokerID).ToNot(BeEmpty())
 
 		serviceCatalogID = gjson.Get(oldService, "id").Str
@@ -190,7 +190,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 		var id string
 
 		BeforeEach(func() {
-			id, _, _ = ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog())
+			id, _, _ = ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog()).GetBrokerAsParams()
 			Expect(id).ToNot(BeEmpty())
 		})
 

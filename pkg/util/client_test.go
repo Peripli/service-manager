@@ -31,7 +31,7 @@ import (
 
 var _ = Describe("Client Utils", func() {
 	var (
-		requestFunc  func(*http.Request) (*http.Response, error)
+		requestFunc  util.DoRequestFunc
 		reaction     *common.HTTPReaction
 		expectations *common.HTTPExpectations
 	)

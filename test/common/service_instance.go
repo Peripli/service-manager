@@ -141,7 +141,9 @@ func preparePlan(ctx *TestContext) (string, string) {
 	cService := GenerateTestServiceWithPlans(GenerateFreeTestPlan())
 	catalog := NewEmptySBCatalog()
 	catalog.AddService(cService)
-	brokerID, _, brokerServer := ctx.RegisterBrokerWithCatalog(catalog)
+	brokerUtils := ctx.RegisterBrokerWithCatalog(catalog)
+	brokerID := brokerUtils.Broker.ID
+	brokerServer := brokerUtils.Broker.BrokerServer
 	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
 
 	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", brokerID)
