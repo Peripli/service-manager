@@ -111,8 +111,3 @@ func (e *Platform) Validate() error {
 	}
 	return nil
 }
-
-func (e *Platform) HasLabel(labelKey string) bool {
-	_, found := e.Labels[labelKey]
-	return found
-}
