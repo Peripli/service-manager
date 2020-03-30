@@ -457,7 +457,9 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusOK)
+		})
 
+		JustBeforeEach(func() {
 			By(fmt.Sprintf("Deleting service instance with id %s", SID))
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusAccepted, `{}`)
 			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
