@@ -69,10 +69,11 @@ var _ = Describe("Service Manager Config API", func() {
 					}
 				},
 				"httpclient": {
+					"timeout": "4000ms",
 					"dial_timeout": "4000ms",
 					"idle_conn_timeout": "4000ms",
-					"response_header_timeout": "40000ms",
-					"skip_ssl_validation": false,
+					"response_header_timeout": "4000ms",
+					"skip_ssl_validation": true,
 					"tls_handshake_timeout": "4000ms"
 				},
 				"log": {

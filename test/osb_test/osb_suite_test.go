@@ -22,12 +22,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/test"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Peripli/service-manager/test"
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/multitenancy"
@@ -96,6 +97,7 @@ var (
 	provisionRequestBody string
 
 	brokerPlatformCredentialsIDMap map[string]brokerPlatformCredentials
+	utils                          *common.BrokerUtils
 )
 
 type brokerPlatformCredentials struct {
@@ -105,7 +107,9 @@ type brokerPlatformCredentials struct {
 
 var _ = BeforeSuite(func() {
 	ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+		Expect(set.Set("server.request_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 		Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
+		Expect(set.Set("httpclient.timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 	}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 		_, err := smb.EnableMultitenancy(TenantIdentifier, func(request *web.Request) (string, error) {
 			extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")
@@ -132,7 +136,10 @@ var _ = BeforeSuite(func() {
 
 	brokerPlatformCredentialsIDMap = make(map[string]brokerPlatformCredentials)
 
-	emptyCatalogBrokerID, _, brokerServerWithEmptyCatalog = ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog())
+	butils := ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog())
+	emptyCatalogBrokerID = butils.Broker.ID
+	brokerServerWithEmptyCatalog = butils.Broker.BrokerServer
+
 	smUrlToEmptyCatalogBroker = brokerServerWithEmptyCatalog.URL() + "/v1/osb/" + emptyCatalogBrokerID
 	username, password := test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, emptyCatalogBrokerID)
 	brokerPlatformCredentialsIDMap[emptyCatalogBrokerID] = brokerPlatformCredentials{
@@ -140,7 +147,7 @@ var _ = BeforeSuite(func() {
 		password: password,
 	}
 
-	simpleBrokerCatalogID, _, brokerServerWithSimpleCatalog = ctx.RegisterBrokerWithCatalog(simpleCatalog)
+	simpleBrokerCatalogID, _, brokerServerWithSimpleCatalog = ctx.RegisterBrokerWithCatalog(simpleCatalog).GetBrokerAsParams()
 	smUrlToSimpleBrokerCatalogBroker = brokerServerWithSimpleCatalog.URL() + "/v1/osb/" + simpleBrokerCatalogID
 	common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, simpleBrokerCatalogID)
 	username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, simpleBrokerCatalogID)
@@ -154,7 +161,7 @@ var _ = BeforeSuite(func() {
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(service0)
 
-	stoppedBrokerID, _, stoppedBrokerServer = ctx.RegisterBrokerWithCatalog(catalog)
+	stoppedBrokerID, _, stoppedBrokerServer = ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
 	common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, stoppedBrokerID)
 	stoppedBrokerServer.Close()
 	smUrlToStoppedBroker = stoppedBrokerServer.URL() + "/v1/osb/" + stoppedBrokerID
@@ -173,7 +180,13 @@ var _ = BeforeSuite(func() {
 	catalog.AddService(service1)
 
 	var brokerObject common.Object
-	brokerID, brokerObject, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
+
+	utils = ctx.RegisterBrokerWithCatalog(catalog)
+	brokerID = utils.Broker.ID
+	brokerObject = utils.Broker.JSON
+	brokerServer = utils.Broker.BrokerServer
+	utils.BrokerWithTLS = ctx.RegisterBrokerWithRandomCatalogAndTLS(ctx.SMWithOAuth).BrokerWithTLS
+
 	plans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("catalog_id in ('%s','%s')", plan1CatalogID, plan2CatalogID)).Iter()
 	for _, p := range plans {
 		common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, p.Object().Value("id").String().Raw(), ctx.TestPlatform.ID)

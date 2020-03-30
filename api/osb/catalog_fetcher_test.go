@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/Peripli/service-manager/test/tls_settings"
 	"net/http"
 
 	"github.com/Peripli/service-manager/api/osb"
@@ -65,19 +66,78 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 		version  = "2.13"
 	)
 
-	var testBroker *types.ServiceBroker
+	var (
+		tlsKey = tls_settings.ClientKey
+		cert   = tls_settings.ClientCertificate
+	)
 	var expectedHeaders map[string]string
 
-	type testCase struct {
-		expectations *common.HTTPExpectations
-		reaction     *common.HTTPReaction
+	testBroker := types.ServiceBroker{
+		Base: types.Base{
+			ID:     id,
+			Labels: map[string][]string{},
+			Ready:  true,
+		},
+		Name:      name,
+		BrokerURL: url,
+		Credentials: &types.Credentials{
+			Basic: &types.Basic{
+				Username: username,
+				Password: password,
+			},
+		},
+	}
 
+	testBrokeTLS := types.ServiceBroker{
+		Base: types.Base{
+			ID:     id,
+			Labels: map[string][]string{},
+			Ready:  true,
+		},
+		Name:      name,
+		BrokerURL: url,
+		Credentials: &types.Credentials{
+			Basic: &types.Basic{
+				Username: username,
+				Password: password,
+			},
+			TLS: &types.TLS{
+				Certificate: cert,
+				Key:         tlsKey,
+			},
+		},
+	}
+
+	testBrokerTLSInvalid := types.ServiceBroker{
+		Base: types.Base{
+			ID:     id,
+			Labels: map[string][]string{},
+			Ready:  true,
+		},
+		Name:      name,
+		BrokerURL: url,
+		Credentials: &types.Credentials{
+			Basic: &types.Basic{
+				Username: username,
+				Password: password,
+			},
+			TLS: &types.TLS{
+				Certificate: "cert",
+				Key:         "key",
+			},
+		},
+	}
+
+	type testCase struct {
+		expectations     *common.HTTPExpectations
+		reaction         *common.HTTPReaction
+		broker           types.ServiceBroker
 		expectedErr      error
 		expectedResponse []byte
 	}
 
 	newFetcher := func(t testCase) func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
-		return osb.CatalogFetcher(common.DoHTTP(t.reaction, t.expectations), version)
+		return osb.CatalogFetcher(common.DoHTTPWithClient(t.reaction, t.expectations), version)
 	}
 
 	basicAuth := func(username, password string) string {
@@ -86,22 +146,6 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 	}
 
 	BeforeEach(func() {
-		testBroker = &types.ServiceBroker{
-			Base: types.Base{
-				ID:     id,
-				Labels: map[string][]string{},
-				Ready:  true,
-			},
-			Name:      name,
-			BrokerURL: url,
-			Credentials: &types.Credentials{
-				Basic: &types.Basic{
-					Username: username,
-					Password: password,
-				},
-			},
-		}
-
 		expectedHeaders = map[string]string{
 			"Authorization":        "Basic " + basicAuth(username, password),
 			"X-Broker-API-Version": version,
@@ -121,8 +165,10 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 			},
 			expectedErr:      nil,
 			expectedResponse: []byte(simpleCatalog),
+			broker:           testBroker,
 		}),
 		Entry("returns error if response code from broker is not 200", testCase{
+			broker: testBroker,
 			expectations: &common.HTTPExpectations{
 				URL:     url,
 				Headers: expectedHeaders,
@@ -136,6 +182,7 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 			expectedResponse: nil,
 		}),
 		Entry("returns error if sending request fails with error", testCase{
+			broker: testBroker,
 			expectations: &common.HTTPExpectations{
 				URL:     url,
 				Headers: expectedHeaders,
@@ -150,11 +197,38 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 				StatusCode:  http.StatusBadGateway,
 			},
 		}),
+		Entry("returns error if invalid tls settings are passed", testCase{
+			broker: testBrokerTLSInvalid,
+			expectations: &common.HTTPExpectations{
+				URL:     url,
+				Headers: expectedHeaders,
+			},
+			reaction: &common.HTTPReaction{
+				Status: http.StatusBadGateway,
+				Err:    fmt.Errorf("error sending request"),
+			},
+			expectedErr: &util.HTTPError{
+				ErrorType:   "ServiceBrokerErr",
+				Description: fmt.Sprintf("failed to find any PEM data in certificate input"),
+				StatusCode:  http.StatusBadGateway,
+			},
+		}),
+		Entry("returns error if invalid tls settings are passed", testCase{
+			broker: testBrokeTLS,
+			expectations: &common.HTTPExpectations{
+				URL:     url,
+				Headers: expectedHeaders,
+			},
+			reaction: &common.HTTPReaction{
+				Status: http.StatusOK,
+			},
+			expectedErr: nil,
+		}),
 	}
 
 	DescribeTable("Fetch", func(t testCase) {
 		fetcher := newFetcher(t)
-		rawCatalog, err := fetcher(context.TODO(), testBroker)
+		rawCatalog, err := fetcher(context.TODO(), &t.broker)
 
 		if t.expectedErr != nil {
 			Expect(err).To(HaveOccurred())
