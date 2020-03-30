@@ -180,9 +180,16 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 						resp.Status(http.StatusBadRequest)
 					})
 				} else {
-					It("returns 404", func() {
+					It("fails", func() {
 						resp := ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).Expect()
-						resp.Status(http.StatusNotFound)
+						common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
+							Category:          types.DELETE,
+							State:             types.FAILED,
+							ResourceType:      types.ObjectType(t.API),
+							Reschedulable:     false,
+							DeletionScheduled: false,
+							Error:             notFoundMsg,
+						})
 					})
 				}
 			})
