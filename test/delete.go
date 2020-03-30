@@ -21,6 +21,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/gavv/httpexpect"
+
 	"github.com/Peripli/service-manager/pkg/types"
 	. "github.com/onsi/gomega"
 
@@ -137,13 +139,18 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 						})
 					})
 
-					if !t.StrictlyTenantScoped {
-						Context("when authenticating with global token", func() {
+					Context("when authenticating with global token", func() {
+						if !t.StrictlyTenantScoped {
 							It("returns 200", func() {
 								verifyResourceDeletion(ctx.SMWithOAuth, successfulDeletionRequestResponseCode, 0, types.SUCCEEDED)
 							})
-						})
-					}
+						} else {
+							It("returns 400", func() {
+								ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).Expect().
+									Status(http.StatusBadRequest)
+							})
+						}
+					})
 
 					Context("when authenticating with tenant scoped token", func() {
 						It("returns 200", func() {
@@ -174,24 +181,10 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 			})
 
 			Context("when authenticating with global token", func() {
-				if t.StrictlyTenantScoped {
-					It("returns 400", func() {
-						resp := ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).Expect()
-						resp.Status(http.StatusBadRequest)
-					})
-				} else {
-					It("fails", func() {
-						resp := ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).Expect()
-						common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
-							Category:          types.DELETE,
-							State:             types.FAILED,
-							ResourceType:      types.ObjectType(t.API),
-							Reschedulable:     false,
-							DeletionScheduled: false,
-							Error:             notFoundMsg,
-						})
-					})
-				}
+				It("returns 4xx", func() {
+					ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).
+						Expect().StatusRange(httpexpect.Status4xx)
+				})
 			})
 		})
 	})
