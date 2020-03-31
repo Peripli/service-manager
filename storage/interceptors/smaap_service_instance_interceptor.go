@@ -469,6 +469,9 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 		}
 	}
 
+	maxPollingDurationTicker := time.NewTicker(leftPollingDuration)
+	defer maxPollingDurationTicker.Stop()
+
 	ticker := time.NewTicker(i.pollingInterval)
 	defer ticker.Stop()
 	for {
@@ -478,7 +481,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 			// The context is done, either because SM crashed/exited or because action timeout elapsed. In this case the operation should be kept in progress.
 			// This way the operation would be rescheduled and the polling will span multiple reschedules, but no more than max_polling_interval if provided in the plan.
 			return nil
-		case <-time.Tick(leftPollingDuration):
+		case <-maxPollingDurationTicker.C:
 			return i.processMaxPollingDurationElapsed(ctx, instance, plan, operation, enableOrphanMitigation)
 		case <-ticker.C:
 			log.C(ctx).Infof("Sending poll last operation request %s for instance with id %s and name %s", logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)

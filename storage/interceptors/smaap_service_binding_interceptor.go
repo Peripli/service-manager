@@ -219,7 +219,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		}
 
 		if operation.Reschedule {
-			if err := i.pollServiceBinding(ctx, osbClient, binding,instance,plan, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
+			if err := i.pollServiceBinding(ctx, osbClient, binding, instance, plan, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
 				return nil, err
 			}
 		}
@@ -468,9 +468,12 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 		// MaximumPollingDuration can span multiple reschedules
 		leftPollingDuration = planMaxPollingDuration - (time.Since(operation.RescheduleTimestamp))
 		if leftPollingDuration <= 0 { // The Maximum Polling Duration elapsed before this polling start
-			return i.processMaxPollingDurationElapsed(ctx, binding,instance,plan, operation, enableOrphanMitigation)
+			return i.processMaxPollingDurationElapsed(ctx, binding, instance, plan, operation, enableOrphanMitigation)
 		}
 	}
+
+	maxPollingDurationTicker := time.NewTicker(leftPollingDuration)
+	defer maxPollingDurationTicker.Stop()
 
 	ticker := time.NewTicker(i.pollingInterval)
 	defer ticker.Stop()
@@ -481,8 +484,8 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 			// The context is done, either because SM crashed/exited or because action timeout elapsed. In this case the operation should be kept in progress.
 			// This way the operation would be rescheduled and the polling will span multiple reschedules, but no more than max_polling_interval if provided in the plan.
 			return nil
-		case <-time.Tick(leftPollingDuration):
-			return i.processMaxPollingDurationElapsed(ctx, binding,instance,plan, operation, enableOrphanMitigation)
+		case <-maxPollingDurationTicker.C:
+			return i.processMaxPollingDurationElapsed(ctx, binding, instance, plan, operation, enableOrphanMitigation)
 		case <-ticker.C:
 			log.C(ctx).Infof("Sending poll last operation request %s for binding with id %s and name %s",
 				logPollBindingRequest(pollingRequest), binding.ID, binding.Name)
