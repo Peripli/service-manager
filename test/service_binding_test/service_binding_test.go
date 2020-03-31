@@ -1291,7 +1291,7 @@ var _ = DescribeTestsFor(TestCase{
 									if testCase.async {
 										expectedCode = http.StatusAccepted
 									}
-									smWithOtherTenant := ctx.NewTenantExpect("tenancyClient","other-tenant")
+									smWithOtherTenant := ctx.NewTenantExpect("tenancyClient", "other-tenant")
 									deleteBinding(smWithOtherTenant, testCase.async, expectedCode)
 
 									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{

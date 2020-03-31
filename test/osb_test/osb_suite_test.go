@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/test"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/multitenancy"
@@ -476,4 +477,13 @@ func verifyOperationDoesNotExist(resourceID string, operationTypes ...string) {
 	objectList, err := ctx.SMRepository.List(context.TODO(), types.OperationType, criterias...)
 	Expect(err).ToNot(HaveOccurred())
 	Expect(objectList.Len()).To(BeZero())
+}
+
+func hashPassword(password string) string {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		panic(err)
+	}
+
+	return string(passwordHash)
 }
