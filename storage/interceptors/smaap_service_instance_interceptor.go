@@ -197,8 +197,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		}
 
 		if operation.Reschedule {
-			maxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
-			if err := i.pollServiceInstance(ctx, osbClient, instance, operation, service.CatalogID, plan.CatalogID, maxPollingDuration, true); err != nil {
+			if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
 				return nil, err
 			}
 		}
@@ -308,8 +307,7 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 		}
 
 		if operation.Reschedule {
-			maxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
-			if err := i.pollServiceInstance(ctx, osbClient, updatedInstance, operation, service.CatalogID, plan.CatalogID, maxPollingDuration, false); err != nil {
+			if err := i.pollServiceInstance(ctx, osbClient, updatedInstance, plan, operation, service.CatalogID, plan.CatalogID, false); err != nil {
 				instance.UpdateValues = types.InstanceUpdateValues{}
 				_, updateErr := i.repository.RawRepository.Update(ctx, instance, types.LabelChanges{})
 				if updateErr != nil {
@@ -436,8 +434,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 	}
 
 	if operation.Reschedule {
-		maxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
-		if err := i.pollServiceInstance(ctx, osbClient, instance, operation, service.CatalogID, plan.CatalogID, maxPollingDuration, true); err != nil {
+		if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
 			return err
 		}
 	}
@@ -445,7 +442,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 	return nil
 }
 
-func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, osbClient osbc.Client, instance *types.ServiceInstance, operation *types.Operation, serviceCatalogID, planCatalogID string, maxPollingDuration time.Duration, enableOrphanMitigation bool) error {
+func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, osbClient osbc.Client, instance *types.ServiceInstance, plan *types.ServicePlan, operation *types.Operation, serviceCatalogID, planCatalogID string, enableOrphanMitigation bool) error {
 	var key *osbc.OperationKey
 	if len(operation.ExternalID) != 0 {
 		opKey := osbc.OperationKey(operation.ExternalID)
@@ -461,12 +458,13 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 		OriginatingIdentity: nil,
 	}
 
+	maxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
 	var maximumPollingDurationTicker *time.Ticker
 	if maxPollingDuration > 0 {
 		// MaximumPollingDuration can span multiple reschedules
 		leftPollingDuration := maxPollingDuration - (time.Since(operation.RescheduleTimestamp))
 		if leftPollingDuration <= 0 { // The Maximum Polling Duration elapsed before this polling start
-			return i.processMaxPollingDurationElapsed(ctx, instance, operation, enableOrphanMitigation)
+			return i.processMaxPollingDurationElapsed(ctx, instance, plan, operation, enableOrphanMitigation)
 		}
 		maximumPollingDurationTicker = time.NewTicker(leftPollingDuration)
 		defer maximumPollingDurationTicker.Stop()
@@ -485,7 +483,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 			//operation should be kept in progress in this case
 			return nil
 		case <-maximumPollingDurationTicker.C:
-			return i.processMaxPollingDurationElapsed(ctx, instance, operation, enableOrphanMitigation)
+			return i.processMaxPollingDurationElapsed(ctx, instance, plan, operation, enableOrphanMitigation)
 		case <-ticker.C:
 			log.C(ctx).Infof("Sending poll last operation request %s for instance with id %s and name %s", logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
 			pollingResponse, err := osbClient.PollLastOperation(pollingRequest)
@@ -552,8 +550,8 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 	}
 }
 
-func (i *ServiceInstanceInterceptor) processMaxPollingDurationElapsed(ctx context.Context, instance *types.ServiceInstance, operation *types.Operation, enableOrphanMitigation bool) error {
-	log.C(ctx).Errorf("Terminating poll last operataion for instance with id %s and name %s due to maximum_polling_duration for it's plan is reached", instance.ID, instance.Name)
+func (i *ServiceInstanceInterceptor) processMaxPollingDurationElapsed(ctx context.Context, instance *types.ServiceInstance, plan *types.ServicePlan, operation *types.Operation, enableOrphanMitigation bool) error {
+	log.C(ctx).Errorf("Terminating poll last operataion for instance with id %s and name %s due to maximum_polling_duration %ds for it's plan %s is reached", instance.ID, instance.Name, plan.MaximumPollingDuration, plan.Name)
 	operation.Reschedule = false
 	operation.RescheduleTimestamp = time.Time{}
 	if enableOrphanMitigation {
@@ -564,7 +562,7 @@ func (i *ServiceInstanceInterceptor) processMaxPollingDurationElapsed(ctx contex
 	}
 	return &util.HTTPError{
 		ErrorType:   "BrokerError",
-		Description: fmt.Sprintf("failed polling operation for instance with id %s and name %s due to maximum_polling_duration for it's plan is reached", instance.ID, instance.Name),
+		Description: fmt.Sprintf("failed polling operation for instance with id %s and name %s due to maximum_polling_duration %ds for it's plan %s is reached", instance.ID, instance.Name, plan.MaximumPollingDuration, plan.Name),
 		StatusCode:  http.StatusBadGateway,
 	}
 }

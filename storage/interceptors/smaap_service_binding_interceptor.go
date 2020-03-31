@@ -219,8 +219,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		}
 
 		if operation.Reschedule {
-			maxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
-			if err := i.pollServiceBinding(ctx, osbClient, binding, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, maxPollingDuration, true); err != nil {
+			if err := i.pollServiceBinding(ctx, osbClient, binding,instance,plan, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
 				return nil, err
 			}
 		}
@@ -320,8 +319,7 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 	}
 
 	if operation.Reschedule {
-		maxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
-		if err := i.pollServiceBinding(ctx, osbClient, binding, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, maxPollingDuration, true); err != nil {
+		if err := i.pollServiceBinding(ctx, osbClient, binding, instance, plan, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
 			return err
 		}
 	}
@@ -446,7 +444,7 @@ func prepareUnbindRequest(instance *types.ServiceInstance, binding *types.Servic
 	return unbindRequest
 }
 
-func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbClient osbc.Client, binding *types.ServiceBinding, operation *types.Operation, brokerID, serviceCatalogID, planCatalogID, operationKey string, maxPollingDuration time.Duration, enableOrphanMitigation bool) error {
+func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbClient osbc.Client, binding *types.ServiceBinding, instance *types.ServiceInstance, plan *types.ServicePlan, operation *types.Operation, brokerID, serviceCatalogID, planCatalogID, operationKey string, enableOrphanMitigation bool) error {
 	var key *osbc.OperationKey
 	if len(operation.ExternalID) != 0 {
 		opKey := osbc.OperationKey(operation.ExternalID)
@@ -463,12 +461,13 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 		OriginatingIdentity: nil,
 	}
 
+	maxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
 	var maximumPollingDurationTicker *time.Ticker
 	if maxPollingDuration > 0 {
 		// MaximumPollingDuration can span multiple reschedules
 		leftPollingDuration := maxPollingDuration - (time.Since(operation.RescheduleTimestamp))
 		if leftPollingDuration <= 0 { // The Maximum Polling Duration elapsed before this polling start
-			return i.processMaxPollingDurationElapsed(ctx, binding, operation, enableOrphanMitigation)
+			return i.processMaxPollingDurationElapsed(ctx, binding,instance,plan, operation, enableOrphanMitigation)
 		}
 		maximumPollingDurationTicker = time.NewTicker(leftPollingDuration)
 		defer maximumPollingDurationTicker.Stop()
@@ -487,7 +486,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 			//operation should be kept in progress in this case
 			return nil
 		case <-maximumPollingDurationTicker.C:
-			return i.processMaxPollingDurationElapsed(ctx, binding, operation, enableOrphanMitigation)
+			return i.processMaxPollingDurationElapsed(ctx, binding,instance,plan, operation, enableOrphanMitigation)
 		case <-ticker.C:
 			log.C(ctx).Infof("Sending poll last operation request %s for binding with id %s and name %s",
 				logPollBindingRequest(pollingRequest), binding.ID, binding.Name)
@@ -568,8 +567,8 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 	}
 }
 
-func (i *ServiceBindingInterceptor) processMaxPollingDurationElapsed(ctx context.Context, binding *types.ServiceBinding, operation *types.Operation, enableOrphanMitigation bool) error {
-	log.C(ctx).Errorf("Terminating poll last operataion for binding with id %s and name %s due to maximum_polling_duration for it's plan is reached", binding.ID, binding.Name)
+func (i *ServiceBindingInterceptor) processMaxPollingDurationElapsed(ctx context.Context, binding *types.ServiceBinding, instance *types.ServiceInstance, plan *types.ServicePlan, operation *types.Operation, enableOrphanMitigation bool) error {
+	log.C(ctx).Errorf("Terminating poll last operataion for binding with id %s and name %s for instance with id %s and name %s due to maximum_polling_duration %ds for it's plan %s is reached", binding.ID, binding.Name, instance.ID, instance.Name, plan.MaximumPollingDuration, plan.Name)
 	operation.Reschedule = false
 	operation.RescheduleTimestamp = time.Time{}
 	if enableOrphanMitigation {
@@ -580,7 +579,7 @@ func (i *ServiceBindingInterceptor) processMaxPollingDurationElapsed(ctx context
 	}
 	return &util.HTTPError{
 		ErrorType:   "BrokerError",
-		Description: fmt.Sprintf("failed polling operation for binding with id %s and name %s due to maximum_polling_duration for it's plan is reached", binding.ID, binding.Name),
+		Description: fmt.Sprintf("failed polling operation for binding with id %s and name %s for instance with id %s and name %s due to maximum_polling_duration %ds for it's plan %s is reached", binding.ID, binding.Name, instance.ID, instance.Name, plan.MaximumPollingDuration, plan.Name),
 		StatusCode:  http.StatusBadGateway,
 	}
 }
