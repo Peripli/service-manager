@@ -72,7 +72,8 @@ var _ = Describe("OSB Security", func() {
 	})
 
 	AfterEach(func() {
-		ctx.CleanupAdditionalResources()
+		ctx.CleanupBroker(brokerID)
+		ctx.CleanupPlatforms()
 	})
 
 	Context("from the same subaccount", func() {
