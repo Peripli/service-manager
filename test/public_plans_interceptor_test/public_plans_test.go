@@ -491,18 +491,36 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 	})
 
 	Context("when a plan has specified supported platform IDs", func() {
-		var supportedPlatformIDs []string
+		var supportedPlatformsByID map[string]*types.Platform
 		var planID string
 
+		var getSupportedPlatformNames = func() []string {
+			result := make([]string, 0)
+			for _, platform := range supportedPlatformsByID {
+				result = append(result, platform.Name)
+			}
+
+			return result
+		}
+
+		var getSupportedPlatformIDs = func() []string {
+			result := make([]string, 0)
+			for id := range supportedPlatformsByID {
+				result = append(result, id)
+			}
+
+			return result
+		}
+
 		JustBeforeEach(func() {
-			catalog, err := sjson.Set(testCatalog, "services.0.plans.0.metadata.supportedPlatformIDs", supportedPlatformIDs)
+			catalog, err := sjson.Set(testCatalog, "services.0.plans.0.metadata.supportedPlatformNames", getSupportedPlatformNames())
 			Expect(err).ToNot(HaveOccurred())
 
 			existingBrokerServer.Catalog = common.SBCatalog(catalog)
 
 			plan := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_name eq '%s'", oldPublicPlanCatalogName))
 
-			plan.Path("$[*].metadata.supportedPlatformIDs").NotNull().Array().Empty()
+			plan.Path("$[*].metadata.supportedPlatformNames").NotNull().Array().Empty()
 
 			planID = plan.First().Object().Value("id").String().Raw()
 			Expect(planID).ToNot(BeEmpty())
@@ -515,17 +533,17 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 
 			BeforeEach(func() {
 				platform := ctx.RegisterPlatform()
-				supportedPlatformIDs = []string{platform.ID}
+				supportedPlatformsByID = map[string]*types.Platform{platform.ID: platform}
 			})
 
-			It("creates a single public visibility for that platform", func() {
+			FIt("creates a single public visibility for that platform", func() {
 				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
 					WithJSON(common.Object{}).
 					Expect().
 					Status(http.StatusOK)
 
 				vis := findOneVisibilityForServicePlanID(planID)
-				Expect(vis["platform_id"]).To(Equal(supportedPlatformIDs[0]))
+				Expect(vis["platform_id"]).To(Equal(getSupportedPlatformIDs()[0]))
 			})
 		})
 
@@ -534,20 +552,23 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 			BeforeEach(func() {
 				firstPlatform := ctx.RegisterPlatform()
 				secondPlatform := ctx.RegisterPlatform()
-				supportedPlatformIDs = []string{firstPlatform.ID, secondPlatform.ID}
+				supportedPlatformsByID = map[string]*types.Platform{
+					firstPlatform.ID:  firstPlatform,
+					secondPlatform.ID: secondPlatform,
+				}
 			})
 
-			It("creates a single visibility for each supported platform", func() {
+			FIt("creates a single visibility for each supported platform", func() {
 				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
 					WithJSON(common.Object{}).
 					Expect().
 					Status(http.StatusOK)
 
 				vis := findVisibilitiesForServicePlanID(planID)
-				vis.Length().Equal(len(supportedPlatformIDs))
+				vis.Length().Equal(len(supportedPlatformsByID))
 
 				visPlatformIDs := make([]string, 0)
-				for i := 0; i < len(supportedPlatformIDs); i++ {
+				for i := 0; i < len(supportedPlatformsByID); i++ {
 					plt := vis.Element(i).Object()
 					plt.NotContainsKey("labels")
 
@@ -555,7 +576,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 					visPlatformIDs = append(visPlatformIDs, pltID)
 				}
 
-				Expect(len(slice.StringsDistinct(visPlatformIDs, supportedPlatformIDs))).To(BeEquivalentTo(0))
+				Expect(len(slice.StringsDistinct(visPlatformIDs, getSupportedPlatformIDs()))).To(BeEquivalentTo(0))
 			})
 		})
 	})

@@ -19,7 +19,6 @@ package types
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/tidwall/gjson"
 	"reflect"
 
@@ -102,8 +101,8 @@ func (e *ServicePlan) Validate() error {
 		}
 	}
 
-	if e.SupportedPlatformIDs() != nil && e.SupportedPlatformTypes() != nil {
-		return fmt.Errorf("only one of supportedPlatforms and supportedPlatformIDs can be defined in plan metadata")
+	if e.SupportedPlatformNames() != nil && e.SupportedPlatformTypes() != nil {
+		return fmt.Errorf("only one of supportedPlatforms and supportedPlatformNames can be defined in plan metadata")
 	}
 
 	return nil
@@ -115,10 +114,10 @@ func (e *ServicePlan) SupportedPlatformTypes() []string {
 	return e.metadataPropertyAsStringArray("supportedPlatforms")
 }
 
-// SupportedPlatformIDs returns the supportedPlatformIDs provided in a plan's metadata (if a value is provided at all).
-// If there are no supported platforms IDs, nil is returned
-func (e *ServicePlan) SupportedPlatformIDs() []string {
-	return e.metadataPropertyAsStringArray("supportedPlatformIDs")
+// SupportedPlatformNames returns the supportedPlatformNames provided in a plan's metadata (if a value is provided at all).
+// If there are no supported platforms names, nil is returned
+func (e *ServicePlan) SupportedPlatformNames() []string {
+	return e.metadataPropertyAsStringArray("supportedPlatformNames")
 }
 
 func (e *ServicePlan) metadataPropertyAsStringArray(propertyKey string) []string {
@@ -132,28 +131,4 @@ func (e *ServicePlan) metadataPropertyAsStringArray(propertyKey string) []string
 		result[i] = p.String()
 	}
 	return result
-}
-
-// SupportsPlatform determines whether a specific platform type is among the ones that a plan supports
-func (e *ServicePlan) SupportsPlatformType(platform string) bool {
-	platformTypes := e.SupportedPlatformTypes()
-
-	return platformTypes == nil || slice.StringsAnyEquals(platformTypes, platform)
-}
-
-// SupportsPlatformInstance determines whether a specific platform instance is among the ones that a plan supports
-func (e *ServicePlan) SupportsPlatformInstance(platform Platform) bool {
-	platformIDs := e.SupportedPlatformIDs()
-
-	if platformIDs == nil {
-		platformTypes := e.SupportedPlatformTypes()
-		return platformTypes == nil || slice.StringsAnyEquals(platformTypes, platform.Type)
-	} else {
-		return slice.StringsAnyEquals(platformIDs, platform.ID)
-	}
-}
-
-// SupportsAllPlatforms determines whether the plan supports all platforms
-func (e *ServicePlan) SupportsAllPlatforms() bool {
-	return len(e.SupportedPlatformIDs()) == 0 && len(e.SupportedPlatformTypes()) == 0
 }
