@@ -34,7 +34,8 @@ const (
 )
 
 // PlatformIDInstanceValidationFilter ensures that if a platform is provided for provisioning request that it's the SM Platform.
-// It also limits Patch and Delete requests to instances created in the SM platform.
+// It also limits Patch and Delete requests to instances created in the SM platform. In addition PATCH requests that transfer instances
+// to SM platform are also allowed.
 type PlatformIDInstanceValidationFilter struct {
 }
 
@@ -48,7 +49,7 @@ func (*PlatformIDInstanceValidationFilter) Run(req *web.Request, next web.Handle
 
 	if platformID != "" && platformID != types.SMPlatform {
 		return nil, &util.HTTPError{
-			ErrorType:   "BadRequest",
+			ErrorType:   "InvalidTransfer",
 			Description: fmt.Sprintf("Providing %s property during provisioning/updating with a value different from %s is forbidden", platformIDProperty, types.SMPlatform),
 			StatusCode:  http.StatusBadRequest,
 		}
@@ -71,7 +72,15 @@ func (*PlatformIDInstanceValidationFilter) Run(req *web.Request, next web.Handle
 		}
 		req.Request = req.WithContext(ctx)
 	case http.MethodPatch:
-		// we don't want to explicitly add SMPlatform criteria for patch - this allows migrating instances from other platforms to SM
+		// we don't want to explicitly add SMPlatform criteria for patch if instance is being migrated to SM
+		if platformID != types.SMPlatform {
+			byPlatformID := query.ByField(query.EqualsOperator, platformIDProperty, types.SMPlatform)
+			ctx, err := query.AddCriteria(reqCtx, byPlatformID)
+			if err != nil {
+				return nil, err
+			}
+			req.Request = req.WithContext(ctx)
+		}
 	}
 
 	return next.Handle(req)

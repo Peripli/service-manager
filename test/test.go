@@ -241,8 +241,6 @@ func DescribeTestsFor(t TestCase) bool {
 			return ctxBuilder
 		}
 
-		t.ContextBuilder = ctxBuilder()
-
 		BeforeEach(func() {
 			t.ContextBuilder = ctxBuilder()
 		})
