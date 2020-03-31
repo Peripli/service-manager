@@ -50,7 +50,7 @@ var _ = Describe("OSB Security", func() {
 		origBrokerExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
 			req.WithBasicAuth("admin", "admin")
 		})
-		// '{"service_id":"33ceba5779bfa320a1ef0694d98069df", "plan_id":"a80bf06fbd20eff6a5b6896e873d8cbe","space_guid":"sdaf", "organization_guid":"gggfdgd","context":{"organization_guid":"blabla", "space_guid":"asdfgasdf", "platform":"cloudfoundry"}}'
+
 		origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/12345", web.OSBURL, brokerID)).
 			WithJSON(common.Object{
 				"service_id": serviceID,
@@ -60,7 +60,6 @@ var _ = Describe("OSB Security", func() {
 				},
 			}).Expect().Status(http.StatusCreated)
 
-		// {"service_id":"33ceba5779bfa320a1ef0694d98069df", "plan_id":"a80bf06fbd20eff6a5b6896e873d8cbe","space_guid":"sdaf", "organization_guid":"gggfdgd","context":{"organization_guid":"blabla", "space_guid":"asdfgasdf", "platform":"cloudfoundry"}}
 		origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
 			WithJSON(common.Object{
 				"service_id": serviceID,
