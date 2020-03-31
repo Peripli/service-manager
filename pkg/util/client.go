@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/gofrs/uuid"
+	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -30,12 +31,10 @@ import (
 
 // DoRequestFunc is an alias for any function that takes an http request and returns a response and error
 type DoRequestFunc func(request *http.Request) (*http.Response, error)
+type DoRequestWithClientFunc func(request *http.Request, client *http.Client) (*http.Response, error)
 
-func BasicAuthDecorator(username, password string, requestFunc DoRequestFunc) DoRequestFunc {
-	return func(req *http.Request) (*http.Response, error) {
-		req.SetBasicAuth(username, password)
-		return requestFunc(req)
-	}
+func ClientRequest(request *http.Request, client *http.Client) (*http.Response, error) {
+	return client.Do(request)
 }
 
 // SendRequest sends a request to the specified client and the provided URL with the specified parameters and body.
@@ -43,21 +42,19 @@ func SendRequest(ctx context.Context, doRequest DoRequestFunc, method, url strin
 	return SendRequestWithHeaders(ctx, doRequest, method, url, params, body, map[string]string{})
 }
 
-// SendRequestWithHeaders sends a request to the specified client and the provided URL with the specified parameters, body and headers.
-func SendRequestWithHeaders(ctx context.Context, doRequest DoRequestFunc, method, url string, params map[string]string, body interface{}, headers map[string]string) (*http.Response, error) {
+func prepareRequest(ctx context.Context, method, url string, params map[string]string, body interface{}, headers map[string]string) (*http.Request, *logrus.Entry, error) {
 	var bodyReader io.Reader
-
 	if body != nil {
 		bodyBytes, err := json.Marshal(body)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		bodyReader = bytes.NewReader(bodyBytes)
 	}
 
 	request, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	for key, value := range headers {
@@ -84,6 +81,15 @@ func SendRequestWithHeaders(ctx context.Context, doRequest DoRequestFunc, method
 		}
 	}
 
+	return request, logger, nil
+}
+
+// SendRequestWithHeaders sends a request to the specified client and the provided URL with the specified parameters, body and headers.
+func SendRequestWithHeaders(ctx context.Context, doRequest DoRequestFunc, method, url string, params map[string]string, body interface{}, headers map[string]string) (*http.Response, error) {
+	request, logger, err := prepareRequest(ctx, method, url, params, body, headers)
+	if err != nil {
+		return nil, err
+	}
 	logger.Debugf("Sending request %s %s", request.Method, request.URL)
 	return doRequest(request)
 }

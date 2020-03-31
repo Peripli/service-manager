@@ -3,11 +3,12 @@ server:
   shutdown_timeout: 4000ms
   port: 1234
 httpclient:
-  timeout: 1000ms
-  response_header_timeout: 1000ms
-  tls_handshake_timeout: 1000ms
-  idle_conn_timeout: 1000ms
-  dial_timeout: 1000ms
+  timeout: 4000ms
+  response_header_timeout: 4000ms
+  tls_handshake_timeout: 4000ms
+  idle_conn_timeout: 4000ms
+  skip_ssl_validation: true
+  dial_timeout: 4000ms
 websocket:
   ping_timeout: 4000ms
   write_timeout: 4000ms

@@ -71,7 +71,7 @@ var _ = Describe("Service Manager Plugins", func() {
 			catalog := common.NewEmptySBCatalog()
 			catalog.AddService(service1)
 
-			brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
+			brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
 			brokerServer.ShouldRecordRequests(true)
 
 			common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
@@ -113,7 +113,7 @@ var _ = Describe("Service Manager Plugins", func() {
 			catalog := common.NewEmptySBCatalog()
 			catalog.AddService(service1)
 
-			brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
+			brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
 			brokerServer.ShouldRecordRequests(true)
 			common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
 			osbURL = "/v1/osb/" + brokerID

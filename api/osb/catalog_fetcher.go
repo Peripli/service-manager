@@ -19,6 +19,7 @@ package osb
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/client"
 	"net"
 	"net/http"
 
@@ -31,13 +32,18 @@ const brokerCatalogURL = "%s/v2/catalog"
 const brokerAPIVersionHeader = "X-Broker-API-Version"
 
 // CatalogFetcher creates a broker catalog fetcher that uses the provided request function to call the specified broker's catalog endpoint
-func CatalogFetcher(doRequestFunc util.DoRequestFunc, brokerAPIVersion string) func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
+func CatalogFetcher(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion string) func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
 	return func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
 		log.C(ctx).Debugf("Attempting to fetch catalog from broker with name %s and URL %s", broker.Name, broker.BrokerURL)
-		requestWithBasicAuth := util.BasicAuthDecorator(broker.Credentials.Basic.Username, broker.Credentials.Basic.Password, doRequestFunc)
-		response, err := util.SendRequestWithHeaders(ctx, requestWithBasicAuth, http.MethodGet, fmt.Sprintf(brokerCatalogURL, broker.BrokerURL), map[string]string{}, nil, map[string]string{
-			brokerAPIVersionHeader: brokerAPIVersion,
-		})
+		brokerClient, err := client.NewBrokerClient(broker, doRequestWithClient)
+		if err != nil {
+			return nil, err
+		}
+
+		response, err := brokerClient.SendRequest(ctx, http.MethodGet, fmt.Sprintf(brokerCatalogURL, broker.BrokerURL),
+			map[string]string{}, nil, map[string]string{
+				brokerAPIVersionHeader: brokerAPIVersion,
+			})
 		if err != nil {
 			log.C(ctx).WithError(err).Errorf("Error while forwarding request to service broker %s", broker.Name)
 			return nil, &util.HTTPError{
