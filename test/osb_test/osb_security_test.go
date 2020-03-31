@@ -109,21 +109,7 @@ var _ = Describe("OSB Security", func() {
 		var SMPlatformOtherSubaccountExpect *httpexpect.Expect
 		var brokerExpect *httpexpect.Expect
 		BeforeEach(func() {
-			otherTenantExpect := ctx.NewTenantExpect("sm", "other-tenant",
-				"service_manager.subaccount.broker.read",
-				"service_manager.subaccount.broker.manage",
-				"service_manager.subaccount.platform.read",
-				"service_manager.subaccount.platform.manage",
-				"service_manager.subaccount.platform.manage",
-				"service_manager.subaccount.service_plan.read",
-				"service_manager.subaccount.service_offering.read",
-				"service_manager.subaccount.service_instance.read",
-				"service_manager.subaccount.service_instance.manage",
-				"service_manager.subaccount.service_binding.read",
-				"service_manager.subaccount.service_binding.manage",
-				"service_manager.subaccount.service_plan.read",
-				"service_manager.subaccount.service_offering.read",
-			)
+			otherTenantExpect := ctx.NewTenantExpect("sm", "other-tenant")
 
 			platformForOtherTenant := common.RegisterPlatformInSM(common.Object{
 				"name": "test2",
