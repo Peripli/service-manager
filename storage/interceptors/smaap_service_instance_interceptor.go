@@ -458,20 +458,15 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 		OriginatingIdentity: nil,
 	}
 
-	maxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
-	var maximumPollingDurationTicker *time.Ticker
-	if maxPollingDuration > 0 {
+	planMaxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
+	leftPollingDuration := time.Duration(math.MaxInt64) // Never tick if plan has not specified max_polling_duration
+
+	if planMaxPollingDuration > 0 {
 		// MaximumPollingDuration can span multiple reschedules
-		leftPollingDuration := maxPollingDuration - (time.Since(operation.RescheduleTimestamp))
+		leftPollingDuration = planMaxPollingDuration - (time.Since(operation.RescheduleTimestamp))
 		if leftPollingDuration <= 0 { // The Maximum Polling Duration elapsed before this polling start
 			return i.processMaxPollingDurationElapsed(ctx, instance, plan, operation, enableOrphanMitigation)
 		}
-		maximumPollingDurationTicker = time.NewTicker(leftPollingDuration)
-		defer maximumPollingDurationTicker.Stop()
-	} else {
-		// Never ticking ticker
-		maximumPollingDurationTicker = time.NewTicker(math.MaxInt64)
-		maximumPollingDurationTicker.Stop()
 	}
 
 	ticker := time.NewTicker(i.pollingInterval)
@@ -480,9 +475,10 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 		select {
 		case <-ctx.Done():
 			log.C(ctx).Errorf("Terminating poll last operation for instance with id %s and name %s due to context done event", instance.ID, instance.Name)
-			//operation should be kept in progress in this case
+			// The context is done, either because SM crashed/exited or because action timeout elapsed. In this case the operation should be kept in progress.
+			// This way the operation would be rescheduled and the polling will span multiple reschedules, but no more than max_polling_interval if provided in the plan.
 			return nil
-		case <-maximumPollingDurationTicker.C:
+		case <-time.Tick(leftPollingDuration):
 			return i.processMaxPollingDurationElapsed(ctx, instance, plan, operation, enableOrphanMitigation)
 		case <-ticker.C:
 			log.C(ctx).Infof("Sending poll last operation request %s for instance with id %s and name %s", logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)

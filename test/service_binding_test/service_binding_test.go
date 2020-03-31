@@ -60,7 +60,7 @@ func TestServiceBindings(t *testing.T) {
 const (
 	TenantIdentifier       = "tenant"
 	TenantIDValue          = "tenantID"
-	MaximumPollingDuration = 5 // seconds
+	MaximumPollingDuration = 3 //seconds
 )
 
 var _ = DescribeTestsFor(TestCase{
@@ -701,7 +701,7 @@ var _ = DescribeTestsFor(TestCase{
 
 											oldCtx = ctx
 											ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-												Expect(set.Set("operations.action_timeout", ((MaximumPollingDuration + 5) * time.Second).String())).ToNot(HaveOccurred())
+												Expect(set.Set("operations.action_timeout", ((MaximumPollingDuration + 1) * time.Second).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 
 											brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
