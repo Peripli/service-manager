@@ -160,13 +160,13 @@ func fetchBrokerPlans(ctx context.Context, brokerID string, repository storage.R
 
 func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.ServicePlan, repository storage.Repository) ([]string, error) {
 	var platformTypes map[string]bool
-	platformIDs := make(map[string]bool)
+	platformNames := make(map[string]bool)
 	for _, plan := range plans {
-		planSupportedPlatformIDs := plan.SupportedPlatformIDs()
-		if planSupportedPlatformIDs == nil {
-			// no explicit supported platform IDs defined - collect the supported platform types
+		planSupportedPlatformNames := plan.SupportedPlatformNames()
+		if planSupportedPlatformNames == nil {
+			// no explicit supported platform names defined - collect the supported platform types
 			if platformTypes == nil {
-				//only initialize this map if any plan not specifying explicit platform IDs is found
+				//only initialize this map if any plan not specifying explicit platform names is found
 				platformTypes = make(map[string]bool)
 			}
 
@@ -175,10 +175,33 @@ func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.Ser
 				platformTypes[t] = true
 			}
 		} else {
-			// explicit platform IDs are defined for the plan
-			for _, id := range planSupportedPlatformIDs {
-				platformIDs[id] = true
+			// explicit platform names are defined for the plan
+			for _, name := range planSupportedPlatformNames {
+				platformNames[name] = true
 			}
+		}
+	}
+
+	platformIDs := make(map[string]bool)
+
+	if len(platformNames) != 0 {
+		// fetch IDs of platform instances with the requested names
+		supportedPlatformNames := make([]string, 0)
+		for name := range platformNames {
+			supportedPlatformNames = append(supportedPlatformNames, name)
+		}
+		var criteria []query.Criterion
+		if len(supportedPlatformNames) != 0 {
+			criteria = []query.Criterion{query.ByField(query.InOperator, "name", supportedPlatformNames...)}
+		}
+
+		objList, err := repository.List(ctx, types.PlatformType, criteria...)
+		if err != nil {
+			return nil, err
+		}
+
+		for i := 0; i < objList.Len(); i++ {
+			platformIDs[objList.ItemAt(i).GetID()] = true
 		}
 	}
 

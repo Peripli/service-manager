@@ -536,7 +536,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				supportedPlatformsByID = map[string]*types.Platform{platform.ID: platform}
 			})
 
-			FIt("creates a single public visibility for that platform", func() {
+			It("creates a single public visibility for that platform", func() {
 				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
 					WithJSON(common.Object{}).
 					Expect().
@@ -558,7 +558,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				}
 			})
 
-			FIt("creates a single visibility for each supported platform", func() {
+			It("creates a single visibility for each supported platform", func() {
 				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
 					WithJSON(common.Object{}).
 					Expect().
