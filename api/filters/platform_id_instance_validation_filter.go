@@ -18,42 +18,44 @@ package filters
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
-	"net/http"
 )
 
-const platformIDProperty = "platform_id"
+const (
+	platformIDProperty                     = "platform_id"
+	PlatformIDInstanceValidationFilterName = "PlatformIDInstanceValidationFilter"
+)
 
-const ServiceInstanceFilterName = "ServiceInstanceFilter"
-
-// ServiceInstanceFilter ensures that if a platform is provided for provisioning request that it's the SM Platform.
-// It also limits Patch and Delete requests to instances created in the SM platform.
-type ServiceInstanceFilter struct {
+// PlatformIDInstanceValidationFilter ensures that if a platform is provided for provisioning request that it's the SM Platform.
+// It also limits Patch and Delete requests to instances created in the SM platform. In addition PATCH requests that transfer instances
+// to SM platform are also allowed.
+type PlatformIDInstanceValidationFilter struct {
 }
 
-func (*ServiceInstanceFilter) Name() string {
-	return ServiceInstanceFilterName
+func (*PlatformIDInstanceValidationFilter) Name() string {
+	return PlatformIDInstanceValidationFilterName
 }
 
-func (*ServiceInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+func (*PlatformIDInstanceValidationFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	reqCtx := req.Context()
 	platformID := gjson.GetBytes(req.Body, platformIDProperty).Str
 
 	if platformID != "" && platformID != types.SMPlatform {
 		return nil, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("Providing %s property during provisioning/updating of a service instance is forbidden", platformIDProperty),
+			ErrorType:   "InvalidTransfer",
+			Description: fmt.Sprintf("Providing %s property during provisioning/updating with a value different from %s is forbidden", platformIDProperty, types.SMPlatform),
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
 
 	var err error
-
 	switch req.Request.Method {
 	case http.MethodPost:
 		if platformID == "" {
@@ -62,8 +64,6 @@ func (*ServiceInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Resp
 				return nil, err
 			}
 		}
-	case http.MethodPatch:
-		fallthrough
 	case http.MethodDelete:
 		byPlatformID := query.ByField(query.EqualsOperator, platformIDProperty, types.SMPlatform)
 		ctx, err := query.AddCriteria(reqCtx, byPlatformID)
@@ -71,12 +71,22 @@ func (*ServiceInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Resp
 			return nil, err
 		}
 		req.Request = req.WithContext(ctx)
+	case http.MethodPatch:
+		// we don't want to explicitly add SMPlatform criteria for patch if instance is being migrated to SM
+		if platformID != types.SMPlatform {
+			byPlatformID := query.ByField(query.EqualsOperator, platformIDProperty, types.SMPlatform)
+			ctx, err := query.AddCriteria(reqCtx, byPlatformID)
+			if err != nil {
+				return nil, err
+			}
+			req.Request = req.WithContext(ctx)
+		}
 	}
 
 	return next.Handle(req)
 }
 
-func (*ServiceInstanceFilter) FilterMatchers() []web.FilterMatcher {
+func (*PlatformIDInstanceValidationFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{

@@ -20,9 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"strconv"
+
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -240,7 +241,9 @@ func DescribeTestsFor(t TestCase) bool {
 			return ctxBuilder
 		}
 
-		t.ContextBuilder = ctxBuilder()
+		BeforeEach(func() {
+			t.ContextBuilder = ctxBuilder()
+		})
 
 		func() {
 			By("==== Preparation for SM tests... ====")
