@@ -62,6 +62,13 @@ var _ = Describe("TenantFilters", func() {
 				Expect(err).ToNot(HaveOccurred())
 			})
 
+			Describe("TenantLabelingFilterName", func() {
+				It("should return the name of the tenant labeling filter", func() {
+					actualFilterName := multitenancyFilters[1].Name()
+					Expect(filters.TenantLabelingFilterName()).To(BeEquivalentTo(actualFilterName))
+				})
+			})
+
 			Describe("Criteria filter", func() {
 				for _, method := range []string{http.MethodGet, http.MethodPatch, http.MethodDelete, http.MethodPost} {
 					When(method+" request is sent with tenant scope", func() {

@@ -2,6 +2,7 @@ package filters
 
 import (
 	"errors"
+	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
 )
@@ -30,4 +31,9 @@ func NewMultitenancyFilters(labelKey string, extractTenantFunc func(request *web
 
 		return extractTenantFunc(request)
 	}), nil
+}
+
+//TenantLabelingFilterName returns the name of the filter that is adding the tenant label to tenant-scoped resources
+func TenantLabelingFilterName() string {
+	return fmt.Sprintf("%s%s", LabelName, ResourceLabelingFilterNameSuffix)
 }
