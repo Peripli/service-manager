@@ -19,6 +19,7 @@ package service_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -396,12 +397,10 @@ var _ = DescribeTestsFor(TestCase{
 							Context("which is not service-manager platform", func() {
 								It("should return 400", func() {
 									postInstanceRequest["platform_id"] = "test-platform-id"
-									resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+									ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 										WithJSON(postInstanceRequest).
 										WithQuery("async", testCase.async).
-										Expect().Status(http.StatusBadRequest).JSON().Object()
-
-									resp.Value("description").Equal("Providing platform_id property during provisioning/updating with a value different from service-manager is forbidden")
+										Expect().Status(http.StatusBadRequest).JSON().Object().Value("error").Equal("InvalidTransfer")
 								})
 							})
 
@@ -1269,7 +1268,7 @@ var _ = DescribeTestsFor(TestCase{
 							})
 
 							When("platform_id provided in request body", func() {
-								Context("which not is service-manager platform", func() {
+								Context("which is not service-manager platform", func() {
 									BeforeEach(func() {
 										serviceID = service1CatalogID
 										planID = plan1CatalogID
@@ -1356,7 +1355,7 @@ var _ = DescribeTestsFor(TestCase{
 											By("verify instance is transferred to SMaaP")
 											objAfterOp.Value("platform_id").Equal(types.SMPlatform)
 
-											By("verify instance updates in SMaaP still work after transfer")
+											By("verify instance updates in SMaaP still works after transfer")
 											resp = ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
 												WithQuery("async", testCase.async).
 												WithJSON(Object{}).
@@ -1378,7 +1377,7 @@ var _ = DescribeTestsFor(TestCase{
 												}).
 												Expect().Status(http.StatusNotFound)
 
-											By("verify instance binds in SMaaP still work after transfer")
+											By("verify instance binds in SMaaP still works after transfer")
 											resp = ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
 												WithQuery("async", testCase.async).
 												WithJSON(Object{
@@ -1396,7 +1395,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											})
 
-											By("verify instance unbind in SMaaP still work after transfer")
+											By("verify instance unbind in SMaaP still works after transfer")
 											resp = ctx.SMWithOAuthForTenant.DELETE(web.ServiceBindingsURL+"/"+bindingID).
 												WithQuery("async", testCase.async).
 												Expect().
@@ -1432,7 +1431,7 @@ var _ = DescribeTestsFor(TestCase{
 												WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 												Expect().Status(http.StatusNotFound)
 
-											By("verify instance deprovision in SMaaP still work after transfer")
+											By("verify instance deprovision in SMaaP still works after transfer")
 											resp = ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+SID).
 												WithQuery("async", testCase.async).
 												WithJSON(Object{}).
@@ -1452,6 +1451,20 @@ var _ = DescribeTestsFor(TestCase{
 											})
 										})
 									})
+								})
+							})
+
+							When("platform_id is not provided in request body", func() {
+								BeforeEach(func() {
+									serviceID = service1CatalogID
+									planID = plan1CatalogID
+								})
+
+								It("returns 404", func() {
+									ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+										WithQuery("async", testCase.async).
+										WithJSON(Object{}).
+										Expect().Status(http.StatusNotFound)
 								})
 							})
 						})
@@ -2993,9 +3006,14 @@ func prepareBrokerWithCatalog(ctx *TestContext, auth *SMExpect) (*BrokerUtils, *
 }
 
 func findPlanIDForCatalogID(ctx *TestContext, brokerID, catalogServiceID, catalogPlanID string) string {
-	soID := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s' and catalog_id eq '%s'", brokerID, catalogServiceID)).
-		First().Object().Value("id").String().Raw()
+	resp := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s' and catalog_id eq '%s'", brokerID, catalogServiceID))
+	soIDs := make([]string, 0)
+	for _, item := range resp.Iter() {
+		soID := item.Object().Value("id").String().Raw()
+		Expect(soID).ToNot(BeEmpty())
+		soIDs = append(soIDs, soID)
+	}
 
-	return ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_id eq '%s' and service_offering_id eq '%s'", catalogPlanID, soID)).
+	return ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_id eq '%s' and service_offering_id in ('%s')", catalogPlanID, strings.Join(soIDs, "','"))).
 		First().Object().Value("id").String().Raw()
 }
