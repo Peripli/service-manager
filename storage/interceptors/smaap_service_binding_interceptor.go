@@ -567,7 +567,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 }
 
 func (i *ServiceBindingInterceptor) processMaxPollingDurationElapsed(ctx context.Context, binding *types.ServiceBinding, instance *types.ServiceInstance, plan *types.ServicePlan, operation *types.Operation, enableOrphanMitigation bool) error {
-	log.C(ctx).Errorf("Terminating poll last operataion for binding with id %s and name %s for instance with id %s and name %s due to maximum_polling_duration %ds for it's plan %s is reached", binding.ID, binding.Name, instance.ID, instance.Name, plan.MaximumPollingDuration, plan.Name)
+	log.C(ctx).Errorf("Terminating poll last operation for binding with id %s and name %s for instance with id %s and name %s due to maximum_polling_duration %ds for it's plan %s is reached", binding.ID, binding.Name, instance.ID, instance.Name, plan.MaximumPollingDuration, plan.Name)
 	operation.Reschedule = false
 	operation.RescheduleTimestamp = time.Time{}
 	if enableOrphanMitigation {

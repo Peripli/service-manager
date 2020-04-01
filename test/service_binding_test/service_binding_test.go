@@ -698,6 +698,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									AfterEach(func() {
+										newCtx.Servers[SMServer].Close()
 										ctx.SMWithBasic = newCtx.SMWithBasic
 									})
 
@@ -802,10 +803,9 @@ var _ = DescribeTestsFor(TestCase{
 
 								if testCase.async {
 									When("action timeout is reached while polling", func() {
-										var oldCtx *TestContext
+										var newCtx *TestContext
 										BeforeEach(func() {
-											oldCtx = ctx
-											ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+											newCtx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
 												Expect(set.Set("operations.action_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 
@@ -814,13 +814,14 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										AfterEach(func() {
-											ctx = oldCtx
+											newCtx.Servers[SMServer].Close()
+											ctx.SMWithBasic = newCtx.SMWithBasic
 										})
 
 										It("stores binding as ready false and the operation as reschedulable in progress", func() {
-											resp := createBinding(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
+											resp := createBinding(newCtx.SMWithOAuthForTenant, true, http.StatusAccepted)
 
-											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											bindingID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.CREATE,
 												State:             types.IN_PROGRESS,
 												ResourceType:      types.ServiceBindingType,
@@ -828,7 +829,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											})
 
-											VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											VerifyResourceExists(newCtx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:    bindingID,
 												Type:  types.ServiceBindingType,
 												Ready: false,
@@ -1292,12 +1293,11 @@ var _ = DescribeTestsFor(TestCase{
 
 							When("bind responds with error due to times out", func() {
 								var doneChannel chan interface{}
-								var oldCtx *TestContext
+								var newCtx *TestContext
 
 								BeforeEach(func() {
-									oldCtx = ctx
 									doneChannel = make(chan interface{})
-									ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+									newCtx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
 										Expect(set.Set("httpclient.response_header_timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
 									}).BuildWithoutCleanup()
 
@@ -1305,14 +1305,15 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								AfterEach(func() {
-									ctx = oldCtx
+									newCtx.Servers[SMServer].Close()
+									ctx.SMWithBasic = newCtx.SMWithBasic
 								})
 
 								It("orphan mitigates the binding", func() {
-									resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+									resp := createBinding(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 									<-time.After(1100 * time.Millisecond)
 									close(doneChannel)
-									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									bindingID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.CREATE,
 										State:             types.FAILED,
 										ResourceType:      types.ServiceBindingType,
@@ -1320,7 +1321,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									VerifyResourceDoesNotExist(newCtx.SMWithOAuthForTenant, ResourceExpectations{
 										ID:   bindingID,
 										Type: types.ServiceBindingType,
 									})
@@ -1681,6 +1682,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									AfterEach(func() {
+										newCtx.Servers[SMServer].Close()
 										ctx.SMWithBasic = newCtx.SMWithBasic
 									})
 
@@ -2175,12 +2177,11 @@ var _ = DescribeTestsFor(TestCase{
 
 							When("unbind responds with error due to times out", func() {
 								var doneChannel chan interface{}
-								var oldCtx *TestContext
+								var newCtx *TestContext
 
 								BeforeEach(func() {
-									oldCtx = ctx
 									doneChannel = make(chan interface{})
-									ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+									newCtx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
 										Expect(set.Set("httpclient.response_header_timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
 									}).BuildWithoutCleanup()
 
@@ -2189,14 +2190,15 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								AfterEach(func() {
-									ctx = oldCtx
+									newCtx.Servers[SMServer].Close()
+									ctx.SMWithBasic = newCtx.SMWithBasic
 								})
 
 								It("orphan mitigates the binding", func() {
-									resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+									resp := deleteBinding(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 									<-time.After(1100 * time.Millisecond)
 									close(doneChannel)
-									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									bindingID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.DELETE,
 										State:             types.FAILED,
 										ResourceType:      types.ServiceBindingType,
@@ -2206,7 +2208,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusOK, Object{"async": false}))
 
-									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									bindingID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.DELETE,
 										State:             types.SUCCEEDED,
 										ResourceType:      types.ServiceBindingType,
@@ -2214,7 +2216,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									VerifyResourceDoesNotExist(newCtx.SMWithOAuthForTenant, ResourceExpectations{
 										ID:   bindingID,
 										Type: types.ServiceBindingType,
 									})

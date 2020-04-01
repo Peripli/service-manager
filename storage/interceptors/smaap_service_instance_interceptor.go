@@ -550,7 +550,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 }
 
 func (i *ServiceInstanceInterceptor) processMaxPollingDurationElapsed(ctx context.Context, instance *types.ServiceInstance, plan *types.ServicePlan, operation *types.Operation, enableOrphanMitigation bool) error {
-	log.C(ctx).Errorf("Terminating poll last operataion for instance with id %s and name %s due to maximum_polling_duration %ds for it's plan %s is reached", instance.ID, instance.Name, plan.MaximumPollingDuration, plan.Name)
+	log.C(ctx).Errorf("Terminating poll last operation for instance with id %s and name %s due to maximum_polling_duration %ds for it's plan %s is reached", instance.ID, instance.Name, plan.MaximumPollingDuration, plan.Name)
 	operation.Reschedule = false
 	operation.RescheduleTimestamp = time.Time{}
 	if enableOrphanMitigation {
