@@ -19,14 +19,16 @@ package service_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/tidwall/sjson"
+	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -59,9 +61,12 @@ func TestServiceInstances(t *testing.T) {
 }
 
 const (
-	TenantIdentifier       = "tenant"
-	TenantIDValue          = "tenantID"
-	MaximumPollingDuration = 2 // seconds
+	TenantIdentifier            = "tenant"
+	TenantIDValue               = "tenantID"
+	service1CatalogID           = "service1CatalogID"
+	plan1CatalogID              = "plan1CatalogID"
+	planNotSupportingSMPlatform = "planNotSupportingSmID"
+	MaximumPollingDuration      = 2 // seconds
 )
 
 func checkInstance(req *http.Request) (int, map[string]interface{}) {
@@ -173,6 +178,19 @@ var _ = DescribeTestsFor(TestCase{
 					WithQuery("async", async).
 					Expect().
 					Status(expectedStatusCode)
+			}
+
+			verificationHandler := func(bodyExpectations map[string]string, code int) func(req *http.Request) (int, map[string]interface{}) {
+				return func(req *http.Request) (int, map[string]interface{}) {
+					body, err := util.BodyToBytes(req.Body)
+					Expect(err).ToNot(HaveOccurred())
+					for k, v := range bodyExpectations {
+						actualBodyValue := gjson.GetBytes(body, k).String()
+						Expect(actualBodyValue).To(Equal(v))
+					}
+
+					return code, Object{}
+				}
 			}
 
 			preparePrerequisitesWithMaxPollingDuration := func(maxPollingDuration int) {
@@ -387,12 +405,10 @@ var _ = DescribeTestsFor(TestCase{
 							Context("which is not service-manager platform", func() {
 								It("should return 400", func() {
 									postInstanceRequest["platform_id"] = "test-platform-id"
-									resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+									ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 										WithJSON(postInstanceRequest).
 										WithQuery("async", testCase.async).
-										Expect().Status(http.StatusBadRequest).JSON().Object()
-
-									resp.Value("description").Equal("Providing platform_id property during provisioning/updating of a service instance is forbidden")
+										Expect().Status(http.StatusBadRequest).JSON().Object().Value("error").Equal("InvalidTransfer")
 								})
 							})
 
@@ -635,8 +651,9 @@ var _ = DescribeTestsFor(TestCase{
 
 									BeforeEach(func() {
 										preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration)
+										EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 
-										newCtx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+										newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
 											Expect(set.Set("operations.action_timeout", ((MaximumPollingDuration + 1) * time.Second).String())).ToNot(HaveOccurred())
 										}).BuildWithoutCleanup()
 
@@ -645,8 +662,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									AfterEach(func() {
-										newCtx.Servers[SMServer].Close()
-										ctx.SMWithBasic = newCtx.SMWithBasic
+										newCtx.CleanupAll(false)
 									})
 
 									When("orphan mitigation deprovision synchronously succeeds", func() {
@@ -730,7 +746,7 @@ var _ = DescribeTestsFor(TestCase{
 										var newCtx *TestContext
 
 										BeforeEach(func() {
-											newCtx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+											newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
 												Expect(set.Set("operations.action_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 
@@ -739,8 +755,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										AfterEach(func() {
-											newCtx.Servers[SMServer].Close()
-											ctx.SMWithBasic = newCtx.SMWithBasic
+											newCtx.CleanupAll(false)
 										})
 
 										It("stores instance as ready false and the operation as reschedulable in progress", func() {
@@ -767,7 +782,7 @@ var _ = DescribeTestsFor(TestCase{
 										var isProvisioned atomic.Value
 
 										BeforeEach(func() {
-											newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+											newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 												e.Set("server.shutdown_timeout", 1*time.Second)
 											}).BuildWithoutCleanup()
 
@@ -778,6 +793,10 @@ var _ = DescribeTestsFor(TestCase{
 													return http.StatusOK, Object{"state": types.IN_PROGRESS}
 												}
 											})
+										})
+
+										AfterEach(func() {
+											newSMCtx.CleanupAll(false)
 										})
 
 										It("should restart polling through maintainer and eventually instance is set to ready", func() {
@@ -801,10 +820,9 @@ var _ = DescribeTestsFor(TestCase{
 											newSMCtx.CleanupAll(false)
 											isProvisioned.Store(true)
 
-											newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+											newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 												e.Set("operations.action_timeout", 2*time.Second)
 											}).BuildWithoutCleanup()
-											defer newSMCtx.CleanupAll(false)
 
 											operationExpectation.State = types.SUCCEEDED
 											operationExpectation.Reschedulable = false
@@ -956,9 +974,10 @@ var _ = DescribeTestsFor(TestCase{
 							if testCase.async {
 								When("SM crashes after storing operation before storing resource", func() {
 									var newSMCtx *TestContext
+									var anotherSMCtx *TestContext
 
 									BeforeEach(func() {
-										newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+										newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("server.shutdown_timeout", 1*time.Second)
 										}).BuildWithoutCleanup()
 
@@ -966,6 +985,11 @@ var _ = DescribeTestsFor(TestCase{
 										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", func(_ *http.Request) (int, map[string]interface{}) {
 											return http.StatusOK, Object{"state": "succeeded"}
 										})
+									})
+
+									AfterEach(func() {
+										newSMCtx.CleanupAll(false)
+										anotherSMCtx.CleanupAll(false)
 									})
 
 									It("Should mark operation as failed and trigger orphan mitigation", func() {
@@ -999,11 +1023,10 @@ var _ = DescribeTestsFor(TestCase{
 											Type: types.ServiceInstanceType,
 										})
 
-										anotherSMCtx := t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+										anotherSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("operations.action_timeout", 2*time.Second)
 											e.Set("operations.cleanup_interval", 2*time.Second)
 										}).BuildWithoutCleanup()
-										defer anotherSMCtx.CleanupAll(false)
 
 										operationExpectation := OperationExpectations{
 											Category:          types.CREATE,
@@ -1101,17 +1124,17 @@ var _ = DescribeTestsFor(TestCase{
 										})
 									})
 
-									When("maximum deletion timout has been reached", func() {
+									When("maximum deletion timeout has been reached", func() {
 										var newCtx *TestContext
+
 										BeforeEach(func() {
-											newCtx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+											newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
 												Expect(set.Set("operations.reconciliation_operation_timeout", (2 * time.Millisecond).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 										})
 
 										AfterEach(func() {
-											newCtx.Servers[SMServer].Close()
-											ctx.SMWithBasic = newCtx.SMWithBasic
+											newCtx.CleanupAll(false)
 										})
 
 										It("keeps the instance as ready false and marks the operation as deletion scheduled", func() {
@@ -1166,7 +1189,7 @@ var _ = DescribeTestsFor(TestCase{
 									var isDeprovisioned atomic.Value
 
 									BeforeEach(func() {
-										newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+										newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("server.shutdown_timeout", 1*time.Second)
 										}).BuildWithoutCleanup()
 
@@ -1178,6 +1201,10 @@ var _ = DescribeTestsFor(TestCase{
 												return http.StatusOK, Object{"state": "in progress"}
 											}
 										})
+									})
+
+									AfterEach(func() {
+										newSMCtx.CleanupAll(false)
 									})
 
 									It("should restart orphan mitigation through maintainer and eventually succeeds", func() {
@@ -1196,10 +1223,9 @@ var _ = DescribeTestsFor(TestCase{
 										newSMCtx.CleanupAll(false)
 										isDeprovisioned.Store(true)
 
-										newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+										newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("operations.action_timeout", 2*time.Second)
 										}).BuildWithoutCleanup()
-										defer newSMCtx.CleanupAll(false)
 
 										operationExpectations.DeletionScheduled = false
 										operationExpectations.Reschedulable = false
@@ -1210,7 +1236,6 @@ var _ = DescribeTestsFor(TestCase{
 											Type: types.ServiceInstanceType,
 										})
 									})
-
 								})
 
 								When("broker orphan mitigation deprovision asynchronously fails with an error that will continue further orphan mitigation and eventually succeed", func() {
@@ -1248,8 +1273,8 @@ var _ = DescribeTestsFor(TestCase{
 
 								BeforeEach(func() {
 									doneChannel = make(chan interface{})
-									newCtx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-										Expect(set.Set("httpclient.response_header_timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
+									newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
+										Expect(set.Set("httpclient.response_header_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
 									}).BuildWithoutCleanup()
 
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", DelayingHandler(doneChannel))
@@ -1257,13 +1282,12 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								AfterEach(func() {
-									newCtx.Servers[SMServer].Close()
-									ctx.SMWithBasic = newCtx.SMWithBasic
+									newCtx.CleanupAll(false)
 								})
 
 								It("orphan mitigates the instance", func() {
 									resp := createInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
-									<-time.After(1100 * time.Millisecond)
+									<-time.After(2100 * time.Millisecond)
 									close(doneChannel)
 									instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.CREATE,
@@ -1299,7 +1323,232 @@ var _ = DescribeTestsFor(TestCase{
 							})
 						})
 
-						When("instance exists", func() {
+						When("instance exists in a platform different from service manager", func() {
+							const (
+								brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
+								brokerAPIVersionHeaderValue = "2.13"
+								SID                         = "abc1234"
+							)
+
+							var planID string
+
+							BeforeEach(func() {
+								planID = ""
+								brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut, verificationHandler(map[string]string{
+									"context." + TenantIdentifier: TenantIDValue,
+								}, http.StatusCreated))
+								brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut, verificationHandler(map[string]string{
+									"context." + TenantIdentifier: TenantIDValue,
+								}, http.StatusCreated))
+								brokerServer.ServiceInstanceHandlerFunc(http.MethodPatch, http.MethodPatch, verificationHandler(map[string]string{
+									"context." + TenantIdentifier: TenantIDValue,
+								}, http.StatusOK))
+							})
+
+							JustBeforeEach(func() {
+								Expect(planID).ToNot(BeEmpty())
+								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, ctx.TestPlatform.ID, findPlanIDForCatalogID(ctx, brokerID, planID), TenantIDValue)
+
+								ctx.SMWithBasic.PUT("/v1/osb/"+brokerID+"/v2/service_instances/"+SID).
+									WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+									WithJSON(Object{
+										"service_id": service1CatalogID,
+										"plan_id":    planID,
+										"context": Object{
+											TenantIdentifier: TenantIDValue,
+										},
+									}).
+									Expect().Status(http.StatusCreated)
+
+								ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + SID).
+									Expect().
+									Status(http.StatusOK).
+									JSON().Object().Value("platform_id").Equal(ctx.TestPlatform.ID)
+							})
+
+							When("platform_id provided in request body", func() {
+								Context("which is not service-manager platform", func() {
+									BeforeEach(func() {
+										planID = plan1CatalogID
+									})
+
+									It("should return 400", func() {
+										ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+											WithQuery("async", testCase.async).
+											WithJSON(Object{"platform_id": "another-platform-id"}).
+											Expect().Status(http.StatusBadRequest)
+
+										objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    SID,
+											Type:  types.ServiceInstanceType,
+											Ready: true,
+										})
+
+										objAfterOp.Value("platform_id").Equal(ctx.TestPlatform.ID)
+									})
+								})
+
+								Context("which is service-manager platform", func() {
+									Context("when plan does not support the platform", func() {
+										BeforeEach(func() {
+											planID = planNotSupportingSMPlatform
+										})
+
+										It("should return 400", func() {
+											ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+												WithQuery("async", testCase.async).
+												WithJSON(Object{"platform_id": types.SMPlatform}).
+												Expect().Status(http.StatusBadRequest)
+										})
+									})
+
+									Context("when plan supports the platform", func() {
+										BeforeEach(func() {
+											planID = plan1CatalogID
+										})
+
+										It("should return 2xx and allow management of the transferred instance in SMaaP but not in old platform", func() {
+											var bindingID string
+
+											By("verify patch request for instance transfer to SMaaP succeeds")
+											resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+												WithQuery("async", testCase.async).
+												WithJSON(Object{"platform_id": types.SMPlatform}).
+												Expect().Status(testCase.expectedUpdateSuccessStatusCode)
+
+											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.UPDATE,
+												State:             types.SUCCEEDED,
+												ResourceType:      types.ServiceInstanceType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											Expect(instanceID).To(Equal(SID))
+
+											objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:    instanceID,
+												Type:  types.ServiceInstanceType,
+												Ready: true,
+											})
+
+											By("verify instance is transferred to SMaaP")
+											objAfterOp.Value("platform_id").Equal(types.SMPlatform)
+
+											By("verify instance updates in SMaaP still works after transfer")
+											resp = ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+												WithQuery("async", testCase.async).
+												WithJSON(Object{}).
+												Expect().Status(testCase.expectedUpdateSuccessStatusCode)
+
+											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.UPDATE,
+												State:             types.SUCCEEDED,
+												ResourceType:      types.ServiceInstanceType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											By("verify instance updates old platform does not work after transfer")
+											ctx.SMWithBasic.PATCH("/v1/osb/"+brokerID+"/v2/service_instances/"+SID).
+												WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+												WithJSON(Object{
+													"service_id": service1CatalogID,
+												}).
+												Expect().Status(http.StatusNotFound)
+
+											By("verify instance binds in SMaaP still works after transfer")
+											resp = ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+												WithQuery("async", testCase.async).
+												WithJSON(Object{
+													"name":                "binding-to-transferred-instance",
+													"service_instance_id": SID,
+												}).
+												Expect().
+												Status(testCase.expectedCreateSuccessStatusCode)
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.CREATE,
+												State:             types.SUCCEEDED,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											By("verify instance unbind in SMaaP still works after transfer")
+											resp = ctx.SMWithOAuthForTenant.DELETE(web.ServiceBindingsURL+"/"+bindingID).
+												WithQuery("async", testCase.async).
+												Expect().
+												Status(testCase.expectedDeleteSuccessStatusCode)
+
+											VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.SUCCEEDED,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:   bindingID,
+												Type: types.ServiceBindingType,
+											})
+
+											By("verify instance binds in old platform does not work after transfer")
+											ctx.SMWithBasic.PUT("/v1/osb/"+brokerID+"/v2/service_instances/"+SID+"/service_bindings/"+bindingID).
+												WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+												WithJSON(Object{}).
+												Expect().Status(http.StatusNotFound)
+
+											By("verify instance unbind in old platform does not work after transfer")
+											ctx.SMWithBasic.DELETE("/v1/osb/"+brokerID+"/v2/service_instances/"+SID+"/service_bindings/"+bindingID).
+												WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+												WithJSON(Object{}).
+												Expect().Status(http.StatusNotFound)
+
+											By("verify instance deprovision in old platform does not work after transfer")
+											ctx.SMWithBasic.DELETE("/v1/osb/"+brokerID+"/v2/service_instances/"+SID).
+												WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+												Expect().Status(http.StatusNotFound)
+
+											By("verify instance deprovision in SMaaP still works after transfer")
+											resp = ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+SID).
+												WithQuery("async", testCase.async).
+												WithJSON(Object{}).
+												Expect().Status(testCase.expectedDeleteSuccessStatusCode)
+
+											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.SUCCEEDED,
+												ResourceType:      types.ServiceInstanceType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:   instanceID,
+												Type: types.ServiceInstanceType,
+											})
+										})
+									})
+								})
+							})
+
+							When("platform_id is not provided in request body", func() {
+								BeforeEach(func() {
+									planID = plan1CatalogID
+								})
+
+								It("returns 404", func() {
+									ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+										WithQuery("async", testCase.async).
+										WithJSON(Object{}).
+										Expect().Status(http.StatusNotFound)
+								})
+							})
+						})
+
+						When("instance exists in service manager platform", func() {
 							BeforeEach(func() {
 								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
 								resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
@@ -1388,13 +1637,10 @@ var _ = DescribeTestsFor(TestCase{
 
 								Context("which is not service-manager platform", func() {
 									It("should return 400", func() {
-										resp := ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL+"/"+instanceID).
+										ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL+"/"+instanceID).
 											WithQuery("async", testCase.async).
 											WithJSON(Object{"platform_id": "test-platform-id"}).
 											Expect().Status(http.StatusBadRequest)
-
-										resp.JSON().Object().Value("description").
-											Equal("Providing platform_id property during provisioning/updating of a service instance is forbidden")
 									})
 								})
 
@@ -1699,23 +1945,13 @@ var _ = DescribeTestsFor(TestCase{
 									})
 								})
 
-								verificationHandler := func(bodyKey, expectedBodyValue string) func(req *http.Request) (int, map[string]interface{}) {
-									return func(req *http.Request) (int, map[string]interface{}) {
-										body, err := util.BodyToBytes(req.Body)
-										Expect(err).ToNot(HaveOccurred())
-										bodyValue := gjson.GetBytes(body, bodyKey).String()
-										Expect(bodyValue).To(Equal(expectedBodyValue))
-										platformValue := gjson.GetBytes(body, "context.platform").String()
-										Expect(platformValue).To(Equal(types.SMPlatform))
-
-										return http.StatusOK, Object{}
-									}
-								}
-
 								When("service plan id is updated", func() {
 									It("propagates the update to the broker", func() {
 										brokerServer.ServiceInstanceHandlerFunc(http.MethodPatch, http.MethodPatch+"1",
-											verificationHandler("plan_id", anotherServicePlanCatalogID))
+											verificationHandler(map[string]string{
+												"plan_id":          anotherServicePlanCatalogID,
+												"context.platform": types.SMPlatform,
+											}, http.StatusOK))
 
 										EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, anotherServicePlanID, TenantIDValue)
 
@@ -1730,7 +1966,10 @@ var _ = DescribeTestsFor(TestCase{
 											"newParamKey": "newParamValue",
 										}
 										brokerServer.ServiceInstanceHandlerFunc(http.MethodPatch, http.MethodPatch+"1",
-											verificationHandler("parameters", `{"newParamKey":"newParamValue"}`))
+											verificationHandler(map[string]string{
+												"parameters":       `{"newParamKey":"newParamValue"}`,
+												"context.platform": types.SMPlatform,
+											}, http.StatusOK))
 
 										patchInstance(ctx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.expectedUpdateSuccessStatusCode)
 									})
@@ -1870,7 +2109,7 @@ var _ = DescribeTestsFor(TestCase{
 												Ready: true,
 											})
 
-											newCtx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+											newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
 												Expect(set.Set("operations.action_timeout", ((MaximumPollingDuration + 5) * time.Second).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 
@@ -1879,8 +2118,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										AfterEach(func() {
-											newCtx.Servers[SMServer].Close()
-											ctx.SMWithBasic = newCtx.SMWithBasic
+											newCtx.CleanupAll(false)
 										})
 
 										It("keeps instance as ready true and stores the operation as failed", func() {
@@ -1907,7 +2145,7 @@ var _ = DescribeTestsFor(TestCase{
 											var newCtx *TestContext
 
 											BeforeEach(func() {
-												newCtx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+												newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
 													Expect(set.Set("operations.action_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
 												}).BuildWithoutCleanup()
 
@@ -1916,8 +2154,7 @@ var _ = DescribeTestsFor(TestCase{
 											})
 
 											AfterEach(func() {
-												newCtx.Servers[SMServer].Close()
-												ctx.SMWithBasic = newCtx.SMWithBasic
+												newCtx.CleanupAll(false)
 											})
 
 											It("stores instance as ready true and the operation as reschedulable in progress", func() {
@@ -2331,7 +2568,7 @@ var _ = DescribeTestsFor(TestCase{
 											Ready: true,
 										})
 
-										newCtx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+										newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
 											Expect(set.Set("operations.action_timeout", ((MaximumPollingDuration + 1) * time.Second).String())).ToNot(HaveOccurred())
 										}).BuildWithoutCleanup()
 
@@ -2340,8 +2577,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									AfterEach(func() {
-										newCtx.Servers[SMServer].Close()
-										ctx.SMWithBasic = newCtx.SMWithBasic
+										newCtx.CleanupAll(false)
 									})
 
 									When("orphan mitigation deprovision synchronously succeeds", func() {
@@ -2442,7 +2678,7 @@ var _ = DescribeTestsFor(TestCase{
 										var isDeprovisioned atomic.Value
 
 										BeforeEach(func() {
-											newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+											newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 												e.Set("server.shutdown_timeout", 1*time.Second)
 											}).BuildWithoutCleanup()
 
@@ -2453,6 +2689,10 @@ var _ = DescribeTestsFor(TestCase{
 													return http.StatusOK, Object{"state": "in progress"}
 												}
 											})
+										})
+
+										AfterEach(func() {
+											newSMCtx.CleanupAll(false)
 										})
 
 										It("should restart polling through maintainer and eventually deletes the instance", func() {
@@ -2476,10 +2716,9 @@ var _ = DescribeTestsFor(TestCase{
 											newSMCtx.CleanupAll(false)
 											isDeprovisioned.Store(true)
 
-											newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+											newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 												e.Set("operations.action_timeout", 2*time.Second)
 											}).BuildWithoutCleanup()
-											defer newSMCtx.CleanupAll(false)
 
 											operationExpectations.State = types.SUCCEEDED
 											operationExpectations.Reschedulable = false
@@ -2642,14 +2881,13 @@ var _ = DescribeTestsFor(TestCase{
 									When("maximum deletion timout has been reached", func() {
 										var newCtx *TestContext
 										BeforeEach(func() {
-											newCtx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+											newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
 												Expect(set.Set("operations.reconciliation_operation_timeout", (2 * time.Millisecond).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 										})
 
 										AfterEach(func() {
-											newCtx.Servers[SMServer].Close()
-											ctx.SMWithBasic = newCtx.SMWithBasic
+											newCtx.CleanupAll(false)
 										})
 
 										It("keeps the instance as ready false and marks the operation as deletion scheduled", func() {
@@ -2855,7 +3093,7 @@ var _ = DescribeTestsFor(TestCase{
 								BeforeEach(func() {
 									doneChannel = make(chan interface{})
 
-									newSMCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
+									newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
 										Expect(set.Set("httpclient.response_header_timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
 									}).BuildWithoutCleanup()
 
@@ -2946,7 +3184,7 @@ func prepareBrokerWithCatalog(ctx *TestContext, auth *SMExpect) (*BrokerUtils, *
 }
 
 func prepareBrokerWithCatalogAndPollingDuration(ctx *TestContext, auth *SMExpect, maxPollingDuration int) (*BrokerUtils, *httpexpect.Array) {
-	cPaidPlan1 := GeneratePaidTestPlan()
+	cPaidPlan1 := GenerateTestPlanWithID(plan1CatalogID)
 	cPaidPlan1, err := sjson.Set(cPaidPlan1, "maximum_polling_duration", maxPollingDuration)
 	if err != nil {
 		panic(err)
@@ -2956,9 +3194,16 @@ func prepareBrokerWithCatalogAndPollingDuration(ctx *TestContext, auth *SMExpect
 	if err != nil {
 		panic(err)
 	}
-	cService := GenerateTestServiceWithPlans(cPaidPlan1, cPaidPlan2)
+	planNotSupportingSM := GenerateTestPlanWithID(planNotSupportingSMPlatform)
+	planNotSupportingSM, err = sjson.Set(planNotSupportingSM, "metadata.supportedPlatforms.-1", "kubernetes")
+	if err != nil {
+		panic(err)
+	}
+
+	cService := GenerateTestServiceWithPlansWithID(service1CatalogID, cPaidPlan1, cPaidPlan2, planNotSupportingSM)
 	catalog := NewEmptySBCatalog()
 	catalog.AddService(cService)
+
 	brokerUtils := ctx.RegisterBrokerWithCatalog(catalog)
 	brokerID := brokerUtils.Broker.ID
 	server := brokerUtils.Broker.BrokerServer
@@ -2967,4 +3212,17 @@ func prepareBrokerWithCatalogAndPollingDuration(ctx *TestContext, auth *SMExpect
 	so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
 
 	return brokerUtils, auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw()))
+}
+
+func findPlanIDForCatalogID(ctx *TestContext, brokerID, catalogID string) string {
+	resp := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID))
+	soIDs := make([]string, 0)
+	for _, item := range resp.Iter() {
+		soID := item.Object().Value("id").String().Raw()
+		Expect(soID).ToNot(BeEmpty())
+		soIDs = append(soIDs, soID)
+	}
+
+	return ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_id eq '%s' and service_offering_id in ('%s')", catalogID, strings.Join(soIDs, "','"))).
+		First().Object().Value("id").String().Raw()
 }
