@@ -989,7 +989,10 @@ var _ = DescribeTestsFor(TestCase{
 
 									AfterEach(func() {
 										newSMCtx.CleanupAll(false)
-										anotherSMCtx.CleanupAll(false)
+										if anotherSMCtx != nil {
+											anotherSMCtx.CleanupAll(false)
+										}
+
 									})
 
 									It("Should mark operation as failed and trigger orphan mitigation", func() {

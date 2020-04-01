@@ -60,7 +60,7 @@ func TestServiceBindings(t *testing.T) {
 const (
 	TenantIdentifier       = "tenant"
 	TenantIDValue          = "tenantID"
-	MaximumPollingDuration = 3 //seconds
+	MaximumPollingDuration = 2 //seconds
 )
 
 var _ = DescribeTestsFor(TestCase{
@@ -689,7 +689,7 @@ var _ = DescribeTestsFor(TestCase{
 									BeforeEach(func() {
 										preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration)
 
-										newCtx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+										newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
 											Expect(set.Set("operations.action_timeout", ((MaximumPollingDuration + 1) * time.Second).String())).ToNot(HaveOccurred())
 										}).BuildWithoutCleanup()
 
@@ -698,8 +698,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									AfterEach(func() {
-										newCtx.Servers[SMServer].Close()
-										ctx.SMWithBasic = newCtx.SMWithBasic
+										newCtx.CleanupAll(false)
 									})
 
 									When("orphan mitigation unbind synchronously succeeds", func() {
@@ -805,7 +804,7 @@ var _ = DescribeTestsFor(TestCase{
 									When("action timeout is reached while polling", func() {
 										var newCtx *TestContext
 										BeforeEach(func() {
-											newCtx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+											newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
 												Expect(set.Set("operations.action_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 
@@ -814,8 +813,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										AfterEach(func() {
-											newCtx.Servers[SMServer].Close()
-											ctx.SMWithBasic = newCtx.SMWithBasic
+											newCtx.CleanupAll(false)
 										})
 
 										It("stores binding as ready false and the operation as reschedulable in progress", func() {
@@ -842,7 +840,7 @@ var _ = DescribeTestsFor(TestCase{
 										var isBound atomic.Value
 
 										BeforeEach(func() {
-											newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+											newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 												e.Set("server.shutdown_timeout", 1*time.Second)
 											}).BuildWithoutCleanup()
 
@@ -855,6 +853,10 @@ var _ = DescribeTestsFor(TestCase{
 												}
 											})
 
+										})
+
+										AfterEach(func() {
+											newSMCtx.CleanupAll(false)
 										})
 
 										It("should start restart polling through maintainer and eventually binding is set to ready", func() {
@@ -878,10 +880,9 @@ var _ = DescribeTestsFor(TestCase{
 											newSMCtx.CleanupAll(false)
 											isBound.Store(true)
 
-											newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+											newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 												e.Set("operations.action_timeout", 2*time.Second)
 											}).BuildWithoutCleanup()
-											defer newSMCtx.CleanupAll(false)
 
 											operationExpectations.State = types.SUCCEEDED
 											operationExpectations.Reschedulable = false
@@ -1029,9 +1030,10 @@ var _ = DescribeTestsFor(TestCase{
 							if testCase.async {
 								When("SM crashes after storing operation before storing resource", func() {
 									var newSMCtx *TestContext
+									var anotherSMCtx *TestContext
 
 									BeforeEach(func() {
-										newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+										newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("server.shutdown_timeout", 1*time.Second)
 										}).BuildWithoutCleanup()
 
@@ -1039,6 +1041,13 @@ var _ = DescribeTestsFor(TestCase{
 										brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"3", func(_ *http.Request) (int, map[string]interface{}) {
 											return http.StatusOK, Object{"state": types.SUCCEEDED}
 										})
+									})
+
+									AfterEach(func() {
+										newSMCtx.CleanupAll(false)
+										if anotherSMCtx != nil {
+											anotherSMCtx.CleanupAll(false)
+										}
 									})
 
 									It("Should mark operation as failed and trigger orphan mitigation", func() {
@@ -1072,11 +1081,10 @@ var _ = DescribeTestsFor(TestCase{
 											Type: types.ServiceBindingType,
 										})
 
-										anotherSMCtx := t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+										anotherSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("operations.action_timeout", 2*time.Second)
 											e.Set("operations.cleanup_interval", 2*time.Second)
 										}).BuildWithoutCleanup()
-										defer anotherSMCtx.CleanupAll(false)
 
 										operationExpectation := OperationExpectations{
 											Category:          types.CREATE,
@@ -1215,7 +1223,7 @@ var _ = DescribeTestsFor(TestCase{
 									var isUnbound atomic.Value
 
 									BeforeEach(func() {
-										newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+										newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("server.shutdown_timeout", 1*time.Second)
 										}).BuildWithoutCleanup()
 
@@ -1227,6 +1235,10 @@ var _ = DescribeTestsFor(TestCase{
 												return http.StatusOK, Object{"state": types.IN_PROGRESS}
 											}
 										})
+									})
+
+									AfterEach(func() {
+										newSMCtx.CleanupAll(false)
 									})
 
 									It("should restart orphan mitigation through maintainer and eventually succeeds", func() {
@@ -1245,10 +1257,9 @@ var _ = DescribeTestsFor(TestCase{
 										newSMCtx.CleanupAll(false)
 										isUnbound.Store(true)
 
-										newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+										newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("operations.action_timeout", 2*time.Second)
 										}).BuildWithoutCleanup()
-										defer newSMCtx.CleanupAll(false)
 
 										operationExpectations.DeletionScheduled = false
 										operationExpectations.Reschedulable = false
@@ -1297,7 +1308,7 @@ var _ = DescribeTestsFor(TestCase{
 
 								BeforeEach(func() {
 									doneChannel = make(chan interface{})
-									newCtx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+									newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
 										Expect(set.Set("httpclient.response_header_timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
 									}).BuildWithoutCleanup()
 
@@ -1305,8 +1316,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								AfterEach(func() {
-									newCtx.Servers[SMServer].Close()
-									ctx.SMWithBasic = newCtx.SMWithBasic
+									newCtx.CleanupAll(false)
 								})
 
 								It("orphan mitigates the binding", func() {
@@ -1673,7 +1683,7 @@ var _ = DescribeTestsFor(TestCase{
 											Ready: true,
 										})
 
-										newCtx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+										newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
 											Expect(set.Set("operations.action_timeout", ((MaximumPollingDuration + 1) * time.Second).String())).ToNot(HaveOccurred())
 										}).BuildWithoutCleanup()
 
@@ -1682,8 +1692,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									AfterEach(func() {
-										newCtx.Servers[SMServer].Close()
-										ctx.SMWithBasic = newCtx.SMWithBasic
+										newCtx.CleanupAll(false)
 									})
 
 									When("orphan mitigation unbind synchronously succeeds", func() {
@@ -1788,7 +1797,7 @@ var _ = DescribeTestsFor(TestCase{
 										var isBound atomic.Value
 
 										BeforeEach(func() {
-											newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+											newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 												e.Set("server.shutdown_timeout", 1*time.Second)
 											}).BuildWithoutCleanup()
 
@@ -1801,6 +1810,10 @@ var _ = DescribeTestsFor(TestCase{
 												}
 											})
 
+										})
+
+										AfterEach(func() {
+											newSMCtx.CleanupAll(false)
 										})
 
 										It("should start restart polling through maintainer and eventually binding is set to ready", func() {
@@ -1824,10 +1837,9 @@ var _ = DescribeTestsFor(TestCase{
 											newSMCtx.CleanupAll(false)
 											isBound.Store(true)
 
-											newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+											newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 												e.Set("operations.action_timeout", 2*time.Second)
 											}).BuildWithoutCleanup()
-											defer newSMCtx.CleanupAll(false)
 
 											operationExpectations.State = types.SUCCEEDED
 											operationExpectations.Reschedulable = false
@@ -2181,7 +2193,7 @@ var _ = DescribeTestsFor(TestCase{
 
 								BeforeEach(func() {
 									doneChannel = make(chan interface{})
-									newCtx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+									newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
 										Expect(set.Set("httpclient.response_header_timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
 									}).BuildWithoutCleanup()
 
@@ -2190,8 +2202,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								AfterEach(func() {
-									newCtx.Servers[SMServer].Close()
-									ctx.SMWithBasic = newCtx.SMWithBasic
+									newCtx.CleanupAll(false)
 								})
 
 								It("orphan mitigates the binding", func() {
