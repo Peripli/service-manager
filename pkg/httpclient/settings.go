@@ -25,6 +25,7 @@ import (
 )
 
 type Settings struct {
+	Timeout               time.Duration `mapstructure:"timeout" description:"timeout specifies a time limit for the request. The timeout includes connection time, any redirects, and reading the response body"`
 	TLSHandshakeTimeout   time.Duration `mapstructure:"tls_handshake_timeout"`
 	IdleConnTimeout       time.Duration `mapstructure:"idle_conn_timeout"`
 	ResponseHeaderTimeout time.Duration `mapstructure:"response_header_timeout"`
@@ -32,9 +33,12 @@ type Settings struct {
 	SkipSSLValidation     bool          `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when making calls to external services"`
 }
 
+var globalSettings Settings
+
 // DefaultSettings return the default values for httpclient settings
 func DefaultSettings() *Settings {
 	return &Settings{
+		Timeout:               time.Second * 15,
 		TLSHandshakeTimeout:   time.Second * 10,
 		IdleConnTimeout:       time.Second * 10,
 		ResponseHeaderTimeout: time.Second * 10,
@@ -45,6 +49,9 @@ func DefaultSettings() *Settings {
 
 // Validate validates the httpclient settings
 func (s *Settings) Validate() error {
+	if s.Timeout < 0 {
+		return fmt.Errorf("validate httpclient settings: timeout should be >= 0")
+	}
 	if s.TLSHandshakeTimeout < 0 {
 		return fmt.Errorf("validate httpclient settings: tls_handshake_timeout should be >= 0")
 	}
@@ -60,15 +67,26 @@ func (s *Settings) Validate() error {
 	return nil
 }
 
-// Configure configures the default http client and transport
-func Configure(settings *Settings) {
-	transport := http.DefaultTransport.(*http.Transport)
+func GetHttpClientGlobalSettings() *Settings {
+	return &globalSettings
+}
 
+func SetHTTPClientGlobalSettings(settings *Settings) {
+	globalSettings = *settings
+}
+
+// Configures the http client transport
+func Configure() {
+	settings := GetHttpClientGlobalSettings()
+	http.DefaultClient.Timeout = settings.Timeout
+	ConfigureTransport(http.DefaultTransport.(*http.Transport))
+}
+
+func ConfigureTransport(transport *http.Transport) {
+	settings := GetHttpClientGlobalSettings()
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation}
 	transport.ResponseHeaderTimeout = settings.ResponseHeaderTimeout
 	transport.TLSHandshakeTimeout = settings.TLSHandshakeTimeout
 	transport.IdleConnTimeout = settings.IdleConnTimeout
 	transport.DialContext = (&net.Dialer{Timeout: settings.DialTimeout}).DialContext
-
-	http.DefaultClient.Transport = transport
 }

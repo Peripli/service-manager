@@ -478,7 +478,7 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Ob
 	cService := common.GenerateTestServiceWithPlans(common.GenerateFreeTestPlan())
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(cService)
-	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
+	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
 
 	return auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", id)).First().Object().Raw()
 }

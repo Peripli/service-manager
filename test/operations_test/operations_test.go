@@ -306,7 +306,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							catalog = simpleCatalog(serviceID, planID)
 							catalog = simpleCatalog(serviceID, planID)
 							ctx.RegisterPlatform()
-							brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
+							brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
 							brokerServer.ServiceInstanceHandler = func(rw http.ResponseWriter, _ *http.Request) {
 								rw.Header().Set("Content-Type", "application/json")
 								rw.WriteHeader(http.StatusAccepted)
