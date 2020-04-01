@@ -51,19 +51,17 @@ func (f *serviceInstanceTransferFilter) Run(req *web.Request, next web.Handler) 
 
 	platformID := gjson.GetBytes(req.Body, "platform_id").String()
 	if platformID == "" {
-		log.C(ctx).Info("Platform ID is not provided in the request and it is not transfer instance request. Proceeding with the next handler...")
 		return next.Handle(req)
 	}
 
 	instanceID := req.PathParams[web.PathParamResourceID]
 	if instanceID == "" {
-		log.C(ctx).Info("Service Instance ID is not provided in the request. Proceeding with the next handler...")
 		return next.Handle(req)
 	}
 
 	planID := gjson.GetBytes(req.Body, "service_plan_id").String()
 	if planID == "" {
-		log.C(ctx).Info("Plan ID is not provided in the request. Fetching instance from SMDB...")
+		log.C(ctx).Debug("Plan ID is not provided in the request. Fetching instance from SMDB...")
 		byID := query.ByField(query.EqualsOperator, "id", instanceID)
 		instanceObject, err := f.repository.Get(ctx, types.ServiceInstanceType, byID)
 		if err != nil {

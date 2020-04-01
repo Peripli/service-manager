@@ -19,12 +19,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/test/tls_settings"
 	"net/http"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Peripli/service-manager/test/tls_settings"
 
 	"github.com/Peripli/service-manager/pkg/httpclient"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -690,7 +691,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
 							rw.WriteHeader(http.StatusOK)
 							if fl, ok := rw.(http.Flusher); ok {
-								for i := 0; i < 30; i++ {
+								for i := 0; i < 50; i++ {
 									fmt.Fprintf(rw, "Chunk %d", i)
 									fl.Flush()
 									time.Sleep(time.Millisecond * 100)
