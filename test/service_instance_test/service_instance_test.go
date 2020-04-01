@@ -19,10 +19,11 @@ package service_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/query"
 	"sync/atomic"
 	"time"
+
+	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/tidwall/gjson"
@@ -1145,7 +1146,7 @@ var _ = DescribeTestsFor(TestCase{
 									oldCtx = ctx
 									doneChannel = make(chan interface{})
 									ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-										Expect(set.Set("httpclient.response_header_timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
+										Expect(set.Set("httpclient.timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
 									}).BuildWithoutCleanup()
 
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", DelayingHandler(doneChannel))
@@ -2568,7 +2569,7 @@ var _ = DescribeTestsFor(TestCase{
 									doneChannel = make(chan interface{})
 
 									newSMCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
-										Expect(set.Set("httpclient.response_header_timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
+										Expect(set.Set("httpclient.timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
 									}).BuildWithoutCleanup()
 
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", DelayingHandler(doneChannel))

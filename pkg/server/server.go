@@ -98,9 +98,28 @@ func registerControllers(API *web.API, router *mux.Router, config *Settings) {
 			log.D().Debugf("Registering endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
 			handler := web.Filters(API.Filters).ChainMatching(route)
 			apiHandler := api.NewHTTPHandler(handler, config.MaxBodyBytes)
-			router.Handle(route.Endpoint.Path, http.TimeoutHandler(apiHandler, config.RequestTimeout-time.Second, "Timedout")).Methods(route.Endpoint.Method)
+			if !route.DisableHTTPTimeouts {
+				router.Handle(route.Endpoint.Path, newContentTypeHandler(http.TimeoutHandler(apiHandler, config.RequestTimeout, `{"error":"Timeout", "description": "operation has timed out"}`))).Methods(route.Endpoint.Method)
+			} else {
+				router.Handle(route.Endpoint.Path, apiHandler).Methods(route.Endpoint.Method)
+			}
 		}
 	}
+}
+
+func newContentTypeHandler(h http.Handler) http.Handler {
+	return &contentTypeHandler{
+		h: h,
+	}
+}
+
+type contentTypeHandler struct {
+	h http.Handler
+}
+
+func (h *contentTypeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	h.h.ServeHTTP(w, r)
 }
 
 // Run starts the server awaiting for incoming requests
@@ -109,9 +128,11 @@ func (s *Server) Run(ctx context.Context, wg *sync.WaitGroup) {
 		panic(fmt.Sprintf("invalid server config: %s", err))
 	}
 	handler := &http.Server{
-		Handler:        s.Router,
-		Addr:           s.Config.Host + ":" + strconv.Itoa(s.Config.Port),
-		WriteTimeout:   s.Config.RequestTimeout,
+		Handler: s.Router,
+		Addr:    s.Config.Host + ":" + strconv.Itoa(s.Config.Port),
+		// WriteTimeout should be with 1 second more, because we want to give a chance to a timeouting handler
+		// to write the timeout response
+		WriteTimeout:   s.Config.RequestTimeout + time.Second,
 		ReadTimeout:    s.Config.RequestTimeout,
 		MaxHeaderBytes: s.Config.MaxHeaderBytes,
 	}

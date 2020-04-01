@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"net/http"
 	"sync"
 	"time"
@@ -165,7 +166,9 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, postgresLockerCreatorFunc, cfg.Operations, waitGroup)
-	osbClientProvider := osb.NewBrokerClientProvider(cfg.HTTPClient.SkipSSLValidation, int(cfg.HTTPClient.ResponseHeaderTimeout.Seconds()))
+	osbClientTimeout := math.Min(float64(cfg.HTTPClient.Timeout), float64(cfg.Server.RequestTimeout))
+	osbClientTimeoutDuration := time.Duration(osbClientTimeout)
+	osbClientProvider := osb.NewBrokerClientProvider(cfg.HTTPClient.SkipSSLValidation, int(osbClientTimeoutDuration.Seconds()))
 
 	encryptingRepository, err := encryptingDecorator(smStorage)
 	if err != nil {

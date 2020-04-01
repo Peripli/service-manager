@@ -107,7 +107,7 @@ type brokerPlatformCredentials struct {
 
 var _ = BeforeSuite(func() {
 	ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-		Expect(set.Set("server.request_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
+		Expect(set.Set("server.request_timeout", "2s")).ToNot(HaveOccurred())
 		Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 		Expect(set.Set("httpclient.timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 	}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
@@ -230,6 +230,11 @@ func assertUnresponsiveBrokerError(req *httpexpect.Response) {
 		Value("description").String().Contains("could not reach service broker")
 }
 
+func assertSMTimeoutError(req *httpexpect.Response) {
+	req.Status(http.StatusServiceUnavailable).JSON().Object().
+		Value("description").String().Contains("operation has timed out")
+}
+
 func assertFailingBrokerError(req *httpexpect.Response, expectedStatus int, expectedError string) {
 	req.Status(expectedStatus).JSON().Object().
 		Value("description").String().Contains(expectedError)
@@ -304,6 +309,23 @@ func delayingHandler(done chan<- interface{}) func(rw http.ResponseWriter, req *
 		<-timeoutContext.Done()
 		common.SetResponse(rw, http.StatusTeapot, common.Object{})
 		close(done)
+	}
+}
+
+func slowResponseHandler(seconds int, done chan struct{}) func(rw http.ResponseWriter, req *http.Request) {
+	return func(rw http.ResponseWriter, req *http.Request) {
+		rw.WriteHeader(http.StatusOK)
+		if f, ok := rw.(http.Flusher); ok {
+			for i := 1; i <= seconds*10; i++ {
+				_, err := fmt.Fprintf(rw, "Chunk #%d\n", i)
+				if err != nil {
+					break
+				}
+				f.Flush()
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+		<-done
 	}
 }
 
