@@ -66,7 +66,7 @@ const (
 	service1CatalogID           = "service1CatalogID"
 	organizationGUID            = "1113aa0-124e-4af2-1526-6bfacf61b111"
 	SID                         = "12345"
-	timeoutDuration             = time.Millisecond * 1000
+	timeoutDuration             = time.Millisecond * 1500
 	additionalDelayAfterTimeout = time.Millisecond * 5
 	testTimeout                 = 10
 
