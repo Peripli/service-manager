@@ -110,6 +110,9 @@ var _ = BeforeSuite(func() {
 		Expect(set.Set("server.request_timeout", "2s")).ToNot(HaveOccurred())
 		Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 		Expect(set.Set("httpclient.timeout", timeoutDuration.String())).ToNot(HaveOccurred())
+	}).WithTenantTokenClaims(map[string]interface{}{
+		"cid": "tenancyClient",
+		"zid": TenantValue,
 	}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 		smb.EnableMultitenancy(TenantIdentifier, func(request *web.Request) (string, error) {
 			extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")
@@ -191,7 +194,7 @@ var _ = BeforeSuite(func() {
 	for _, p := range plans {
 		common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, p.Object().Value("id").String().Raw(), ctx.TestPlatform.ID)
 	}
-	smBrokerURL = brokerServer.URL() + "/v1/osb/" + brokerID
+	smBrokerURL = ctx.Servers[common.SMServer].URL() + "/v1/osb/" + brokerID
 	brokerName = brokerObject["name"].(string)
 
 	username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, brokerID)
