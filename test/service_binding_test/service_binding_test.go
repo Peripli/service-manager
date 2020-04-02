@@ -1344,7 +1344,7 @@ var _ = DescribeTestsFor(TestCase{
 								BeforeEach(func() {
 									doneChannel = make(chan interface{})
 									newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
-										Expect(set.Set("httpclient.response_header_timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
+										Expect(set.Set("httpclient.timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
 									}).BuildWithoutCleanup()
 
 									brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", DelayingHandler(doneChannel))
@@ -2229,7 +2229,7 @@ var _ = DescribeTestsFor(TestCase{
 								BeforeEach(func() {
 									doneChannel = make(chan interface{})
 									newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
-										Expect(set.Set("httpclient.response_header_timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
+										Expect(set.Set("httpclient.timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
 									}).BuildWithoutCleanup()
 
 									brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"1", DelayingHandler(doneChannel))
