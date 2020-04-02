@@ -21,9 +21,6 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"github.com/Peripli/service-manager/test/tls_settings"
-	"github.com/tidwall/gjson"
-	"golang.org/x/crypto/bcrypt"
 	"math/rand"
 	"net"
 	"net/http"
@@ -34,6 +31,10 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/Peripli/service-manager/test/tls_settings"
+	"github.com/tidwall/gjson"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Peripli/service-manager/operations"
 

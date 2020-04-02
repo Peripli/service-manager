@@ -20,11 +20,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/tidwall/sjson"
 	"math"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/tidwall/sjson"
 
 	"github.com/Peripli/service-manager/operations/opcontext"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -337,10 +338,6 @@ func (i *ServiceInstanceInterceptor) AroundTxDelete(f storage.InterceptDeleteAro
 
 		if instances.Len() != 0 {
 			instance := instances.ItemAt(0).(*types.ServiceInstance)
-			if instance.PlatformID != types.SMPlatform {
-				return f(ctx, deletionCriteria...)
-			}
-
 			operation, found := opcontext.Get(ctx)
 			if !found {
 				return fmt.Errorf("operation missing from context")
