@@ -506,7 +506,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 					})
 
-					Context("when broker catalog contains an incomplete plan", func() {
+					Context("when broker catalog contains an invalid plan", func() {
 						Context("that has an empty catalog id", func() {
 							verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
 								r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")

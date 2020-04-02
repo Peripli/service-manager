@@ -450,7 +450,7 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 }
 
 func (tcb *TestContextBuilder) BuildWithoutCleanup() *TestContext {
-	return tcb.BuildWithListener(nil, false)
+	return tcb.SkipBasicAuthClientSetup(true).BuildWithListener(nil, false)
 }
 
 func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup bool) *TestContext {
@@ -505,9 +505,8 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 		RemoveAllBrokers(testContext.SMRepository)
 		RemoveAllPlatforms(testContext.SMRepository)
 		RemoveAllOperations(testContext.SMRepository)
-	} else {
-		testContext.SMWithOAuth.DELETE(web.PlatformsURL + "/" + "tcb-platform-test").Expect()
 	}
+
 	if !tcb.shouldSkipBasicAuthClient {
 		platformJSON := MakePlatform("tcb-platform-test", "tcb-platform-test", "platform-type", "test-platform")
 		platform := RegisterPlatformInSM(platformJSON, testContext.SMWithOAuth, map[string]string{})
