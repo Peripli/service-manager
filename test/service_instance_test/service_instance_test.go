@@ -2262,7 +2262,7 @@ var _ = DescribeTestsFor(TestCase{
 										if testCase.async {
 											expectedCode = http.StatusAccepted
 										}
-										otherTenantExpect := ctx.NewTenantExpect("other-tenant")
+										otherTenantExpect := ctx.NewTenantExpect("tenancyClient", "other-tenant")
 										deleteInstance(otherTenantExpect, testCase.async, expectedCode)
 									})
 								})
