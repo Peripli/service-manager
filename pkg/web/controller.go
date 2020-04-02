@@ -30,7 +30,7 @@ type Route struct {
 	// Handler is the function that should handle incoming requests for this endpoint
 	Handler HandlerFunc
 
-	// DisableHTTPTimeouts if false (by defaut) will place timeout handler for the endpoint.
+	// DisableHTTPTimeouts if false (by default) will place timeout handler for the endpoint.
 	// If explicitly set to true, will NOT use the timeout handler.
 	// Mainly used for websocket connection endpoints
 	DisableHTTPTimeouts bool
