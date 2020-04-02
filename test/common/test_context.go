@@ -450,7 +450,7 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 }
 
 func (tcb *TestContextBuilder) BuildWithoutCleanup() *TestContext {
-	return tcb.BuildWithListener(nil, false)
+	return tcb.SkipBasicAuthClientSetup(true).BuildWithListener(nil, false)
 }
 
 func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup bool) *TestContext {

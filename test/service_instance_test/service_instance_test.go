@@ -654,7 +654,7 @@ var _ = DescribeTestsFor(TestCase{
 										preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration)
 										EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 
-										newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
+										newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
 											Expect(set.Set("operations.action_timeout", ((MaximumPollingDuration + 1) * time.Second).String())).ToNot(HaveOccurred())
 										}).BuildWithoutCleanup()
 
@@ -747,7 +747,7 @@ var _ = DescribeTestsFor(TestCase{
 										var newCtx *TestContext
 
 										BeforeEach(func() {
-											newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
+											newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
 												Expect(set.Set("operations.action_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 
@@ -783,7 +783,7 @@ var _ = DescribeTestsFor(TestCase{
 										var isProvisioned atomic.Value
 
 										BeforeEach(func() {
-											newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+											newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 												e.Set("server.shutdown_timeout", 1*time.Second)
 											}).BuildWithoutCleanup()
 
@@ -821,7 +821,7 @@ var _ = DescribeTestsFor(TestCase{
 											newSMCtx.CleanupAll(false)
 											isProvisioned.Store(true)
 
-											newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+											newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 												e.Set("operations.action_timeout", 2*time.Second)
 											}).BuildWithoutCleanup()
 
@@ -978,7 +978,7 @@ var _ = DescribeTestsFor(TestCase{
 									var anotherSMCtx *TestContext
 
 									BeforeEach(func() {
-										newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+										newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("server.shutdown_timeout", 1*time.Second)
 										}).BuildWithoutCleanup()
 
@@ -1026,7 +1026,7 @@ var _ = DescribeTestsFor(TestCase{
 											Type: types.ServiceInstanceType,
 										})
 
-										anotherSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+										anotherSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("operations.action_timeout", 2*time.Second)
 											e.Set("operations.cleanup_interval", 2*time.Second)
 										}).BuildWithoutCleanup()
@@ -1131,7 +1131,7 @@ var _ = DescribeTestsFor(TestCase{
 										var newCtx *TestContext
 
 										BeforeEach(func() {
-											newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
+											newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
 												Expect(set.Set("operations.reconciliation_operation_timeout", (2 * time.Millisecond).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 										})
@@ -1192,7 +1192,7 @@ var _ = DescribeTestsFor(TestCase{
 									var isDeprovisioned atomic.Value
 
 									BeforeEach(func() {
-										newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+										newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("server.shutdown_timeout", 1*time.Second)
 										}).BuildWithoutCleanup()
 
@@ -1226,7 +1226,7 @@ var _ = DescribeTestsFor(TestCase{
 										newSMCtx.CleanupAll(false)
 										isDeprovisioned.Store(true)
 
-										newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+										newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("operations.action_timeout", 2*time.Second)
 										}).BuildWithoutCleanup()
 
@@ -1276,7 +1276,7 @@ var _ = DescribeTestsFor(TestCase{
 
 								BeforeEach(func() {
 									doneChannel = make(chan interface{})
-									newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
+									newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
 										Expect(set.Set("httpclient.response_header_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
 									}).BuildWithoutCleanup()
 
@@ -2135,7 +2135,7 @@ var _ = DescribeTestsFor(TestCase{
 												Ready: true,
 											})
 
-											newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
+											newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
 												Expect(set.Set("operations.action_timeout", ((MaximumPollingDuration + 5) * time.Second).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 
@@ -2171,7 +2171,7 @@ var _ = DescribeTestsFor(TestCase{
 											var newCtx *TestContext
 
 											BeforeEach(func() {
-												newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
+												newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
 													Expect(set.Set("operations.action_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
 												}).BuildWithoutCleanup()
 
@@ -2537,7 +2537,7 @@ var _ = DescribeTestsFor(TestCase{
 											Ready: true,
 										})
 
-										newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
+										newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
 											Expect(set.Set("operations.action_timeout", ((MaximumPollingDuration + 1) * time.Second).String())).ToNot(HaveOccurred())
 										}).BuildWithoutCleanup()
 
@@ -2756,7 +2756,7 @@ var _ = DescribeTestsFor(TestCase{
 											var isDeprovisioned atomic.Value
 
 											BeforeEach(func() {
-												newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+												newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 													e.Set("server.shutdown_timeout", 1*time.Second)
 												}).BuildWithoutCleanup()
 
@@ -2794,7 +2794,7 @@ var _ = DescribeTestsFor(TestCase{
 												newSMCtx.CleanupAll(false)
 												isDeprovisioned.Store(true)
 
-												newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
+												newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 													e.Set("operations.action_timeout", 2*time.Second)
 												}).BuildWithoutCleanup()
 
@@ -2960,7 +2960,7 @@ var _ = DescribeTestsFor(TestCase{
 											var newCtx *TestContext
 
 											BeforeEach(func() {
-												newCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
+												newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
 													Expect(set.Set("operations.reconciliation_operation_timeout", (2 * time.Millisecond).String())).ToNot(HaveOccurred())
 												}).BuildWithoutCleanup()
 											})
@@ -3173,7 +3173,7 @@ var _ = DescribeTestsFor(TestCase{
 									BeforeEach(func() {
 										doneChannel = make(chan interface{})
 
-										newSMCtx = t.ContextBuilder.SkipBasicAuthClientSetup(true).WithEnvPreExtensions(func(set *pflag.FlagSet) {
+										newSMCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
 											Expect(set.Set("httpclient.response_header_timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
 										}).BuildWithoutCleanup()
 
