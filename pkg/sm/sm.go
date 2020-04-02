@@ -19,7 +19,9 @@ package sm
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"sync"
 	"time"
@@ -165,7 +167,9 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, postgresLockerCreatorFunc, cfg.Operations, waitGroup)
-	osbClientProvider := osb.NewBrokerClientProvider(cfg.HTTPClient.SkipSSLValidation, int(cfg.HTTPClient.ResponseHeaderTimeout.Seconds()))
+	osbClientTimeout := math.Min(float64(cfg.HTTPClient.Timeout), float64(cfg.Server.RequestTimeout))
+	osbClientTimeoutDuration := time.Duration(osbClientTimeout)
+	osbClientProvider := osb.NewBrokerClientProvider(cfg.HTTPClient.SkipSSLValidation, int(osbClientTimeoutDuration.Seconds()))
 
 	encryptingRepository, err := encryptingDecorator(smStorage)
 	if err != nil {
@@ -574,7 +578,12 @@ func (smb *ServiceManagerBuilder) calculateIntegrity() error {
 func DefaultInstanceVisibilityFunc(labelKey string) func(req *web.Request, repository storage.Repository) (metadata *filters.InstanceVisibilityMetadata, err error) {
 	return func(req *web.Request, repository storage.Repository) (metadata *filters.InstanceVisibilityMetadata, err error) {
 		tenantID := query.RetrieveFromCriteria(labelKey, query.CriteriaForContext(req.Context())...)
-		if tenantID == "" {
+		user, ok := web.UserFromContext(req.Context())
+		if !ok {
+			return nil, errors.New("user details not found in request context")
+		}
+
+		if user.AuthenticationType != web.Basic && tenantID == "" {
 			log.C(req.Context()).Errorf("Tenant identifier not found in request criteria. Not able to create instance without tenant")
 			return nil, &util.HTTPError{
 				ErrorType:   "BadRequest",
