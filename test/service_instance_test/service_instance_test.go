@@ -2292,12 +2292,6 @@ var _ = DescribeTestsFor(TestCase{
 											Type: types.ServiceInstanceType,
 										})
 									})
-									expectedCode := http.StatusNotFound
-									if testCase.async {
-										expectedCode = http.StatusAccepted
-									}
-									otherTenantExpect := ctx.NewTenantExpect("tenancyClient", "other-tenant")
-									deleteInstance(otherTenantExpect, testCase.async, expectedCode)
 								})
 							})
 
