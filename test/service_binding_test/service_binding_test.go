@@ -404,7 +404,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								It("returns 404", func() {
-									otherTenantExpect := ctx.NewTenantExpect("other-tenant")
+									otherTenantExpect := ctx.NewTenantExpect("tenancyClient", "other-tenant")
 									createBinding(otherTenantExpect, testCase.async, http.StatusNotFound)
 								})
 							})
@@ -1463,7 +1463,7 @@ var _ = DescribeTestsFor(TestCase{
 									if testCase.async {
 										expectedCode = http.StatusAccepted
 									}
-									smWithOtherTenant := ctx.NewTenantExpect("other-tenant")
+									smWithOtherTenant := ctx.NewTenantExpect("tenancyClient", "other-tenant")
 									deleteBinding(smWithOtherTenant, testCase.async, expectedCode)
 
 									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{

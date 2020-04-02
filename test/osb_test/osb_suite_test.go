@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/test"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/multitenancy"
@@ -65,7 +66,7 @@ const (
 	service1CatalogID           = "service1CatalogID"
 	organizationGUID            = "1113aa0-124e-4af2-1526-6bfacf61b111"
 	SID                         = "12345"
-	timeoutDuration             = time.Millisecond * 500
+	timeoutDuration             = time.Millisecond * 1500
 	additionalDelayAfterTimeout = time.Millisecond * 5
 	testTimeout                 = 10
 
@@ -501,4 +502,13 @@ func verifyOperationDoesNotExist(resourceID string, operationTypes ...string) {
 	objectList, err := ctx.SMRepository.List(context.TODO(), types.OperationType, criterias...)
 	Expect(err).ToNot(HaveOccurred())
 	Expect(objectList.Len()).To(BeZero())
+}
+
+func hashPassword(password string) string {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		panic(err)
+	}
+
+	return string(passwordHash)
 }

@@ -509,7 +509,7 @@ var _ = DescribeTestsFor(TestCase{
 
 								When("for other tenant", func() {
 									It("should accept", func() {
-										otherTenantExpect := ctx.NewTenantExpect("other-tenant")
+										otherTenantExpect := ctx.NewTenantExpect("tenancyClient", "other-tenant")
 										resp := createInstance(otherTenantExpect, testCase.async, testCase.expectedCreateSuccessStatusCode)
 
 										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -1790,7 +1790,7 @@ var _ = DescribeTestsFor(TestCase{
 							Context("instance ownership", func() {
 								When("tenant doesn't have ownership of instance", func() {
 									It("returns 404", func() {
-										otherTenantExpect := ctx.NewTenantExpect("other-tenant")
+										otherTenantExpect := ctx.NewTenantExpect("tenancyClient", "other-tenant")
 										otherTenantExpect.PATCH(web.ServiceInstancesURL+"/"+instanceID).
 											WithQuery("async", testCase.async).
 											WithJSON(Object{"service_plan_id": anotherServicePlanID}).
@@ -1872,7 +1872,7 @@ var _ = DescribeTestsFor(TestCase{
 										EnsurePublicPlanVisibility(ctx.SMRepository, servicePlanID)
 
 										postInstanceRequest["name"] = "instance1"
-										otherTenant := ctx.NewTenantExpect("other-tenant")
+										otherTenant := ctx.NewTenantExpect("tenancyClient", "other-tenant")
 										resp := createInstance(otherTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
 										instance1ID, _ := VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 											Category:          types.CREATE,
@@ -2421,7 +2421,7 @@ var _ = DescribeTestsFor(TestCase{
 										if testCase.async {
 											expectedCode = http.StatusAccepted
 										}
-										otherTenantExpect := ctx.NewTenantExpect("other-tenant")
+										otherTenantExpect := ctx.NewTenantExpect("tenancyClient", "other-tenant")
 										deleteInstance(otherTenantExpect, testCase.async, expectedCode)
 									})
 								})
