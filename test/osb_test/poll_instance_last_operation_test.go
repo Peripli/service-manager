@@ -748,7 +748,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 	Context("when broker headers are written, but response is slow", func() {
 		It("should fail with 503", func() {
 			done := make(chan struct{}, 1)
-			brokerServer.ServiceInstanceLastOpHandler = slowResponseHandler(3, done)
+			brokerServer.ServiceInstanceLastOpHandler = slowResponseHandler(5, done)
 			assertSMTimeoutError(ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect())
 			done <- struct{}{}
