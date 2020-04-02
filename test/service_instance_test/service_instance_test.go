@@ -67,7 +67,7 @@ const (
 	service1CatalogID                  = "service1CatalogID"
 	plan1CatalogID                     = "plan1CatalogID"
 	planNotSupportingSMPlatform        = "planNotSupportingSmID"
-	MaximumPollingDuration      = 2 // seconds
+	MaximumPollingDuration             = 2 // seconds
 )
 
 func checkInstance(req *http.Request) (int, map[string]interface{}) {
@@ -2988,7 +2988,6 @@ var _ = DescribeTestsFor(TestCase{
 											})
 										})
 									})
-
 
 									When("polling returns an unexpected status code", func() {
 										BeforeEach(func() {
