@@ -19,11 +19,10 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/tidwall/gjson"
 	"reflect"
-
-	"github.com/Peripli/service-manager/pkg/util"
 )
 
 //go:generate smgen api ServicePlan
@@ -101,7 +100,6 @@ func (e *ServicePlan) Validate() error {
 			return fmt.Errorf("service plan metadata is invalid JSON")
 		}
 	}
-
 	return nil
 }
 
