@@ -536,11 +536,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
 							}, "services.0.plans.0.schemas", "{invalid")
 						})
-						Context("that has max_polling_duration more than 1 week", func() {
-							verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
-								r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
-							}, "services.0.plans.0.maximum_polling_duration", (8*24*time.Hour)/time.Second)
-						})
 					})
 				})
 

@@ -19,12 +19,10 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/tidwall/gjson"
 	"reflect"
-	"time"
-
-	"github.com/Peripli/service-manager/pkg/util"
 )
 
 //go:generate smgen api ServicePlan
@@ -101,9 +99,6 @@ func (e *ServicePlan) Validate() error {
 		if err := json.Unmarshal(e.Metadata, &obj); err != nil {
 			return fmt.Errorf("service plan metadata is invalid JSON")
 		}
-	}
-	if time.Duration(e.MaximumPollingDuration)*time.Second > 7*24*time.Hour {
-		return fmt.Errorf("service plan has maximum_polling_duration of %ds which exceed the maximum allowed duration of 1 week", e.MaximumPollingDuration)
 	}
 	return nil
 }
