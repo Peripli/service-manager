@@ -19,6 +19,7 @@ package sm
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -571,7 +572,12 @@ func (smb *ServiceManagerBuilder) calculateIntegrity() error {
 func DefaultInstanceVisibilityFunc(labelKey string) func(req *web.Request, repository storage.Repository) (metadata *filters.InstanceVisibilityMetadata, err error) {
 	return func(req *web.Request, repository storage.Repository) (metadata *filters.InstanceVisibilityMetadata, err error) {
 		tenantID := query.RetrieveFromCriteria(labelKey, query.CriteriaForContext(req.Context())...)
-		if tenantID == "" {
+		user, ok := web.UserFromContext(req.Context())
+		if !ok {
+			return nil, errors.New("user details not found in request context")
+		}
+
+		if user.AuthenticationType != web.Basic && tenantID == "" {
 			log.C(req.Context()).Errorf("Tenant identifier not found in request criteria. Not able to create instance without tenant")
 			return nil, &util.HTTPError{
 				ErrorType:   "BadRequest",

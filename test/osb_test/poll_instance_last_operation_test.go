@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/web"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	. "github.com/onsi/ginkgo"
@@ -126,9 +128,8 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 					brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 
 					By(fmt.Sprintf("Deleting instance with id %s", SID))
-					byID := query.ByField(query.EqualsOperator, "id", SID)
-					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
-					Expect(err).ToNot(HaveOccurred())
+					ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+SID).WithQuery("async", false).
+						Expect().Status(http.StatusOK)
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
@@ -359,9 +360,8 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 					brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 
 					By(fmt.Sprintf("Deleting instance with id %s", SID))
-					byID := query.ByField(query.EqualsOperator, "id", SID)
-					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
-					Expect(err).ToNot(HaveOccurred())
+					ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+SID).WithQuery("async", false).
+						Expect().Status(http.StatusOK)
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
@@ -457,7 +457,9 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusOK)
+		})
 
+		JustBeforeEach(func() {
 			By(fmt.Sprintf("Deleting service instance with id %s", SID))
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusAccepted, `{}`)
 			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
@@ -502,9 +504,8 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 					brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 
 					By(fmt.Sprintf("Deleting instance with id %s", SID))
-					byID := query.ByField(query.EqualsOperator, "id", SID)
-					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
-					Expect(err).ToNot(HaveOccurred())
+					ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+SID).WithQuery("async", false).
+						Expect().Status(http.StatusOK)
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
@@ -582,9 +583,8 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 					brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 
 					By(fmt.Sprintf("Deleting instance with id %s", SID))
-					byID := query.ByField(query.EqualsOperator, "id", SID)
-					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
-					Expect(err).ToNot(HaveOccurred())
+					ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+SID).WithQuery("async", false).
+						Expect().Status(http.StatusOK)
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
@@ -677,9 +677,8 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 					brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 
 					By(fmt.Sprintf("Deleting instance with id %s", SID))
-					byID := query.ByField(query.EqualsOperator, "id", SID)
-					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
-					Expect(err).ToNot(HaveOccurred())
+					ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+SID).WithQuery("async", false).
+						Expect().Status(http.StatusOK)
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)

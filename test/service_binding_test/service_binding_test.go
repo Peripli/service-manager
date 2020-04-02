@@ -87,14 +87,16 @@ var _ = DescribeTestsFor(TestCase{
 	AdditionalTests: func(ctx *TestContext, t *TestCase) {
 		Context("additional non-generic tests", func() {
 			var (
-				postBindingRequest  Object
-				instanceID          string
-				instanceName        string
-				bindingID           string
-				brokerID            string
-				brokerServer        *BrokerServer
-				servicePlanID       string
-				syncBindingResponse Object
+				postBindingRequest   Object
+				instanceID           string
+				instanceName         string
+				bindingID            string
+				brokerID             string
+				brokerServer         *BrokerServer
+				servicePlanID        string
+				serviceCatalogID     string
+				servicePlanCatalogID string
+				syncBindingResponse  Object
 			)
 
 			type testCase struct {
@@ -180,7 +182,7 @@ var _ = DescribeTestsFor(TestCase{
 			}
 
 			BeforeEach(func() {
-				brokerID, brokerServer, servicePlanID = newServicePlan(ctx, true)
+				brokerID, brokerServer, servicePlanID, servicePlanCatalogID, serviceCatalogID = newServicePlan(ctx, true)
 				brokerServer.ShouldRecordRequests(false)
 				EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 				resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
@@ -241,6 +243,39 @@ var _ = DescribeTestsFor(TestCase{
 				for _, testCase := range testCases {
 					testCase := testCase
 					Context(fmt.Sprintf("async = %t", testCase.async), func() {
+						When("instance exists in a platform different from service manager", func() {
+							const (
+								brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
+								brokerAPIVersionHeaderValue = "2.13"
+								SID                         = "abc1234"
+							)
+
+							BeforeEach(func() {
+								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, ctx.TestPlatform.ID, servicePlanID, TenantIDValue)
+
+								ctx.SMWithBasic.PUT("/v1/osb/"+brokerID+"/v2/service_instances/"+SID).
+									WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+									WithJSON(Object{
+										"service_id": serviceCatalogID,
+										"plan_id":    servicePlanCatalogID,
+										"context": Object{
+											TenantIdentifier: TenantIDValue,
+										},
+									}).
+									Expect().Status(http.StatusCreated)
+
+								ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + SID).
+									Expect().
+									Status(http.StatusOK).
+									JSON().Object().Value("platform_id").Equal(ctx.TestPlatform.ID)
+							})
+
+							It("return 404", func() {
+								postBindingRequest["service_instance_id"] = SID
+								createBinding(ctx.SMWithOAuthForTenant, testCase.async, http.StatusNotFound)
+							})
+						})
+
 						Context("when content type is not JSON", func() {
 							It("returns 415", func() {
 								ctx.SMWithOAuth.POST(web.ServiceBindingsURL).
@@ -485,7 +520,7 @@ var _ = DescribeTestsFor(TestCase{
 
 							When("plan is not bindable", func() {
 								BeforeEach(func() {
-									servicePlanID = findPlanIDForBrokerID(ctx, brokerID, false)
+									servicePlanID, _, _ = findPlanDetailsForBrokerID(ctx, brokerID, false)
 									EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 									createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
 								})
@@ -688,6 +723,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										AfterEach(func() {
+											oldCtx.SMWithBasic = ctx.SMWithBasic
 											ctx = oldCtx
 										})
 
@@ -1179,6 +1215,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								AfterEach(func() {
+									oldCtx.SMWithBasic = ctx.SMWithBasic
 									ctx = oldCtx
 								})
 
@@ -1936,6 +1973,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								AfterEach(func() {
+									oldCtx.SMWithBasic = ctx.SMWithBasic
 									ctx = oldCtx
 								})
 
@@ -1976,7 +2014,7 @@ var _ = DescribeTestsFor(TestCase{
 })
 
 func blueprint(ctx *TestContext, _ *SMExpect, async bool) Object {
-	_, _, servicePlanID := newServicePlan(ctx, true)
+	_, _, servicePlanID, _, _ := newServicePlan(ctx, true)
 	EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 	ID, err := uuid.NewV4()
 	if err != nil {
@@ -2043,19 +2081,23 @@ func blueprint(ctx *TestContext, _ *SMExpect, async bool) Object {
 	return binding
 }
 
-func newServicePlan(ctx *TestContext, bindable bool) (string, *BrokerServer, string) {
+func newServicePlan(ctx *TestContext, bindable bool) (string, *BrokerServer, string, string, string) {
 	brokerID, _, brokerServer := ctx.RegisterBrokerWithCatalog(NewRandomSBCatalog()).GetBrokerAsParams()
 	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
-	servicePlanID := findPlanIDForBrokerID(ctx, brokerID, bindable)
-	return brokerID, brokerServer, servicePlanID
+	servicePlanID, servicePlanCatalogID, serviceCatalogID := findPlanDetailsForBrokerID(ctx, brokerID, bindable)
+	return brokerID, brokerServer, servicePlanID, servicePlanCatalogID, serviceCatalogID
 }
 
-func findPlanIDForBrokerID(ctx *TestContext, brokerID string, bindable bool) string {
+func findPlanDetailsForBrokerID(ctx *TestContext, brokerID string, bindable bool) (string, string, string) {
 	so := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
-	servicePlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s' and bindable eq %t", so.Object().Value("id").String().Raw(), bindable)).
-		First().Object().Value("id").String().Raw()
+	serviceCatalogID := so.Object().Value("catalog_id").String().Raw()
+	resp := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s' and bindable eq %t", so.Object().Value("id").String().Raw(), bindable)).
+		First().Object()
 
-	return servicePlanID
+	servicePlanID := resp.Value("id").String().Raw()
+	servicePlanCatalogID := resp.Value("catalog_id").String().Raw()
+
+	return servicePlanID, servicePlanCatalogID, serviceCatalogID
 }
 
 func findPlanIDForBrokerIDAndBindingRetrievable(ctx *TestContext, brokerID string, bindingRetrievable bool) string {
