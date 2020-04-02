@@ -66,7 +66,7 @@ const (
 	service1CatalogID           = "service1CatalogID"
 	organizationGUID            = "1113aa0-124e-4af2-1526-6bfacf61b111"
 	SID                         = "12345"
-	timeoutDuration             = time.Millisecond * 1000
+	timeoutDuration             = time.Millisecond * 500
 	additionalDelayAfterTimeout = time.Millisecond * 5
 	testTimeout                 = 10
 
@@ -108,7 +108,7 @@ type brokerPlatformCredentials struct {
 
 var _ = BeforeSuite(func() {
 	ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-		// Expect(set.Set("server.request_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
+		Expect(set.Set("server.request_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 		Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 		Expect(set.Set("httpclient.timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 	}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
