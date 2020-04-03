@@ -223,6 +223,9 @@ func (ps *Storage) createLabels(ctx context.Context, labels []PostgresLabel) err
 }
 
 func (ps *Storage) deleteLabels(ctx context.Context, objectType types.ObjectType, entityID string, removedLabels types.Labels) error {
+	if len(removedLabels) == 0 {
+		return nil
+	}
 	emptyLabel, err := ps.scheme.provideLabel(objectType, entityID, "", "")
 	if err != nil {
 		return err
@@ -405,11 +408,7 @@ func (ps *Storage) Update(ctx context.Context, obj types.Object, labelChanges ty
 }
 
 func (ps *Storage) UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, _ ...query.Criterion) error {
-	if err := ps.updateLabels(ctx, objectType, objectID, labelChanges); err != nil {
-		return err
-	}
-
-	return nil
+	return ps.updateLabels(ctx, objectType, objectID, labelChanges)
 }
 
 func (ps *Storage) updateLabels(ctx context.Context, objectType types.ObjectType, entityID string, updateActions []*types.LabelChange) error {
