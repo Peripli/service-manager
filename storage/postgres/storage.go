@@ -175,7 +175,7 @@ func (ps *Storage) Create(ctx context.Context, obj types.Object) (types.Object, 
 	var pgLabels []PostgresLabel
 	for key, values := range obj.GetLabels() {
 		for _, labelValue := range values {
-			pgLabel, err := ps.scheme.provideLabel(obj.GetType(), obj.GetID(), key, labelValue)
+			pgLabel, err := ps.scheme.provideLabel(obj.GetType(), createdObj.GetID(), key, labelValue)
 			if err != nil {
 				return nil, err
 			}
@@ -218,7 +218,7 @@ func (ps *Storage) createLabels(ctx context.Context, labels []PostgresLabel) err
 	)
 
 	log.C(ctx).Debugf("Executing query %s", sqlQuery)
-	_, err := ps.db.NamedExec(sqlQuery, labels)
+	_, err := ps.pgDB.NamedExecContext(ctx, sqlQuery, labels)
 	return checkIntegrityViolation(ctx, err)
 }
 
