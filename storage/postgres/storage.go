@@ -213,7 +213,7 @@ func (ps *Storage) Get(ctx context.Context, objectType types.ObjectType, criteri
 }
 
 func (ps *Storage) GetForUpdate(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
-	result, err := ps.list(ctx, objectType, false, true, criteria...)
+	result, err := ps.list(ctx, objectType, true, true, criteria...)
 	if err != nil {
 		return nil, err
 	}
