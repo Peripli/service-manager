@@ -325,6 +325,10 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 	return updatedObj, nil
 }
 
+func (ir *queryScopedInterceptableRepository) UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, criteria ...query.Criterion) error {
+	return ir.repositoryInTransaction.UpdateLabels(ctx, objectType, objectID, labelChanges, criteria...)
+}
+
 func (itr *InterceptableTransactionalRepository) InTransaction(ctx context.Context, f func(ctx context.Context, storage Repository) error) error {
 	createOnTxInterceptors, updateOnTxInterceptors, deleteOnTxInterceptors := itr.provideOnTxInterceptors()
 
@@ -613,6 +617,10 @@ func (itr *InterceptableTransactionalRepository) Update(ctx context.Context, obj
 	}
 
 	return obj, nil
+}
+
+func (itr *InterceptableTransactionalRepository) UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, criteria ...query.Criterion) error {
+	return itr.RawRepository.UpdateLabels(ctx, objectType, objectID, labelChanges, criteria...)
 }
 
 func (itr *InterceptableTransactionalRepository) validateCreateProviders(objectType types.ObjectType, providerName string, order InterceptorOrder) {

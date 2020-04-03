@@ -106,6 +106,10 @@ func (cr *integrityRepository) Update(ctx context.Context, obj types.Object, lab
 	return cr.repository.Update(ctx, obj, labelChanges, criteria...)
 }
 
+func (cr *integrityRepository) UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, criteria ...query.Criterion) error {
+	return cr.repository.UpdateLabels(ctx, objectType, objectID, labelChanges, criteria...)
+}
+
 func (cr *integrityRepository) Count(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error) {
 	return cr.repository.Count(ctx, objectType, criteria...)
 }

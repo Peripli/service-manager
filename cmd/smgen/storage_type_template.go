@@ -46,7 +46,7 @@ func (*{{.Type}}) TableName() string {
 	return {{.Type}}Table
 }
 
-func (e *{{.Type}}) NewLabel(id, key, value string) storage.Label {
+func (e *{{.Type}}) NewLabel(id, entityID, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
@@ -59,7 +59,7 @@ func (e *{{.Type}}) NewLabel(id, key, value string) storage.Label {
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		{{.Type}}ID: sql.NullString{String: e.ID, Valid: e.ID != ""},
+		{{.Type}}ID: sql.NullString{String: entityID, Valid: entityID != ""},
 	}
 }
 

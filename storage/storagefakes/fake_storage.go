@@ -178,6 +178,21 @@ type FakeStorage struct {
 		result1 types.Object
 		result2 error
 	}
+	UpdateLabelsStub        func(context.Context, types.ObjectType, string, types.LabelChanges, ...query.Criterion) error
+	updateLabelsMutex       sync.RWMutex
+	updateLabelsArgsForCall []struct {
+		arg1 context.Context
+		arg2 types.ObjectType
+		arg3 string
+		arg4 types.LabelChanges
+		arg5 []query.Criterion
+	}
+	updateLabelsReturns struct {
+		result1 error
+	}
+	updateLabelsReturnsOnCall map[int]struct {
+		result1 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -963,6 +978,70 @@ func (fake *FakeStorage) UpdateReturnsOnCall(i int, result1 types.Object, result
 	}{result1, result2}
 }
 
+func (fake *FakeStorage) UpdateLabels(arg1 context.Context, arg2 types.ObjectType, arg3 string, arg4 types.LabelChanges, arg5 ...query.Criterion) error {
+	fake.updateLabelsMutex.Lock()
+	ret, specificReturn := fake.updateLabelsReturnsOnCall[len(fake.updateLabelsArgsForCall)]
+	fake.updateLabelsArgsForCall = append(fake.updateLabelsArgsForCall, struct {
+		arg1 context.Context
+		arg2 types.ObjectType
+		arg3 string
+		arg4 types.LabelChanges
+		arg5 []query.Criterion
+	}{arg1, arg2, arg3, arg4, arg5})
+	fake.recordInvocation("UpdateLabels", []interface{}{arg1, arg2, arg3, arg4, arg5})
+	fake.updateLabelsMutex.Unlock()
+	if fake.UpdateLabelsStub != nil {
+		return fake.UpdateLabelsStub(arg1, arg2, arg3, arg4, arg5...)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.updateLabelsReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeStorage) UpdateLabelsCallCount() int {
+	fake.updateLabelsMutex.RLock()
+	defer fake.updateLabelsMutex.RUnlock()
+	return len(fake.updateLabelsArgsForCall)
+}
+
+func (fake *FakeStorage) UpdateLabelsCalls(stub func(context.Context, types.ObjectType, string, types.LabelChanges, ...query.Criterion) error) {
+	fake.updateLabelsMutex.Lock()
+	defer fake.updateLabelsMutex.Unlock()
+	fake.UpdateLabelsStub = stub
+}
+
+func (fake *FakeStorage) UpdateLabelsArgsForCall(i int) (context.Context, types.ObjectType, string, types.LabelChanges, []query.Criterion) {
+	fake.updateLabelsMutex.RLock()
+	defer fake.updateLabelsMutex.RUnlock()
+	argsForCall := fake.updateLabelsArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5
+}
+
+func (fake *FakeStorage) UpdateLabelsReturns(result1 error) {
+	fake.updateLabelsMutex.Lock()
+	defer fake.updateLabelsMutex.Unlock()
+	fake.UpdateLabelsStub = nil
+	fake.updateLabelsReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeStorage) UpdateLabelsReturnsOnCall(i int, result1 error) {
+	fake.updateLabelsMutex.Lock()
+	defer fake.updateLabelsMutex.Unlock()
+	fake.UpdateLabelsStub = nil
+	if fake.updateLabelsReturnsOnCall == nil {
+		fake.updateLabelsReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.updateLabelsReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -992,6 +1071,8 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.pingContextMutex.RUnlock()
 	fake.updateMutex.RLock()
 	defer fake.updateMutex.RUnlock()
+	fake.updateLabelsMutex.RLock()
+	defer fake.updateLabelsMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

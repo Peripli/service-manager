@@ -185,6 +185,10 @@ func (er *encryptingRepository) Update(ctx context.Context, obj types.Object, la
 	return updatedObj, nil
 }
 
+func (cr *encryptingRepository) UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, criteria ...query.Criterion) error {
+	return cr.repository.UpdateLabels(ctx, objectType, objectID, labelChanges, criteria...)
+}
+
 func (er *encryptingRepository) DeleteReturning(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	objList, err := er.repository.DeleteReturning(ctx, objectType, criteria...)
 	if err != nil {

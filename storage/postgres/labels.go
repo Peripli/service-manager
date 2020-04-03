@@ -90,34 +90,38 @@ func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey st
 func removeLabel(ctx context.Context, execer sqlx.ExtContext, label PostgresLabel, referenceID, labelKey string, labelValues ...string) error {
 	labelTableName := label.LabelsTableName()
 	referenceColumnName := label.ReferenceColumn()
-	baseQuery := fmt.Sprintf("DELETE FROM %s WHERE key=? AND %s=?", labelTableName, referenceColumnName)
-	args := []interface{}{labelKey, referenceID}
-	// remove all labels with this key
-	if len(labelValues) == 0 {
-		if err := executeNew(ctx, execer, baseQuery, args); err != nil {
-			if err == util.ErrNotFoundInStorage {
-				log.C(ctx).Debugf("Nothing to delete. Label with key=%s %s=%s not found in table %s", labelKey, referenceColumnName, referenceID, labelTableName)
-				return nil
-			}
+
+	isExpansionRequired := false
+	segments := make([]string, 0)
+	args := make([]interface{}, 0)
+	for key, vals := range labelValues {
+		segment := fmt.Sprintf("(key=? AND %s=?", referenceColumnName)
+		args = append(args, key, referenceID)
+		if len(labelValues) != 0 {
+			isExpansionRequired = true
+			segment += " AND val IN (?)"
+			args = append(args, vals)
+		}
+		segment += ")"
+		segments = append(segments, segment)
+	}
+	baseQuery := fmt.Sprintf("DELETE FROM %s WHERE %s", labelTableName, strings.Join(segments, " AND "))
+
+	if isExpansionRequired {
+		var err error
+		baseQuery, args, err = sqlx.In(baseQuery, args...)
+		if err != nil {
 			return err
 		}
-		return nil
 	}
-	// remove labels with a specific key and a value which is in the provided list
-	args = append(args, labelValues)
-	baseQuery += " AND val IN (?)"
-	sqlQuery, queryParams, err := sqlx.In(baseQuery, args...)
+
+	baseQuery = execer.Rebind(baseQuery)
+	log.C(ctx).Debugf("Executing query %s", baseQuery)
+	_, err := execer.ExecContext(ctx, baseQuery, args...)
 	if err != nil {
 		return err
 	}
 
-	if err := executeNew(ctx, execer, sqlQuery, queryParams); err != nil {
-		if err == util.ErrNotFoundInStorage {
-			log.C(ctx).Debugf("Nothing to delete. Label with key=%s values in %s %s=%s not found in table %s", labelKey, labelValues, referenceColumnName, referenceID, labelTableName)
-			return nil
-		}
-		return err
-	}
 	return nil
 }
 
@@ -161,14 +165,4 @@ func hasMultiVariateOp(criteria []query.Criterion) bool {
 		}
 	}
 	return false
-}
-
-func executeNew(ctx context.Context, extContext sqlx.ExtContext, query string, args []interface{}) error {
-	query = extContext.Rebind(query)
-	log.C(ctx).Debugf("Executing query %s", query)
-	result, err := extContext.ExecContext(ctx, query, args...)
-	if err != nil {
-		return err
-	}
-	return checkRowsAffected(ctx, result)
 }

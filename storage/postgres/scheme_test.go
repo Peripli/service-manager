@@ -242,11 +242,7 @@ func (storageEntity) FromObject(object types.Object) (storage.Entity, error) {
 	return &storageEntity{}, nil
 }
 
-func (storageEntity) BuildLabels(labels types.Labels, newLabel func(id, key, value string) storage.Label) ([]storage.Label, error) {
-	return []storage.Label{}, nil
-}
-
-func (storageEntity) NewLabel(id, key, value string) storage.Label {
+func (storageEntity) NewLabel(id, entityID, key, value string) storage.Label {
 	return nil
 }
 

@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/gofrs/uuid"
+
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 )
@@ -98,4 +100,26 @@ func (s *scheme) provide(objectType types.ObjectType) (PostgresEntity, error) {
 		return nil, fmt.Errorf("no postgres entity is introduced for object of type %s", objectType)
 	}
 	return provider()
+}
+
+func (s *scheme) provideLabel(objectType types.ObjectType, objectID, key, value string) (PostgresLabel, error) {
+	provider, exists := s.instanceProviders[objectType]
+	if !exists {
+		return nil, fmt.Errorf("no postgres entity is introduced for object of type %s", objectType)
+	}
+	entity, err := provider()
+	if err != nil {
+		return nil, err
+	}
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		return nil, fmt.Errorf("could not generate GUID for broker label: %s", err)
+	}
+	label := entity.NewLabel(UUID.String(), objectID, key, value)
+	pgLabel, ok := label.(PostgresLabel)
+	if !ok {
+		return nil, fmt.Errorf("postgres storage requires labels to implement LabelEntity, got %T", label)
+	}
+
+	return pgLabel, nil
 }
