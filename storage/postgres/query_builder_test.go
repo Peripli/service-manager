@@ -65,6 +65,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 		Context("when entity does not have an associated label entity", func() {
 			It("returns error", func() {
 				_, err := qb.NewQuery(&postgres.Safe{}).List(ctx)
+				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("query builder requires the entity to have associated label entity"))
 			})
 		})
@@ -318,10 +319,199 @@ ORDER BY id ASC ;`)))
 		})
 	})
 
+	Describe("ListNoLabels", func() {
+		Context("when entity does not have an associated label entity", func() {
+			It("returns error", func() {
+				_, err := qb.NewQuery(&postgres.Safe{}).ListNoLabels(ctx)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("query builder requires the entity to have associated label entity"))
+			})
+		})
+
+		Context("when no criteria is used", func() {
+			It("builds simple query for entity and its labels", func() {
+				_, err := qb.NewQuery(entity).ListNoLabels(ctx)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(executedQuery).Should(Equal(trim(`
+SELECT *
+FROM visibilities
+ORDER BY visibilities.paging_sequence ASC ;`)))
+				Expect(queryArgs).To(HaveLen(0))
+			})
+		})
+
+		Context("when label criteria is used", func() {
+			It("should return error", func() {
+				_, err := qb.NewQuery(entity).
+					WithCriteria(query.ByLabel(query.EqualsOperator, "labelKey", "labelValue")).
+					ListNoLabels(ctx)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).Should(Equal("label queries are not supported by ListNoLabels"))
+			})
+		})
+
+		Context("when field criteria is used", func() {
+			It("builds query with field criteria", func() {
+				_, err := qb.NewQuery(entity).
+					WithCriteria(query.ByField(query.EqualsOperator, "id", "1")).
+					ListNoLabels(ctx)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(executedQuery).Should(Equal(trim(`
+WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
+                            FROM visibilities
+                            WHERE visibilities.id::text = ? )
+SELECT *
+FROM visibilities
+WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources)
+ORDER BY visibilities.paging_sequence ASC ;`)))
+				Expect(queryArgs).To(HaveLen(1))
+				Expect(queryArgs[0]).Should(Equal("1"))
+			})
+
+			Context("when field is missing", func() {
+				It("returns error", func() {
+					criteria := query.ByField(query.EqualsOperator, "non-existing-field", "value")
+					_, err := qb.NewQuery(entity).WithCriteria(criteria).ListNoLabels(ctx)
+					Expect(err).To(HaveOccurred())
+				})
+			})
+		})
+
+		Context("when order by criteria is used", func() {
+			It("builds query with order by clause", func() {
+				_, err := qb.NewQuery(entity).
+					WithCriteria(query.OrderResultBy("id", query.DescOrder), query.OrderResultBy("created_at", query.AscOrder)).
+					ListNoLabels(ctx)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(executedQuery).Should(Equal(trim(`
+SELECT *
+FROM visibilities
+ORDER BY id DESC, created_at ASC ;`)))
+				Expect(queryArgs).To(HaveLen(0))
+			})
+
+			Context("when order type is unknown", func() {
+				It("returns error", func() {
+					_, err := qb.NewQuery(entity).WithCriteria(query.OrderResultBy("id", "unknown-order")).ListNoLabels(ctx)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("unsupported order type: unknown-order"))
+				})
+			})
+
+			Context("when the field is unknown", func() {
+				It("returns error", func() {
+					_, err := qb.NewQuery(entity).WithCriteria(query.OrderResultBy("unknown-field", query.AscOrder)).ListNoLabels(ctx)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("unsupported entity field for order by: unknown-field"))
+				})
+			})
+
+			Context("when order type is missing", func() {
+				It("returns error", func() {
+					_, err := qb.NewQuery(entity).
+						WithCriteria(query.Criterion{
+							Type:    query.ResultQuery,
+							LeftOp:  query.OrderBy,
+							RightOp: []string{"id"},
+						}).
+						ListNoLabels(ctx)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("order by result expects field name and order type"))
+				})
+			})
+
+			Context("when order type and field are missing", func() {
+				It("return errors", func() {
+					_, err := qb.NewQuery(entity).
+						WithCriteria(query.Criterion{
+							Type:    query.ResultQuery,
+							LeftOp:  query.OrderBy,
+							RightOp: []string{},
+						}).
+						ListNoLabels(ctx)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("missing right operand"))
+				})
+			})
+		})
+
+		Context("when limit criteria is used", func() {
+			It("builds query with limit clause", func() {
+				_, err := qb.NewQuery(entity).
+					WithCriteria(query.LimitResultBy(10)).
+					ListNoLabels(ctx)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(executedQuery).Should(Equal(trim(`
+WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
+                            FROM visibilities
+							ORDER BY visibilities.paging_sequence ASC
+                            LIMIT ?)
+SELECT *
+FROM visibilities
+WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources)
+ORDER BY visibilities.paging_sequence ASC ;`)))
+				Expect(queryArgs).To(HaveLen(1))
+				Expect(queryArgs[0]).Should(Equal("10"))
+			})
+
+			Context("when limit is negative", func() {
+				It("returns error", func() {
+					_, err := qb.NewQuery(entity).WithCriteria(query.LimitResultBy(-1)).ListNoLabels(ctx)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("limit (-1) is invalid. Limit should be positive number"))
+				})
+			})
+			Context("when multiple limit criteria is used", func() {
+				It("returns error", func() {
+					_, err := qb.NewQuery(entity).WithCriteria(query.LimitResultBy(10)).
+						WithCriteria(query.LimitResultBy(5)).ListNoLabels(ctx)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("zero/one limit expected but multiple provided"))
+				})
+			})
+		})
+
+		Context("when multiple criteria are used", func() {
+			It("builds a valid query", func() {
+				criteria1 := query.ByField(query.NotEqualsOperator, "id", "1")
+				criteria2 := query.ByField(query.NotInOperator, "service_plan_id", "2", "3", "4")
+				criteria3 := query.ByField(query.EqualsOrNilOperator, "platform_id", "5")
+
+				criteria4 := query.LimitResultBy(10)
+				criteria5 := query.OrderResultBy("id", query.AscOrder)
+
+				_, err := qb.NewQuery(entity).
+					WithCriteria(criteria1, criteria2, criteria3, criteria4, criteria5).
+					ListNoLabels(ctx)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(executedQuery).Should(Equal(trim(`
+WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
+                            FROM visibilities
+							WHERE (visibilities.id::text != ? AND
+                                    visibilities.service_plan_id::text NOT IN (?, ?, ?) AND
+                                    (visibilities.platform_id::text = ? OR platform_id IS NULL))
+                            ORDER BY visibilities.paging_sequence ASC
+                            LIMIT ?)
+SELECT *
+FROM visibilities
+WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources)
+ORDER BY id ASC ;`)))
+				Expect(queryArgs).To(HaveLen(6))
+				Expect(queryArgs[0]).Should(Equal("1"))
+				Expect(queryArgs[1]).Should(Equal("2"))
+				Expect(queryArgs[2]).Should(Equal("3"))
+				Expect(queryArgs[3]).Should(Equal("4"))
+				Expect(queryArgs[4]).Should(Equal("5"))
+				Expect(queryArgs[5]).Should(Equal("10"))
+			})
+		})
+	})
+
 	Describe("Count", func() {
 		Context("when entity does not have an associated label entity", func() {
 			It("returns error", func() {
 				_, err := qb.NewQuery(&postgres.Safe{}).Count(ctx)
+				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("query builder requires the entity to have associated label entity"))
 			})
 		})
@@ -474,6 +664,7 @@ LIMIT ?;`)))
 		Context("when entity does not have an associated label entity", func() {
 			It("returns error", func() {
 				_, err := qb.NewQuery(&postgres.Safe{}).Delete(ctx)
+				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("query builder requires the entity to have associated label entity"))
 			})
 		})

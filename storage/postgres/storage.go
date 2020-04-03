@@ -278,7 +278,7 @@ func (ps *Storage) Get(ctx context.Context, objectType types.ObjectType, criteri
 }
 
 func (ps *Storage) GetForUpdate(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
-	result, err := ps.list(ctx, objectType, true, criteria...)
+	result, err := ps.list(ctx, objectType, true, true, criteria...)
 	if err != nil {
 		return nil, err
 	}
@@ -289,10 +289,14 @@ func (ps *Storage) GetForUpdate(ctx context.Context, objectType types.ObjectType
 }
 
 func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	return ps.list(ctx, objType, false, criteria...)
+	return ps.list(ctx, objType, false, true, criteria...)
 }
 
-func (ps *Storage) list(ctx context.Context, objType types.ObjectType, forUpdate bool, criteria ...query.Criterion) (types.ObjectList, error) {
+func (ps *Storage) ListNoLabels(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	return ps.list(ctx, objType, false, false, criteria...)
+}
+
+func (ps *Storage) list(ctx context.Context, objType types.ObjectType, forUpdate, withLabels bool, criteria ...query.Criterion) (types.ObjectList, error) {
 	entity, err := ps.scheme.provide(objType)
 	if err != nil {
 		return nil, err
@@ -303,7 +307,12 @@ func (ps *Storage) list(ctx context.Context, objType types.ObjectType, forUpdate
 		queryBuilder = queryBuilder.WithLock()
 	}
 
-	rows, err := queryBuilder.List(ctx)
+	var rows *sqlx.Rows
+	if withLabels {
+		rows, err = queryBuilder.List(ctx)
+	} else {
+		rows, err = queryBuilder.ListNoLabels(ctx)
+	}
 	if err != nil {
 		return nil, err
 	}

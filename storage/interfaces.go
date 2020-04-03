@@ -175,6 +175,9 @@ type Repository interface {
 	// List retrieves all object from SM DB
 	List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
 
+	// ListNoLabels retrieves all object from SM DB without their labels
+	ListNoLabels(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
+
 	// Count retrieves number of objects of particular type in SM DB
 	Count(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error)
 

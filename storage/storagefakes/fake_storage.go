@@ -140,6 +140,21 @@ type FakeStorage struct {
 		result1 types.ObjectList
 		result2 error
 	}
+	ListNoLabelsStub        func(context.Context, types.ObjectType, ...query.Criterion) (types.ObjectList, error)
+	listNoLabelsMutex       sync.RWMutex
+	listNoLabelsArgsForCall []struct {
+		arg1 context.Context
+		arg2 types.ObjectType
+		arg3 []query.Criterion
+	}
+	listNoLabelsReturns struct {
+		result1 types.ObjectList
+		result2 error
+	}
+	listNoLabelsReturnsOnCall map[int]struct {
+		result1 types.ObjectList
+		result2 error
+	}
 	OpenStub        func(*storage.Settings) error
 	openMutex       sync.RWMutex
 	openArgsForCall []struct {
@@ -792,6 +807,71 @@ func (fake *FakeStorage) ListReturnsOnCall(i int, result1 types.ObjectList, resu
 	}{result1, result2}
 }
 
+func (fake *FakeStorage) ListNoLabels(arg1 context.Context, arg2 types.ObjectType, arg3 ...query.Criterion) (types.ObjectList, error) {
+	fake.listNoLabelsMutex.Lock()
+	ret, specificReturn := fake.listNoLabelsReturnsOnCall[len(fake.listNoLabelsArgsForCall)]
+	fake.listNoLabelsArgsForCall = append(fake.listNoLabelsArgsForCall, struct {
+		arg1 context.Context
+		arg2 types.ObjectType
+		arg3 []query.Criterion
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("ListNoLabels", []interface{}{arg1, arg2, arg3})
+	fake.listNoLabelsMutex.Unlock()
+	if fake.ListNoLabelsStub != nil {
+		return fake.ListNoLabelsStub(arg1, arg2, arg3...)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.listNoLabelsReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeStorage) ListNoLabelsCallCount() int {
+	fake.listNoLabelsMutex.RLock()
+	defer fake.listNoLabelsMutex.RUnlock()
+	return len(fake.listNoLabelsArgsForCall)
+}
+
+func (fake *FakeStorage) ListNoLabelsCalls(stub func(context.Context, types.ObjectType, ...query.Criterion) (types.ObjectList, error)) {
+	fake.listNoLabelsMutex.Lock()
+	defer fake.listNoLabelsMutex.Unlock()
+	fake.ListNoLabelsStub = stub
+}
+
+func (fake *FakeStorage) ListNoLabelsArgsForCall(i int) (context.Context, types.ObjectType, []query.Criterion) {
+	fake.listNoLabelsMutex.RLock()
+	defer fake.listNoLabelsMutex.RUnlock()
+	argsForCall := fake.listNoLabelsArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeStorage) ListNoLabelsReturns(result1 types.ObjectList, result2 error) {
+	fake.listNoLabelsMutex.Lock()
+	defer fake.listNoLabelsMutex.Unlock()
+	fake.ListNoLabelsStub = nil
+	fake.listNoLabelsReturns = struct {
+		result1 types.ObjectList
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeStorage) ListNoLabelsReturnsOnCall(i int, result1 types.ObjectList, result2 error) {
+	fake.listNoLabelsMutex.Lock()
+	defer fake.listNoLabelsMutex.Unlock()
+	fake.ListNoLabelsStub = nil
+	if fake.listNoLabelsReturnsOnCall == nil {
+		fake.listNoLabelsReturnsOnCall = make(map[int]struct {
+			result1 types.ObjectList
+			result2 error
+		})
+	}
+	fake.listNoLabelsReturnsOnCall[i] = struct {
+		result1 types.ObjectList
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeStorage) Open(arg1 *storage.Settings) error {
 	fake.openMutex.Lock()
 	ret, specificReturn := fake.openReturnsOnCall[len(fake.openArgsForCall)]
@@ -1065,6 +1145,8 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.introduceMutex.RUnlock()
 	fake.listMutex.RLock()
 	defer fake.listMutex.RUnlock()
+	fake.listNoLabelsMutex.RLock()
+	defer fake.listNoLabelsMutex.RUnlock()
 	fake.openMutex.RLock()
 	defer fake.openMutex.RUnlock()
 	fake.pingContextMutex.RLock()
