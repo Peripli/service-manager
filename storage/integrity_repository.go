@@ -86,22 +86,22 @@ func (cr *integrityRepository) GetForUpdate(ctx context.Context, objectType type
 }
 
 func (cr *integrityRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	return cr.list(ctx, objectType, false, criteria...)
-}
-
-func (cr *integrityRepository) ListNoLabels(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	return cr.list(ctx, objectType, true, criteria...)
 }
 
-func (cr *integrityRepository) list(ctx context.Context, objectType types.ObjectType, noLabels bool, criteria ...query.Criterion) (types.ObjectList, error) {
+func (cr *integrityRepository) ListNoLabels(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	return cr.list(ctx, objectType, false, criteria...)
+}
+
+func (cr *integrityRepository) list(ctx context.Context, objectType types.ObjectType, withLabels bool, criteria ...query.Criterion) (types.ObjectList, error) {
 	var (
 		objectList types.ObjectList
 		err error
 	)
-	if noLabels {
-		objectList, err = cr.repository.ListNoLabels(ctx, objectType, criteria...)
-	} else {
+	if withLabels {
 		objectList, err = cr.repository.List(ctx, objectType, criteria...)
+	} else {
+		objectList, err = cr.repository.ListNoLabels(ctx, objectType, criteria...)
 	}
 	if err != nil {
 		return nil, err

@@ -180,22 +180,22 @@ func (ir *queryScopedInterceptableRepository) GetForUpdate(ctx context.Context, 
 }
 
 func (ir *queryScopedInterceptableRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	return ir.list(ctx, objectType, false, criteria...)
-}
-
-func (ir *queryScopedInterceptableRepository) ListNoLabels(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	return ir.list(ctx, objectType, true, criteria...)
 }
 
-func (ir *queryScopedInterceptableRepository) list(ctx context.Context, objectType types.ObjectType, noLabels bool, criteria ...query.Criterion) (types.ObjectList, error) {
+func (ir *queryScopedInterceptableRepository) ListNoLabels(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	return ir.list(ctx, objectType, false, criteria...)
+}
+
+func (ir *queryScopedInterceptableRepository) list(ctx context.Context, objectType types.ObjectType, withLabels bool, criteria ...query.Criterion) (types.ObjectList, error) {
 	var (
 		objectList types.ObjectList
 		err error
 	)
-	if noLabels {
-		objectList, err = ir.repositoryInTransaction.ListNoLabels(ctx, objectType, criteria...)
-	} else {
+	if withLabels {
 		objectList, err = ir.repositoryInTransaction.List(ctx, objectType, criteria...)
+	} else {
+		objectList, err = ir.repositoryInTransaction.ListNoLabels(ctx, objectType, criteria...)
 	}
 	if err != nil {
 		return nil, err
