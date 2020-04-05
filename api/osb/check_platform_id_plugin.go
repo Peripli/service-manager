@@ -59,6 +59,16 @@ func (p *checkPlatformIDPlugin) PollBinding(req *web.Request, next web.Handler) 
 	return p.assertPlatformID(req, next)
 }
 
+// FetchService intercepts get service instance requests and check if the instance owner is the same as the one requesting the operation
+func (p *checkPlatformIDPlugin) FetchService(req *web.Request, next web.Handler) (*web.Response, error) {
+	return p.assertPlatformID(req, next)
+}
+
+// FetchBinding intercepts get service binding requests and check if the instance owner is the same as the one requesting the operation
+func (p *checkPlatformIDPlugin) FetchBinding(req *web.Request, next web.Handler) (*web.Response, error) {
+	return p.assertPlatformID(req, next)
+}
+
 func (p *checkPlatformIDPlugin) assertPlatformID(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	user, _ := web.UserFromContext(ctx)

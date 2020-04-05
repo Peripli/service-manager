@@ -19,10 +19,9 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/tidwall/gjson"
 	"reflect"
-
-	"github.com/Peripli/service-manager/pkg/util"
 )
 
 //go:generate smgen api ServicePlan

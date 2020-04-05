@@ -129,7 +129,7 @@ func validate(value interface{}) error {
 
 // WriteJSON writes a JSON value and sets the specified HTTP Status code
 func WriteJSON(writer http.ResponseWriter, code int, value interface{}) error {
-	writer.Header().Add("Content-Type", "application/json")
+	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(code)
 
 	encoder := json.NewEncoder(writer)
@@ -146,7 +146,7 @@ func NewJSONResponse(code int, value interface{}) (*web.Response, error) {
 
 func NewJSONResponseWithHeaders(code int, value interface{}, additionalHeaders map[string]string) (*web.Response, error) {
 	headers := http.Header{}
-	headers.Add("Content-Type", "application/json")
+	headers.Set("Content-Type", "application/json")
 
 	for header, value := range additionalHeaders {
 		headers.Add(header, value)
