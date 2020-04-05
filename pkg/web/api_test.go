@@ -128,6 +128,34 @@ var _ = Describe("API", func() {
 					}))
 				})
 			})
+			When("the plugins are ordered relatively", func() {
+				It("adds all plugin filters before all filters of the plugin before it", func() {
+					api.RegisterPlugins(&validPlugin{"third-plugin"})
+					api.RegisterPluginsBefore("third-plugin", &partialPlugin{"second-plugin"})
+					api.RegisterPluginsBefore("second-plugin", &validPlugin{"first-plugin"})
+					names := filterNames()
+					Expect(names).To(Equal([]string{
+						"first-plugin:FetchCatalog",
+						"first-plugin:FetchService",
+						"first-plugin:Provision",
+						"first-plugin:UpdateService",
+						"first-plugin:Deprovision",
+						"first-plugin:FetchBinding",
+						"first-plugin:Bind",
+						"first-plugin:Unbind",
+						"second-plugin:Provision",
+						"second-plugin:Deprovision",
+						"third-plugin:FetchCatalog",
+						"third-plugin:FetchService",
+						"third-plugin:Provision",
+						"third-plugin:UpdateService",
+						"third-plugin:Deprovision",
+						"third-plugin:FetchBinding",
+						"third-plugin:Bind",
+						"third-plugin:Unbind",
+					}))
+				})
+			})
 		})
 	})
 
