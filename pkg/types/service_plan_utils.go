@@ -18,13 +18,14 @@ package types
 
 import (
 	"github.com/Peripli/service-manager/pkg/util/slice"
+	"github.com/tidwall/gjson"
 )
 
 // SupportsPlatform determines whether a specific platform type is among the ones that a plan supports
 func (e *ServicePlan) SupportsPlatformType(platformType string) bool {
 	platformTypes := e.SupportedPlatformTypes()
 
-	return platformTypes == nil || slice.StringsAnyEquals(platformTypes, platformType)
+	return len(platformTypes) == 0 || slice.StringsAnyEquals(platformTypes, platformType)
 }
 
 // SupportsPlatformInstance determines whether a specific platform instance is among the ones that a plan supports
@@ -41,4 +42,29 @@ func (e *ServicePlan) SupportsPlatformInstance(platform Platform) bool {
 // SupportsAllPlatforms determines whether the plan supports all platforms
 func (e *ServicePlan) SupportsAllPlatforms() bool {
 	return len(e.SupportedPlatformNames()) == 0 && len(e.SupportedPlatformTypes()) == 0
+}
+
+// SupportedPlatformTypes returns the supportedPlatforms provided in a plan's metadata (if a value is provided at all).
+// If there are no supported platforms, nil is returned denoting that the plan is available to platforms of all types.
+func (e *ServicePlan) SupportedPlatformTypes() []string {
+	return e.metadataPropertyAsStringArray("supportedPlatforms")
+}
+
+// SupportedPlatformNames returns the supportedPlatformNames provided in a plan's metadata (if a value is provided at all).
+// If there are no supported platforms names, nil is returned
+func (e *ServicePlan) SupportedPlatformNames() []string {
+	return e.metadataPropertyAsStringArray("supportedPlatformNames")
+}
+
+func (e *ServicePlan) metadataPropertyAsStringArray(propertyKey string) []string {
+	propertyValue := gjson.GetBytes(e.Metadata, propertyKey)
+	if !propertyValue.IsArray() || len(propertyValue.Array()) == 0 {
+		return []string{}
+	}
+	array := propertyValue.Array()
+	result := make([]string, len(array))
+	for i, p := range propertyValue.Array() {
+		result[i] = p.String()
+	}
+	return result
 }

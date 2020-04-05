@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/tidwall/gjson"
 	"reflect"
 )
 
@@ -105,29 +104,4 @@ func (e *ServicePlan) Validate() error {
 	}
 
 	return nil
-}
-
-// SupportedPlatformTypes returns the supportedPlatforms provided in a plan's metadata (if a value is provided at all).
-// If there are no supported platforms, nil is returned denoting that the plan is available to platforms of all types.
-func (e *ServicePlan) SupportedPlatformTypes() []string {
-	return e.metadataPropertyAsStringArray("supportedPlatforms")
-}
-
-// SupportedPlatformNames returns the supportedPlatformNames provided in a plan's metadata (if a value is provided at all).
-// If there are no supported platforms names, nil is returned
-func (e *ServicePlan) SupportedPlatformNames() []string {
-	return e.metadataPropertyAsStringArray("supportedPlatformNames")
-}
-
-func (e *ServicePlan) metadataPropertyAsStringArray(propertyKey string) []string {
-	propertyValue := gjson.GetBytes(e.Metadata, propertyKey)
-	if !propertyValue.IsArray() || len(propertyValue.Array()) == 0 {
-		return []string{}
-	}
-	array := propertyValue.Array()
-	result := make([]string, len(array))
-	for i, p := range propertyValue.Array() {
-		result[i] = p.String()
-	}
-	return result
 }
