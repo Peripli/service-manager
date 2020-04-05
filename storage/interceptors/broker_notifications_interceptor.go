@@ -9,6 +9,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/catalog"
+	"github.com/Peripli/service-manager/storage/service_plans"
 )
 
 func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
@@ -29,7 +30,7 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 				}
 			}
 
-			supportedPlatforms, err := ResolveSupportedPlatformIDsForPlans(ctx, plans, repository)
+			supportedPlatforms, err := service_plans.ResolveSupportedPlatformIDsForPlans(ctx, plans, repository)
 			if err != nil {
 				return nil, err
 			}
@@ -156,81 +157,4 @@ func fetchBrokerPlans(ctx context.Context, brokerID string, repository storage.R
 	}
 
 	return objList.(*types.ServicePlans).ServicePlans, nil
-}
-
-func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.ServicePlan, repository storage.Repository) ([]string, error) {
-	var platformTypes map[string]bool
-	platformNames := make(map[string]bool)
-	for _, plan := range plans {
-		planSupportedPlatformNames := plan.SupportedPlatformNames()
-		if planSupportedPlatformNames == nil {
-			// no explicit supported platform names defined - collect the supported platform types
-			if platformTypes == nil {
-				//only initialize this map if any plan not specifying explicit platform names is found
-				platformTypes = make(map[string]bool)
-			}
-
-			supportedPlatformTypes := plan.SupportedPlatformTypes()
-			for _, t := range supportedPlatformTypes {
-				platformTypes[t] = true
-			}
-		} else {
-			// explicit platform names are defined for the plan
-			for _, name := range planSupportedPlatformNames {
-				platformNames[name] = true
-			}
-		}
-	}
-
-	platformIDs := make(map[string]bool)
-
-	if len(platformNames) != 0 {
-		// fetch IDs of platform instances with the requested names
-		supportedPlatformNames := make([]string, 0)
-		for name := range platformNames {
-			supportedPlatformNames = append(supportedPlatformNames, name)
-		}
-		var criteria []query.Criterion
-		if len(supportedPlatformNames) != 0 {
-			criteria = []query.Criterion{query.ByField(query.InOperator, "name", supportedPlatformNames...)}
-		}
-
-		objList, err := repository.List(ctx, types.PlatformType, criteria...)
-		if err != nil {
-			return nil, err
-		}
-
-		for i := 0; i < objList.Len(); i++ {
-			platformIDs[objList.ItemAt(i).GetID()] = true
-		}
-	}
-
-	if platformTypes != nil {
-		// fetch IDs of platform instances of the supported types from DB
-		supportedPlatforms := make([]string, 0)
-		for platform := range platformTypes {
-			supportedPlatforms = append(supportedPlatforms, platform)
-		}
-
-		var criteria []query.Criterion
-		if len(supportedPlatforms) != 0 {
-			criteria = []query.Criterion{query.ByField(query.InOperator, "type", supportedPlatforms...)}
-		}
-
-		objList, err := repository.List(ctx, types.PlatformType, criteria...)
-		if err != nil {
-			return nil, err
-		}
-
-		for i := 0; i < objList.Len(); i++ {
-			platformIDs[objList.ItemAt(i).GetID()] = true
-		}
-	}
-
-	supportedPlatformIDs := make([]string, 0)
-	for id := range platformIDs {
-		supportedPlatformIDs = append(supportedPlatformIDs, id)
-	}
-
-	return supportedPlatformIDs, nil
 }

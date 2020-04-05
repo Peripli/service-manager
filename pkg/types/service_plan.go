@@ -101,7 +101,7 @@ func (e *ServicePlan) Validate() error {
 		}
 	}
 
-	if e.SupportedPlatformNames() != nil && e.SupportedPlatformTypes() != nil {
+	if len(e.SupportedPlatformNames()) != 0 && len(e.SupportedPlatformTypes()) != 0 {
 		return fmt.Errorf("only one of supportedPlatforms and supportedPlatformNames can be defined in plan metadata")
 	}
 
@@ -123,7 +123,7 @@ func (e *ServicePlan) SupportedPlatformNames() []string {
 func (e *ServicePlan) metadataPropertyAsStringArray(propertyKey string) []string {
 	propertyValue := gjson.GetBytes(e.Metadata, propertyKey)
 	if !propertyValue.IsArray() || len(propertyValue.Array()) == 0 {
-		return nil
+		return []string{}
 	}
 	array := propertyValue.Array()
 	result := make([]string, len(array))

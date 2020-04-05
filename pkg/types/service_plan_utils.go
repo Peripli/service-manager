@@ -21,17 +21,17 @@ import (
 )
 
 // SupportsPlatform determines whether a specific platform type is among the ones that a plan supports
-func (e *ServicePlan) SupportsPlatformType(platform string) bool {
+func (e *ServicePlan) SupportsPlatformType(platformType string) bool {
 	platformTypes := e.SupportedPlatformTypes()
 
-	return platformTypes == nil || slice.StringsAnyEquals(platformTypes, platform)
+	return platformTypes == nil || slice.StringsAnyEquals(platformTypes, platformType)
 }
 
 // SupportsPlatformInstance determines whether a specific platform instance is among the ones that a plan supports
 func (e *ServicePlan) SupportsPlatformInstance(platform Platform) bool {
 	platformNames := e.SupportedPlatformNames()
 
-	if platformNames == nil {
+	if len(platformNames) == 0 {
 		return e.SupportsPlatformType(platform.Type)
 	} else {
 		return slice.StringsAnyEquals(platformNames, platform.Name)

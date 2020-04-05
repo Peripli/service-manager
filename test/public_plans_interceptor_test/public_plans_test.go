@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/storage/service_plans"
 	"github.com/gavv/httpexpect"
 	"math/rand"
 	"net/http"
@@ -106,7 +107,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 					return catalogPlan.Free, nil
 				},
 				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
-					return interceptors.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
+					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerCreateCatalogInterceptorName).Register()
 
@@ -115,7 +116,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 					return catalogPlan.Free, nil
 				},
 				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
-					return interceptors.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
+					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerUpdateCatalogInterceptorName).Register()
 			return nil
@@ -490,7 +491,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 		})
 	})
 
-	Context("when a plan has specified supported platform IDs", func() {
+	Context("when a plan has specified supported platform names", func() {
 		var supportedPlatformsByID map[string]*types.Platform
 		var planID string
 
@@ -529,7 +530,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 			Expect(visibilities["platform_id"]).To(Equal(""))
 		})
 
-		Context("when a plan supports only one platform ID", func() {
+		Context("when a plan supports only one platform name", func() {
 
 			BeforeEach(func() {
 				platform := ctx.RegisterPlatform()
@@ -547,7 +548,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 			})
 		})
 
-		Context("when a plan supports multiple platform types", func() {
+		Context("when a plan supports multiple platform names", func() {
 
 			BeforeEach(func() {
 				firstPlatform := ctx.RegisterPlatform()
