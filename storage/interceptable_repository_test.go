@@ -28,7 +28,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 	var fakeCreateInterceptor *storagefakes.FakeCreateInterceptor
 
 	var fakeUpdateAroundTxInterceptorProvider *storagefakes.FakeUpdateAroundTxInterceptorProvider
-	var fakeUpdateAroundTxIntercetptor *storagefakes.FakeUpdateAroundTxInterceptor
+	var fakeUpdateAroundTxInterceptor *storagefakes.FakeUpdateAroundTxInterceptor
 
 	var fakeUpdateOnTxInterceptorProvider *storagefakes.FakeUpdateOnTxInterceptorProvider
 	var fakeUpdateOnTxIntercetptor *storagefakes.FakeUpdateOnTxInterceptor
@@ -77,8 +77,8 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			}
 		})
 
-		fakeUpdateAroundTxIntercetptor = &storagefakes.FakeUpdateAroundTxInterceptor{}
-		fakeUpdateAroundTxIntercetptor.AroundTxUpdateCalls(func(next storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
+		fakeUpdateAroundTxInterceptor = &storagefakes.FakeUpdateAroundTxInterceptor{}
+		fakeUpdateAroundTxInterceptor.AroundTxUpdateCalls(func(next storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 			return func(ctx context.Context, obj types.Object, labelChanges ...*types.LabelChange) (object types.Object, e error) {
 				return next(ctx, obj, labelChanges...)
 			}
@@ -144,7 +144,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 
 		fakeUpdateAroundTxInterceptorProvider = &storagefakes.FakeUpdateAroundTxInterceptorProvider{}
 		fakeUpdateAroundTxInterceptorProvider.NameReturns("fakeUpdateAroundTxInterceptor")
-		fakeUpdateAroundTxInterceptorProvider.ProvideReturns(fakeUpdateAroundTxIntercetptor)
+		fakeUpdateAroundTxInterceptorProvider.ProvideReturns(fakeUpdateAroundTxInterceptor)
 
 		fakeUpdateOnTxInterceptorProvider = &storagefakes.FakeUpdateOnTxInterceptorProvider{}
 		fakeUpdateOnTxInterceptorProvider.NameReturns("fakeUpdateOnTxInterceptor")
@@ -217,7 +217,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 		Expect(fakeCreateInterceptor.AroundTxCreateCallCount()).To(Equal(0))
 		Expect(fakeCreateInterceptor.OnTxCreateCallCount()).To(Equal(0))
 
-		Expect(fakeUpdateAroundTxIntercetptor.AroundTxUpdateCallCount()).To(Equal(0))
+		Expect(fakeUpdateAroundTxInterceptor.AroundTxUpdateCallCount()).To(Equal(0))
 		Expect(fakeUpdateOnTxIntercetptor.OnTxUpdateCallCount()).To(Equal(0))
 		Expect(fakeUpdateIntercetptor.AroundTxUpdateCallCount()).To(Equal(0))
 		Expect(fakeUpdateIntercetptor.OnTxUpdateCallCount()).To(Equal(0))
@@ -258,7 +258,21 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 
 			Expect(err).ShouldNot(HaveOccurred())
 
-			Expect(fakeUpdateAroundTxIntercetptor.AroundTxUpdateCallCount()).To(Equal(1))
+			Expect(fakeUpdateAroundTxInterceptor.AroundTxUpdateCallCount()).To(Equal(1))
+			Expect(fakeUpdateOnTxIntercetptor.OnTxUpdateCallCount()).To(Equal(1))
+			Expect(fakeUpdateIntercetptor.AroundTxUpdateCallCount()).To(Equal(1))
+			Expect(fakeUpdateIntercetptor.OnTxUpdateCallCount()).To(Equal(1))
+
+			Expect(fakeStorage.UpdateCallCount()).To(Equal(1))
+		})
+	})
+
+	Describe("UpdateLabels", func() {
+		It("invokes all interceptors", func() {
+			err := interceptableRepository.UpdateLabels(ctx, types.ServiceBrokerType, "id", types.LabelChanges{})
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Expect(fakeUpdateAroundTxInterceptor.AroundTxUpdateCallCount()).To(Equal(1))
 			Expect(fakeUpdateOnTxIntercetptor.OnTxUpdateCallCount()).To(Equal(1))
 			Expect(fakeUpdateIntercetptor.AroundTxUpdateCallCount()).To(Equal(1))
 			Expect(fakeUpdateIntercetptor.OnTxUpdateCallCount()).To(Equal(1))
@@ -373,7 +387,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 				Expect(fakeDeleteInterceptor.OnTxDeleteCallCount()).To(Equal(0))
 
 				Expect(fakeCreateAroundTxInterceptor.AroundTxCreateCallCount()).To(Equal(0))
-				Expect(fakeUpdateAroundTxIntercetptor.AroundTxUpdateCallCount()).To(Equal(0))
+				Expect(fakeUpdateAroundTxInterceptor.AroundTxUpdateCallCount()).To(Equal(0))
 				Expect(fakeDeleteAroundTxInterceptor.AroundTxDeleteCallCount()).To(Equal(0))
 
 				Expect(fakeStorage.CreateCallCount()).To(Equal(executionsCount))
@@ -445,7 +459,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			Expect(fakeDeleteInterceptor.OnTxDeleteCallCount()).To(Equal(0))
 
 			Expect(fakeCreateAroundTxInterceptor.AroundTxCreateCallCount()).To(Equal(0))
-			Expect(fakeUpdateAroundTxIntercetptor.AroundTxUpdateCallCount()).To(Equal(0))
+			Expect(fakeUpdateAroundTxInterceptor.AroundTxUpdateCallCount()).To(Equal(0))
 			Expect(fakeDeleteAroundTxInterceptor.AroundTxDeleteCallCount()).To(Equal(0))
 
 			Expect(fakeStorage.CreateCallCount()).To(Equal(3))

@@ -246,7 +246,7 @@ func (ps *Storage) deleteLabels(ctx context.Context, objectType types.ObjectType
 		segment += ")"
 		segments = append(segments, segment)
 	}
-	baseQuery := fmt.Sprintf("DELETE FROM %s WHERE %s", labelTableName, strings.Join(segments, " AND "))
+	baseQuery := fmt.Sprintf("DELETE FROM %s WHERE %s", labelTableName, strings.Join(segments, " OR "))
 
 	if isExpansionRequired {
 		var err error
