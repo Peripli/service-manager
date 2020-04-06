@@ -701,7 +701,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithNoLabels).
 							Expect().
-							Status(http.StatusServiceUnavailable)
+							Status(http.StatusGatewayTimeout)
 					})
 				})
 			})
