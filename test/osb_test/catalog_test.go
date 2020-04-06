@@ -413,11 +413,42 @@ var _ = Describe("Catalog", func() {
 			})
 
 			Context("when broker platform credentials change out of notification processing context when already exist", func() {
-				It("should return 409", func() {
+				It("should return 409 for non-kubernetes platforms", func() {
+					By("CF platform attempts credential rotation")
 					newUsername, newPassword := test.RegisterBrokerPlatformCredentialsExpect(SMWithBasicPlatform, prefixedBrokerID, http.StatusConflict)
 					ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
 
 					assertCredentialsNotChanged(oldSMWithBasic, ctx.SMWithBasic)
+
+					By("K8S platform attempts credential rotation")
+					k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+					k8sPlatform := common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
+
+					k8sPlatformClient := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+						username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
+						req.WithBasicAuth(username, password).WithClient(ctx.HttpClient)
+					})}
+
+					username, password := test.RegisterBrokerPlatformCredentials(k8sPlatformClient, prefixedBrokerID)
+					k8sOSBClient := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+						req.WithBasicAuth(username, password).WithClient(ctx.HttpClient)
+					})}
+
+					By("initial K8S credentials should work")
+					k8sOSBClient.GET(osbURL + "/v2/catalog").
+						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+
+					newUsername, newPassword = test.RegisterBrokerPlatformCredentials(k8sPlatformClient, prefixedBrokerID)
+					k8sOSBClient.SetBasicCredentials(ctx, newUsername, newPassword)
+
+					By("rotation of K8S credentials broker platform credentials should work")
+					k8sOSBClient.GET(osbURL + "/v2/catalog").
+						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+
+					By("old K8S credentials broker platform credentials should not work")
+					k8sOSBClient.SetBasicCredentials(ctx, username, password)
+					k8sOSBClient.GET(osbURL + "/v2/catalog").
+						Expect().Status(http.StatusUnauthorized)
 				})
 			})
 		})
