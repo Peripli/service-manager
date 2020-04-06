@@ -513,7 +513,7 @@ func (smb *ServiceManagerBuilder) WithDeleteInterceptorProvider(objectType types
 }
 
 // EnableMultitenancy enables multitenancy resources for Service Manager by labeling them with appropriate tenant value
-func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTenantFunc func(*web.Request) (string, error)) *ServiceManagerBuilder {
+func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTenantFunc func(*web.Request) (string, error)) (*ServiceManagerBuilder, error) {
 	if len(labelKey) == 0 {
 		log.D().Panic("labelKey should be provided")
 	}
@@ -521,7 +521,10 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 		log.D().Panic("extractTenantFunc should be provided")
 	}
 
-	multitenancyFilters := filters.NewMultitenancyFilters(labelKey, extractTenantFunc)
+	multitenancyFilters, err := filters.NewMultitenancyFilters(labelKey, extractTenantFunc)
+	if err != nil {
+		return nil, err
+	}
 	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
 	smb.RegisterFilters(
 		filters.NewServiceInstanceVisibilityFilter(smb.Storage, DefaultInstanceVisibilityFunc(labelKey)),
@@ -537,7 +540,7 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 		TenantIdentifier: labelKey,
 	}).Register()
 
-	return smb
+	return smb, nil
 }
 
 // Security provides mechanism to apply authentication and authorization with a builder pattern
