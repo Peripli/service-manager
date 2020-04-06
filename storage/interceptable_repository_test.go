@@ -277,7 +277,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			Expect(fakeUpdateIntercetptor.AroundTxUpdateCallCount()).To(Equal(1))
 			Expect(fakeUpdateIntercetptor.OnTxUpdateCallCount()).To(Equal(1))
 
-			Expect(fakeStorage.UpdateCallCount()).To(Equal(1))
+			Expect(fakeStorage.UpdateLabelsCallCount()).To(Equal(1))
 		})
 	})
 
