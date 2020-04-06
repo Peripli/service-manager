@@ -96,7 +96,7 @@ func (cr *integrityRepository) ListNoLabels(ctx context.Context, objectType type
 func (cr *integrityRepository) list(ctx context.Context, objectType types.ObjectType, withLabels bool, criteria ...query.Criterion) (types.ObjectList, error) {
 	var (
 		objectList types.ObjectList
-		err error
+		err        error
 	)
 	if withLabels {
 		objectList, err = cr.repository.List(ctx, objectType, criteria...)

@@ -160,7 +160,7 @@ func (er *encryptingRepository) ListNoLabels(ctx context.Context, objectType typ
 func (er *encryptingRepository) list(ctx context.Context, objectType types.ObjectType, withLabels bool, criteria ...query.Criterion) (types.ObjectList, error) {
 	var (
 		objList types.ObjectList
-		err error
+		err     error
 	)
 	if withLabels {
 		objList, err = er.repository.List(ctx, objectType, criteria...)
