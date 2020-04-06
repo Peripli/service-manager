@@ -300,7 +300,7 @@ var _ = Describe("Integrity Repository", func() {
 	})
 
 	Describe("UpdateLabels", func() {
-		It("does not invoke encryption or decryption and invokes the next in chain", func() {
+		It("does not invoke integrity calculation or validation and invokes the next in chain", func() {
 			delegateUpdateCallsCountBeforeOp := fakeRepository.UpdateLabelsCallCount()
 			err := repository.UpdateLabels(ctx, object.GetType(), object.GetID(), types.LabelChanges{})
 			Expect(err).ToNot(HaveOccurred())
