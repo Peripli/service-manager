@@ -190,7 +190,7 @@ func (ir *queryScopedInterceptableRepository) ListNoLabels(ctx context.Context, 
 func (ir *queryScopedInterceptableRepository) list(ctx context.Context, objectType types.ObjectType, withLabels bool, criteria ...query.Criterion) (types.ObjectList, error) {
 	var (
 		objectList types.ObjectList
-		err error
+		err        error
 	)
 	if withLabels {
 		objectList, err = ir.repositoryInTransaction.List(ctx, objectType, criteria...)
@@ -528,7 +528,7 @@ func (itr *InterceptableTransactionalRepository) ListNoLabels(ctx context.Contex
 func (itr *InterceptableTransactionalRepository) list(ctx context.Context, objectType types.ObjectType, withLabels bool, criteria ...query.Criterion) (types.ObjectList, error) {
 	var (
 		objectList types.ObjectList
-		err error
+		err        error
 	)
 	if withLabels {
 		objectList, err = itr.RawRepository.List(ctx, objectType, criteria...)
