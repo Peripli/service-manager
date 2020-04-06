@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -53,6 +54,23 @@ FROM {{.ENTITY_TABLE}}
 	{{.JOIN}} {{.LABELS_TABLE}}
 		ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
 {{if or .hasFieldCriteria .hasLabelCriteria}}
+WHERE {{.ENTITY_TABLE}}.paging_sequence IN 
+	(SELECT matching_resources.paging_sequence FROM matching_resources)
+{{end}}
+{{.ORDER_BY}}
+{{.FOR_UPDATE_OF}};`
+
+const SelectNoLabelsQueryTemplate = `
+{{if .hasFieldCriteria}}
+WITH matching_resources as (SELECT DISTINCT {{.ENTITY_TABLE}}.paging_sequence
+							FROM {{.ENTITY_TABLE}}
+							{{.WHERE}}
+							{{.ORDER_BY_SEQUENCE}}
+							{{.LIMIT}})
+{{end}}
+SELECT *
+FROM {{.ENTITY_TABLE}}
+{{if .hasFieldCriteria}}
 WHERE {{.ENTITY_TABLE}}.paging_sequence IN 
 	(SELECT matching_resources.paging_sequence FROM matching_resources)
 {{end}}
@@ -132,6 +150,17 @@ type pgQuery struct {
 
 func (pq *pgQuery) List(ctx context.Context) (*sqlx.Rows, error) {
 	q, err := pq.resolveQueryTemplate(ctx, SelectQueryTemplate)
+	if err != nil {
+		return nil, err
+	}
+	return pq.db.QueryxContext(ctx, q, pq.queryParams...)
+}
+
+func (pq *pgQuery) ListNoLabels(ctx context.Context) (*sqlx.Rows, error) {
+	if !pq.labelsWhereClause.isEmpty() {
+		return nil, errors.New("label queries are not supported by ListNoLabels")
+	}
+	q, err := pq.resolveQueryTemplate(ctx, SelectNoLabelsQueryTemplate)
 	if err != nil {
 		return nil, err
 	}

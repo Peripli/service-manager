@@ -169,11 +169,26 @@ func (ir *queryScopedInterceptableRepository) GetForUpdate(ctx context.Context, 
 }
 
 func (ir *queryScopedInterceptableRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	objectList, err := ir.repositoryInTransaction.List(ctx, objectType, criteria...)
+	return ir.list(ctx, objectType, true, criteria...)
+}
+
+func (ir *queryScopedInterceptableRepository) ListNoLabels(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	return ir.list(ctx, objectType, false, criteria...)
+}
+
+func (ir *queryScopedInterceptableRepository) list(ctx context.Context, objectType types.ObjectType, withLabels bool, criteria ...query.Criterion) (types.ObjectList, error) {
+	var (
+		objectList types.ObjectList
+		err        error
+	)
+	if withLabels {
+		objectList, err = ir.repositoryInTransaction.List(ctx, objectType, criteria...)
+	} else {
+		objectList, err = ir.repositoryInTransaction.ListNoLabels(ctx, objectType, criteria...)
+	}
 	if err != nil {
 		return nil, err
 	}
-
 	return objectList, nil
 }
 
@@ -461,11 +476,26 @@ func (itr *InterceptableTransactionalRepository) GetForUpdate(ctx context.Contex
 }
 
 func (itr *InterceptableTransactionalRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	objectList, err := itr.RawRepository.List(ctx, objectType, criteria...)
+	return itr.list(ctx, objectType, true, criteria...)
+}
+
+func (itr *InterceptableTransactionalRepository) ListNoLabels(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	return itr.list(ctx, objectType, false, criteria...)
+}
+
+func (itr *InterceptableTransactionalRepository) list(ctx context.Context, objectType types.ObjectType, withLabels bool, criteria ...query.Criterion) (types.ObjectList, error) {
+	var (
+		objectList types.ObjectList
+		err        error
+	)
+	if withLabels {
+		objectList, err = itr.RawRepository.List(ctx, objectType, criteria...)
+	} else {
+		objectList, err = itr.RawRepository.ListNoLabels(ctx, objectType, criteria...)
+	}
 	if err != nil {
 		return nil, err
 	}
-
 	return objectList, nil
 }
 

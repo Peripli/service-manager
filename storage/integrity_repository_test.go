@@ -76,6 +76,12 @@ var _ = Describe("Integrity Repository", func() {
 			},
 		}, nil)
 
+		fakeRepository.ListNoLabelsReturns(&types.ServiceBrokers{
+			ServiceBrokers: []*types.ServiceBroker{
+				object.(*types.ServiceBroker),
+			},
+		}, nil)
+
 		fakeRepository.GetReturns(object.(*types.ServiceBroker), nil)
 
 		fakeRepository.DeleteReturningReturns(&types.ServiceBrokers{
@@ -167,6 +173,36 @@ var _ = Describe("Integrity Repository", func() {
 				fakeIntegrityProcessor.ValidateIntegrityReturns(true)
 
 				_, err := repository.List(ctx, types.ServiceBrokerType)
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+	})
+
+	Describe("ListNoLabels", func() {
+		Context("when integrity is not valid", func() {
+			It("returns an error", func() {
+				fakeIntegrityProcessor.ValidateIntegrityReturns(false)
+
+				_, err = repository.ListNoLabels(ctx, types.ServiceBrokerType)
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		Context("when delegate call fails", func() {
+			It("returns an error", func() {
+				fakeRepository.ListNoLabelsReturns(nil, fmt.Errorf("error"))
+
+				_, err = repository.ListNoLabels(ctx, types.ServiceBrokerType)
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		Context("when integrity is valid", func() {
+
+			It("returns objects", func() {
+				fakeIntegrityProcessor.ValidateIntegrityReturns(true)
+
+				_, err := repository.ListNoLabels(ctx, types.ServiceBrokerType)
 				Expect(err).ToNot(HaveOccurred())
 			})
 		})
