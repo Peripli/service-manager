@@ -30,6 +30,16 @@ const CFPlatformType = "cloudfoundry"
 const K8sPlatformType = "kubernetes"
 const SMPlatform = "service-manager"
 
+var smPlatformType = SMPlatform
+
+func GetPlatformType() string {
+	return smPlatformType
+}
+
+func SetPlatformType(typee string) {
+	smPlatformType = typee
+}
+
 //go:generate smgen api Platform
 // Platform platform struct
 type Platform struct {

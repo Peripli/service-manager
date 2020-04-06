@@ -252,6 +252,11 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	return smb, nil
 }
 
+func (smb *ServiceManagerBuilder) SetPlatformType(platformType string) *ServiceManagerBuilder {
+	types.SetPlatformType(platformType)
+	return smb
+}
+
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	if smb.securityBuilder != nil {
