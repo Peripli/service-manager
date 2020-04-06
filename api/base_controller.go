@@ -518,8 +518,9 @@ func attachLastOperation(ctx context.Context, objectID string, object types.Obje
 		log.C(ctx).Debugf("No last operation found for entity with id %s of type %s", objectID, object.GetType().String())
 		return nil
 	}
-	lastOperation := list.ItemAt(0)
-	object.SetLastOperation(lastOperation.(*types.Operation))
+	lastOperation := list.ItemAt(0).(*types.Operation)
+	lastOperation.TransitiveResources = nil
+	object.SetLastOperation(lastOperation)
 	return nil
 }
 
