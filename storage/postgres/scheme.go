@@ -113,7 +113,7 @@ func (s *scheme) provideLabel(objectType types.ObjectType, objectID, key, value 
 	}
 	UUID, err := uuid.NewV4()
 	if err != nil {
-		return nil, fmt.Errorf("could not generate GUID for broker label: %s", err)
+		return nil, fmt.Errorf("could not generate GUID for label: %s", err)
 	}
 	label := entity.NewLabel(UUID.String(), objectID, key, value)
 	pgLabel, ok := label.(PostgresLabel)
