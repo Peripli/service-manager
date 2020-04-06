@@ -55,23 +55,20 @@ func NewInterceptableTransactionalRepository(repository TransactionalRepository)
 func newScopedRepositoryWithOnTxInterceptors(repository Repository,
 	providedCreateInterceptors map[types.ObjectType]func(InterceptCreateOnTxFunc) InterceptCreateOnTxFunc,
 	providedUpdateInterceptors map[types.ObjectType]func(InterceptUpdateOnTxFunc) InterceptUpdateOnTxFunc,
-	providedDeleteInterceptors map[types.ObjectType]func(InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc,
-	obj types.Object) *queryScopedInterceptableRepository {
+	providedDeleteInterceptors map[types.ObjectType]func(InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc) *queryScopedInterceptableRepository {
 
 	return &queryScopedInterceptableRepository{
 		repositoryInTransaction: repository,
 		createOnTxFuncs:         providedCreateInterceptors,
 		updateOnTxFuncs:         providedUpdateInterceptors,
 		deleteOnTxFuncs:         providedDeleteInterceptors,
-		obj:                     obj,
 	}
 }
 
 func newScopedRepositoryWithInterceptors(repository Repository,
 	providedCreateInterceptors map[types.ObjectType]CreateInterceptor,
 	providedUpdateInterceptors map[types.ObjectType]UpdateInterceptor,
-	providedDeleteInterceptors map[types.ObjectType]DeleteInterceptor,
-	obj types.Object) *queryScopedInterceptableRepository {
+	providedDeleteInterceptors map[types.ObjectType]DeleteInterceptor) *queryScopedInterceptableRepository {
 	createOnTxFuncs := make(map[types.ObjectType]func(InterceptCreateOnTxFunc) InterceptCreateOnTxFunc, len(providedCreateInterceptors))
 	for objType, interceptor := range providedCreateInterceptors {
 		createOnTxFuncs[objType] = interceptor.OnTxCreate
@@ -84,7 +81,7 @@ func newScopedRepositoryWithInterceptors(repository Repository,
 	for objType, interceptor := range providedDeleteInterceptors {
 		deleteOnTxFuncs[objType] = interceptor.OnTxDelete
 	}
-	return newScopedRepositoryWithOnTxInterceptors(repository, createOnTxFuncs, updateOnTxFuncs, deleteOnTxFuncs, obj)
+	return newScopedRepositoryWithOnTxInterceptors(repository, createOnTxFuncs, updateOnTxFuncs, deleteOnTxFuncs)
 }
 
 type InterceptableTransactionalRepository struct {
@@ -118,8 +115,6 @@ type queryScopedInterceptableRepository struct {
 	createOnTxFuncs map[types.ObjectType]func(InterceptCreateOnTxFunc) InterceptCreateOnTxFunc
 	updateOnTxFuncs map[types.ObjectType]func(InterceptUpdateOnTxFunc) InterceptUpdateOnTxFunc
 	deleteOnTxFuncs map[types.ObjectType]func(InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc
-
-	obj types.Object
 }
 
 func (ir *queryScopedInterceptableRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
@@ -346,6 +341,12 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 }
 
 func (ir *queryScopedInterceptableRepository) UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, criteria ...query.Criterion) error {
+	byID := query.ByField(query.EqualsOperator, "id", objectID)
+	obj, err := ir.repositoryInTransaction.Get(ctx, objectType, byID)
+	if err != nil {
+		return err
+	}
+
 	updateObjFunc := func(ctx context.Context, _ Repository, _, _ types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
 		err := ir.repositoryInTransaction.UpdateLabels(ctx, objectType, objectID, labelChanges, criteria...)
 		if err != nil {
@@ -361,28 +362,18 @@ func (ir *queryScopedInterceptableRepository) UpdateLabels(ctx context.Context, 
 			})
 		}
 
-		return ir.obj, nil
+		return obj, nil
 	}
 
-	if ir.obj == nil {
-		var err error
-		byID := query.ByField(query.EqualsOperator, "id", objectID)
-		ir.obj, err = ir.repositoryInTransaction.Get(ctx, objectType, byID)
-		if err != nil {
-			return err
-		}
-	}
-
-	var err error
 	if updateOnTxFunc, found := ir.updateOnTxFuncs[objectType]; found {
 		delete(ir.updateOnTxFuncs, objectType)
 
-		_, err = updateOnTxFunc(updateObjFunc)(ctx, ir, ir.obj, ir.obj, labelChanges...)
+		_, err = updateOnTxFunc(updateObjFunc)(ctx, ir, obj, obj, labelChanges...)
 
 		ir.updateOnTxFuncs[objectType] = updateOnTxFunc
 
 	} else {
-		_, err = updateObjFunc(ctx, ir, ir.obj, ir.obj, labelChanges...)
+		_, err = updateObjFunc(ctx, ir, obj, obj, labelChanges...)
 	}
 
 	if err != nil {
@@ -396,7 +387,7 @@ func (itr *InterceptableTransactionalRepository) InTransaction(ctx context.Conte
 	createOnTxInterceptors, updateOnTxInterceptors, deleteOnTxInterceptors := itr.provideOnTxInterceptors()
 
 	fWrapper := func(ctx context.Context, storage Repository) error {
-		wrappedStorage := newScopedRepositoryWithOnTxInterceptors(storage, createOnTxInterceptors, updateOnTxInterceptors, deleteOnTxInterceptors, nil)
+		wrappedStorage := newScopedRepositoryWithOnTxInterceptors(storage, createOnTxInterceptors, updateOnTxInterceptors, deleteOnTxInterceptors)
 		return f(ctx, wrappedStorage)
 	}
 
@@ -522,7 +513,7 @@ func (itr *InterceptableTransactionalRepository) Create(ctx context.Context, obj
 		var err error
 
 		if err := itr.RawRepository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
-			interceptableRepository := newScopedRepositoryWithInterceptors(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors, obj)
+			interceptableRepository := newScopedRepositoryWithInterceptors(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors)
 			createdObj, err = interceptableRepository.Create(ctx, obj)
 			if err != nil {
 				return err
@@ -603,7 +594,7 @@ func (itr *InterceptableTransactionalRepository) DeleteReturning(ctx context.Con
 	var result types.ObjectList
 	finalInterceptor := func(ctx context.Context, criteria ...query.Criterion) error {
 		if err := itr.RawRepository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
-			interceptableRepository := newScopedRepositoryWithInterceptors(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors, nil)
+			interceptableRepository := newScopedRepositoryWithInterceptors(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors)
 			var err error
 			result, err = interceptableRepository.DeleteReturning(ctx, objectType, criteria...)
 			if err != nil {
@@ -635,7 +626,7 @@ func (itr *InterceptableTransactionalRepository) Delete(ctx context.Context, obj
 
 	finalInterceptor := func(ctx context.Context, criteria ...query.Criterion) error {
 		if err := itr.RawRepository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
-			interceptableRepository := newScopedRepositoryWithInterceptors(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors, nil)
+			interceptableRepository := newScopedRepositoryWithInterceptors(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors)
 			if err := interceptableRepository.Delete(ctx, objectType, criteria...); err != nil {
 				return err
 			}
@@ -668,7 +659,7 @@ func (itr *InterceptableTransactionalRepository) Update(ctx context.Context, obj
 		var err error
 
 		if err = itr.RawRepository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
-			interceptableRepository := newScopedRepositoryWithInterceptors(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors, obj)
+			interceptableRepository := newScopedRepositoryWithInterceptors(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors)
 			result, err = interceptableRepository.Update(ctx, obj, labelChanges, criteria...)
 			if err != nil {
 				return err
@@ -705,7 +696,7 @@ func (itr *InterceptableTransactionalRepository) UpdateLabels(ctx context.Contex
 		var err error
 
 		if err = itr.RawRepository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
-			interceptableRepository := newScopedRepositoryWithInterceptors(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors, obj)
+			interceptableRepository := newScopedRepositoryWithInterceptors(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors)
 			err = interceptableRepository.UpdateLabels(ctx, objectType, objectID, labelChanges, criteria...)
 			if err != nil {
 				return err
