@@ -46,7 +46,7 @@ type Settings struct {
 	DefaultPoolSize int            `mapstructure:"default_pool_size" description:"default worker pool size"`
 	Pools           []PoolSettings `mapstructure:"pools" description:"defines the different available worker pools"`
 
-	SMPlatformType string `mapstructure:"sm_platform_type" description:"defines the type of the platform for the internal platform"`
+	SMSupportedPlatformType string `mapstructure:"sm_supported_platform_type" description:"defines the value of the supported platform for the SM platform"`
 }
 
 // DefaultSettings returns default values for API settings
@@ -62,7 +62,7 @@ func DefaultSettings() *Settings {
 		ReschedulingInterval: 1 * time.Second,
 		PollingInterval:      1 * time.Second,
 
-		SMPlatformType: types.SMPlatform,
+		SMSupportedPlatformType: types.SMPlatform,
 	}
 }
 

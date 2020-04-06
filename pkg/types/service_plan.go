@@ -122,7 +122,7 @@ func (e *ServicePlan) SupportedPlatforms() []string {
 // SupportsPlatform determines whether a specific platform is among the ones that a plan supports
 func (e *ServicePlan) SupportsPlatform(platform string) bool {
 	if platform == SMPlatform {
-		platform = GetPlatformType()
+		platform = GetSMSupportedPlatformType()
 	}
 	platforms := e.SupportedPlatforms()
 

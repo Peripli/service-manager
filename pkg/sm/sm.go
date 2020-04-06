@@ -146,7 +146,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		return nil, fmt.Errorf("error creating core api: %s", err)
 	}
 
-	types.SetPlatformType(cfg.Operations.SMPlatformType)
+	types.SetSMSupportedPlatformType(cfg.Operations.SMSupportedPlatformType)
 
 	securityBuilder, securityFilters := NewSecurityBuilder()
 	API.RegisterFiltersAfter(filters.LoggingFilterName, securityFilters...)
