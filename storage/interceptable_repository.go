@@ -361,7 +361,16 @@ func (ir *queryScopedInterceptableRepository) UpdateLabels(ctx context.Context, 
 			})
 		}
 
-		return nil, nil
+		return ir.obj, nil
+	}
+
+	if ir.obj == nil {
+		var err error
+		byID := query.ByField(query.EqualsOperator, "id", objectID)
+		ir.obj, err = ir.repositoryInTransaction.Get(ctx, objectType, byID)
+		if err != nil {
+			return err
+		}
 	}
 
 	var err error
