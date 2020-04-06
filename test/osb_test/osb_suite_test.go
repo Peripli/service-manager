@@ -108,7 +108,7 @@ type brokerPlatformCredentials struct {
 
 var _ = BeforeSuite(func() {
 	ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-		Expect(set.Set("server.request_timeout", "2s")).ToNot(HaveOccurred())
+		Expect(set.Set("server.request_timeout", "4s")).ToNot(HaveOccurred())
 		Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 		Expect(set.Set("httpclient.timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 	}).WithTenantTokenClaims(map[string]interface{}{
