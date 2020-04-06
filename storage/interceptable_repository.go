@@ -170,6 +170,15 @@ func (ir *queryScopedInterceptableRepository) Get(ctx context.Context, objectTyp
 	return object, nil
 }
 
+func (ir *queryScopedInterceptableRepository) GetForUpdate(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
+	object, err := ir.repositoryInTransaction.Get(ctx, objectType, criteria...)
+	if err != nil {
+		return nil, err
+	}
+
+	return object, nil
+}
+
 func (ir *queryScopedInterceptableRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	objectList, err := ir.repositoryInTransaction.List(ctx, objectType, criteria...)
 	if err != nil {
@@ -274,7 +283,7 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 		}
 
 		operation, found := opcontext.Get(ctx)
-		if found && operation.ResourceID != object.GetID() {
+		if found && operation.ResourceID != object.GetID() && operation.ID != object.GetID() && object.GetType() != types.OperationType {
 			operation.TransitiveResources = append(operation.TransitiveResources, &types.RelatedType{
 				ID:            object.GetID(),
 				Type:          object.GetType(),
@@ -294,7 +303,7 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 	// postgres storage implementation also locks the retrieved row for update
 	objectType := obj.GetType()
 	byID := query.ByField(query.EqualsOperator, "id", obj.GetID())
-	oldObj, err := ir.Get(ctx, objectType, byID)
+	oldObj, err := ir.GetForUpdate(ctx, objectType, byID)
 	if err != nil {
 		return nil, err
 	}
@@ -477,6 +486,15 @@ func (itr *InterceptableTransactionalRepository) Create(ctx context.Context, obj
 }
 
 func (itr *InterceptableTransactionalRepository) Get(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
+	object, err := itr.RawRepository.Get(ctx, objectType, criteria...)
+	if err != nil {
+		return nil, err
+	}
+
+	return object, nil
+}
+
+func (itr *InterceptableTransactionalRepository) GetForUpdate(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
 	object, err := itr.RawRepository.Get(ctx, objectType, criteria...)
 	if err != nil {
 		return nil, err

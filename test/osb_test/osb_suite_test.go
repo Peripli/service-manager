@@ -22,12 +22,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/test"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Peripli/service-manager/test"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/multitenancy"
@@ -64,7 +66,7 @@ const (
 	service1CatalogID           = "service1CatalogID"
 	organizationGUID            = "1113aa0-124e-4af2-1526-6bfacf61b111"
 	SID                         = "12345"
-	timeoutDuration             = time.Millisecond * 500
+	timeoutDuration             = time.Millisecond * 1500
 	additionalDelayAfterTimeout = time.Millisecond * 5
 	testTimeout                 = 10
 
@@ -96,6 +98,7 @@ var (
 	provisionRequestBody string
 
 	brokerPlatformCredentialsIDMap map[string]brokerPlatformCredentials
+	utils                          *common.BrokerUtils
 )
 
 type brokerPlatformCredentials struct {
@@ -105,7 +108,12 @@ type brokerPlatformCredentials struct {
 
 var _ = BeforeSuite(func() {
 	ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+		Expect(set.Set("server.request_timeout", "4s")).ToNot(HaveOccurred())
 		Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
+		Expect(set.Set("httpclient.timeout", timeoutDuration.String())).ToNot(HaveOccurred())
+	}).WithTenantTokenClaims(map[string]interface{}{
+		"cid": "tenancyClient",
+		"zid": TenantValue,
 	}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 		smb.EnableMultitenancy(TenantIdentifier, func(request *web.Request) (string, error) {
 			extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")
@@ -132,7 +140,10 @@ var _ = BeforeSuite(func() {
 
 	brokerPlatformCredentialsIDMap = make(map[string]brokerPlatformCredentials)
 
-	emptyCatalogBrokerID, _, brokerServerWithEmptyCatalog = ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog())
+	butils := ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog())
+	emptyCatalogBrokerID = butils.Broker.ID
+	brokerServerWithEmptyCatalog = butils.Broker.BrokerServer
+
 	smUrlToEmptyCatalogBroker = brokerServerWithEmptyCatalog.URL() + "/v1/osb/" + emptyCatalogBrokerID
 	username, password := test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, emptyCatalogBrokerID)
 	brokerPlatformCredentialsIDMap[emptyCatalogBrokerID] = brokerPlatformCredentials{
@@ -140,7 +151,7 @@ var _ = BeforeSuite(func() {
 		password: password,
 	}
 
-	simpleBrokerCatalogID, _, brokerServerWithSimpleCatalog = ctx.RegisterBrokerWithCatalog(simpleCatalog)
+	simpleBrokerCatalogID, _, brokerServerWithSimpleCatalog = ctx.RegisterBrokerWithCatalog(simpleCatalog).GetBrokerAsParams()
 	smUrlToSimpleBrokerCatalogBroker = brokerServerWithSimpleCatalog.URL() + "/v1/osb/" + simpleBrokerCatalogID
 	common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, simpleBrokerCatalogID)
 	username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, simpleBrokerCatalogID)
@@ -154,7 +165,7 @@ var _ = BeforeSuite(func() {
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(service0)
 
-	stoppedBrokerID, _, stoppedBrokerServer = ctx.RegisterBrokerWithCatalog(catalog)
+	stoppedBrokerID, _, stoppedBrokerServer = ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
 	common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, stoppedBrokerID)
 	stoppedBrokerServer.Close()
 	smUrlToStoppedBroker = stoppedBrokerServer.URL() + "/v1/osb/" + stoppedBrokerID
@@ -173,12 +184,18 @@ var _ = BeforeSuite(func() {
 	catalog.AddService(service1)
 
 	var brokerObject common.Object
-	brokerID, brokerObject, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
+
+	utils = ctx.RegisterBrokerWithCatalog(catalog)
+	brokerID = utils.Broker.ID
+	brokerObject = utils.Broker.JSON
+	brokerServer = utils.Broker.BrokerServer
+	utils.BrokerWithTLS = ctx.RegisterBrokerWithRandomCatalogAndTLS(ctx.SMWithOAuth).BrokerWithTLS
+
 	plans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("catalog_id in ('%s','%s')", plan1CatalogID, plan2CatalogID)).Iter()
 	for _, p := range plans {
 		common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, p.Object().Value("id").String().Raw(), ctx.TestPlatform.ID)
 	}
-	smBrokerURL = brokerServer.URL() + "/v1/osb/" + brokerID
+	smBrokerURL = ctx.Servers[common.SMServer].URL() + "/v1/osb/" + brokerID
 	brokerName = brokerObject["name"].(string)
 
 	username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, brokerID)
@@ -215,6 +232,11 @@ func assertMissingBrokerError(req *httpexpect.Response) {
 func assertUnresponsiveBrokerError(req *httpexpect.Response) {
 	req.Status(http.StatusBadGateway).JSON().Object().
 		Value("description").String().Contains("could not reach service broker")
+}
+
+func assertSMTimeoutError(req *httpexpect.Response) {
+	req.Status(http.StatusServiceUnavailable).JSON().Object().
+		Value("description").String().Contains("operation has timed out")
 }
 
 func assertFailingBrokerError(req *httpexpect.Response, expectedStatus int, expectedError string) {
@@ -291,6 +313,23 @@ func delayingHandler(done chan<- interface{}) func(rw http.ResponseWriter, req *
 		<-timeoutContext.Done()
 		common.SetResponse(rw, http.StatusTeapot, common.Object{})
 		close(done)
+	}
+}
+
+func slowResponseHandler(seconds int, done chan struct{}) func(rw http.ResponseWriter, req *http.Request) {
+	return func(rw http.ResponseWriter, req *http.Request) {
+		rw.WriteHeader(http.StatusOK)
+		if f, ok := rw.(http.Flusher); ok {
+			for i := 1; i <= seconds*10; i++ {
+				_, err := fmt.Fprintf(rw, "Chunk #%d\n", i)
+				if err != nil {
+					break
+				}
+				f.Flush()
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+		<-done
 	}
 }
 
@@ -463,4 +502,13 @@ func verifyOperationDoesNotExist(resourceID string, operationTypes ...string) {
 	objectList, err := ctx.SMRepository.List(context.TODO(), types.OperationType, criterias...)
 	Expect(err).ToNot(HaveOccurred())
 	Expect(objectList.Len()).To(BeZero())
+}
+
+func hashPassword(password string) string {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		panic(err)
+	}
+
+	return string(passwordHash)
 }

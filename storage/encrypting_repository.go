@@ -136,6 +136,19 @@ func (er *encryptingRepository) Get(ctx context.Context, objectType types.Object
 	return obj, nil
 }
 
+func (er *encryptingRepository) GetForUpdate(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
+	obj, err := er.repository.Get(ctx, objectType, criteria...)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := er.decrypt(ctx, obj); err != nil {
+		return nil, err
+	}
+
+	return obj, nil
+}
+
 func (er *encryptingRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	objList, err := er.repository.List(ctx, objectType, criteria...)
 	if err != nil {

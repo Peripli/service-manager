@@ -19,11 +19,12 @@ package osb_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/test"
-	"github.com/gavv/httpexpect"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+
+	"github.com/Peripli/service-manager/test"
+	"github.com/gavv/httpexpect"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -171,7 +172,7 @@ var _ = Describe("Catalog", func() {
 			catalog.AddService(service1)
 			service2 := common.GenerateTestServiceWithPlans(plan3)
 			catalog.AddService(service2)
-			brokerID, _, _ = ctx.RegisterBrokerWithCatalog(catalog)
+			brokerID = ctx.RegisterBrokerWithCatalog(catalog).Broker.ID
 
 			plan1CatalogID = gjson.Get(plan1, "id").String()
 			plan2CatalogID = gjson.Get(plan2, "id").String()

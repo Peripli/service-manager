@@ -77,6 +77,8 @@ type Operation struct {
 
 	// Reschedule specifies that the operation has reached a state after which it can be retried (checkpoint)
 	Reschedule bool `json:"reschedule"`
+	// RescheduleTimestamp is the time when an operation became reschedulable=true for the first time
+	RescheduleTimestamp time.Time `json:"reschedule_timestamp,omitempty"`
 	// DeletionScheduled specifies the time when an operation was marked for deletion
 	DeletionScheduled time.Time `json:"deletion_scheduled,omitempty"`
 }

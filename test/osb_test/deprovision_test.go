@@ -41,6 +41,18 @@ var _ = Describe("Deprovision", func() {
 		})
 	})
 
+	Context("when call to slow service broker", func() {
+		It("should timeout for service requests", func() {
+			brokerServer.ShouldRecordRequests(true)
+			done := make(chan struct{}, 1)
+			brokerServer.ServiceInstanceHandler = slowResponseHandler(3, done)
+
+			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/123").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				Expect().Status(http.StatusServiceUnavailable).Body().Raw()
+			done <- struct{}{}
+		})
+	})
+
 	DescribeTable("call to broker with invalid request",
 		func(query func() string, expectedStatusCode, expectedGetInstanceStatusCode int) {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)

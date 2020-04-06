@@ -74,6 +74,17 @@ func (cr *integrityRepository) Get(ctx context.Context, objectType types.ObjectT
 	return obj, nil
 }
 
+func (cr *integrityRepository) GetForUpdate(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
+	obj, err := cr.repository.Get(ctx, objectType, criteria...)
+	if err != nil {
+		return nil, err
+	}
+	if err := cr.validateIntegrity(obj); err != nil {
+		return nil, err
+	}
+	return obj, nil
+}
+
 func (cr *integrityRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	objectList, err := cr.repository.List(ctx, objectType, criteria...)
 	if err != nil {

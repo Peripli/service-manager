@@ -170,6 +170,9 @@ type Repository interface {
 	// Get retrieves an object using the provided id from SM DB
 	Get(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error)
 
+	// GetForUpdate retrieves an object using the provided id from SM DB while also locking the retrieved rows
+	GetForUpdate(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error)
+
 	// List retrieves all object from SM DB
 	List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
 
