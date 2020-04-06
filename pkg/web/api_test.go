@@ -129,7 +129,7 @@ var _ = Describe("API", func() {
 				})
 			})
 			When("the plugins are ordered relatively", func() {
-				It("adds all plugin filters before all filters of the plugin before it", func() {
+				It("adds all plugin filters before all filters of the plugins before it", func() {
 					api.RegisterPlugins(&validPlugin{"third-plugin"})
 					api.RegisterPluginsBefore("third-plugin", &partialPlugin{"second-plugin"})
 					api.RegisterPluginsBefore("second-plugin", &validPlugin{"first-plugin"})
