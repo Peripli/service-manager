@@ -85,6 +85,12 @@ var _ = Describe("Encrypting Repository", func() {
 			},
 		}, nil)
 
+		fakeRepository.ListNoLabelsReturns(&types.ServiceBrokers{
+			ServiceBrokers: []*types.ServiceBroker{
+				objWithEncryptedPassword.(*types.ServiceBroker),
+			},
+		}, nil)
+
 		fakeRepository.GetReturns(objWithEncryptedPassword.(*types.ServiceBroker), nil)
 
 		fakeRepository.DeleteReturningReturns(&types.ServiceBrokers{
@@ -186,6 +192,51 @@ var _ = Describe("Encrypting Repository", func() {
 
 			BeforeEach(func() {
 				returnedObjList, err = repository.List(ctx, types.ServiceBrokerType)
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("does not encrypt the credentials", func() {
+				Expect(fakeEncrypter.EncryptCallCount() - encryptCallsCountBeforeOp).To(Equal(0))
+			})
+
+			It("decrypts the credentials once", func() {
+				Expect(fakeEncrypter.DecryptCallCount() - decryptCallsCountBeforeOp).To(Equal(1))
+			})
+
+			It("returns an object with decrypted credentials", func() {
+				for i := 0; i < returnedObjList.Len(); i++ {
+					isPassEncrypted := strings.HasPrefix(returnedObjList.ItemAt(i).(*types.ServiceBroker).Credentials.Basic.Password, "encrypt")
+					Expect(isPassEncrypted).To(BeFalse())
+				}
+			})
+		})
+	})
+
+	Describe("ListNoLabels", func() {
+		Context("when decrypting fails", func() {
+			It("returns an error", func() {
+				fakeEncrypter.DecryptReturns(nil, fmt.Errorf("error"))
+
+				_, err = repository.ListNoLabels(ctx, types.ServiceBrokerType)
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		Context("when delegate call fails", func() {
+			It("returns an error", func() {
+				fakeRepository.ListNoLabelsReturns(nil, fmt.Errorf("error"))
+
+				_, err = repository.ListNoLabels(ctx, types.ServiceBrokerType)
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		Context("when no errors occur", func() {
+			var returnedObjList types.ObjectList
+			var err error
+
+			BeforeEach(func() {
+				returnedObjList, err = repository.ListNoLabels(ctx, types.ServiceBrokerType)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
