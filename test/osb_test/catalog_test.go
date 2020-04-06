@@ -413,7 +413,7 @@ var _ = Describe("Catalog", func() {
 			})
 
 			Context("when broker platform credentials change out of notification processing context when already exist", func() {
-				FIt("should return 409 for non-kubernetes platforms", func() {
+				It("should return 409 for non-kubernetes platforms", func() {
 					By("CF platform attempts credential rotation")
 					newUsername, newPassword := test.RegisterBrokerPlatformCredentialsExpect(SMWithBasicPlatform, prefixedBrokerID, http.StatusConflict)
 					ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
