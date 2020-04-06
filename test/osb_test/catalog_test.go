@@ -444,6 +444,11 @@ var _ = Describe("Catalog", func() {
 					By("rotation of K8S credentials broker platform credentials should work")
 					k8sOSBClient.GET(osbURL + "/v2/catalog").
 						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
+
+					By("old K8S credentials broker platform credentials should not work")
+					k8sOSBClient.SetBasicCredentials(ctx, username, password)
+					k8sOSBClient.GET(osbURL + "/v2/catalog").
+						Expect().Status(http.StatusUnauthorized)
 				})
 			})
 		})
