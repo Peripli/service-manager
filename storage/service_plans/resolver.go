@@ -9,7 +9,7 @@ import (
 )
 
 func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.ServicePlan, repository storage.Repository) ([]string, error) {
-	var platformTypes map[string]bool
+	platformTypes := make(map[string]bool)
 	platformNames := make(map[string]bool)
 	allPlatformsSupported := false
 	for _, plan := range plans {
@@ -22,10 +22,6 @@ func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.Ser
 		planSupportedPlatformNames := plan.SupportedPlatformNames()
 		if len(planSupportedPlatformNames) == 0 {
 			// no explicit supported platform names defined - collect the supported platform types
-			if platformTypes == nil {
-				platformTypes = make(map[string]bool)
-			}
-
 			supportedPlatformTypes := plan.SupportedPlatformTypes()
 			for _, t := range supportedPlatformTypes {
 				platformTypes[t] = true
@@ -54,13 +50,13 @@ func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.Ser
 			}
 		}
 
-		//add a criteria for the supported types
-		supportedPlatformTypes := make([]string, 0)
-		for platform := range platformTypes {
-			supportedPlatformTypes = append(supportedPlatformTypes, platform)
-		}
+		if len(platformTypes) != 0 {
+			//add a criteria for the supported types
+			supportedPlatformTypes := make([]string, 0)
+			for platform := range platformTypes {
+				supportedPlatformTypes = append(supportedPlatformTypes, platform)
+			}
 
-		if len(supportedPlatformTypes) != 0 {
 			criteria = []query.Criterion{query.ByField(query.InOperator, "type", supportedPlatformTypes...)}
 		}
 	}
