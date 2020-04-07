@@ -580,6 +580,55 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				Expect(len(slice.StringsDistinct(visPlatformIDs, getSupportedPlatformIDs()))).To(BeEquivalentTo(0))
 			})
 		})
+
+		Context("when a broker has a plan supporting platform names and another supporting platform types", func() {
+			var newPlanCatalogName, k8sPlatformID, cfPlatformID string
+
+			BeforeEach(func() {
+				cfPlatform := ctx.RegisterPlatformWithType(types.CFPlatformType)
+				cfPlatformID = cfPlatform.ID
+				supportedPlatformsByID = map[string]*types.Platform{
+					cfPlatform.ID: cfPlatform,
+				}
+			})
+
+			JustBeforeEach(func() {
+				k8sPlatform := ctx.RegisterPlatformWithType(types.K8sPlatformType)
+				k8sPlatformID = k8sPlatform.ID
+
+				newPlan := common.GenerateFreeTestPlan()
+				newPlanCatalogName = gjson.Get(newPlan, "name").String()
+				Expect(newPlanCatalogName).ToNot(BeEmpty())
+				additionalPublicPlan, err := sjson.Set(newPlan, "metadata.supportedPlatforms", []string{k8sPlatform.Type})
+
+				var catalog string
+				catalog, err = sjson.Set(string(existingBrokerServer.Catalog), "services.0.plans.-1", common.JSONToMap(additionalPublicPlan))
+				Expect(err).ShouldNot(HaveOccurred())
+
+				existingBrokerServer.Catalog = common.SBCatalog(catalog)
+			})
+
+			It("creates visibilities according to both platform names and types", func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+
+				By("visibility by platform name", func() {
+					cfVis := findVisibilitiesForServicePlanID(planID)
+					cfVis.Length().Equal(1)
+					Expect(cfVis.Element(0).Object().Value("platform_id").String().Raw()).To(BeEquivalentTo(cfPlatformID))
+				})
+
+				By("visibility by platform type", func() {
+					newPlanID := findDatabaseIDForServicePlanByCatalogName(newPlanCatalogName)
+					k8sVis := findVisibilitiesForServicePlanID(newPlanID)
+					k8sVis.Length().Equal(1)
+					Expect(k8sVis.Element(0).Object().Value("platform_id").String().Raw()).To(BeEquivalentTo(k8sPlatformID))
+				})
+
+			})
+		})
 	})
 
 })
