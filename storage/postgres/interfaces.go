@@ -47,7 +47,7 @@ type EntityLabelRow interface {
 	PostgresLabel
 }
 
-func validateLabels(entities []storage.Label) error {
+func validateLabels(entities []PostgresLabel) error {
 	pairs := make(map[string][]string)
 	for _, bl := range entities {
 		newKey := bl.GetKey()

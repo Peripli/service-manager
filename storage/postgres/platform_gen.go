@@ -24,7 +24,7 @@ func (*Platform) TableName() string {
 	return PlatformTable
 }
 
-func (e *Platform) NewLabel(id, key, value string) storage.Label {
+func (e *Platform) NewLabel(id, entityID, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
@@ -37,7 +37,7 @@ func (e *Platform) NewLabel(id, key, value string) storage.Label {
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		PlatformID: sql.NullString{String: e.ID, Valid: e.ID != ""},
+		PlatformID: sql.NullString{String: entityID, Valid: entityID != ""},
 	}
 }
 

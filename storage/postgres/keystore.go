@@ -56,11 +56,7 @@ func (s *Safe) FromObject(object types.Object) (storage.Entity, error) {
 	return nil, nil
 }
 
-func (s *Safe) BuildLabels(labels types.Labels, newLabel func(id, key, value string) storage.Label) ([]storage.Label, error) {
-	return nil, nil
-}
-
-func (s *Safe) NewLabel(id, key, value string) storage.Label {
+func (s *Safe) NewLabel(id, entityID, key, value string) storage.Label {
 	return nil
 }
 
