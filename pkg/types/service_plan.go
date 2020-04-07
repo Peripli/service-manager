@@ -19,10 +19,11 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
+
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/tidwall/gjson"
-	"reflect"
 )
 
 //go:generate smgen api ServicePlan
@@ -120,6 +121,9 @@ func (e *ServicePlan) SupportedPlatforms() []string {
 
 // SupportsPlatform determines whether a specific platform is among the ones that a plan supports
 func (e *ServicePlan) SupportsPlatform(platform string) bool {
+	if platform == SMPlatform {
+		platform = GetSMSupportedPlatformType()
+	}
 	platforms := e.SupportedPlatforms()
 
 	return len(platforms) == 0 || slice.StringsAnyEquals(platforms, platform)
