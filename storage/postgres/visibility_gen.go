@@ -24,7 +24,7 @@ func (*Visibility) TableName() string {
 	return VisibilityTable
 }
 
-func (e *Visibility) NewLabel(id, key, value string) storage.Label {
+func (e *Visibility) NewLabel(id, entityID, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
@@ -37,7 +37,7 @@ func (e *Visibility) NewLabel(id, key, value string) storage.Label {
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		VisibilityID: sql.NullString{String: e.ID, Valid: e.ID != ""},
+		VisibilityID: sql.NullString{String: entityID, Valid: entityID != ""},
 	}
 }
 

@@ -364,6 +364,17 @@ var _ = Describe("Encrypting Repository", func() {
 		})
 	})
 
+	Describe("UpdateLabels", func() {
+		It("does not invoke encryption or decryption and invokes the next in chain", func() {
+			delegateUpdateCallsCountBeforeOp := fakeRepository.UpdateLabelsCallCount()
+			err := repository.UpdateLabels(ctx, objWithDecryptedPassword.GetType(), objWithDecryptedPassword.GetID(), types.LabelChanges{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(fakeEncrypter.EncryptCallCount() - encryptCallsCountBeforeOp).To(Equal(0))
+			Expect(fakeEncrypter.DecryptCallCount() - decryptCallsCountBeforeOp).To(Equal(0))
+			Expect(fakeRepository.UpdateLabelsCallCount() - delegateUpdateCallsCountBeforeOp).To(Equal(1))
+		})
+	})
+
 	Describe("DeleteReturning", func() {
 		Context("when decrypting fails", func() {
 			It("returns an error", func() {
