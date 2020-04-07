@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/storage/service_plans"
 	"net/http"
 	"testing"
 
@@ -351,7 +352,7 @@ var _ = Describe("Notifications Suite", func() {
 					return catalogPlan.Free, nil
 				},
 				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
-					return interceptors.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
+					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerCreateNotificationInterceptorName).Register()
 
@@ -360,7 +361,7 @@ var _ = Describe("Notifications Suite", func() {
 					return catalogPlan.Free, nil
 				},
 				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
-					return interceptors.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
+					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerUpdateNotificationInterceptorName).Register()
 
