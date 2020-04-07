@@ -213,6 +213,10 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
+	if err := attachLastOperation(ctx, createdObj.GetID(), createdObj, c.repository); err != nil {
+		return nil, err
+	}
+
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
 }
 
@@ -315,7 +319,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 
 	cleanObject(object)
 
-	if err := attachLastOperation(ctx, objectID, object, r, c.repository); err != nil {
+	if err := attachLastOperation(ctx, objectID, object, c.repository); err != nil {
 		return nil, err
 	}
 
@@ -490,6 +494,9 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	}
 
 	cleanObject(object)
+	if err := attachLastOperation(ctx, object.GetID(), object, c.repository); err != nil {
+		return nil, err
+	}
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
@@ -499,7 +506,7 @@ func cleanObject(object types.Object) {
 	}
 }
 
-func attachLastOperation(ctx context.Context, objectID string, object types.Object, r *web.Request, repository storage.Repository) error {
+func attachLastOperation(ctx context.Context, objectID string, object types.Object, repository storage.Repository) error {
 	orderBy := query.OrderResultBy("paging_sequence", query.DescOrder)
 	byObjectID := query.ByField(query.EqualsOperator, "resource_id", objectID)
 	// Limit cannot be applied, otherwise the query is corrupted and does not return valid result
@@ -511,8 +518,9 @@ func attachLastOperation(ctx context.Context, objectID string, object types.Obje
 		log.C(ctx).Debugf("No last operation found for entity with id %s of type %s", objectID, object.GetType().String())
 		return nil
 	}
-	lastOperation := list.ItemAt(0)
-	object.SetLastOperation(lastOperation.(*types.Operation))
+	lastOperation := list.ItemAt(0).(*types.Operation)
+	lastOperation.TransitiveResources = nil
+	object.SetLastOperation(lastOperation)
 	return nil
 }
 

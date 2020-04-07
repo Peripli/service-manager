@@ -17,7 +17,6 @@ package broker_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -670,15 +669,18 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						Expect(err).ShouldNot(HaveOccurred())
 
 						transitiveResourcesExpectedCount := offerings.Len() + plans.Len() + visibilities.Len()
-						transitiveResources := ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
-							Expect().Status(http.StatusOK).
-							JSON().Object().Value("last_operation").Object().Value("transitive_resources").Array()
+						operation, err := ctx.SMRepository.Get(context.Background(), types.OperationType,
+							query.ByField(query.EqualsOperator, "resource_id", brokerID),
+							query.ByField(query.EqualsOperator, "type", string(types.CREATE)),
+							query.OrderResultBy("paging_sequence", query.DescOrder))
+						Expect(err).ShouldNot(HaveOccurred())
+
+						transitiveResources := operation.(*types.Operation).TransitiveResources
 
 						transitiveResourcesActualCount := 0
-						for _, tr := range transitiveResources.Iter() {
+						for _, tr := range transitiveResources {
 							// Do not count the notifications and resources which are not for created
-							if tr.Object().Value("type").String().Raw() != types.NotificationType.String() &&
-								tr.Object().Value("operation_type").String().Raw() == string(types.CREATE) {
+							if tr.Type != types.NotificationType && tr.OperationType == types.CREATE {
 								transitiveResourcesActualCount++
 							}
 						}
@@ -1320,12 +1322,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK)
 
-							body := ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
-								Expect().Status(http.StatusOK).Body().Raw()
-							var broker types.ServiceBroker
-							err := json.Unmarshal([]byte(body), &broker)
+							operationObj, err := ctx.SMRepository.Get(context.Background(), types.OperationType,
+								query.ByField(query.EqualsOperator, "resource_id", brokerID),
+								query.ByField(query.EqualsOperator, "type", string(types.UPDATE)),
+								query.OrderResultBy("paging_sequence", query.DescOrder))
 							Expect(err).ShouldNot(HaveOccurred())
-							operation := broker.LastOperation
+							operation := operationObj.(*types.Operation)
 
 							common.AssertTransitiveResources(operation, TransitiveResourcesExpectation{
 								CreatedOfferings:     1,
@@ -1338,11 +1340,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK)
 
-							body = ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
-								Expect().Status(http.StatusOK).Body().Raw()
-							err = json.Unmarshal([]byte(body), &broker)
+							operationObj, err = ctx.SMRepository.Get(context.Background(), types.OperationType,
+								query.ByField(query.EqualsOperator, "resource_id", brokerID),
+								query.ByField(query.EqualsOperator, "type", string(types.UPDATE)),
+								query.OrderResultBy("paging_sequence", query.DescOrder))
 							Expect(err).ShouldNot(HaveOccurred())
-							operation = broker.LastOperation
+							operation = operationObj.(*types.Operation)
 
 							common.AssertTransitiveResources(operation, TransitiveResourcesExpectation{
 								CreatedOfferings:     0,
