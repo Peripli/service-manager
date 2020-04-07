@@ -311,15 +311,6 @@ func (ir *queryScopedInterceptableRepository) UpdateLabels(ctx context.Context, 
 			return nil, err
 		}
 
-		operation, found := opcontext.Get(ctx)
-		if found && operation.ResourceID != objectID && operation.ID != objectID && objectType != types.OperationType {
-			operation.TransitiveResources = append(operation.TransitiveResources, &types.RelatedType{
-				ID:            objectID,
-				Type:          objectType,
-				OperationType: types.UPDATE,
-			})
-		}
-
 		return obj, nil
 	}
 
