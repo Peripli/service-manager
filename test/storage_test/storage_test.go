@@ -55,6 +55,209 @@ var _ = Describe("Test", func() {
 		})
 	})
 
+	Context("when updating labels only", func() {
+		const (
+			label1Key    = "label1Key"
+			label1Value1 = "label1Value1"
+			label1Value2 = "label1Value2"
+			label2Key    = "label2Key"
+			label2Value1 = "label2Value1"
+			label2Value2 = "label2Value2"
+			label3Key    = "label3Key"
+			label3Value1 = "label3Value1"
+			label3Value2 = "label3Value2"
+		)
+
+		It("successfully adds new labels, adds and removes new values to existing values and removes existing labels", func() {
+			byID := query.ByField(query.EqualsOperator, "id", platform.GetID())
+			obj, err := ctx.SMRepository.Get(context.Background(), types.PlatformType, byID)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(obj.GetLabels()).To(HaveLen(0))
+
+			By("Successfully adds new labels")
+			err = ctx.SMRepository.UpdateLabels(context.Background(), types.PlatformType, platform.GetID(), types.LabelChanges{
+				{
+					Operation: types.AddLabelOperation,
+					Key:       label1Key,
+					Values:    []string{label1Value1},
+				},
+				{
+					Operation: types.AddLabelOperation,
+					Key:       label2Key,
+					Values:    []string{label2Value1},
+				},
+				{
+					Operation: types.AddLabelOperation,
+					Key:       label3Key,
+					Values:    []string{label3Value1, label3Value2},
+				},
+			})
+			Expect(err).ShouldNot(HaveOccurred())
+
+			byID = query.ByField(query.EqualsOperator, "id", platform.GetID())
+			obj, err = ctx.SMRepository.Get(context.Background(), types.PlatformType, byID)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(obj.GetLabels()).To(Equal(types.Labels{
+				label1Key: []string{label1Value1},
+				label2Key: []string{label2Value1},
+				label3Key: []string{label3Value1, label3Value2},
+			}))
+
+			By("Does not fail if label already exists")
+			err = ctx.SMRepository.UpdateLabels(context.Background(), types.PlatformType, platform.GetID(), types.LabelChanges{
+				{
+					Operation: types.AddLabelOperation,
+					Key:       label1Key,
+					Values:    []string{label1Value1},
+				},
+			})
+			Expect(err).ShouldNot(HaveOccurred())
+
+			byID = query.ByField(query.EqualsOperator, "id", platform.GetID())
+			obj, err = ctx.SMRepository.Get(context.Background(), types.PlatformType, byID)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(obj.GetLabels()).To(Equal(types.Labels{
+				label1Key: []string{label1Value1},
+				label2Key: []string{label2Value1},
+				label3Key: []string{label3Value1, label3Value2},
+			}))
+
+			By("Successfully adds new values to existing labels")
+			err = ctx.SMRepository.UpdateLabels(context.Background(), types.PlatformType, platform.GetID(), types.LabelChanges{
+				{
+					Operation: types.AddLabelValuesOperation,
+					Key:       label1Key,
+					Values:    []string{label1Value2},
+				},
+				{
+					Operation: types.AddLabelValuesOperation,
+					Key:       label2Key,
+					Values:    []string{label2Value2},
+				},
+			})
+			Expect(err).ShouldNot(HaveOccurred())
+			byID = query.ByField(query.EqualsOperator, "id", platform.GetID())
+			obj, err = ctx.SMRepository.Get(context.Background(), types.PlatformType, byID)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(obj.GetLabels()).To(Equal(types.Labels{
+				label1Key: []string{label1Value1, label1Value2},
+				label2Key: []string{label2Value1, label2Value2},
+				label3Key: []string{label3Value1, label3Value2},
+			}))
+
+			By("Does not fail if label value already exists")
+			err = ctx.SMRepository.UpdateLabels(context.Background(), types.PlatformType, platform.GetID(), types.LabelChanges{
+				{
+					Operation: types.AddLabelValuesOperation,
+					Key:       label1Key,
+					Values:    []string{label1Value2},
+				},
+				{
+					Operation: types.AddLabelValuesOperation,
+					Key:       label2Key,
+					Values:    []string{label2Value2},
+				},
+			})
+			Expect(err).ShouldNot(HaveOccurred())
+			byID = query.ByField(query.EqualsOperator, "id", platform.GetID())
+			obj, err = ctx.SMRepository.Get(context.Background(), types.PlatformType, byID)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(obj.GetLabels()).To(Equal(types.Labels{
+				label1Key: []string{label1Value1, label1Value2},
+				label2Key: []string{label2Value1, label2Value2},
+				label3Key: []string{label3Value1, label3Value2},
+			}))
+
+			By("Successfully removes existing values from existing labels")
+			err = ctx.SMRepository.UpdateLabels(context.Background(), types.PlatformType, platform.GetID(), types.LabelChanges{
+				{
+					Operation: types.RemoveLabelValuesOperation,
+					Key:       label1Key,
+					Values:    []string{label1Value2},
+				},
+				{
+					Operation: types.RemoveLabelValuesOperation,
+					Key:       label2Key,
+					Values:    []string{label2Value2},
+				},
+			})
+			Expect(err).ShouldNot(HaveOccurred())
+
+			byID = query.ByField(query.EqualsOperator, "id", platform.GetID())
+			obj, err = ctx.SMRepository.Get(context.Background(), types.PlatformType, byID)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(obj.GetLabels()).To(Equal(types.Labels{
+				label1Key: []string{label1Value1},
+				label2Key: []string{label2Value1},
+				label3Key: []string{label3Value1, label3Value2},
+			}))
+
+			By("Does not fail if label value does not exist")
+			err = ctx.SMRepository.UpdateLabels(context.Background(), types.PlatformType, platform.GetID(), types.LabelChanges{
+				{
+					Operation: types.RemoveLabelValuesOperation,
+					Key:       label1Key,
+					Values:    []string{label1Value2},
+				},
+				{
+					Operation: types.RemoveLabelValuesOperation,
+					Key:       label2Key,
+					Values:    []string{label2Value2},
+				},
+			})
+			Expect(err).ShouldNot(HaveOccurred())
+
+			byID = query.ByField(query.EqualsOperator, "id", platform.GetID())
+			obj, err = ctx.SMRepository.Get(context.Background(), types.PlatformType, byID)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(obj.GetLabels()).To(Equal(types.Labels{
+				label1Key: []string{label1Value1},
+				label2Key: []string{label2Value1},
+				label3Key: []string{label3Value1, label3Value2},
+			}))
+
+			By("Successfully removes existing labels")
+			err = ctx.SMRepository.UpdateLabels(context.Background(), types.PlatformType, platform.GetID(), types.LabelChanges{
+				{
+					Operation: types.RemoveLabelOperation,
+					Key:       label1Key,
+				},
+				{
+					Operation: types.RemoveLabelOperation,
+					Key:       label2Key,
+				},
+			})
+			Expect(err).ShouldNot(HaveOccurred())
+
+			byID = query.ByField(query.EqualsOperator, "id", platform.GetID())
+			obj, err = ctx.SMRepository.Get(context.Background(), types.PlatformType, byID)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(obj.GetLabels()).To(Equal(types.Labels{
+				label3Key: []string{label3Value1, label3Value2},
+			}))
+
+			By("Does not fail if label does not exist")
+			err = ctx.SMRepository.UpdateLabels(context.Background(), types.PlatformType, platform.GetID(), types.LabelChanges{
+				{
+					Operation: types.RemoveLabelOperation,
+					Key:       label1Key,
+				},
+				{
+					Operation: types.RemoveLabelOperation,
+					Key:       label2Key,
+				},
+			})
+			Expect(err).ShouldNot(HaveOccurred())
+
+			byID = query.ByField(query.EqualsOperator, "id", platform.GetID())
+			obj, err = ctx.SMRepository.Get(context.Background(), types.PlatformType, byID)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(obj.GetLabels()).To(Equal(types.Labels{
+				label3Key: []string{label3Value1, label3Value2},
+			}))
+		})
+	})
+
 	Context("when platform resource is updated in transaction", func() {
 		It("does not delete its visibilities", func() {
 			ctx.RegisterBroker()

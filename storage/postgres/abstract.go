@@ -224,13 +224,6 @@ func checkRowsAffected(ctx context.Context, result sql.Result) error {
 	return nil
 }
 
-func checkSQLNoRows(err error) error {
-	if err == sql.ErrNoRows {
-		return util.ErrNotFoundInStorage
-	}
-	return err
-}
-
 func toNullString(s string) sql.NullString {
 	return sql.NullString{
 		String: s,

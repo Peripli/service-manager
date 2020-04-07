@@ -24,7 +24,7 @@ func (*Operation) TableName() string {
 	return OperationTable
 }
 
-func (e *Operation) NewLabel(id, key, value string) storage.Label {
+func (e *Operation) NewLabel(id, entityID, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
@@ -37,7 +37,7 @@ func (e *Operation) NewLabel(id, key, value string) storage.Label {
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		OperationID: sql.NullString{String: e.ID, Valid: e.ID != ""},
+		OperationID: sql.NullString{String: entityID, Valid: entityID != ""},
 	}
 }
 

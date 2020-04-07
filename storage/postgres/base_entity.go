@@ -18,12 +18,8 @@ package postgres
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/storage"
-	"github.com/gofrs/uuid"
 	"github.com/lib/pq"
 )
 
@@ -37,21 +33,6 @@ type BaseEntity struct {
 
 func (e *BaseEntity) GetID() string {
 	return e.ID
-}
-
-func (e *BaseEntity) BuildLabels(labels types.Labels, newLabel func(id, key, value string) storage.Label) ([]storage.Label, error) {
-	var result []storage.Label
-	for key, values := range labels {
-		for _, labelValue := range values {
-			UUID, err := uuid.NewV4()
-			if err != nil {
-				return nil, fmt.Errorf("could not generate GUID for broker label: %s", err)
-			}
-			result = append(result, newLabel(UUID.String(), key, labelValue))
-		}
-	}
-
-	return result, nil
 }
 
 type BaseLabelEntity struct {
