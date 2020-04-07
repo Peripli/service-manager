@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -171,31 +172,95 @@ func (ps *Storage) Create(ctx context.Context, obj types.Object) (types.Object, 
 	}
 	createdObj.SetLabels(obj.GetLabels())
 
-	var labels []storage.Label
-	if labels, err = pgEntity.BuildLabels(createdObj.GetLabels(), pgEntity.NewLabel); err != nil {
-		return nil, err
+	var pgLabels []PostgresLabel
+	for key, values := range obj.GetLabels() {
+		for _, labelValue := range values {
+			pgLabel, err := ps.scheme.provideLabel(obj.GetType(), createdObj.GetID(), key, labelValue)
+			if err != nil {
+				return nil, err
+			}
+			pgLabels = append(pgLabels, pgLabel)
+		}
 	}
 
-	if err = ps.createLabels(ctx, createdObj.GetID(), labels); err != nil {
+	if err = ps.createLabels(ctx, pgLabels); err != nil {
 		return nil, err
 	}
 
 	return createdObj, nil
 }
 
-func (ps *Storage) createLabels(ctx context.Context, entityID string, labels []storage.Label) error {
+func (ps *Storage) createLabels(ctx context.Context, labels []PostgresLabel) error {
+	if len(labels) == 0 {
+		return nil
+	}
 	if err := validateLabels(labels); err != nil {
 		return err
 	}
+	pgLabel := labels[0]
+	setTagType := getDBTags(pgLabel, isAutoIncrementable)
+	dbTags := make([]string, 0, len(setTagType))
+	for _, tagType := range setTagType {
+		dbTags = append(dbTags, tagType.Tag)
+	}
 
-	for _, label := range labels {
-		pgLabel, ok := label.(PostgresLabel)
-		if !ok {
-			return fmt.Errorf("postgres storage requires labels to implement LabelEntity, got %T", label)
+	if len(dbTags) == 0 {
+		return fmt.Errorf("%s insert: No fields to insert", pgLabel.LabelsTableName())
+	}
+
+	tableName := labels[0].(PostgresLabel).LabelsTableName()
+
+	sqlQuery := fmt.Sprintf(
+		"INSERT INTO %s (%s) VALUES(:%s) ON CONFLICT DO NOTHING;",
+		tableName,
+		strings.Join(dbTags, ", "),
+		strings.Join(dbTags, ", :"),
+	)
+
+	log.C(ctx).Debugf("Executing query %s", sqlQuery)
+	_, err := ps.pgDB.NamedExecContext(ctx, sqlQuery, labels)
+	return checkIntegrityViolation(ctx, err)
+}
+
+func (ps *Storage) deleteLabels(ctx context.Context, objectType types.ObjectType, entityID string, removedLabels types.Labels) error {
+	if len(removedLabels) == 0 {
+		return nil
+	}
+	emptyLabel, err := ps.scheme.provideLabel(objectType, entityID, "", "")
+	if err != nil {
+		return err
+	}
+	labelTableName := emptyLabel.LabelsTableName()
+	referenceColumnName := emptyLabel.ReferenceColumn()
+	isExpansionRequired := false
+	segments := make([]string, 0)
+	args := make([]interface{}, 0)
+	for key, vals := range removedLabels {
+		segment := fmt.Sprintf("(key=? AND %s=?", referenceColumnName)
+		args = append(args, key, entityID)
+		if len(vals) != 0 {
+			isExpansionRequired = true
+			segment += " AND val IN (?)"
+			args = append(args, vals)
 		}
-		if err := create(ctx, ps.pgDB, pgLabel.LabelsTableName(), pgLabel, pgLabel); err != nil {
+		segment += ")"
+		segments = append(segments, segment)
+	}
+	baseQuery := fmt.Sprintf("DELETE FROM %s WHERE %s", labelTableName, strings.Join(segments, " OR "))
+
+	if isExpansionRequired {
+		var err error
+		baseQuery, args, err = sqlx.In(baseQuery, args...)
+		if err != nil {
 			return err
 		}
+	}
+
+	baseQuery = ps.pgDB.Rebind(baseQuery)
+	log.C(ctx).Debugf("Executing query %s", baseQuery)
+	_, err = ps.pgDB.ExecContext(ctx, baseQuery, args...)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -213,7 +278,7 @@ func (ps *Storage) Get(ctx context.Context, objectType types.ObjectType, criteri
 }
 
 func (ps *Storage) GetForUpdate(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
-	result, err := ps.list(ctx, objectType, true, criteria...)
+	result, err := ps.list(ctx, objectType, true, true, criteria...)
 	if err != nil {
 		return nil, err
 	}
@@ -224,10 +289,14 @@ func (ps *Storage) GetForUpdate(ctx context.Context, objectType types.ObjectType
 }
 
 func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	return ps.list(ctx, objType, false, criteria...)
+	return ps.list(ctx, objType, false, true, criteria...)
 }
 
-func (ps *Storage) list(ctx context.Context, objType types.ObjectType, forUpdate bool, criteria ...query.Criterion) (types.ObjectList, error) {
+func (ps *Storage) ListNoLabels(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	return ps.list(ctx, objType, false, false, criteria...)
+}
+
+func (ps *Storage) list(ctx context.Context, objType types.ObjectType, forUpdate, withLabels bool, criteria ...query.Criterion) (types.ObjectList, error) {
 	entity, err := ps.scheme.provide(objType)
 	if err != nil {
 		return nil, err
@@ -238,7 +307,12 @@ func (ps *Storage) list(ctx context.Context, objType types.ObjectType, forUpdate
 		queryBuilder = queryBuilder.WithLock()
 	}
 
-	rows, err := queryBuilder.List(ctx)
+	var rows *sqlx.Rows
+	if withLabels {
+		rows, err = queryBuilder.List(ctx)
+	} else {
+		rows, err = queryBuilder.ListNoLabels(ctx)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +405,7 @@ func (ps *Storage) Update(ctx context.Context, obj types.Object, labelChanges ty
 	if err = update(ctx, ps.pgDB, entity.TableName(), entity); err != nil {
 		return nil, err
 	}
-	if err = ps.updateLabels(ctx, entity.GetID(), entity, labelChanges); err != nil {
+	if err = ps.updateLabels(ctx, obj.GetType(), entity.GetID(), labelChanges); err != nil {
 		return nil, err
 	}
 
@@ -342,16 +416,32 @@ func (ps *Storage) Update(ctx context.Context, obj types.Object, labelChanges ty
 	return result, nil
 }
 
-func (ps *Storage) updateLabels(ctx context.Context, entityID string, entity PostgresEntity, updateActions []*types.LabelChange) error {
-	newLabelFunc := func(labelID string, labelKey string, labelValue string) (PostgresLabel, error) {
-		label := entity.NewLabel(labelID, labelKey, labelValue)
-		pgLabel, ok := label.(PostgresLabel)
-		if !ok {
-			return nil, fmt.Errorf("postgres storage requires labels to implement LabelEntity, got %T", label)
+func (ps *Storage) UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, _ ...query.Criterion) error {
+	return ps.updateLabels(ctx, objectType, objectID, labelChanges)
+}
+
+func (ps *Storage) updateLabels(ctx context.Context, objectType types.ObjectType, entityID string, updateActions []*types.LabelChange) error {
+	_, addedLabels, removedLabels := query.ApplyLabelChangesToLabels(updateActions, types.Labels{})
+	var pgAddedLabels []PostgresLabel
+	for key, values := range addedLabels {
+		for _, val := range values {
+			pgLabel, err := ps.scheme.provideLabel(objectType, entityID, key, val)
+			if err != nil {
+				return err
+			}
+			pgAddedLabels = append(pgAddedLabels, pgLabel)
 		}
-		return pgLabel, nil
 	}
-	return updateLabelsAbstract(ctx, newLabelFunc, ps.pgDB, entityID, updateActions)
+
+	if err := ps.createLabels(ctx, pgAddedLabels); err != nil {
+		return err
+	}
+
+	if err := ps.deleteLabels(ctx, objectType, entityID, removedLabels); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (ps *Storage) InTransaction(ctx context.Context, f func(ctx context.Context, storage storage.Repository) error) error {

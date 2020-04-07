@@ -24,7 +24,7 @@ func (*ServicePlan) TableName() string {
 	return ServicePlanTable
 }
 
-func (e *ServicePlan) NewLabel(id, key, value string) storage.Label {
+func (e *ServicePlan) NewLabel(id, entityID, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
@@ -37,7 +37,7 @@ func (e *ServicePlan) NewLabel(id, key, value string) storage.Label {
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		ServicePlanID: sql.NullString{String: e.ID, Valid: e.ID != ""},
+		ServicePlanID: sql.NullString{String: entityID, Valid: entityID != ""},
 	}
 }
 

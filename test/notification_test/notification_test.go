@@ -93,6 +93,7 @@ var _ = Describe("Notifications Suite", func() {
 			ResourceCreateFunc: func() common.Object {
 				obj := ctx.RegisterBroker().Broker.JSON
 				delete(obj, "credentials")
+				delete(obj, "last_operation")
 				return obj
 			},
 			ResourceUpdateFunc: func(obj common.Object, update common.Object) common.Object {
@@ -101,6 +102,7 @@ var _ = Describe("Notifications Suite", func() {
 					Expect().
 					Status(http.StatusOK).JSON().Object().Raw()
 
+				delete(patchedObj, "last_operation")
 				return patchedObj
 			},
 			ResourceUpdates: []func() common.Object{
@@ -232,12 +234,14 @@ var _ = Describe("Notifications Suite", func() {
 				visibility := ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(visReqBody).Expect().
 					Status(http.StatusCreated).JSON().Object().Raw()
 
+				delete(visibility, "last_operation")
 				return visibility
 			},
 			ResourceUpdateFunc: func(obj common.Object, update common.Object) common.Object {
 				updatedObj := ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + obj["id"].(string)).WithJSON(update).Expect().
 					Status(http.StatusOK).JSON().Object().Raw()
 
+				delete(updatedObj, "last_operation")
 				return updatedObj
 			},
 			ResourceUpdates: []func() common.Object{

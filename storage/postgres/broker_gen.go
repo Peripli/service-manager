@@ -24,7 +24,7 @@ func (*Broker) TableName() string {
 	return BrokerTable
 }
 
-func (e *Broker) NewLabel(id, key, value string) storage.Label {
+func (e *Broker) NewLabel(id, entityID, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
@@ -37,7 +37,7 @@ func (e *Broker) NewLabel(id, key, value string) storage.Label {
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		BrokerID: sql.NullString{String: e.ID, Valid: e.ID != ""},
+		BrokerID: sql.NullString{String: entityID, Valid: entityID != ""},
 	}
 }
 

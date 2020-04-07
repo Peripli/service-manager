@@ -24,7 +24,7 @@ func (*BrokerPlatformCredential) TableName() string {
 	return BrokerPlatformCredentialTable
 }
 
-func (e *BrokerPlatformCredential) NewLabel(id, key, value string) storage.Label {
+func (e *BrokerPlatformCredential) NewLabel(id, entityID, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
@@ -37,7 +37,7 @@ func (e *BrokerPlatformCredential) NewLabel(id, key, value string) storage.Label
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		BrokerPlatformCredentialID: sql.NullString{String: e.ID, Valid: e.ID != ""},
+		BrokerPlatformCredentialID: sql.NullString{String: entityID, Valid: entityID != ""},
 	}
 }
 

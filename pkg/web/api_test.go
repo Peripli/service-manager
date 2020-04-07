@@ -91,22 +91,70 @@ var _ = Describe("API", func() {
 				names := filterNames()
 				Expect(names).To(Equal([]string{
 					"before-existing-plugin:FetchCatalog",
-					"existing-plugin:FetchCatalog",
 					"before-existing-plugin:FetchService",
-					"existing-plugin:FetchService",
 					"before-existing-plugin:Provision",
-					"existing-plugin:Provision",
 					"before-existing-plugin:UpdateService",
-					"existing-plugin:UpdateService",
 					"before-existing-plugin:Deprovision",
-					"existing-plugin:Deprovision",
 					"before-existing-plugin:FetchBinding",
-					"existing-plugin:FetchBinding",
 					"before-existing-plugin:Bind",
-					"existing-plugin:Bind",
 					"before-existing-plugin:Unbind",
+					"existing-plugin:FetchCatalog",
+					"existing-plugin:FetchService",
+					"existing-plugin:Provision",
+					"existing-plugin:UpdateService",
+					"existing-plugin:Deprovision",
+					"existing-plugin:FetchBinding",
+					"existing-plugin:Bind",
 					"existing-plugin:Unbind",
 				}))
+			})
+
+			When("the existing plugin does not implement all plugin interfaces", func() {
+				It("adds the plugin before it", func() {
+					api.RegisterPlugins(&partialPlugin{"partial-plugin"})
+					api.RegisterPluginsBefore("partial-plugin", &validPlugin{"before-partial-plugin"})
+					names := filterNames()
+					Expect(names).To(Equal([]string{
+						"before-partial-plugin:FetchCatalog",
+						"before-partial-plugin:FetchService",
+						"before-partial-plugin:Provision",
+						"before-partial-plugin:UpdateService",
+						"before-partial-plugin:Deprovision",
+						"before-partial-plugin:FetchBinding",
+						"before-partial-plugin:Bind",
+						"before-partial-plugin:Unbind",
+						"partial-plugin:Provision",
+						"partial-plugin:Deprovision",
+					}))
+				})
+			})
+			When("the plugins are ordered relatively", func() {
+				It("adds all plugin filters before all filters of the plugins before it", func() {
+					api.RegisterPlugins(&validPlugin{"third-plugin"})
+					api.RegisterPluginsBefore("third-plugin", &partialPlugin{"second-plugin"})
+					api.RegisterPluginsBefore("second-plugin", &validPlugin{"first-plugin"})
+					names := filterNames()
+					Expect(names).To(Equal([]string{
+						"first-plugin:FetchCatalog",
+						"first-plugin:FetchService",
+						"first-plugin:Provision",
+						"first-plugin:UpdateService",
+						"first-plugin:Deprovision",
+						"first-plugin:FetchBinding",
+						"first-plugin:Bind",
+						"first-plugin:Unbind",
+						"second-plugin:Provision",
+						"second-plugin:Deprovision",
+						"third-plugin:FetchCatalog",
+						"third-plugin:FetchService",
+						"third-plugin:Provision",
+						"third-plugin:UpdateService",
+						"third-plugin:Deprovision",
+						"third-plugin:FetchBinding",
+						"third-plugin:Bind",
+						"third-plugin:Unbind",
+					}))
+				})
 			})
 		})
 	})
@@ -324,4 +372,20 @@ func (c *validPlugin) FetchCatalog(request *web.Request, next web.Handler) (*web
 
 func (c *validPlugin) Name() string {
 	return c.name
+}
+
+type partialPlugin struct {
+	name string
+}
+
+func (c *partialPlugin) Name() string {
+	return c.name
+}
+
+func (c *partialPlugin) Provision(request *web.Request, next web.Handler) (*web.Response, error) {
+	return next.Handle(request)
+}
+
+func (c *partialPlugin) Deprovision(request *web.Request, next web.Handler) (*web.Response, error) {
+	return next.Handle(request)
 }

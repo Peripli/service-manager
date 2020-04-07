@@ -76,6 +76,12 @@ var _ = Describe("Integrity Repository", func() {
 			},
 		}, nil)
 
+		fakeRepository.ListNoLabelsReturns(&types.ServiceBrokers{
+			ServiceBrokers: []*types.ServiceBroker{
+				object.(*types.ServiceBroker),
+			},
+		}, nil)
+
 		fakeRepository.GetReturns(object.(*types.ServiceBroker), nil)
 
 		fakeRepository.DeleteReturningReturns(&types.ServiceBrokers{
@@ -172,6 +178,36 @@ var _ = Describe("Integrity Repository", func() {
 		})
 	})
 
+	Describe("ListNoLabels", func() {
+		Context("when integrity is not valid", func() {
+			It("returns an error", func() {
+				fakeIntegrityProcessor.ValidateIntegrityReturns(false)
+
+				_, err = repository.ListNoLabels(ctx, types.ServiceBrokerType)
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		Context("when delegate call fails", func() {
+			It("returns an error", func() {
+				fakeRepository.ListNoLabelsReturns(nil, fmt.Errorf("error"))
+
+				_, err = repository.ListNoLabels(ctx, types.ServiceBrokerType)
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		Context("when integrity is valid", func() {
+
+			It("returns objects", func() {
+				fakeIntegrityProcessor.ValidateIntegrityReturns(true)
+
+				_, err := repository.ListNoLabels(ctx, types.ServiceBrokerType)
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+	})
+
 	Describe("Get", func() {
 		Context("when integrity is not valid", func() {
 			It("returns an error", func() {
@@ -263,6 +299,16 @@ var _ = Describe("Integrity Repository", func() {
 		})
 	})
 
+	Describe("UpdateLabels", func() {
+		It("does not invoke integrity calculation or validation and invokes the next in chain", func() {
+			delegateUpdateCallsCountBeforeOp := fakeRepository.UpdateLabelsCallCount()
+			err := repository.UpdateLabels(ctx, object.GetType(), object.GetID(), types.LabelChanges{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(fakeIntegrityProcessor.Invocations())).To(Equal(0))
+			Expect(fakeRepository.UpdateLabelsCallCount() - delegateUpdateCallsCountBeforeOp).To(Equal(1))
+		})
+	})
+
 	Describe("DeleteReturning", func() {
 		Context("when delegate call fails", func() {
 			It("returns an error", func() {
@@ -320,6 +366,12 @@ var _ = Describe("Integrity Repository", func() {
 					_, objectArg, _, _ = fakeRepository.UpdateArgsForCall(0)
 					Expect(returnedObj.(security.IntegralObject).GetIntegrity()).To(Equal(randomIntegrity))
 					Expect(objectArg.(security.IntegralObject).GetIntegrity()).To(Equal(randomIntegrity))
+
+					// verify update labels
+					delegateUpdateLabelsCallsCountBeforeOp := fakeRepository.UpdateLabelsCallCount()
+					err = repository.UpdateLabels(ctx, object.GetType(), object.GetID(), types.LabelChanges{})
+					Expect(err).ToNot(HaveOccurred())
+					Expect(fakeRepository.UpdateLabelsCallCount() - delegateUpdateLabelsCallsCountBeforeOp).To(Equal(1))
 
 					// verify get
 					delegateGetCallsCountBeforeOp := fakeRepository.GetCallCount()

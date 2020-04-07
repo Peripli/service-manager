@@ -24,7 +24,7 @@ func (*Notification) TableName() string {
 	return NotificationTable
 }
 
-func (e *Notification) NewLabel(id, key, value string) storage.Label {
+func (e *Notification) NewLabel(id, entityID, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
@@ -37,7 +37,7 @@ func (e *Notification) NewLabel(id, key, value string) storage.Label {
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		NotificationID: sql.NullString{String: e.ID, Valid: e.ID != ""},
+		NotificationID: sql.NullString{String: entityID, Valid: entityID != ""},
 	}
 }
 

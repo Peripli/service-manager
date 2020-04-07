@@ -150,7 +150,23 @@ func (er *encryptingRepository) GetForUpdate(ctx context.Context, objectType typ
 }
 
 func (er *encryptingRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	objList, err := er.repository.List(ctx, objectType, criteria...)
+	return er.list(ctx, objectType, true, criteria...)
+}
+
+func (er *encryptingRepository) ListNoLabels(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	return er.list(ctx, objectType, false, criteria...)
+}
+
+func (er *encryptingRepository) list(ctx context.Context, objectType types.ObjectType, withLabels bool, criteria ...query.Criterion) (types.ObjectList, error) {
+	var (
+		objList types.ObjectList
+		err     error
+	)
+	if withLabels {
+		objList, err = er.repository.List(ctx, objectType, criteria...)
+	} else {
+		objList, err = er.repository.ListNoLabels(ctx, objectType, criteria...)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -183,6 +199,10 @@ func (er *encryptingRepository) Update(ctx context.Context, obj types.Object, la
 	}
 
 	return updatedObj, nil
+}
+
+func (cr *encryptingRepository) UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, criteria ...query.Criterion) error {
+	return cr.repository.UpdateLabels(ctx, objectType, objectID, labelChanges, criteria...)
 }
 
 func (er *encryptingRepository) DeleteReturning(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {

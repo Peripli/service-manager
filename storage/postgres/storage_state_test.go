@@ -28,7 +28,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Postgres Storageƒ State", func() {
+var _ = Describe("Postgres Storage State", func() {
 
 	var (
 		mockDB *sql.DB

@@ -115,7 +115,7 @@ var _ = BeforeSuite(func() {
 		"cid": "tenancyClient",
 		"zid": TenantValue,
 	}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-		smb.EnableMultitenancy(TenantIdentifier, func(request *web.Request) (string, error) {
+		_, err := smb.EnableMultitenancy(TenantIdentifier, func(request *web.Request) (string, error) {
 			extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")
 			user, ok := web.UserFromContext(request.Context())
 			if !ok {
@@ -133,7 +133,7 @@ var _ = BeforeSuite(func() {
 			request.Request = request.WithContext(web.ContextWithUser(request.Context(), user))
 			return extractTenantFromToken(request)
 		})
-		return nil
+		return err
 	}).Build()
 
 	SMWithBasicPlatform = &common.SMExpect{Expect: ctx.SMWithBasic.Expect}

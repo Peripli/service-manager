@@ -167,13 +167,24 @@ func (api *API) RegisterPluginsBefore(beforePluginName string, plugins ...Plugin
 		}
 
 		pluginSegments := api.decomposePluginOrDie(plugin)
+		beforePluginFirstFilterName := api.getFirstFilterNameOfPlugin(beforePluginName)
 		for _, pluginSegment := range pluginSegments {
-			split := strings.Split(pluginSegment.Name(), ":")
-			api.registerFilterRelatively(beforePluginName+":"+split[1], pluginSegment, func(beforeFilterPosition int) int {
+			api.registerFilterRelatively(beforePluginFirstFilterName, pluginSegment, func(beforeFilterPosition int) int {
 				return beforeFilterPosition
 			})
 		}
 	}
+}
+
+func (api *API) getFirstFilterNameOfPlugin(pluginName string) string {
+	for _, name := range api.filterNames(api.Filters) {
+		nameParts := strings.Split(name, ":")
+		if nameParts[0] == pluginName {
+			return name
+		}
+	}
+
+	return ""
 }
 
 func (api *API) validateFilters(filters ...Filter) {

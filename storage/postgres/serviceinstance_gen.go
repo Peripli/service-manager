@@ -24,7 +24,7 @@ func (*ServiceInstance) TableName() string {
 	return ServiceInstanceTable
 }
 
-func (e *ServiceInstance) NewLabel(id, key, value string) storage.Label {
+func (e *ServiceInstance) NewLabel(id, entityID, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
@@ -37,7 +37,7 @@ func (e *ServiceInstance) NewLabel(id, key, value string) storage.Label {
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		ServiceInstanceID: sql.NullString{String: e.ID, Valid: e.ID != ""},
+		ServiceInstanceID: sql.NullString{String: entityID, Valid: entityID != ""},
 	}
 }
 
