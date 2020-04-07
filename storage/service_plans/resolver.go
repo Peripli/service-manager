@@ -53,8 +53,8 @@ func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.Ser
 		if len(platformTypes) != 0 {
 			//add a criteria for the supported types
 			supportedPlatformTypes := make([]string, 0)
-			for platform := range platformTypes {
-				supportedPlatformTypes = append(supportedPlatformTypes, platform)
+			for platformType := range platformTypes {
+				supportedPlatformTypes = append(supportedPlatformTypes, platformType)
 			}
 
 			criteria = []query.Criterion{query.ByField(query.InOperator, "type", supportedPlatformTypes...)}
