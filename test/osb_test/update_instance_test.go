@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/test"
 
 	"net/http"
@@ -344,7 +345,10 @@ var _ = Describe("Update", func() {
 				query.ByField(query.EqualsOperator, "platform_id", platform.ID))
 			Expect(err).ToNot(HaveOccurred())
 
-			ctx.SMWithOAuth.DELETE(web.VisibilitiesURL + "?fieldQuery=" + fmt.Sprintf("platform_id eq '%s'", platform.ID))
+			err = ctx.SMRepository.Delete(context.TODO(), types.VisibilityType,
+				query.ByField(query.EqualsOperator, "platform_id", platform.ID))
+			Expect(err).Should(SatisfyAny(Not(HaveOccurred()), Equal(util.ErrNotFoundInStorage)))
+
 			ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + platform.ID).Expect().Status(http.StatusOK)
 		})
 
@@ -366,6 +370,21 @@ var _ = Describe("Update", func() {
 					WithJSON(updateRequestBodyMapWith("plan_id", plan2CatalogID)()).
 					Expect().Status(http.StatusOK)
 			})
+
+			Context("plan is not visible anymore", func() {
+				JustBeforeEach(func() {
+					err := ctx.SMRepository.Delete(context.TODO(), types.VisibilityType,
+						query.ByField(query.EqualsOperator, "platform_id", platform.ID))
+					Expect(err).Should(SatisfyAny(Not(HaveOccurred()), Equal(util.ErrNotFoundInStorage)))
+				})
+
+				It("should return 200 if plan is not changed", func() {
+					ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
+						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						WithJSON(updateRequestBodyMapWith("plan_id", plan1CatalogID)()).
+						Expect().Status(http.StatusOK)
+				})
+			})
 		})
 
 		Context("in K8S platform", func() {
@@ -385,6 +404,21 @@ var _ = Describe("Update", func() {
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(updateRequestBodyMapWith("plan_id", plan2CatalogID)()).
 					Expect().Status(http.StatusOK)
+			})
+
+			Context("plan is not visible anymore", func() {
+				JustBeforeEach(func() {
+					err := ctx.SMRepository.Delete(context.TODO(), types.VisibilityType,
+						query.ByField(query.EqualsOperator, "platform_id", platform.ID))
+					Expect(err).Should(SatisfyAny(Not(HaveOccurred()), Equal(util.ErrNotFoundInStorage)))
+				})
+
+				It("should return 200 if plan is not changed", func() {
+					ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
+						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						WithJSON(updateRequestBodyMapWith("plan_id", plan1CatalogID)()).
+						Expect().Status(http.StatusOK)
+				})
 			})
 		})
 	})
