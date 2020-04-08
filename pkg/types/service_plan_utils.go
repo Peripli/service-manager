@@ -23,6 +23,10 @@ import (
 
 // SupportsPlatform determines whether a specific platform type is among the ones that a plan supports
 func (e *ServicePlan) SupportsPlatformType(platformType string) bool {
+	if platformType == SMPlatform {
+		platformType = GetSMSupportedPlatformType()
+	}
+
 	platformTypes := e.SupportedPlatformTypes()
 
 	return len(platformTypes) == 0 || slice.StringsAnyEquals(platformTypes, platformType)
@@ -47,15 +51,7 @@ func (e *ServicePlan) SupportsAllPlatforms() bool {
 // SupportedPlatformTypes returns the supportedPlatforms provided in a plan's metadata (if a value is provided at all).
 // If there are no supported platforms, nil is returned denoting that the plan is available to platforms of all types.
 func (e *ServicePlan) SupportedPlatformTypes() []string {
-	supportedPlatformTypes := e.metadataPropertyAsStringArray("supportedPlatforms")
-
-	for i, platformType := range supportedPlatformTypes {
-		if platformType == GetSMSupportedPlatformType() {
-			supportedPlatformTypes[i] = SMPlatform
-		}
-	}
-
-	return supportedPlatformTypes
+	return e.metadataPropertyAsStringArray("supportedPlatforms")
 }
 
 // SupportedPlatformNames returns the supportedPlatformNames provided in a plan's metadata (if a value is provided at all).
