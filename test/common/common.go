@@ -311,7 +311,7 @@ func RegisterBrokerInSM(brokerJSON Object, SM *SMExpect, headers map[string]stri
 		WithJSON(brokerJSON).Expect().Status(http.StatusCreated).JSON().Object().Raw()
 }
 
-func RegisterBrokerInSMWithWithRawResponse(brokerJSON Object, SM *SMExpect, headers map[string]string) *httpexpect.Response  {
+func RegisterBrokerInSMWithoutErrorSwallowing(brokerJSON Object, SM *SMExpect, headers map[string]string) *httpexpect.Response  {
 	request := SM.POST(web.ServiceBrokersURL).
 		WithHeaders(headers).
 		WithJSON(brokerJSON)
