@@ -18,6 +18,7 @@ package common
 
 import (
 	"context"
+	"github.com/gavv/httpexpect"
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -308,6 +309,15 @@ func RegisterBrokerInSM(brokerJSON Object, SM *SMExpect, headers map[string]stri
 	return SM.POST(web.ServiceBrokersURL).
 		WithHeaders(headers).
 		WithJSON(brokerJSON).Expect().Status(http.StatusCreated).JSON().Object().Raw()
+}
+
+func RegisterBrokerInSMWithWithRawResponse(brokerJSON Object, SM *SMExpect, headers map[string]string) *httpexpect.Response  {
+	request := SM.POST(web.ServiceBrokersURL).
+		WithHeaders(headers).
+		WithJSON(brokerJSON)
+	response := request.Expect()
+
+	return response
 }
 
 func RegisterVisibilityForPlanAndPlatform(SM *SMExpect, planID, platformID string) string {
