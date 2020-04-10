@@ -355,12 +355,12 @@ var _ = Describe("Catalog", func() {
 							oldSMWithBasic.GET(osbURL + "/v2/catalog").
 								Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 
-							By("new credentials used - old ones should be invalidated")
+							By("new credentials used - old ones should still work")
 							ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
 								Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 
 							oldSMWithBasic.GET(osbURL + "/v2/catalog").
-								Expect().Status(http.StatusUnauthorized)
+								Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 
 						})
 					})
@@ -445,10 +445,10 @@ var _ = Describe("Catalog", func() {
 					k8sOSBClient.GET(osbURL + "/v2/catalog").
 						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 
-					By("old K8S credentials broker platform credentials should not work")
+					By("old K8S credentials broker platform credentials should still work")
 					k8sOSBClient.SetBasicCredentials(ctx, username, password)
 					k8sOSBClient.GET(osbURL + "/v2/catalog").
-						Expect().Status(http.StatusUnauthorized)
+						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 				})
 			})
 		})
