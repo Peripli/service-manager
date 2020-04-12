@@ -86,7 +86,23 @@ func (cr *integrityRepository) GetForUpdate(ctx context.Context, objectType type
 }
 
 func (cr *integrityRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	objectList, err := cr.repository.List(ctx, objectType, criteria...)
+	return cr.list(ctx, objectType, true, criteria...)
+}
+
+func (cr *integrityRepository) ListNoLabels(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	return cr.list(ctx, objectType, false, criteria...)
+}
+
+func (cr *integrityRepository) list(ctx context.Context, objectType types.ObjectType, withLabels bool, criteria ...query.Criterion) (types.ObjectList, error) {
+	var (
+		objectList types.ObjectList
+		err        error
+	)
+	if withLabels {
+		objectList, err = cr.repository.List(ctx, objectType, criteria...)
+	} else {
+		objectList, err = cr.repository.ListNoLabels(ctx, objectType, criteria...)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +120,10 @@ func (cr *integrityRepository) Update(ctx context.Context, obj types.Object, lab
 		return nil, err
 	}
 	return cr.repository.Update(ctx, obj, labelChanges, criteria...)
+}
+
+func (cr *integrityRepository) UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, criteria ...query.Criterion) error {
+	return cr.repository.UpdateLabels(ctx, objectType, objectID, labelChanges, criteria...)
 }
 
 func (cr *integrityRepository) Count(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error) {

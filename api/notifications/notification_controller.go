@@ -44,7 +44,8 @@ func (c *Controller) Routes() []web.Route {
 				Method: http.MethodGet,
 				Path:   web.NotificationsURL,
 			},
-			Handler: c.handleWS,
+			Handler:             c.handleWS,
+			DisableHTTPTimeouts: true,
 		},
 	}
 }

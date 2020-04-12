@@ -217,7 +217,7 @@ func DescribeTestsFor(t TestCase) bool {
 				ctxBuilder.
 					WithTenantTokenClaims(t.MultitenancySettings.TokenClaims).
 					WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-						smb.EnableMultitenancy(t.MultitenancySettings.LabelKey, func(request *web.Request) (string, error) {
+						_, err := smb.EnableMultitenancy(t.MultitenancySettings.LabelKey, func(request *web.Request) (string, error) {
 							extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc(t.MultitenancySettings.TenantTokenClaim)
 							user, ok := web.UserFromContext(request.Context())
 							if !ok {
@@ -235,13 +235,15 @@ func DescribeTestsFor(t TestCase) bool {
 							request.Request = request.WithContext(web.ContextWithUser(request.Context(), user))
 							return extractTenantFromToken(request)
 						})
-						return nil
+						return err
 					})
 			}
 			return ctxBuilder
 		}
 
-		t.ContextBuilder = ctxBuilder()
+		BeforeEach(func() {
+			t.ContextBuilder = ctxBuilder()
+		})
 
 		func() {
 			By("==== Preparation for SM tests... ====")

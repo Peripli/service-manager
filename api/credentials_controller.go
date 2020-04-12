@@ -19,6 +19,9 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -26,8 +29,6 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
 	"github.com/tidwall/gjson"
-	"net/http"
-	"time"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -110,7 +111,7 @@ func (c *credentialsController) setCredentials(r *web.Request) (*web.Response, e
 		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
 	}
 
-	if body.NotificationID == "" {
+	if body.NotificationID == "" && platform.Type != types.K8sPlatformType { // K8S clusters are less restrictive in terms of broker management, we need to allow credential rotation even if it's triggered by full resync
 		log.C(ctx).Error("Notification id not provided and broker platform credentials already exists...")
 		return nil, &util.HTTPError{
 			ErrorType:   "CredentialsError",

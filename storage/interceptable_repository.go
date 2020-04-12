@@ -180,11 +180,26 @@ func (ir *queryScopedInterceptableRepository) GetForUpdate(ctx context.Context, 
 }
 
 func (ir *queryScopedInterceptableRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	objectList, err := ir.repositoryInTransaction.List(ctx, objectType, criteria...)
+	return ir.list(ctx, objectType, true, criteria...)
+}
+
+func (ir *queryScopedInterceptableRepository) ListNoLabels(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	return ir.list(ctx, objectType, false, criteria...)
+}
+
+func (ir *queryScopedInterceptableRepository) list(ctx context.Context, objectType types.ObjectType, withLabels bool, criteria ...query.Criterion) (types.ObjectList, error) {
+	var (
+		objectList types.ObjectList
+		err        error
+	)
+	if withLabels {
+		objectList, err = ir.repositoryInTransaction.List(ctx, objectType, criteria...)
+	} else {
+		objectList, err = ir.repositoryInTransaction.ListNoLabels(ctx, objectType, criteria...)
+	}
 	if err != nil {
 		return nil, err
 	}
-
 	return objectList, nil
 }
 
@@ -323,6 +338,49 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 	}
 
 	return updatedObj, nil
+}
+
+func (ir *queryScopedInterceptableRepository) UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, criteria ...query.Criterion) error {
+	byID := query.ByField(query.EqualsOperator, "id", objectID)
+	obj, err := ir.repositoryInTransaction.Get(ctx, objectType, byID)
+	if err != nil {
+		return err
+	}
+
+	updateObjFunc := func(ctx context.Context, _ Repository, _, _ types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
+		err := ir.repositoryInTransaction.UpdateLabels(ctx, objectType, objectID, labelChanges, criteria...)
+		if err != nil {
+			return nil, err
+		}
+
+		operation, found := opcontext.Get(ctx)
+		if found && operation.ResourceID != objectID && operation.ID != objectID && objectType != types.OperationType {
+			operation.TransitiveResources = append(operation.TransitiveResources, &types.RelatedType{
+				ID:            objectID,
+				Type:          objectType,
+				OperationType: types.UPDATE,
+			})
+		}
+
+		return obj, nil
+	}
+
+	if updateOnTxFunc, found := ir.updateOnTxFuncs[objectType]; found {
+		delete(ir.updateOnTxFuncs, objectType)
+
+		_, err = updateOnTxFunc(updateObjFunc)(ctx, ir, obj, obj, labelChanges...)
+
+		ir.updateOnTxFuncs[objectType] = updateOnTxFunc
+
+	} else {
+		_, err = updateObjFunc(ctx, ir, obj, obj, labelChanges...)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (itr *InterceptableTransactionalRepository) InTransaction(ctx context.Context, f func(ctx context.Context, storage Repository) error) error {
@@ -503,11 +561,26 @@ func (itr *InterceptableTransactionalRepository) GetForUpdate(ctx context.Contex
 }
 
 func (itr *InterceptableTransactionalRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	objectList, err := itr.RawRepository.List(ctx, objectType, criteria...)
+	return itr.list(ctx, objectType, true, criteria...)
+}
+
+func (itr *InterceptableTransactionalRepository) ListNoLabels(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	return itr.list(ctx, objectType, false, criteria...)
+}
+
+func (itr *InterceptableTransactionalRepository) list(ctx context.Context, objectType types.ObjectType, withLabels bool, criteria ...query.Criterion) (types.ObjectList, error) {
+	var (
+		objectList types.ObjectList
+		err        error
+	)
+	if withLabels {
+		objectList, err = itr.RawRepository.List(ctx, objectType, criteria...)
+	} else {
+		objectList, err = itr.RawRepository.ListNoLabels(ctx, objectType, criteria...)
+	}
 	if err != nil {
 		return nil, err
 	}
-
 	return objectList, nil
 }
 
@@ -613,6 +686,48 @@ func (itr *InterceptableTransactionalRepository) Update(ctx context.Context, obj
 	}
 
 	return obj, nil
+}
+
+func (itr *InterceptableTransactionalRepository) UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, criteria ...query.Criterion) error {
+	providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors := itr.provideInterceptors()
+
+	finalInterceptor := func(ctx context.Context, obj types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
+		var result types.Object
+		var err error
+
+		if err = itr.RawRepository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
+			interceptableRepository := newScopedRepositoryWithInterceptors(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors)
+			err = interceptableRepository.UpdateLabels(ctx, objectType, objectID, labelChanges, criteria...)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+
+		return result, nil
+	}
+
+	var err error
+	byID := query.ByField(query.EqualsOperator, "id", objectID)
+	obj, err := itr.RawRepository.Get(ctx, objectType, byID)
+	if err != nil {
+		return err
+	}
+
+	if providedUpdateInterceptors[objectType] != nil {
+		_, err = providedUpdateInterceptors[objectType].AroundTxUpdate(finalInterceptor)(ctx, obj, labelChanges...)
+	} else {
+		_, err = finalInterceptor(ctx, obj, labelChanges...)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (itr *InterceptableTransactionalRepository) validateCreateProviders(objectType types.ObjectType, providerName string, order InterceptorOrder) {

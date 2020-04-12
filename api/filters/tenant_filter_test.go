@@ -2,7 +2,6 @@ package filters_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -29,8 +28,6 @@ var _ = Describe("TenantFilters", func() {
 	var (
 		fakeHandler *webfakes.FakeHandler
 		fakeRequest *web.Request
-
-		filter *filters.TenantFilter
 	)
 
 	BeforeEach(func() {
@@ -42,181 +39,109 @@ var _ = Describe("TenantFilters", func() {
 		}
 	})
 
-	Describe("TenantFilter", func() {
-		var ctx context.Context
-		var extractTenantFunc func(*web.Request) (string, error)
-		var labelingFunc func(request *web.Request, labelKey, labelValue string) error
-
-		verifyProceedsWithNextInChain := func() {
-			_, err := filter.Run(fakeRequest, fakeHandler)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(fakeHandler.HandleCallCount()).To(Equal(1))
-			actualRequest := fakeHandler.HandleArgsForCall(0)
-			Expect(query.CriteriaForContext(actualRequest.Context())).To(BeEmpty())
-		}
-
-		BeforeEach(func() {
-			ctx = web.ContextWithUser(context.Background(), &web.UserContext{
-				AuthenticationType: web.Bearer,
-				Name:               "test",
-				AccessLevel:        web.TenantAccess,
-			})
-			fakeRequest.Request = fakeRequest.WithContext(ctx)
-			extractTenantFunc = func(*web.Request) (string, error) {
-				return "", nil
-			}
-			labelingFunc = func(request *web.Request, labelKey, labelValue string) error {
-				return nil
-			}
-		})
-
-		JustBeforeEach(func() {
-			filter = &filters.TenantFilter{
-				LabelKey:      labelKey,
-				ExtractTenant: extractTenantFunc,
-				LabelingFunc:  labelingFunc,
-				FilterName:    "TestFilter",
-				Methods:       []string{http.MethodTrace},
-			}
-		})
-
-		Describe("Run", func() {
-			When("extract tenant func is not provided", func() {
-				BeforeEach(func() {
-					extractTenantFunc = nil
-				})
-				It("should return error", func() {
-					_, err := filter.Run(fakeRequest, fakeHandler)
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("ExtractTenant"))
-				})
-			})
-			When("labeling func is not provided", func() {
-				BeforeEach(func() {
-					labelingFunc = nil
-				})
-				It("should return error", func() {
-					_, err := filter.Run(fakeRequest, fakeHandler)
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("LabelingFunc"))
-				})
-			})
-			When("usercontext is missing", func() {
-				BeforeEach(func() {
-					fakeRequest.Request = fakeRequest.WithContext(context.TODO())
-				})
-				It("proceeds with next in chain", verifyProceedsWithNextInChain)
-			})
-			When("authentication type is not Bearer", func() {
-				BeforeEach(func() {
-					fakeRequest.Request = fakeRequest.WithContext(web.ContextWithUser(context.Background(), &web.UserContext{
-						AuthenticationType: web.Basic,
-						AccessLevel:        web.GlobalAccess,
-					}))
-				})
-				It("proceeds with next in chain", verifyProceedsWithNextInChain)
-			})
-			When("access level is global", func() {
-				BeforeEach(func() {
-					fakeRequest.Request = fakeRequest.WithContext(web.ContextWithUser(context.Background(), &web.UserContext{
-						AuthenticationType: web.Bearer,
-						AccessLevel:        web.GlobalAccess,
-					}))
-				})
-				It("proceeds with next in chain", verifyProceedsWithNextInChain)
-			})
-			When("the extracted tenant is empty", func() {
-				It("proceeds with next in chain", verifyProceedsWithNextInChain)
-			})
-			When("extract tenant returns an error", func() {
-				BeforeEach(func() {
-					extractTenantFunc = func(req *web.Request) (string, error) {
-						return "", errors.New("could not extract tenant")
-					}
-				})
-				It("stops the chain", func() {
-					_, err := filter.Run(fakeRequest, fakeHandler)
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("could not extract tenant"))
-					Expect(fakeHandler.HandleCallCount()).To(Equal(0))
-				})
-			})
-			When("labeling function returns an error", func() {
-				BeforeEach(func() {
-					extractTenantFunc = func(*web.Request) (string, error) {
-						return "tenant", nil
-					}
-					labelingFunc = func(request *web.Request, labelKey string, labelValue string) error {
-						return errors.New("could not process label")
-					}
-				})
-				It("stops the chain", func() {
-					_, err := filter.Run(fakeRequest, fakeHandler)
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("could not process label"))
-					Expect(fakeHandler.HandleCallCount()).To(Equal(0))
-				})
-			})
-		})
-
-		Describe("Name", func() {
-			It("is not empty", func() {
-				Expect(filter.Name()).ToNot(BeEmpty())
-			})
-		})
-
-		Describe("FilterMatchers", func() {
-			It("is not empty", func() {
-				Expect(filter.FilterMatchers()).ToNot(BeEmpty())
-			})
-		})
-	})
-
 	Describe("NewMultitenancyFilters", func() {
 		var multitenancyFilters []web.Filter
-		JustBeforeEach(func() {
-			multitenancyFilters = filters.NewMultitenancyFilters(labelKey, func(request *web.Request) (string, error) {
-				return tenant, nil
+
+		Describe("Invalid creation parameters", func() {
+			When("extractTenantFunc is not provided", func() {
+				It("should fail with appropriate message", func() {
+					var err error
+					multitenancyFilters, err = filters.NewMultitenancyFilters(labelKey, nil)
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("extractTenantFunc should be provided"))
+				})
 			})
 		})
 
-		Describe("Criteria filter", func() {
-			for _, method := range []string{http.MethodGet, http.MethodPatch, http.MethodDelete} {
-				When(method+" request is sent", func() {
-					It("should modify the request criteria", func() {
-						newReq, err := http.NewRequest(method, "http://example.com", nil)
-						Expect(err).ShouldNot(HaveOccurred())
-						fakeRequest.Request = newReq
-						fakeRequest.Request = fakeRequest.WithContext(web.ContextWithUser(context.Background(), &web.UserContext{
-							AuthenticationType: web.Bearer,
-							Name:               "test",
-							AccessLevel:        web.TenantAccess,
-						}))
-						_, err = multitenancyFilters[0].Run(fakeRequest, fakeHandler)
-						Expect(err).ToNot(HaveOccurred())
-						Expect(fakeHandler.HandleCallCount()).To(Equal(1))
-						actualRequest := fakeHandler.HandleArgsForCall(0)
-						criteria := query.CriteriaForContext(actualRequest.Context())
-						Expect(criteria).To(HaveLen(1))
-						Expect(criteria).To(ContainElement(query.ByLabel(query.EqualsOperator, labelKey, tenant)))
-					})
+		Describe("creation succeeds", func() {
+			JustBeforeEach(func() {
+				var err error
+				multitenancyFilters, err = filters.NewMultitenancyFilters(labelKey, func(request *web.Request) (string, error) {
+					return tenant, nil
 				})
-			}
-		})
+				Expect(err).ToNot(HaveOccurred())
+			})
 
-		Describe("Labeling filter", func() {
-			type testCase struct {
-				actualRequestBody   string
-				expectedRequestBody string
-			}
+			Describe("TenantLabelingFilterName", func() {
+				It("should return the name of the tenant labeling filter", func() {
+					actualFilterName := multitenancyFilters[1].Name()
+					Expect(filters.TenantLabelingFilterName()).To(BeEquivalentTo(actualFilterName))
+				})
+			})
 
-			entries := []TableEntry{
-				Entry("adds the labels array and the specified label key nad value in the request body when there are no labels in the request body",
-					testCase{
-						actualRequestBody: `{
+			Describe("Criteria filter", func() {
+				for _, method := range []string{http.MethodGet, http.MethodPatch, http.MethodDelete, http.MethodPost} {
+					When(method+" request is sent with tenant scope", func() {
+						It("should modify the request criteria", func() {
+							newReq, err := http.NewRequest(method, "http://example.com", nil)
+							Expect(err).ShouldNot(HaveOccurred())
+							fakeRequest.Request = newReq
+							fakeRequest.Request = fakeRequest.WithContext(web.ContextWithUser(context.Background(), &web.UserContext{
+								AuthenticationType: web.Bearer,
+								Name:               "test",
+								AccessLevel:        web.TenantAccess,
+							}))
+							_, err = multitenancyFilters[0].Run(fakeRequest, fakeHandler)
+							Expect(err).ToNot(HaveOccurred())
+							Expect(fakeHandler.HandleCallCount()).To(Equal(1))
+							actualRequest := fakeHandler.HandleArgsForCall(0)
+							criteria := query.CriteriaForContext(actualRequest.Context())
+							Expect(criteria).To(HaveLen(1))
+							Expect(criteria).To(ContainElement(query.ByLabel(query.EqualsOperator, labelKey, tenant)))
+						})
+					})
+
+					When(method+" request is sent with global scope", func() {
+						It("should not modify the request criteria", func() {
+							newReq, err := http.NewRequest(method, "http://example.com", nil)
+							Expect(err).ShouldNot(HaveOccurred())
+							fakeRequest.Request = newReq
+							fakeRequest.Request = fakeRequest.WithContext(web.ContextWithUser(context.Background(), &web.UserContext{
+								AuthenticationType: web.Bearer,
+								Name:               "test",
+								AccessLevel:        web.GlobalAccess,
+							}))
+							_, err = multitenancyFilters[0].Run(fakeRequest, fakeHandler)
+							Expect(err).ToNot(HaveOccurred())
+							Expect(fakeHandler.HandleCallCount()).To(Equal(1))
+							actualRequest := fakeHandler.HandleArgsForCall(0)
+							criteria := query.CriteriaForContext(actualRequest.Context())
+							Expect(criteria).To(HaveLen(0))
+						})
+					})
+
+					When(method+" request is sent without user context", func() {
+						It("should not modify the request criteria", func() {
+							newReq, err := http.NewRequest(method, "http://example.com", nil)
+							Expect(err).ShouldNot(HaveOccurred())
+							fakeRequest.Request = newReq
+							fakeRequest.Request = fakeRequest.WithContext(web.ContextWithUser(context.Background(), nil))
+							_, err = multitenancyFilters[0].Run(fakeRequest, fakeHandler)
+							Expect(err).ToNot(HaveOccurred())
+							Expect(fakeHandler.HandleCallCount()).To(Equal(1))
+							actualRequest := fakeHandler.HandleArgsForCall(0)
+							criteria := query.CriteriaForContext(actualRequest.Context())
+							Expect(criteria).To(HaveLen(0))
+						})
+					})
+				}
+			})
+
+			Describe("Labeling filter", func() {
+
+				Describe("Tenant access", func() {
+					type testCase struct {
+						actualRequestBody   string
+						expectedRequestBody string
+					}
+
+					entries := []TableEntry{
+						Entry("adds the labels array and the specified label key nad value in the request body when there are no labels in the request body",
+							testCase{
+								actualRequestBody: `{
 							   "id":"id"
 							}`,
-						expectedRequestBody: fmt.Sprintf(`{
+								expectedRequestBody: fmt.Sprintf(`{
 						   "id":"id",
 						   "labels":{
 							  "%s":[
@@ -224,10 +149,10 @@ var _ = Describe("TenantFilters", func() {
 							  ]
 						   }
 						}`, labelKey, tenant),
-					}),
-				Entry("adds the label and the specified value in the request body when delimiter label is not part of the request body",
-					testCase{
-						actualRequestBody: `{
+							}),
+						Entry("adds the label and the specified value in the request body when delimiter label is not part of the request body",
+							testCase{
+								actualRequestBody: `{
 						   "id":"id",
 						   "labels":{
 							  "another-label":[
@@ -235,7 +160,7 @@ var _ = Describe("TenantFilters", func() {
 							  ]
 						   }
 						}`,
-						expectedRequestBody: fmt.Sprintf(`{
+								expectedRequestBody: fmt.Sprintf(`{
 						   "id":"id",
 						   "labels":{
 							  "another-label":[
@@ -246,10 +171,10 @@ var _ = Describe("TenantFilters", func() {
 							  ]
 						   }
 						}`, labelKey, tenant),
-					}),
-				Entry("appends the specified value to already present label values in the request body when delimiter label is already part of the request body",
-					testCase{
-						actualRequestBody: fmt.Sprintf(`{
+							}),
+						Entry("appends the specified value to already present label values in the request body when delimiter label is already part of the request body",
+							testCase{
+								actualRequestBody: fmt.Sprintf(`{
 						   "id":"id",
 						   "labels":{
 							  "%s":[
@@ -257,7 +182,7 @@ var _ = Describe("TenantFilters", func() {
 							  ]
 						   }
 						}`, labelKey),
-						expectedRequestBody: fmt.Sprintf(`{
+								expectedRequestBody: fmt.Sprintf(`{
 						   "id":"id",
 						   "labels":{
 							  "%s":[
@@ -266,23 +191,77 @@ var _ = Describe("TenantFilters", func() {
 							  ]
 						   }
 						}`, labelKey, tenant),
-					}),
-			}
+							}),
+					}
 
-			DescribeTable("Run", func(t testCase) {
-				newReq, err := http.NewRequest(http.MethodPost, "http://example.com", nil)
-				Expect(err).ShouldNot(HaveOccurred())
-				fakeRequest.Request = newReq
-				fakeRequest.Request = fakeRequest.WithContext(web.ContextWithUser(context.Background(), &web.UserContext{
-					AuthenticationType: web.Bearer,
-					Name:               "test",
-					AccessLevel:        web.TenantAccess,
-				}))
-				fakeRequest.Body = []byte(t.actualRequestBody)
-				_, err = multitenancyFilters[1].Run(fakeRequest, fakeHandler)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(string(fakeRequest.Body)).To(unmarshalledmatchers.MatchOrderedJSON(t.expectedRequestBody))
-			}, entries...)
+					DescribeTable("Run", func(t testCase) {
+						newReq, err := http.NewRequest(http.MethodPost, "http://example.com", nil)
+						Expect(err).ShouldNot(HaveOccurred())
+						fakeRequest.Request = newReq
+						fakeRequest.Request = fakeRequest.WithContext(web.ContextWithUser(context.Background(), &web.UserContext{
+							AuthenticationType: web.Bearer,
+							Name:               "test",
+							AccessLevel:        web.TenantAccess,
+						}))
+						fakeRequest.Body = []byte(t.actualRequestBody)
+						_, err = multitenancyFilters[1].Run(fakeRequest, fakeHandler)
+						Expect(err).ToNot(HaveOccurred())
+						Expect(string(fakeRequest.Body)).To(unmarshalledmatchers.MatchOrderedJSON(t.expectedRequestBody))
+					}, entries...)
+				})
+
+				Describe("Global access", func() {
+					type testCase struct {
+						actualRequestBody string
+					}
+
+					entries := []TableEntry{
+						Entry("does not modify request body when there are no labels in the request body",
+							testCase{
+								actualRequestBody: `{
+							   "id":"id"
+							}`,
+							}),
+						Entry("does not modify request body when delimiter label is not part of the request body",
+							testCase{
+								actualRequestBody: `{
+							   "id":"id",
+							   "labels":{
+								  "another-label":[
+									 "another-value"
+								  ]
+							   }
+							}`,
+							}),
+						Entry("does not modify request body when delimiter label is already part of the request body",
+							testCase{
+								actualRequestBody: fmt.Sprintf(`{
+							   "id":"id",
+							   "labels":{
+								  "%s":[
+									 "another-value"
+								  ]
+							   }
+							}`, labelKey),
+							}),
+					}
+
+					DescribeTable("Run", func(t testCase) {
+						newReq, err := http.NewRequest(http.MethodPost, "http://example.com", nil)
+						Expect(err).ShouldNot(HaveOccurred())
+						fakeRequest.Request = newReq
+						fakeRequest.Request = fakeRequest.WithContext(web.ContextWithUser(context.Background(), &web.UserContext{
+							AuthenticationType: web.Bearer,
+							Name:               "test",
+							AccessLevel:        web.GlobalAccess,
+						}))
+						fakeRequest.Body = []byte(t.actualRequestBody)
+						_, err = multitenancyFilters[1].Run(fakeRequest, fakeHandler)
+						Expect(err).ToNot(HaveOccurred())
+						Expect(string(fakeRequest.Body)).To(unmarshalledmatchers.MatchOrderedJSON(t.actualRequestBody))
+					}, entries...)
+				})
+			})
 		})
 	})
 })

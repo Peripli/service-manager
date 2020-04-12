@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 
@@ -174,6 +175,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 					// mark the operation as deletion scheduled meaning orphan mitigation is required
 					operation.DeletionScheduled = time.Now()
 					operation.Reschedule = false
+					operation.RescheduleTimestamp = time.Time{}
 					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
 					}
@@ -195,6 +197,9 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				log.C(ctx).Infof("Successful asynchronous binding request %s to broker %s returned response %s",
 					logBindRequest(bindRequest), broker.Name, logBindResponse(bindResponse))
 				operation.Reschedule = true
+				if operation.RescheduleTimestamp.IsZero() {
+					operation.RescheduleTimestamp = time.Now()
+				}
 				if bindResponse.OperationKey != nil {
 					operation.ExternalID = string(*bindResponse.OperationKey)
 				}
@@ -214,7 +219,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		}
 
 		if operation.Reschedule {
-			if err := i.pollServiceBinding(ctx, osbClient, binding, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
+			if err := i.pollServiceBinding(ctx, osbClient, binding, instance, plan, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
 				return nil, err
 			}
 		}
@@ -285,6 +290,7 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 			if shouldStartOrphanMitigation(err) {
 				operation.DeletionScheduled = time.Now()
 				operation.Reschedule = false
+				operation.RescheduleTimestamp = time.Time{}
 				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
 				}
@@ -296,6 +302,9 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 			log.C(ctx).Infof("Successful asynchronous unbind request %s to broker %s returned response %s",
 				logUnbindRequest(unbindRequest), broker.Name, logUnbindResponse(unbindResponse))
 			operation.Reschedule = true
+			if operation.RescheduleTimestamp.IsZero() {
+				operation.RescheduleTimestamp = time.Now()
+			}
 
 			if unbindResponse.OperationKey != nil {
 				operation.ExternalID = string(*unbindResponse.OperationKey)
@@ -310,7 +319,7 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 	}
 
 	if operation.Reschedule {
-		if err := i.pollServiceBinding(ctx, osbClient, binding, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
+		if err := i.pollServiceBinding(ctx, osbClient, binding, instance, plan, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
 			return err
 		}
 	}
@@ -435,7 +444,7 @@ func prepareUnbindRequest(instance *types.ServiceInstance, binding *types.Servic
 	return unbindRequest
 }
 
-func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbClient osbc.Client, binding *types.ServiceBinding, operation *types.Operation, brokerID, serviceCatalogID, planCatalogID, operationKey string, enableOrphanMitigation bool) error {
+func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbClient osbc.Client, binding *types.ServiceBinding, instance *types.ServiceInstance, plan *types.ServicePlan, operation *types.Operation, brokerID, serviceCatalogID, planCatalogID, operationKey string, enableOrphanMitigation bool) error {
 	var key *osbc.OperationKey
 	if len(operation.ExternalID) != 0 {
 		opKey := osbc.OperationKey(operation.ExternalID)
@@ -452,14 +461,31 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 		OriginatingIdentity: nil,
 	}
 
+	planMaxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
+	leftPollingDuration := time.Duration(math.MaxInt64) // Never tick if plan has not specified max_polling_duration
+
+	if planMaxPollingDuration > 0 {
+		// MaximumPollingDuration can span multiple reschedules
+		leftPollingDuration = planMaxPollingDuration - (time.Since(operation.RescheduleTimestamp))
+		if leftPollingDuration <= 0 { // The Maximum Polling Duration elapsed before this polling start
+			return i.processMaxPollingDurationElapsed(ctx, binding, instance, plan, operation, enableOrphanMitigation)
+		}
+	}
+
+	maxPollingDurationTicker := time.NewTicker(leftPollingDuration)
+	defer maxPollingDurationTicker.Stop()
+
 	ticker := time.NewTicker(i.pollingInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			log.C(ctx).Errorf("Terminating poll last operation for binding with id %s and name %s due to context done event", binding.ID, binding.Name)
-			//operation should be kept in progress in this case
+			// The context is done, either because SM crashed/exited or because action timeout elapsed. In this case the operation should be kept in progress.
+			// This way the operation would be rescheduled and the polling will span multiple reschedules, but no more than max_polling_interval if provided in the plan.
 			return nil
+		case <-maxPollingDurationTicker.C:
+			return i.processMaxPollingDurationElapsed(ctx, binding, instance, plan, operation, enableOrphanMitigation)
 		case <-ticker.C:
 			log.C(ctx).Infof("Sending poll last operation request %s for binding with id %s and name %s",
 				logPollBindingRequest(pollingRequest), binding.ID, binding.Name)
@@ -469,6 +495,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 					log.C(ctx).Infof("Successfully finished polling operation for binding with id %s and name %s", binding.ID, binding.Name)
 
 					operation.Reschedule = false
+					operation.RescheduleTimestamp = time.Time{}
 					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
 					}
@@ -492,6 +519,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 				log.C(ctx).Infof("Successfully finished polling operation for binding with id %s and name %s", binding.ID, binding.Name)
 
 				operation.Reschedule = false
+				operation.RescheduleTimestamp = time.Time{}
 				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
 				}
@@ -512,6 +540,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 				log.C(ctx).Infof("Failed polling operation for binding with id %s and name %s with response %s",
 					binding.ID, binding.Name, logPollBindingResponse(pollingResponse))
 				operation.Reschedule = false
+				operation.RescheduleTimestamp = time.Time{}
 				if enableOrphanMitigation {
 					operation.DeletionScheduled = time.Now()
 				}
@@ -537,6 +566,23 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 	}
 }
 
+func (i *ServiceBindingInterceptor) processMaxPollingDurationElapsed(ctx context.Context, binding *types.ServiceBinding, instance *types.ServiceInstance, plan *types.ServicePlan, operation *types.Operation, enableOrphanMitigation bool) error {
+	log.C(ctx).Errorf("Terminating poll last operation for binding with id %s and name %s for instance with id %s and name %s due to maximum_polling_duration %ds for it's plan %s is reached", binding.ID, binding.Name, instance.ID, instance.Name, plan.MaximumPollingDuration, plan.Name)
+	operation.Reschedule = false
+	operation.RescheduleTimestamp = time.Time{}
+	if enableOrphanMitigation {
+		operation.DeletionScheduled = time.Now()
+	}
+	if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+		return fmt.Errorf("failed to update operation with id %s after failed of last operation for binding with id %s: %s", operation.ID, binding.ID, err)
+	}
+	return &util.HTTPError{
+		ErrorType:   "BrokerError",
+		Description: fmt.Sprintf("failed polling operation for binding with id %s and name %s for instance with id %s and name %s due to maximum_polling_duration %ds for it's plan %s is reached", binding.ID, binding.Name, instance.ID, instance.Name, plan.MaximumPollingDuration, plan.Name),
+		StatusCode:  http.StatusBadGateway,
+	}
+}
+
 func (i *ServiceBindingInterceptor) getBindingDetailsFromBroker(ctx context.Context, binding *types.ServiceBinding, operation *types.Operation, brokerID string, osbClient osbc.Client) (*bindResponseDetails, error) {
 	getBindingRequest := &osbc.GetBindingRequest{
 		InstanceID: binding.ServiceInstanceID,
@@ -554,6 +600,7 @@ func (i *ServiceBindingInterceptor) getBindingDetailsFromBroker(ctx context.Cont
 			// mark the operation as deletion scheduled meaning orphan mitigation is required
 			operation.DeletionScheduled = time.Now()
 			operation.Reschedule = false
+			operation.RescheduleTimestamp = time.Time{}
 			if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 				return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s",
 					operation.ID, brokerError, err)

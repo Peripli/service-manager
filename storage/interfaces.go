@@ -38,8 +38,7 @@ type Entity interface {
 	GetID() string
 	ToObject() (types.Object, error)
 	FromObject(object types.Object) (Entity, error)
-	BuildLabels(labels types.Labels, newLabel func(id, key, value string) Label) ([]Label, error)
-	NewLabel(id, key, value string) Label
+	NewLabel(id, entityID, key, value string) Label
 }
 
 type Label interface {
@@ -176,6 +175,9 @@ type Repository interface {
 	// List retrieves all object from SM DB
 	List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
 
+	// ListNoLabels retrieves all object from SM DB without their labels
+	ListNoLabels(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
+
 	// Count retrieves number of objects of particular type in SM DB
 	Count(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error)
 
@@ -187,6 +189,9 @@ type Repository interface {
 
 	// Update updates an object from SM DB
 	Update(ctx context.Context, obj types.Object, labelChanges types.LabelChanges, criteria ...query.Criterion) (types.Object, error)
+
+	// UpdateLabels updates the object labels in SM DB
+	UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, _ ...query.Criterion) error
 }
 
 // TransactionalRepository is a storage repository that can initiate a transaction

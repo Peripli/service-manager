@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/test"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/multitenancy"
@@ -65,7 +66,7 @@ const (
 	service1CatalogID           = "service1CatalogID"
 	organizationGUID            = "1113aa0-124e-4af2-1526-6bfacf61b111"
 	SID                         = "12345"
-	timeoutDuration             = time.Millisecond * 500
+	timeoutDuration             = time.Millisecond * 1500
 	additionalDelayAfterTimeout = time.Millisecond * 5
 	testTimeout                 = 10
 
@@ -107,11 +108,14 @@ type brokerPlatformCredentials struct {
 
 var _ = BeforeSuite(func() {
 	ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-		Expect(set.Set("server.request_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
+		Expect(set.Set("server.request_timeout", "4s")).ToNot(HaveOccurred())
 		Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 		Expect(set.Set("httpclient.timeout", timeoutDuration.String())).ToNot(HaveOccurred())
+	}).WithTenantTokenClaims(map[string]interface{}{
+		"cid": "tenancyClient",
+		"zid": TenantValue,
 	}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-		smb.EnableMultitenancy(TenantIdentifier, func(request *web.Request) (string, error) {
+		_, err := smb.EnableMultitenancy(TenantIdentifier, func(request *web.Request) (string, error) {
 			extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")
 			user, ok := web.UserFromContext(request.Context())
 			if !ok {
@@ -129,7 +133,7 @@ var _ = BeforeSuite(func() {
 			request.Request = request.WithContext(web.ContextWithUser(request.Context(), user))
 			return extractTenantFromToken(request)
 		})
-		return nil
+		return err
 	}).Build()
 
 	SMWithBasicPlatform = &common.SMExpect{Expect: ctx.SMWithBasic.Expect}
@@ -191,7 +195,7 @@ var _ = BeforeSuite(func() {
 	for _, p := range plans {
 		common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, p.Object().Value("id").String().Raw(), ctx.TestPlatform.ID)
 	}
-	smBrokerURL = brokerServer.URL() + "/v1/osb/" + brokerID
+	smBrokerURL = ctx.Servers[common.SMServer].URL() + "/v1/osb/" + brokerID
 	brokerName = brokerObject["name"].(string)
 
 	username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, brokerID)
@@ -228,6 +232,11 @@ func assertMissingBrokerError(req *httpexpect.Response) {
 func assertUnresponsiveBrokerError(req *httpexpect.Response) {
 	req.Status(http.StatusBadGateway).JSON().Object().
 		Value("description").String().Contains("could not reach service broker")
+}
+
+func assertSMTimeoutError(req *httpexpect.Response) {
+	req.Status(http.StatusServiceUnavailable).JSON().Object().
+		Value("description").String().Contains("operation has timed out")
 }
 
 func assertFailingBrokerError(req *httpexpect.Response, expectedStatus int, expectedError string) {
@@ -304,6 +313,23 @@ func delayingHandler(done chan<- interface{}) func(rw http.ResponseWriter, req *
 		<-timeoutContext.Done()
 		common.SetResponse(rw, http.StatusTeapot, common.Object{})
 		close(done)
+	}
+}
+
+func slowResponseHandler(seconds int, done chan struct{}) func(rw http.ResponseWriter, req *http.Request) {
+	return func(rw http.ResponseWriter, req *http.Request) {
+		rw.WriteHeader(http.StatusOK)
+		if f, ok := rw.(http.Flusher); ok {
+			for i := 1; i <= seconds*10; i++ {
+				_, err := fmt.Fprintf(rw, "Chunk #%d\n", i)
+				if err != nil {
+					break
+				}
+				f.Flush()
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+		<-done
 	}
 }
 
@@ -476,4 +502,13 @@ func verifyOperationDoesNotExist(resourceID string, operationTypes ...string) {
 	objectList, err := ctx.SMRepository.List(context.TODO(), types.OperationType, criterias...)
 	Expect(err).ToNot(HaveOccurred())
 	Expect(objectList.Len()).To(BeZero())
+}
+
+func hashPassword(password string) string {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		panic(err)
+	}
+
+	return string(passwordHash)
 }

@@ -21,9 +21,6 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"github.com/Peripli/service-manager/test/tls_settings"
-	"github.com/tidwall/gjson"
-	"golang.org/x/crypto/bcrypt"
 	"math/rand"
 	"net"
 	"net/http"
@@ -34,6 +31,10 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/Peripli/service-manager/test/tls_settings"
+	"github.com/tidwall/gjson"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Peripli/service-manager/operations"
 
@@ -449,7 +450,7 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 }
 
 func (tcb *TestContextBuilder) BuildWithoutCleanup() *TestContext {
-	return tcb.BuildWithListener(nil, false)
+	return tcb.SkipBasicAuthClientSetup(true).BuildWithListener(nil, false)
 }
 
 func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup bool) *TestContext {
@@ -504,9 +505,8 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 		RemoveAllBrokers(testContext.SMRepository)
 		RemoveAllPlatforms(testContext.SMRepository)
 		RemoveAllOperations(testContext.SMRepository)
-	} else {
-		testContext.SMWithOAuth.DELETE(web.PlatformsURL + "/" + "tcb-platform-test").Expect()
 	}
+
 	if !tcb.shouldSkipBasicAuthClient {
 		platformJSON := MakePlatform("tcb-platform-test", "tcb-platform-test", "platform-type", "test-platform")
 		platform := RegisterPlatformInSM(platformJSON, testContext.SMWithOAuth, map[string]string{})
@@ -727,12 +727,16 @@ func (ctx *TestContext) RegisterPlatformWithType(platformType string) *types.Pla
 	return RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
 }
 
-func (ctx *TestContext) NewTenantExpect(tenantIdentifier string) *SMExpect {
+func (ctx *TestContext) NewTenantExpect(clientID, tenantIdentifier string, scopes ...string) *SMExpect {
 	tenantOauthServer := ctx.Servers[TenantOauthServer].(*OAuthServer)
+
 	accessToken := tenantOauthServer.CreateToken(map[string]interface{}{
-		"cid": "tenancyClient",
-		"zid": tenantIdentifier,
+		"cid":        clientID,
+		"zid":        tenantIdentifier,
+		"grant_type": "password",
+		"scope":      scopes,
 	})
+
 	return &SMExpect{
 		Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
 			req.WithHeader("Authorization", "Bearer "+accessToken)

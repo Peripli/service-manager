@@ -24,7 +24,7 @@ func (*ServiceBinding) TableName() string {
 	return ServiceBindingTable
 }
 
-func (e *ServiceBinding) NewLabel(id, key, value string) storage.Label {
+func (e *ServiceBinding) NewLabel(id, entityID, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
@@ -37,7 +37,7 @@ func (e *ServiceBinding) NewLabel(id, key, value string) storage.Label {
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		ServiceBindingID: sql.NullString{String: e.ID, Valid: e.ID != ""},
+		ServiceBindingID: sql.NullString{String: entityID, Valid: entityID != ""},
 	}
 }
 
