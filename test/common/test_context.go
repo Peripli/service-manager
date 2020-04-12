@@ -659,7 +659,7 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatal
 	}
 
 	MergeObjects(brokerJSON, brokerData)
-	response:= RegisterBrokerInSMWithoutErrorSwallowing(brokerJSON, expect, map[string]string{})
+	response := RegisterBrokerInSMWithoutErrorSwallowing(brokerJSON, expect, map[string]string{})
 	responseStatusCode := response.Raw().StatusCode
 	if http.StatusCreated != responseStatusCode {
 		err := fmt.Errorf(
