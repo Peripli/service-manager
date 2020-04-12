@@ -89,7 +89,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					When("job timeout runs out", func() {
 						BeforeEach(func() {
 							postHook := func(e env.Environment, servers map[string]FakeServer) {
-								e.Set("operations.action_timeout", 5*time.Nanosecond)
+								e.Set("operations.action_timeout", 6*time.Nanosecond)
 							}
 
 							ctx = NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
@@ -114,7 +114,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					When("reconciliation timeout runs out", func() {
 						BeforeEach(func() {
 							postHook := func(e env.Environment, servers map[string]FakeServer) {
-								e.Set("operations.reconciliation_operation_timeout", 2*time.Nanosecond)
+								e.Set("operations.reconciliation_operation_timeout", 5*time.Nanosecond)
 							}
 
 							ctx = NewTestContextBuilder().WithEnvPostExtensions(postHook).SkipBasicAuthClientSetup(true).Build()
@@ -161,7 +161,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							go executeReq()
 						}
 
-						ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+						ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 						defer cancel()
 
 						select {
@@ -271,7 +271,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect(err).To(BeNil())
 
 								return count
-							}, cleanupInterval*3).Should(Equal(0))
+							}, cleanupInterval*4).Should(Equal(0))
 						})
 					})
 
@@ -330,7 +330,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect(err).To(BeNil())
 
 								return count
-							}, cleanupInterval*3).Should(Equal(0))
+							}, cleanupInterval*4).Should(Equal(0))
 						})
 					})
 
@@ -364,7 +364,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect(err).To(BeNil())
 
 								return count
-							}, operationExpiration*2).Should(Equal(0))
+							}, operationExpiration*3).Should(Equal(0))
 						})
 					})
 				})
@@ -399,7 +399,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 							op := object.(*types.Operation)
 							return op.State
-						}, actionTimeout*5).Should(Equal(types.FAILED))
+						}, actionTimeout*6).Should(Equal(types.FAILED))
 					})
 				})
 			})
