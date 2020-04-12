@@ -407,7 +407,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(ctx *TestContext, auth *SMExpect, _ bool) Object {
+func blueprint(ctx *TestContext, _ *SMExpect, _ bool) Object {
 	cPaidPlan := GeneratePaidTestPlan()
 	cService := GenerateTestServiceWithPlans(cPaidPlan)
 	catalog := NewEmptySBCatalog()
