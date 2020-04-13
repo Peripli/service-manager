@@ -101,7 +101,7 @@ func (f *serviceInstanceTransferFilter) Run(req *web.Request, next web.Handler) 
 	if !service.AllowContextUpdates {
 		return nil, &util.HTTPError{
 			ErrorType:   "UnsupportedContextUpdate",
-			Description: fmt.Sprintf("Instance transfer to platform of type %s failed because instance service offering %s does not support context updates", service.Name, plan.Name),
+			Description: fmt.Sprintf("Instance transfer to platform of type %s failed because instance service offering %s does not support context updates", platform.Type, service.Name),
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
