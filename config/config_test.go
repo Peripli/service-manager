@@ -240,7 +240,7 @@ var _ = Describe("config", func() {
 			})
 		})
 
-		Context("when operation job timeout is < 0", func() {
+		Context("when operation action timeout is < 0", func() {
 			It("returns an error", func() {
 				config.Operations.ActionTimeout = -time.Second
 				assertErrorDuringValidate()
