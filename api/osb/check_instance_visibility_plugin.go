@@ -58,13 +58,27 @@ func (p *checkVisibilityPlugin) UpdateService(req *web.Request, next web.Handler
 	if err := decodeRequestBody(req, requestPayload); err != nil {
 		return nil, err
 	}
-	if len(requestPayload.PlanID) == 0 { // plan is not changed
+	if len(requestPayload.PlanID) == 0 { // plan is not being updated
 		return next.Handle(req)
 	}
 	planID, err := findServicePlanIDByCatalogIDs(ctx, p.repository, requestPayload.BrokerID, requestPayload.ServiceID, requestPayload.PlanID)
 	if err != nil {
 		return nil, err
 	}
+
+	byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
+	instanceObj, err := p.repository.Get(ctx, types.ServiceInstanceType, byID)
+	if err != nil {
+		if err == util.ErrNotFoundInStorage {
+			return next.Handle(req)
+		}
+		return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
+	}
+	instance := instanceObj.(*types.ServiceInstance)
+	if instance.ServicePlanID == planID { // plan is not being updated
+		return next.Handle(req)
+	}
+
 	return p.checkVisibility(req, next, planID, requestPayload.RawContext)
 }
 
