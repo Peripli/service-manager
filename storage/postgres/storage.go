@@ -228,8 +228,10 @@ func (ps *Storage) createLabels(ctx context.Context, labels []PostgresLabel) err
 			return checkIntegrityViolation(ctx, err)
 		}
 		rowsAffected, err := result.RowsAffected()
-		if err == nil {
-			log.C(ctx).Debugf("%d rows affected", rowsAffected)
+		if err != nil {
+			log.C(ctx).Debugf("Could not get number of affected rows: %v", err)
+		} else {
+			log.C(ctx).Debugf("%d rows inserted", rowsAffected)
 		}
 		labels = labels[rows:]
 	}
