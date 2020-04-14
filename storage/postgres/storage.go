@@ -217,9 +217,30 @@ func (ps *Storage) createLabels(ctx context.Context, labels []PostgresLabel) err
 		strings.Join(dbTags, ", :"),
 	)
 
-	log.C(ctx).Debugf("Executing query %s", sqlQuery)
-	_, err := ps.pgDB.NamedExecContext(ctx, sqlQuery, labels)
-	return checkIntegrityViolation(ctx, err)
+	// break into batches so the PostgreSQL limit of 65535 parameters is not exceeded
+	const maxParams = 65535
+	maxRows := maxParams / len(dbTags)
+	for len(labels) > 0 {
+		rows := min(len(labels), maxRows)
+		log.C(ctx).Debugf("Executing query %s", sqlQuery)
+		result, err := ps.pgDB.NamedExecContext(ctx, sqlQuery, labels[:rows])
+		if err != nil {
+			return checkIntegrityViolation(ctx, err)
+		}
+		rowsAffected, err := result.RowsAffected()
+		if err == nil {
+			log.C(ctx).Debugf("%d rows affected", rowsAffected)
+		}
+		labels = labels[rows:]
+	}
+	return nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (ps *Storage) deleteLabels(ctx context.Context, objectType types.ObjectType, entityID string, removedLabels types.Labels) error {
