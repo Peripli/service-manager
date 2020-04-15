@@ -54,6 +54,9 @@ func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.Ser
 			//add a criteria for the supported types
 			supportedPlatformTypes := make([]string, 0)
 			for platformType := range platformTypes {
+				if platformType == types.GetSMSupportedPlatformType() {
+					platformType = types.SMPlatform
+				}
 				supportedPlatformTypes = append(supportedPlatformTypes, platformType)
 			}
 
