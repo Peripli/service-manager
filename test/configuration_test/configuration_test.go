@@ -98,7 +98,7 @@ var _ = Describe("Service Manager Config API", func() {
 					"max_body_bytes": 1048576,
 					"max_header_bytes": 1024,
 					"port": 1234,
-					"request_timeout": "10000ms",
+					"request_timeout": "30s",
 					"shutdown_timeout": "4000ms"
 				},
 				"storage": {
