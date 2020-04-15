@@ -18,8 +18,9 @@ package api_test
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/operations"
 	"testing"
+
+	"github.com/Peripli/service-manager/operations"
 
 	"github.com/Peripli/service-manager/pkg/env/envfakes"
 
