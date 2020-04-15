@@ -38,7 +38,7 @@ var _ = Describe("Service Manager Security Tests", func() {
 	)
 
 	BeforeEach(func() {
-		contextBuilder = common.NewTestContextBuilder()
+		contextBuilder = common.NewTestContextBuilder().WithBasicAuthPlatformName("security-tests-platform")
 	})
 
 	JustBeforeEach(func() {

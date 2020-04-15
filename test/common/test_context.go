@@ -32,6 +32,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
+
 	"github.com/Peripli/service-manager/test/tls_settings"
 	"github.com/tidwall/gjson"
 	"golang.org/x/crypto/bcrypt"
@@ -74,6 +76,7 @@ type TestContextBuilder struct {
 	tenantTokenClaims  map[string]interface{}
 
 	shouldSkipBasicAuthClient bool
+	basicAuthPlatformName     string
 
 	Environment func(f ...func(set *pflag.FlagSet)) env.Environment
 	Servers     map[string]FakeServer
@@ -386,6 +389,12 @@ func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
 	return env
 }
 
+func (tcb *TestContextBuilder) WithBasicAuthPlatformName(name string) *TestContextBuilder {
+	tcb.basicAuthPlatformName = name
+
+	return tcb
+}
+
 func (tcb *TestContextBuilder) SkipBasicAuthClientSetup(shouldSkip bool) *TestContextBuilder {
 	tcb.shouldSkipBasicAuthClient = shouldSkip
 
@@ -449,6 +458,10 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	return tcb.BuildWithListener(nil, true)
 }
 
+func (tcb *TestContextBuilder) BuildWithCleanup(shouldCleanup bool) *TestContext {
+	return tcb.BuildWithListener(nil, shouldCleanup)
+}
+
 func (tcb *TestContextBuilder) BuildWithoutCleanup() *TestContext {
 	return tcb.SkipBasicAuthClientSetup(true).BuildWithListener(nil, false)
 }
@@ -508,8 +521,10 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 	}
 
 	if !tcb.shouldSkipBasicAuthClient {
-		platformJSON := MakePlatform("tcb-platform-test", "tcb-platform-test", "platform-type", "test-platform")
-		platform := RegisterPlatformInSM(platformJSON, testContext.SMWithOAuth, map[string]string{})
+		platform, err := tcb.prepareTestPlatform(testContext.SMWithOAuth)
+		if err != nil {
+			panic(err)
+		}
 		SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
 			username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
 			req.WithBasicAuth(username, password).WithClient(tcb.HttpClient)
@@ -519,6 +534,34 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 	}
 
 	return testContext
+}
+
+func (tcb *TestContextBuilder) prepareTestPlatform(smClient *SMExpect) (*types.Platform, error) {
+	if tcb.basicAuthPlatformName == "" {
+		tcb.basicAuthPlatformName = "basic-auth-default-test-platform"
+		resp := smClient.GET(web.PlatformsURL + "/" + tcb.basicAuthPlatformName).Expect()
+		if resp.Raw().StatusCode == http.StatusNotFound {
+			platformJSON := MakePlatform(tcb.basicAuthPlatformName, tcb.basicAuthPlatformName, "platform-type", "test-platform")
+			platform := RegisterPlatformInSM(platformJSON, smClient, map[string]string{})
+			return platform, nil
+		}
+
+		if resp.Raw().StatusCode != http.StatusOK {
+			panic(resp.Raw().Status)
+		}
+		var platform types.Platform
+		if err := mapstructure.Decode(resp.JSON().Object().Raw(), &platform); err != nil {
+			return nil, err
+		}
+
+		return &platform, nil
+	}
+
+	smClient.DELETE(web.PlatformsURL + "/" + tcb.basicAuthPlatformName)
+	platformJSON := MakePlatform(tcb.basicAuthPlatformName, tcb.basicAuthPlatformName, "platform-type", "test-platform")
+	platform := RegisterPlatformInSM(platformJSON, smClient, map[string]string{})
+
+	return platform, nil
 }
 
 func NewSMListener() (net.Listener, error) {

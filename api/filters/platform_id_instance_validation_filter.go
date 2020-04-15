@@ -57,13 +57,6 @@ func (*PlatformIDInstanceValidationFilter) Run(req *web.Request, next web.Handle
 	var err error
 	switch req.Request.Method {
 	case http.MethodPost:
-		if platformID != "" && platformID != types.SMPlatform {
-			return nil, &util.HTTPError{
-				ErrorType:   "BadRequest",
-				Description: fmt.Sprintf("Providing %s property during provisioning/updating with a value different from %s is forbidden", platformIDProperty, types.SMPlatform),
-				StatusCode:  http.StatusBadRequest,
-			}
-		}
 		if platformID == "" {
 			req.Body, err = sjson.SetBytes(req.Body, platformIDProperty, types.SMPlatform)
 			if err != nil {
@@ -71,6 +64,9 @@ func (*PlatformIDInstanceValidationFilter) Run(req *web.Request, next web.Handle
 			}
 		}
 	case http.MethodPatch:
+		fallthrough
+		//TODO delete case remove when deletion of instances from all platforms is enabled
+	case http.MethodDelete:
 		// we don't want to explicitly add SMPlatform criteria for patch if instance is being migrated to SM
 		if platformID != types.SMPlatform {
 			byPlatformID := query.ByField(query.EqualsOperator, platformIDProperty, types.SMPlatform)
@@ -80,8 +76,6 @@ func (*PlatformIDInstanceValidationFilter) Run(req *web.Request, next web.Handle
 			}
 			req.Request = req.WithContext(ctx)
 		}
-	case http.MethodDelete:
-		// we don't want to explicitly add SMPlatform criteria for delete - this allows deleting instances from other platforms that are unreachable
 	}
 
 	return next.Handle(req)
