@@ -250,6 +250,24 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 					})
 
+					Context("When many labels are provided", func() {
+						It("should return 201", func() {
+							// see https://github.com/lib/pq/blob/master/conn.go#L1282
+							const labelCount = 20000 // 20000 * 6 > 65535 - max postgres parameter number
+							orgs := make(common.Array, labelCount)
+							for i := range orgs {
+								orgs[i] = fmt.Sprintf("org-id-%d", i)
+							}
+							postVisibilityRequestWithLabels["labels"] = common.Object{
+								"org_id": orgs,
+							}
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
+								WithJSON(postVisibilityRequestWithLabels).
+								Expect().Status(http.StatusCreated).
+								JSON().Object().Path("$.labels.org_id").Array().ContainsOnly(orgs...)
+						})
+					})
+
 					Context("When creating labeled visibility for which a public one exists", func() {
 						It("Should return 409", func() {
 							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
