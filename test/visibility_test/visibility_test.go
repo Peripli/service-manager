@@ -261,10 +261,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							postVisibilityRequestWithLabels["labels"] = common.Object{
 								"org_id": orgs,
 							}
-							r := ctx.SMWithOAuth.POST(web.VisibilitiesURL).
-								WithJSON(postVisibilityRequestWithLabels).Expect()
-							common.Print("Response: %s", r.Body().Raw())
-							r.Status(http.StatusCreated).
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
+								WithJSON(postVisibilityRequestWithLabels).
+								Expect().Status(http.StatusCreated).
 								JSON().Object().Path("$.labels.org_id").Array().ContainsOnly(orgs...)
 						})
 					})
