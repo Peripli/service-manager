@@ -250,7 +250,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 					})
 
-					Context("When many labels are provided", func() {
+					FContext("When many labels are provided", func() {
 						It("should return 201", func() {
 							// see https://github.com/lib/pq/blob/master/conn.go#L1282
 							const labelCount = 20000 // 20000 * 6 > 65535 - max postgres parameter number
