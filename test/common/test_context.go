@@ -585,7 +585,7 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	}, smb.Storage, scheduler, cfg
 }
 
-func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) (*BrokerUtils, error) {
+func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) *BrokerUtils {
 	return ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, brokerData, ctx.SMWithOAuth)
 }
 
@@ -633,7 +633,7 @@ func (ctx *TestContext) RegisterBrokerWithRandomCatalogAndTLS(expect *SMExpect) 
 
 }
 
-func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatalog, brokerData Object, expect *SMExpect) (*BrokerUtils, error) {
+func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatalog, brokerData Object, expect *SMExpect) *BrokerUtils {
 	brokerServer := NewBrokerServerWithCatalog(catalog)
 	generatedCatalog := NewRandomSBCatalog()
 	brokerServerWithTLS := NewBrokerServerWithTLSAndCatalog(generatedCatalog)
@@ -659,18 +659,7 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatal
 	}
 
 	MergeObjects(brokerJSON, brokerData)
-	response := RegisterBrokerInSMWithRawResponse(brokerJSON, expect, map[string]string{})
-	responseStatusCode := response.Raw().StatusCode
-	if http.StatusCreated != responseStatusCode {
-		err := fmt.Errorf(
-			"failes registering broker: %s, retured with status-code: %d",
-			UUID.String(),
-			responseStatusCode)
-
-		return nil, err
-
-	}
-	broker := response.Status(http.StatusCreated).JSON().Object().Raw()
+	broker := RegisterBrokerInSM(brokerJSON, expect, map[string]string{})
 	brokerID := broker["id"].(string)
 
 	brokerServer.ResetCallHistory()
@@ -686,7 +675,7 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatal
 		},
 	}
 
-	return &brokerUtils, nil
+	return &brokerUtils
 }
 
 func MergeObjects(target, source Object) {
@@ -714,8 +703,7 @@ func MergeObjects(target, source Object) {
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalog(catalog SBCatalog) *BrokerUtils {
-	brokerUtils, _ := ctx.RegisterBrokerWithCatalogAndLabels(catalog, Object{})
-	return brokerUtils
+	return ctx.RegisterBrokerWithCatalogAndLabels(catalog, Object{})
 }
 
 func (ctx *TestContext) RegisterBroker() *BrokerUtils {
