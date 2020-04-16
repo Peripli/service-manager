@@ -742,6 +742,7 @@
     "github.com/jmoiron/sqlx/types",
     "github.com/kubernetes-sigs/go-open-service-broker-client/v2",
     "github.com/lib/pq",
+    "github.com/mitchellh/mapstructure",
     "github.com/onrik/logrus/filename",
     "github.com/onsi/ginkgo",
     "github.com/onsi/ginkgo/extensions/table",

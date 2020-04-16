@@ -33,12 +33,14 @@ import (
 const ServiceInstanceTransferFilterName = "ServiceInstanceTransferFilter"
 
 type serviceInstanceTransferFilter struct {
-	repository storage.Repository
+	repository             storage.Repository
+	enableInstanceTransfer bool
 }
 
-func NewServiceInstanceTransferFilter(repository storage.Repository) *serviceInstanceTransferFilter {
+func NewServiceInstanceTransferFilter(repository storage.Repository, enableInstanceTransfer bool) *serviceInstanceTransferFilter {
 	return &serviceInstanceTransferFilter{
-		repository: repository,
+		repository:             repository,
+		enableInstanceTransfer: enableInstanceTransfer,
 	}
 }
 
@@ -52,6 +54,14 @@ func (f *serviceInstanceTransferFilter) Run(req *web.Request, next web.Handler) 
 	platformID := gjson.GetBytes(req.Body, "platform_id").String()
 	if platformID == "" {
 		return next.Handle(req)
+	}
+
+	if !f.enableInstanceTransfer {
+		return nil, &util.HTTPError{
+			ErrorType:   "TransferDisabled",
+			Description: "Instance transfer is disabled in this service-manager installation",
+			StatusCode:  http.StatusBadRequest,
+		}
 	}
 
 	instanceID := req.PathParams[web.PathParamResourceID]
@@ -101,7 +111,7 @@ func (f *serviceInstanceTransferFilter) Run(req *web.Request, next web.Handler) 
 	if !service.AllowContextUpdates {
 		return nil, &util.HTTPError{
 			ErrorType:   "UnsupportedContextUpdate",
-			Description: fmt.Sprintf("Instance transfer to platform of type %s failed because instance service offering %s does not support context updates", service.Name, plan.Name),
+			Description: fmt.Sprintf("Instance transfer to platform of type %s failed because instance service offering %s does not support context updates", platform.Type, service.Name),
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
