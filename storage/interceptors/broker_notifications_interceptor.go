@@ -3,13 +3,13 @@ package interceptors
 import (
 	"context"
 	"fmt"
-
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/catalog"
+	"github.com/Peripli/service-manager/storage/service_plans"
 )
 
 func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
@@ -30,27 +30,12 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 				}
 			}
 
-			supportedPlatforms := getSupportedPlatformsForPlans(plans)
-
-			criteria := []query.Criterion{
-				query.ByField(query.NotEqualsOperator, "type", types.SMPlatform),
-			}
-
-			if len(supportedPlatforms) != 0 {
-				criteria = append(criteria, query.ByField(query.InOperator, "type", supportedPlatforms...))
-			}
-
-			objList, err := repository.List(ctx, types.PlatformType, criteria...)
+			supportedPlatforms, err := service_plans.ResolveSupportedPlatformIDsForPlans(ctx, plans, repository)
 			if err != nil {
 				return nil, err
 			}
 
-			platformIDs := make([]string, 0)
-			for i := 0; i < objList.Len(); i++ {
-				platformIDs = append(platformIDs, objList.ItemAt(i).GetID())
-			}
-
-			return platformIDs, nil
+			return removeSMPlatform(supportedPlatforms), nil
 		},
 		AdditionalDetailsFunc: func(ctx context.Context, objects types.ObjectList, repository storage.Repository) (objectDetails, error) {
 			details := make(objectDetails, objects.Len())
@@ -86,6 +71,16 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 			return nil
 		},
 	}
+}
+
+func removeSMPlatform(platforms []string) []string {
+	for i := range platforms {
+		if platforms[i] == types.SMPlatform {
+			platforms[i] = platforms[len(platforms)-1]
+			return platforms[:len(platforms)-1]
+		}
+	}
+	return platforms
 }
 
 type BrokerAdditional struct {
@@ -162,21 +157,4 @@ func fetchBrokerPlans(ctx context.Context, brokerID string, repository storage.R
 	}
 
 	return objList.(*types.ServicePlans).ServicePlans, nil
-}
-
-func getSupportedPlatformsForPlans(plans []*types.ServicePlan) []string {
-	platformTypes := make(map[string]bool)
-	for _, plan := range plans {
-		types := plan.SupportedPlatforms()
-		for _, t := range types {
-			platformTypes[t] = true
-		}
-	}
-
-	supportedPlatforms := make([]string, 0)
-	for platform := range platformTypes {
-		supportedPlatforms = append(supportedPlatforms, platform)
-	}
-
-	return supportedPlatforms
 }

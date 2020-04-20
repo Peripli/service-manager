@@ -83,7 +83,7 @@ func getVisiblePlansByBrokerIDAndPlatformID(ctx context.Context, repository stor
 	if platform.Type == types.CFPlatformType {
 		for i := 0; i < plansList.Len(); i++ {
 			plan := plansList.ItemAt(i).(*types.ServicePlan)
-			if plan.SupportsPlatform(types.CFPlatformType) {
+			if plan.SupportsPlatformInstance(*platform) {
 				visibleCatalogPlans[plan.CatalogID] = true
 			}
 		}

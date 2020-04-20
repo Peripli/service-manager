@@ -18,6 +18,7 @@ package osb_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -461,7 +462,12 @@ type prefixedBrokerHandler struct {
 
 func (pbh *prefixedBrokerHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if strings.HasPrefix(req.URL.Path, pbh.brokerPathPrefix) {
-		common.SetResponse(w, http.StatusOK, common.Object{"services": common.Array{}})
+		servicesMap := make(map[string]interface{})
+		err := json.Unmarshal([]byte(simpleCatalog), &servicesMap)
+		if err != nil {
+			panic(err)
+		}
+		common.SetResponse(w, http.StatusOK, servicesMap)
 	} else {
 		common.SetResponse(w, http.StatusNotFound, common.Object{})
 	}

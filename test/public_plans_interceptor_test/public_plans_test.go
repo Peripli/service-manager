@@ -19,11 +19,13 @@ package interceptor_test
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/util/slice"
+	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/storage/service_plans"
+	"github.com/gavv/httpexpect"
 	"math/rand"
 	"net/http"
 	"testing"
-
-	"github.com/gavv/httpexpect"
 
 	"github.com/Peripli/service-manager/pkg/web"
 
@@ -104,8 +106,8 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
-				SupportedPlatforms: func(plan *types.ServicePlan) []string {
-					return plan.SupportedPlatforms()
+				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
+					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerCreateCatalogInterceptorName).Register()
 
@@ -113,8 +115,8 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
-				SupportedPlatforms: func(plan *types.ServicePlan) []string {
-					return plan.SupportedPlatforms()
+				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
+					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerUpdateCatalogInterceptorName).Register()
 			return nil
@@ -488,4 +490,145 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 			})
 		})
 	})
+
+	Context("when a plan has specified supported platform names", func() {
+		var supportedPlatformsByID map[string]*types.Platform
+		var planID string
+
+		var getSupportedPlatformNames = func() []string {
+			result := make([]string, 0)
+			for _, platform := range supportedPlatformsByID {
+				result = append(result, platform.Name)
+			}
+
+			return result
+		}
+
+		var getSupportedPlatformIDs = func() []string {
+			result := make([]string, 0)
+			for id := range supportedPlatformsByID {
+				result = append(result, id)
+			}
+
+			return result
+		}
+
+		JustBeforeEach(func() {
+			catalog, err := sjson.Set(testCatalog, "services.0.plans.0.metadata.supportedPlatformNames", getSupportedPlatformNames())
+			Expect(err).ToNot(HaveOccurred())
+
+			existingBrokerServer.Catalog = common.SBCatalog(catalog)
+
+			plan := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_name eq '%s'", oldPublicPlanCatalogName))
+
+			plan.Path("$[*].metadata.supportedPlatformNames").NotNull().Array().Empty()
+
+			planID = plan.First().Object().Value("id").String().Raw()
+			Expect(planID).ToNot(BeEmpty())
+
+			visibilities := findOneVisibilityForServicePlanID(planID)
+			Expect(visibilities["platform_id"]).To(Equal(""))
+		})
+
+		Context("when a plan supports only one platform name", func() {
+
+			BeforeEach(func() {
+				platform := ctx.RegisterPlatform()
+				supportedPlatformsByID = map[string]*types.Platform{platform.ID: platform}
+			})
+
+			It("creates a single public visibility for that platform", func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+
+				vis := findOneVisibilityForServicePlanID(planID)
+				Expect(vis["platform_id"]).To(Equal(getSupportedPlatformIDs()[0]))
+			})
+		})
+
+		Context("when a plan supports multiple platform names", func() {
+
+			BeforeEach(func() {
+				firstPlatform := ctx.RegisterPlatform()
+				secondPlatform := ctx.RegisterPlatform()
+				supportedPlatformsByID = map[string]*types.Platform{
+					firstPlatform.ID:  firstPlatform,
+					secondPlatform.ID: secondPlatform,
+				}
+			})
+
+			It("creates a single visibility for each supported platform", func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+
+				vis := findVisibilitiesForServicePlanID(planID)
+				vis.Length().Equal(len(supportedPlatformsByID))
+
+				visPlatformIDs := make([]string, 0)
+				for i := 0; i < len(supportedPlatformsByID); i++ {
+					plt := vis.Element(i).Object()
+					plt.NotContainsKey("labels")
+
+					pltID := plt.Value("platform_id").String().Raw()
+					visPlatformIDs = append(visPlatformIDs, pltID)
+				}
+
+				Expect(len(slice.StringsDistinct(visPlatformIDs, getSupportedPlatformIDs()))).To(BeEquivalentTo(0))
+			})
+		})
+
+		Context("when a broker has a plan supporting platform names and another supporting platform types", func() {
+			var newPlanCatalogName, k8sPlatformID, cfPlatformID string
+
+			BeforeEach(func() {
+				cfPlatform := ctx.RegisterPlatformWithType(types.CFPlatformType)
+				cfPlatformID = cfPlatform.ID
+				supportedPlatformsByID = map[string]*types.Platform{
+					cfPlatform.ID: cfPlatform,
+				}
+			})
+
+			JustBeforeEach(func() {
+				k8sPlatform := ctx.RegisterPlatformWithType(types.K8sPlatformType)
+				k8sPlatformID = k8sPlatform.ID
+
+				newPlan := common.GenerateFreeTestPlan()
+				newPlanCatalogName = gjson.Get(newPlan, "name").String()
+				Expect(newPlanCatalogName).ToNot(BeEmpty())
+				additionalPublicPlan, err := sjson.Set(newPlan, "metadata.supportedPlatforms", []string{k8sPlatform.Type})
+
+				var catalog string
+				catalog, err = sjson.Set(string(existingBrokerServer.Catalog), "services.0.plans.-1", common.JSONToMap(additionalPublicPlan))
+				Expect(err).ShouldNot(HaveOccurred())
+
+				existingBrokerServer.Catalog = common.SBCatalog(catalog)
+			})
+
+			It("creates visibilities according to both platform names and types", func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+
+				By("visibility by platform name", func() {
+					cfVis := findVisibilitiesForServicePlanID(planID)
+					cfVis.Length().Equal(1)
+					Expect(cfVis.Element(0).Object().Value("platform_id").String().Raw()).To(BeEquivalentTo(cfPlatformID))
+				})
+
+				By("visibility by platform type", func() {
+					newPlanID := findDatabaseIDForServicePlanByCatalogName(newPlanCatalogName)
+					k8sVis := findVisibilitiesForServicePlanID(newPlanID)
+					k8sVis.Length().Equal(1)
+					Expect(k8sVis.Element(0).Object().Value("platform_id").String().Raw()).To(BeEquivalentTo(k8sPlatformID))
+				})
+
+			})
+		})
+	})
+
 })

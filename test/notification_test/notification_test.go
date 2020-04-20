@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/storage/service_plans"
 	"net/http"
 	"testing"
 
@@ -350,8 +351,8 @@ var _ = Describe("Notifications Suite", func() {
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
-				SupportedPlatforms: func(plan *types.ServicePlan) []string {
-					return plan.SupportedPlatforms()
+				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
+					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerCreateNotificationInterceptorName).Register()
 
@@ -359,8 +360,8 @@ var _ = Describe("Notifications Suite", func() {
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
-				SupportedPlatforms: func(plan *types.ServicePlan) []string {
-					return plan.SupportedPlatforms()
+				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
+					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerUpdateNotificationInterceptorName).Register()
 

@@ -202,6 +202,7 @@ func CopyObject(obj Object) Object {
 			o[k] = v
 		}
 	}
+
 	return o
 }
 

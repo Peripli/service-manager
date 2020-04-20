@@ -93,7 +93,7 @@ func (f *serviceInstanceTransferFilter) Run(req *web.Request, next web.Handler) 
 		return nil, util.HandleStorageError(err, types.PlatformType.String())
 	}
 	platform := platformObject.(*types.Platform)
-	if !plan.SupportsPlatform(platform.Type) {
+	if !plan.SupportsPlatformInstance(*platform) {
 		return nil, &util.HTTPError{
 			ErrorType:   "UnsupportedPlatform",
 			Description: fmt.Sprintf("Instance transfer to platform of type %s failed because instance plan %s does not support this platform", platform.Type, plan.Name),
