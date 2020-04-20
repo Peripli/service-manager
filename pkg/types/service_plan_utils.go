@@ -65,7 +65,7 @@ func (e *ServicePlan) metadataPropertyAsStringArray(propertyKey string) []string
 	if !propertyValue.IsArray() || len(propertyValue.Array()) == 0 {
 		return []string{}
 	}
-	
+
 	array := propertyValue.Array()
 	result := make([]string, len(array))
 	for i, p := range propertyValue.Array() {
