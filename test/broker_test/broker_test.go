@@ -220,6 +220,21 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			})
 
 			Describe("POST", func() {
+				verifyPOSTWhenCatalogFieldHasValue := func(responseVerifier func(r *httpexpect.Response), fieldPath string, fieldValue interface{}) {
+					BeforeEach(func() {
+						catalog, err := sjson.Set(string(brokerServer.Catalog), fieldPath, fieldValue)
+						Expect(err).ToNot(HaveOccurred())
+
+						brokerServer.Catalog = SBCatalog(catalog)
+					})
+
+					It("returns correct response", func() {
+						responseVerifier(ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithNoLabels).Expect())
+
+						assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+					})
+				}
+
 				Context("when content type is not JSON", func() {
 					It("returns 415", func() {
 						ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithText("text").
@@ -452,21 +467,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 					}
 
-					verifyPOSTWhenCatalogFieldHasValue := func(responseVerifier func(r *httpexpect.Response), fieldPath string, fieldValue interface{}) {
-						BeforeEach(func() {
-							catalog, err := sjson.Set(string(brokerServer.Catalog), fieldPath, fieldValue)
-							Expect(err).ToNot(HaveOccurred())
-
-							brokerServer.Catalog = SBCatalog(catalog)
-						})
-
-						It("returns correct response", func() {
-							responseVerifier(ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithNoLabels).Expect())
-
-							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
-						})
-					}
-
 					Context("when the broker catalog contains an incomplete service", func() {
 						Context("that has an empty catalog id", func() {
 							verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
@@ -650,6 +650,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								WithJSON(postBrokerRequestWithLabels).
 								Expect().Status(http.StatusBadRequest)
 						})
+					})
+				})
+
+				Context("Supported platforms", func() {
+					Context("When a plan has supportedPlatforms in metadata", func() {
+						verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+							r.Status(http.StatusCreated)
+						}, "services.0.plans.0.metadata", common.Object{"supportedPlatforms": []string{"a"}})
+					})
+
+					Context("When a plan has supportedPlatformNames in metadata", func() {
+						verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+							r.Status(http.StatusCreated)
+						}, "services.0.plans.0.metadata", common.Object{"supportedPlatformNames": []string{"a"}})
 					})
 				})
 
