@@ -497,14 +497,18 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 						return fmt.Errorf("failed to update operation with id %s to mark that next execution should not be reschedulable", operation.ID)
 					}
 					return nil
+				} else if httpError, ok := osbc.IsHTTPError(err); ok && httpError.StatusCode == http.StatusBadRequest {
+					return &util.HTTPError{
+						ErrorType: "BrokerError",
+						Description: fmt.Sprintf("Failed poll last operation request %s for instance with id %s and name %s: %s",
+							logPollInstanceRequest(pollingRequest), instance.ID, instance.Name, err),
+						StatusCode: http.StatusBadRequest,
+					}
+				} else {
+					log.C(ctx).Errorf("Broker failed to handle the request. Rescheduling polling last operation request %s to for provisioning of instance with id %s and name %s...",
+						logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
 				}
 
-				return &util.HTTPError{
-					ErrorType: "BrokerError",
-					Description: fmt.Sprintf("Failed poll last operation request %s for instance with id %s and name %s: %s",
-						logPollInstanceRequest(pollingRequest), instance.ID, instance.Name, err),
-					StatusCode: http.StatusBadGateway,
-				}
 			}
 			switch pollingResponse.State {
 			case osbc.StateInProgress:
