@@ -497,54 +497,58 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 						return fmt.Errorf("failed to update operation with id %s to mark that next execution should not be reschedulable", operation.ID)
 					}
 					return nil
-				}
-
-				return &util.HTTPError{
-					ErrorType: "BrokerError",
-					Description: fmt.Sprintf("Failed poll last operation request %s for instance with id %s and name %s: %s",
-						logPollInstanceRequest(pollingRequest), instance.ID, instance.Name, err),
-					StatusCode: http.StatusBadGateway,
-				}
-			}
-			switch pollingResponse.State {
-			case osbc.StateInProgress:
-				log.C(ctx).Infof("Polling of instance still in progress. Rescheduling polling last operation request %s to for provisioning of instance with id %s and name %s...",
-					logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
-
-			case osbc.StateSucceeded:
-				log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
-
-				operation.Reschedule = false
-				operation.RescheduleTimestamp = time.Time{}
-				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
-					return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
-				}
-
-				return nil
-			case osbc.StateFailed:
-				log.C(ctx).Infof("Failed polling operation for instance with id %s and name %s with response %s", instance.ID, instance.Name, logPollInstanceResponse(pollingResponse))
-				operation.Reschedule = false
-				operation.RescheduleTimestamp = time.Time{}
-				if enableOrphanMitigation {
-					operation.DeletionScheduled = time.Now()
-				}
-				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
-					return fmt.Errorf("failed to update operation with id %s after failed of last operation for instance with id %s: %s", operation.ID, instance.ID, err)
-				}
-
-				errDescription := ""
-				if pollingResponse.Description != nil {
-					errDescription = *pollingResponse.Description
+				} else if httpError, ok := osbc.IsHTTPError(err); ok && httpError.StatusCode == http.StatusBadRequest {
+					return &util.HTTPError{
+						ErrorType: "BrokerError",
+						Description: fmt.Sprintf("Failed poll last operation request %s for instance with id %s and name %s: %s",
+							logPollInstanceRequest(pollingRequest), instance.ID, instance.Name, err),
+						StatusCode: http.StatusBadRequest,
+					}
 				} else {
-					errDescription = "no description provided by broker"
+					log.C(ctx).Errorf("Broker failed to handle the request. Rescheduling polling last operation request %s to for provisioning of instance with id %s and name %s...",
+						logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
 				}
-				return &util.HTTPError{
-					ErrorType:   "BrokerError",
-					Description: fmt.Sprintf("failed polling operation for instance with id %s and name %s due to polling last operation error: %s", instance.ID, instance.Name, errDescription),
-					StatusCode:  http.StatusBadGateway,
+			} else {
+				switch pollingResponse.State {
+				case osbc.StateInProgress:
+					log.C(ctx).Infof("Polling of instance still in progress. Rescheduling polling last operation request %s to for provisioning of instance with id %s and name %s...",
+						logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
+
+				case osbc.StateSucceeded:
+					log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
+
+					operation.Reschedule = false
+					operation.RescheduleTimestamp = time.Time{}
+					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+						return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
+					}
+
+					return nil
+				case osbc.StateFailed:
+					log.C(ctx).Infof("Failed polling operation for instance with id %s and name %s with response %s", instance.ID, instance.Name, logPollInstanceResponse(pollingResponse))
+					operation.Reschedule = false
+					operation.RescheduleTimestamp = time.Time{}
+					if enableOrphanMitigation {
+						operation.DeletionScheduled = time.Now()
+					}
+					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+						return fmt.Errorf("failed to update operation with id %s after failed of last operation for instance with id %s: %s", operation.ID, instance.ID, err)
+					}
+
+					errDescription := ""
+					if pollingResponse.Description != nil {
+						errDescription = *pollingResponse.Description
+					} else {
+						errDescription = "no description provided by broker"
+					}
+					return &util.HTTPError{
+						ErrorType:   "BrokerError",
+						Description: fmt.Sprintf("failed polling operation for instance with id %s and name %s due to polling last operation error: %s", instance.ID, instance.Name, errDescription),
+						StatusCode:  http.StatusBadGateway,
+					}
+				default:
+					log.C(ctx).Errorf("invalid state during poll last operation for instance with id %s and name %s: %s. Continuing polling...", instance.ID, instance.Name, pollingResponse.State)
 				}
-			default:
-				log.C(ctx).Errorf("invalid state during poll last operation for instance with id %s and name %s: %s. Continuing polling...", instance.ID, instance.Name, pollingResponse.State)
 			}
 		}
 	}
