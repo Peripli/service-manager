@@ -949,8 +949,33 @@ var _ = DescribeTestsFor(TestCase{
 								When("polling returns an unexpected status code", func() {
 									BeforeEach(func() {
 										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"3", ParameterizedHandler(http.StatusInternalServerError, Object{"error": "error"}))
+									})
+
+									It("stores the instance as ready false and marks the operation as reschedulable", func() {
+										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.FAILED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     true,
+											DeletionScheduled: false,
+										})
+
+										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    instanceID,
+											Type:  types.ServiceInstanceType,
+											Ready: false,
+										})
+									})
+								})
+
+								When("broker unavailable during polling", func() {
+									BeforeEach(func() {
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
 										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"3", MultipleErrorsBeforeSuccessHandler(
-											http.StatusInternalServerError, http.StatusOK,
+											http.StatusServiceUnavailable, http.StatusOK,
 											Object{"error": "error"}, Object{"state": "succeeded"},
 										))
 									})
@@ -973,6 +998,8 @@ var _ = DescribeTestsFor(TestCase{
 										})
 									})
 								})
+
+
 							})
 
 							if testCase.async {

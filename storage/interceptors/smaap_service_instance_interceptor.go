@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -497,16 +498,16 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 						return fmt.Errorf("failed to update operation with id %s to mark that next execution should not be reschedulable", operation.ID)
 					}
 					return nil
-				} else if httpError, ok := osbc.IsHTTPError(err); ok && httpError.StatusCode == http.StatusBadRequest {
+				} else if isUnreachableBroker(err) {
+					log.C(ctx).Errorf("Broker temporarily unreachable. Rescheduling polling last operation request %s to for provisioning of instance with id %s and name %s...",
+						logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
+				} else {
 					return &util.HTTPError{
 						ErrorType: "BrokerError",
 						Description: fmt.Sprintf("Failed poll last operation request %s for instance with id %s and name %s: %s",
 							logPollInstanceRequest(pollingRequest), instance.ID, instance.Name, err),
 						StatusCode: http.StatusBadRequest,
 					}
-				} else {
-					log.C(ctx).Errorf("Broker failed to handle the request. Rescheduling polling last operation request %s to for provisioning of instance with id %s and name %s...",
-						logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
 				}
 			} else {
 				switch pollingResponse.State {
@@ -552,6 +553,17 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 			}
 		}
 	}
+}
+
+func isUnreachableBroker(err error) bool {
+	if timeOutError, ok := err.(net.Error); ok && timeOutError.Timeout() {
+		return true
+	}
+	httpError, ok := osbc.IsHTTPError(err)
+	if !ok {
+		return false
+	}
+	return (httpError.StatusCode == http.StatusServiceUnavailable || httpError.StatusCode == http.StatusNotFound)
 }
 
 func (i *ServiceInstanceInterceptor) processMaxPollingDurationElapsed(ctx context.Context, instance *types.ServiceInstance, plan *types.ServicePlan, operation *types.Operation, enableOrphanMitigation bool) error {
