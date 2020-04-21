@@ -289,6 +289,10 @@ func (ir *queryScopedInterceptableRepository) Delete(ctx context.Context, object
 	return nil
 }
 
+func (itr *InterceptableTransactionalRepository) ProvideInterceptors() (map[types.ObjectType]CreateInterceptor, map[types.ObjectType]UpdateInterceptor, map[types.ObjectType]DeleteInterceptor) {
+	return itr.provideInterceptors()
+}
+
 func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj types.Object, labelChanges types.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
 	updateObjFunc := func(ctx context.Context, _ Repository, oldObj, newObj types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
 		object, err := ir.repositoryInTransaction.Update(ctx, newObj, labelChanges, criteria...)

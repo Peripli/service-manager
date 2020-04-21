@@ -84,14 +84,14 @@ type OrderedCreateInterceptorProvider struct {
 }
 
 type CreateAroundTxInterceptorChain struct {
-	aroundTxNames []string
+	AroundTxNames []string
 	aroundTxFuncs map[string]CreateAroundTxInterceptor
 }
 
 // AroundTxCreate wraps the provided InterceptCreateAroundTxFunc into all the existing aroundTx funcs
 func (c *CreateAroundTxInterceptorChain) AroundTxCreate(f InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc {
-	for i := range c.aroundTxNames {
-		if interceptor, found := c.aroundTxFuncs[c.aroundTxNames[len(c.aroundTxNames)-1-i]]; found {
+	for i := range c.AroundTxNames {
+		if interceptor, found := c.aroundTxFuncs[c.AroundTxNames[len(c.AroundTxNames)-1-i]]; found {
 			f = interceptor.AroundTxCreate(f)
 		}
 	}
@@ -99,14 +99,14 @@ func (c *CreateAroundTxInterceptorChain) AroundTxCreate(f InterceptCreateAroundT
 }
 
 type CreateOnTxInterceptorChain struct {
-	onTxNames []string
+	OnTxNames []string
 	onTxFuncs map[string]CreateOnTxInterceptor
 }
 
 // OnTxCreate wraps the provided InterceptCreateOnTxFunc into all the existing onTx funcs
 func (c *CreateOnTxInterceptorChain) OnTxCreate(f InterceptCreateOnTxFunc) InterceptCreateOnTxFunc {
-	for i := range c.onTxNames {
-		if interceptor, found := c.onTxFuncs[c.onTxNames[len(c.onTxNames)-1-i]]; found {
+	for i := range c.OnTxNames {
+		if interceptor, found := c.onTxFuncs[c.OnTxNames[len(c.OnTxNames)-1-i]]; found {
 			f = interceptor.OnTxCreate(f)
 		}
 	}
@@ -126,7 +126,7 @@ func (itr *InterceptableTransactionalRepository) newCreateOnTxInterceptorChain(o
 		onTxFuncs[provider.Name()] = provider.Provide()
 	}
 	return &CreateOnTxInterceptorChain{
-		onTxNames: itr.orderedCreateOnTxProvidersNames[objectType],
+		OnTxNames: itr.orderedCreateOnTxProvidersNames[objectType],
 		onTxFuncs: onTxFuncs,
 	}
 }
@@ -152,11 +152,11 @@ func (itr *InterceptableTransactionalRepository) newCreateInterceptorChain(objec
 
 	return &CreateInterceptorChain{
 		CreateAroundTxInterceptorChain: &CreateAroundTxInterceptorChain{
-			aroundTxNames: itr.orderedCreateAroundTxProvidersNames[objectType],
+			AroundTxNames: itr.orderedCreateAroundTxProvidersNames[objectType],
 			aroundTxFuncs: aroundTxFuncs,
 		},
 		CreateOnTxInterceptorChain: &CreateOnTxInterceptorChain{
-			onTxNames: itr.orderedCreateOnTxProvidersNames[objectType],
+			OnTxNames: itr.orderedCreateOnTxProvidersNames[objectType],
 			onTxFuncs: onTxFuncs,
 		},
 	}

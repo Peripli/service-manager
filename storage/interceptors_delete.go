@@ -70,14 +70,14 @@ type OrderedDeleteInterceptorProvider struct {
 }
 
 type DeleteAroundTxInterceptorChain struct {
-	aroundTxNames []string
+	AroundTxNames []string
 	aroundTxFuncs map[string]DeleteAroundTxInterceptor
 }
 
 // AroundTxDelete wraps the provided InterceptDeleteAroundTxFunc into all the existing aroundTx funcs
 func (c *DeleteAroundTxInterceptorChain) AroundTxDelete(f InterceptDeleteAroundTxFunc) InterceptDeleteAroundTxFunc {
-	for i := range c.aroundTxNames {
-		if interceptor, found := c.aroundTxFuncs[c.aroundTxNames[len(c.aroundTxNames)-1-i]]; found {
+	for i := range c.AroundTxNames {
+		if interceptor, found := c.aroundTxFuncs[c.AroundTxNames[len(c.AroundTxNames)-1-i]]; found {
 			f = interceptor.AroundTxDelete(f)
 		}
 	}
@@ -85,14 +85,14 @@ func (c *DeleteAroundTxInterceptorChain) AroundTxDelete(f InterceptDeleteAroundT
 }
 
 type DeleteOnTxInterceptorChain struct {
-	onTxNames []string
+	OnTxNames []string
 	onTxFuncs map[string]DeleteOnTxInterceptor
 }
 
 // OnTxDelete wraps the provided InterceptDeleteOnTxFunc into all the existing onTx funcs
 func (c *DeleteOnTxInterceptorChain) OnTxDelete(f InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc {
-	for i := range c.onTxNames {
-		if interceptor, found := c.onTxFuncs[c.onTxNames[len(c.onTxNames)-1-i]]; found {
+	for i := range c.OnTxNames {
+		if interceptor, found := c.onTxFuncs[c.OnTxNames[len(c.OnTxNames)-1-i]]; found {
 			f = interceptor.OnTxDelete(f)
 		}
 	}
@@ -112,7 +112,7 @@ func (itr *InterceptableTransactionalRepository) newDeleteOnTxInterceptorChain(o
 		onTxFuncs[provider.Name()] = provider.Provide()
 	}
 	return &DeleteOnTxInterceptorChain{
-		onTxNames: itr.orderedDeleteOnTxProvidersNames[objectType],
+		OnTxNames: itr.orderedDeleteOnTxProvidersNames[objectType],
 		onTxFuncs: onTxFuncs,
 	}
 }
@@ -138,11 +138,11 @@ func (itr *InterceptableTransactionalRepository) newDeleteInterceptorChain(objec
 
 	return &DeleteInterceptorChain{
 		DeleteAroundTxInterceptorChain: &DeleteAroundTxInterceptorChain{
-			aroundTxNames: itr.orderedDeleteAroundTxProvidersNames[objectType],
+			AroundTxNames: itr.orderedDeleteAroundTxProvidersNames[objectType],
 			aroundTxFuncs: aroundTxFuncs,
 		},
 		DeleteOnTxInterceptorChain: &DeleteOnTxInterceptorChain{
-			onTxNames: itr.orderedDeleteOnTxProvidersNames[objectType],
+			OnTxNames: itr.orderedDeleteOnTxProvidersNames[objectType],
 			onTxFuncs: onTxFuncs,
 		},
 	}

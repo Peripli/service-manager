@@ -84,14 +84,14 @@ type OrderedUpdateInterceptorProvider struct {
 }
 
 type UpdateAroundTxInterceptorChain struct {
-	aroundTxNames []string
+	AroundTxNames []string
 	aroundTxFuncs map[string]UpdateAroundTxInterceptor
 }
 
 // AroundTxUpdate wraps the provided InterceptUpdateAroundTxFunc into all the existing aroundTx funcs
 func (c *UpdateAroundTxInterceptorChain) AroundTxUpdate(f InterceptUpdateAroundTxFunc) InterceptUpdateAroundTxFunc {
-	for i := range c.aroundTxNames {
-		if interceptor, found := c.aroundTxFuncs[c.aroundTxNames[len(c.aroundTxNames)-1-i]]; found {
+	for i := range c.AroundTxNames {
+		if interceptor, found := c.aroundTxFuncs[c.AroundTxNames[len(c.AroundTxNames)-1-i]]; found {
 			f = interceptor.AroundTxUpdate(f)
 		}
 	}
@@ -99,14 +99,14 @@ func (c *UpdateAroundTxInterceptorChain) AroundTxUpdate(f InterceptUpdateAroundT
 }
 
 type UpdateOnTxInterceptorChain struct {
-	onTxNames []string
+	OnTxNames []string
 	onTxFuncs map[string]UpdateOnTxInterceptor
 }
 
 // OnTxUpdate wraps the provided InterceptUpdateOnTxFunc into all the existing onTx funcs
 func (c *UpdateOnTxInterceptorChain) OnTxUpdate(f InterceptUpdateOnTxFunc) InterceptUpdateOnTxFunc {
-	for i := range c.onTxNames {
-		if interceptor, found := c.onTxFuncs[c.onTxNames[len(c.onTxNames)-1-i]]; found {
+	for i := range c.OnTxNames {
+		if interceptor, found := c.onTxFuncs[c.OnTxNames[len(c.OnTxNames)-1-i]]; found {
 			f = interceptor.OnTxUpdate(f)
 		}
 	}
@@ -126,7 +126,7 @@ func (itr *InterceptableTransactionalRepository) newUpdateOnTxInterceptorChain(o
 		onTxFuncs[provider.Name()] = provider.Provide()
 	}
 	return &UpdateOnTxInterceptorChain{
-		onTxNames: itr.orderedUpdateOnTxProvidersNames[objectType],
+		OnTxNames: itr.orderedUpdateOnTxProvidersNames[objectType],
 		onTxFuncs: onTxFuncs,
 	}
 }
@@ -152,11 +152,11 @@ func (itr *InterceptableTransactionalRepository) newUpdateInterceptorChain(objec
 
 	return &UpdateInterceptorChain{
 		UpdateAroundTxInterceptorChain: &UpdateAroundTxInterceptorChain{
-			aroundTxNames: itr.orderedUpdateAroundTxProvidersNames[objectType],
+			AroundTxNames: itr.orderedUpdateAroundTxProvidersNames[objectType],
 			aroundTxFuncs: aroundTxFuncs,
 		},
 		UpdateOnTxInterceptorChain: &UpdateOnTxInterceptorChain{
-			onTxNames: itr.orderedUpdateOnTxProvidersNames[objectType],
+			OnTxNames: itr.orderedUpdateOnTxProvidersNames[objectType],
 			onTxFuncs: onTxFuncs,
 		},
 	}
