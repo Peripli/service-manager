@@ -506,7 +506,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 						ErrorType: "BrokerError",
 						Description: fmt.Sprintf("Failed poll last operation request %s for instance with id %s and name %s: %s",
 							logPollInstanceRequest(pollingRequest), instance.ID, instance.Name, err),
-						StatusCode: http.StatusBadRequest,
+						StatusCode: http.StatusBadGateway,
 					}
 				}
 			} else {
