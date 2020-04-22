@@ -216,6 +216,9 @@ func DescribeTestsFor(t TestCase) bool {
 			if t.MultitenancySettings != nil {
 				ctxBuilder.
 					WithTenantTokenClaims(t.MultitenancySettings.TokenClaims).
+					WithEnvPostExtensions(func(e env.Environment, servers map[string]common.FakeServer) {
+						e.Set("api.protected_labels", t.MultitenancySettings.LabelKey)
+					}).
 					WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 						_, err := smb.EnableMultitenancy(t.MultitenancySettings.LabelKey, func(request *web.Request) (string, error) {
 							extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc(t.MultitenancySettings.TenantTokenClaim)

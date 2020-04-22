@@ -53,6 +53,8 @@ func TestBrokers(t *testing.T) {
 	RunSpecs(t, "ServiceBroker API Tests Suite")
 }
 
+const TenantLabelKey = "tenant"
+
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.ServiceBrokersURL,
 	SupportedOps: []test.Op{
@@ -62,7 +64,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 		ClientID:           "tenancyClient",
 		ClientIDTokenClaim: "cid",
 		TenantTokenClaim:   "zid",
-		LabelKey:           "tenant",
+		LabelKey:           TenantLabelKey,
 		TokenClaims: map[string]interface{}{
 			"cid": "tenancyClient",
 			"zid": "tenantID",
@@ -258,6 +260,52 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Keys().Contains("error", "description")
 
 						assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
+					})
+				})
+
+				FContext("when request body contains protected labels", func() {
+					BeforeEach(func() {
+						postBrokerRequestWithLabels.SetLabels(Object{
+							TenantLabelKey: []string{"test-tenant"},
+						})
+					})
+
+					It("returns 400", func() {
+						ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithLabels).
+							Expect().
+							Status(http.StatusBadRequest).
+							JSON().Object().
+							Keys().Contains("error", "description")
+
+						assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
+					})
+
+					Context("when request body contains multiple label objects", func() {
+						It("returns 400", func() {
+							ctx.SMWithOAuth.POST(web.ServiceBrokersURL).
+								WithHeader("Content-Type", "application/json").
+								WithBytes([]byte(fmt.Sprintf(`{
+								"name":        "broker-with-labels",
+								"broker_url":  "%s",
+								"description": "desc",
+								"credentials": {
+									"basic": {
+										"username": "%s",
+										"password": "%s"
+									}
+								},
+								"labels": {},
+								"labels": {
+									"%s":["test-tenant"]
+								}	
+							}`, brokerWithLabelsServer.URL(), brokerWithLabelsServer.Username, brokerWithLabelsServer.Password, TenantLabelKey))).
+								Expect().
+								Status(http.StatusBadRequest).
+								JSON().Object().
+								Keys().Contains("error", "description")
+
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
+						})
 					})
 				})
 
@@ -2196,6 +2244,6 @@ func blueprint(setNullFieldsValues bool) func(ctx *TestContext, auth *SMExpect, 
 
 type labeledBroker Object
 
-func (b labeledBroker) AddLabel(label Object) {
-	b["labels"] = append(b["labels"].(Array), label)
+func (b labeledBroker) SetLabels(labels Object) {
+	b["labels"] = labels
 }

@@ -311,6 +311,47 @@ var _ = DescribeTestsFor(TestCase{
 							})
 						})
 
+						FContext("when request body contains protected labels", func() {
+							It("returns 400", func() {
+								ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+									WithQuery("async", testCase.async).
+									WithHeader("Content-Type", "application/json").
+									WithBytes([]byte(fmt.Sprintf(`{
+										"name": "test-binding-name",
+										"service_instance_id": "%s",
+										"maintenance_info": {},
+										"labels": {
+											"%s":["test-tenant"]
+										}
+									}`, instanceID, TenantIdentifier))).
+									Expect().
+									Status(http.StatusBadRequest).
+									JSON().Object().
+									Keys().Contains("error", "description")
+							})
+
+							Context("when request body contains multiple label objects", func() {
+								It("returns 400", func() {
+									ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+										WithQuery("async", testCase.async).
+										WithHeader("Content-Type", "application/json").
+										WithBytes([]byte(fmt.Sprintf(`{
+										"name": "test-binding-name",
+										"service_instance_id": "%s",
+										"maintenance_info": {},
+										"labels": {},
+										"labels": {
+											"%s":["test-tenant"]
+										}
+									}`, instanceID, TenantIdentifier))).
+										Expect().
+										Status(http.StatusBadRequest).
+										JSON().Object().
+										Keys().Contains("error", "description")
+								})
+							})
+						})
+
 						Context("when a request body field is missing", func() {
 							assertPOSTReturns400WhenFieldIsMissing := func(field string) {
 								JustBeforeEach(func() {
