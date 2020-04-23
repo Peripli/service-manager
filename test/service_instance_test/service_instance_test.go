@@ -328,7 +328,7 @@ var _ = DescribeTestsFor(TestCase{
 							})
 						})
 
-						FContext("when request body contains protected labels", func() {
+						Context("when request body contains protected labels", func() {
 							It("returns 400", func() {
 								ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 									WithQuery("async", testCase.async).

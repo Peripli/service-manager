@@ -18,7 +18,9 @@
 package util
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -75,15 +77,82 @@ func RequestBodyToBytes(request *http.Request) ([]byte, error) {
 		return nil, err
 	}
 
-	if strings.Contains(contentType, "application/json") && !json.Valid(body) {
-		return nil, &HTTPError{
-			ErrorType:   "BadRequest",
-			Description: "request body is not valid JSON",
-			StatusCode:  http.StatusBadRequest,
+	if strings.Contains(contentType, "application/json") {
+		if err := validJson(body); err != nil {
+			return nil, &HTTPError{
+				ErrorType:   "BadRequest",
+				Description: fmt.Sprintf("Request body is not valid: %s", err),
+				StatusCode:  http.StatusBadRequest,
+			}
 		}
 	}
 
 	return body, nil
+}
+
+func validJson(data []byte) error {
+	if !json.Valid(data) {
+		return fmt.Errorf("invalid json")
+	}
+	return checkDuplicateKeys(json.NewDecoder(bytes.NewReader(data)), nil)
+}
+
+func checkDuplicateKeys(d *json.Decoder, path []string) error {
+	// Get next token from JSON
+	t, err := d.Token()
+	if err != nil {
+		return err
+	}
+
+	delim, ok := t.(json.Delim)
+
+	// There's nothing to do for simple values (strings, numbers, bool, nil)
+	if !ok {
+		return nil
+	}
+
+	switch delim {
+	case '{':
+		keys := make(map[string]bool)
+		for d.More() {
+			// Get field key
+			t, err := d.Token()
+			if err != nil {
+				return err
+			}
+			key := t.(string)
+
+			// Check for duplicates
+			if keys[key] {
+				return fmt.Errorf("invalid json: duplicate key %s", strings.Join(append(path, key), "."))
+			}
+			keys[key] = true
+
+			// Check value
+			if err := checkDuplicateKeys(d, append(path, key)); err != nil {
+				return err
+			}
+		}
+		// Consume trailing }
+		if _, err := d.Token(); err != nil {
+			return err
+		}
+
+	case '[':
+		i := 0
+		for d.More() {
+			if err := checkDuplicateKeys(d, append(path, fmt.Sprintf("[%d]",i))); err != nil {
+				return err
+			}
+			i++
+		}
+		// Consume trailing ]
+		if _, err := d.Token(); err != nil {
+			return err
+		}
+
+	}
+	return nil
 }
 
 // BytesToObject converts the provided bytes to object and validates it

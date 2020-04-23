@@ -263,7 +263,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				FContext("when request body contains protected labels", func() {
+				Context("when request body contains protected labels", func() {
 					BeforeEach(func() {
 						postBrokerRequestWithLabels.SetLabels(Object{
 							TenantLabelKey: []string{"test-tenant"},
