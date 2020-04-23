@@ -98,37 +98,27 @@ func validJson(data []byte) error {
 }
 
 func checkDuplicateKeys(d *json.Decoder, path []string) error {
-	// Get next token from JSON
 	t, err := d.Token()
 	if err != nil {
 		return err
 	}
-
 	delim, ok := t.(json.Delim)
-
-	// There's nothing to do for simple values (strings, numbers, bool, nil)
-	if !ok {
+	if !ok { // There's nothing to do for simple values (strings, numbers, bool, nil)
 		return nil
 	}
-
 	switch delim {
 	case '{':
 		keys := make(map[string]bool)
 		for d.More() {
-			// Get field key
-			t, err := d.Token()
+			t, err := d.Token() // Get the key
 			if err != nil {
 				return err
 			}
 			key := t.(string)
-
-			// Check for duplicates
 			if keys[key] {
 				return fmt.Errorf("invalid json: duplicate key %s", strings.Join(append(path, key), "."))
 			}
 			keys[key] = true
-
-			// Check value
 			if err := checkDuplicateKeys(d, append(path, key)); err != nil {
 				return err
 			}
@@ -137,7 +127,6 @@ func checkDuplicateKeys(d *json.Decoder, path []string) error {
 		if _, err := d.Token(); err != nil {
 			return err
 		}
-
 	case '[':
 		i := 0
 		for d.More() {
@@ -150,7 +139,6 @@ func checkDuplicateKeys(d *json.Decoder, path []string) error {
 		if _, err := d.Token(); err != nil {
 			return err
 		}
-
 	}
 	return nil
 }
