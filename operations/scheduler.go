@@ -171,9 +171,10 @@ func (s *Scheduler) getResourceLastOperation(ctx context.Context, operation *typ
 		}
 		return nil, false, util.HandleStorageError(err, types.OperationType.String())
 	}
-	log.C(ctx).Infof("Last operation for resource with id %s of type %s is %+v", operation.ResourceID, operation.ResourceType, operation)
+	lastOperation := lastOperationObject.(*types.Operation)
+	log.C(ctx).Infof("Last operation for resource with id %s of type %s is %+v", lastOperation.ResourceID, lastOperation.ResourceType, lastOperation)
 
-	return lastOperationObject.(*types.Operation), true, nil
+	return lastOperation, true, nil
 }
 
 func (s *Scheduler) checkForConcurrentOperations(ctx context.Context, operation *types.Operation, lastOperation *types.Operation) error {
@@ -564,7 +565,6 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 			Description: fmt.Sprintf("operation is older than %v and has exceeded the maximum reconciliation timeout. Rootcause error: %s", s.reconciliationOperationTimeout, operation.Errors),
 			StatusCode:  http.StatusUnprocessableEntity,
 		}
-
 		if opErr := updateOperationState(ctx, s.repository, operation, types.FAILED, manualActionRequiredError); opErr != nil {
 			return fmt.Errorf("failed to update error of operation with id %s to %s", operation.ID, manualActionRequiredError)
 		}
@@ -594,6 +594,8 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 
 	return nil
 }
+
+// when sm starts - mark in progress non resch ops to failed, del sched
 
 func initialLogMessage(ctx context.Context, operation *types.Operation, async bool) {
 	var logPrefix string

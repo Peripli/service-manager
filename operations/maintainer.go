@@ -83,17 +83,17 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 		{
 			name:     "markOrphanOperationsFailed",
 			execute:  maintainer.markOrphanOperationsFailed,
-			interval: options.CleanupInterval,
+			interval: options.MaintainerRetryInterval,
 		},
 		{
 			name:     "rescheduleUnprocessedOperations",
 			execute:  maintainer.rescheduleUnprocessedOperations,
-			interval: options.ActionTimeout / 2,
+			interval: options.MaintainerRetryInterval,
 		},
 		{
 			name:     "rescheduleOrphanMitigationOperations",
 			execute:  maintainer.rescheduleOrphanMitigationOperations,
-			interval: options.ActionTimeout / 2,
+			interval: options.MaintainerRetryInterval,
 		},
 	}
 
@@ -233,12 +233,13 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 	for i := 0; i < operations.Len(); i++ {
 		operation := operations.ItemAt(i).(*types.Operation)
 		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
+		ctx := log.ContextWithLogger(om.smCtx, logger)
 
 		var action storageAction
 
 		switch operation.Type {
 		case types.CREATE:
-			object, err := om.repository.Get(om.smCtx, operation.ResourceType, query.ByField(query.EqualsOperator, "id", operation.ResourceID))
+			object, err := om.repository.Get(ctx, operation.ResourceType, query.ByField(query.EqualsOperator, "id", operation.ResourceID))
 			if err != nil {
 				logger.Warnf("Failed to fetch resource with ID (%s) for operation with ID (%s): %s", operation.ResourceID, operation.ID, err)
 				break
@@ -250,7 +251,7 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 			}
 		case types.UPDATE:
 			byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
-			object, err := om.repository.Get(om.smCtx, operation.ResourceType, byID)
+			object, err := om.repository.Get(ctx, operation.ResourceType, byID)
 			if err != nil {
 				logger.Warnf("Failed to fetch resource with ID (%s) for operation with ID (%s): %s", operation.ResourceID, operation.ID, err)
 				break
@@ -274,12 +275,12 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 			}
 		}
 
-		if err := om.scheduler.ScheduleAsyncStorageAction(om.smCtx, operation, action); err != nil {
+		if err := om.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
 			logger.Warnf("Failed to reschedule unprocessed operation with ID (%s): %s", operation.ID, err)
 		}
-	}
 
-	log.C(om.smCtx).Debug("Finished rescheduling unprocessed operations")
+		logger.Debugf("Successfully rescheduled unfinished operation %+v", operation)
+	}
 }
 
 // rescheduleOrphanMitigationOperations reschedules orphan mitigation operations which no goroutine is processing at the moment
@@ -288,6 +289,7 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.NotEqualsOperator, "deletion_scheduled", ZeroTime),
+		query.ByField(query.NotEqualsOperator, "type", string(types.UPDATE)),
 		// check if operation hasn't been updated for the operation's maximum allowed time to execute
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ActionTimeout))),
 		// check if operation is still eligible for processing
@@ -304,6 +306,7 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 	for i := 0; i < operations.Len(); i++ {
 		operation := operations.ItemAt(i).(*types.Operation)
 		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
+		ctx := log.ContextWithLogger(om.smCtx, logger)
 
 		byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
 
@@ -318,12 +321,12 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 			return nil, nil
 		}
 
-		if err := om.scheduler.ScheduleAsyncStorageAction(om.smCtx, operation, action); err != nil {
+		if err := om.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
 			logger.Warnf("Failed to reschedule unprocessed orphan mitigation operation with ID (%s): %s", operation.ID, err)
 		}
-	}
 
-	log.C(om.smCtx).Debug("Finished rescheduling unprocessed orphan mitigation operations")
+		logger.Debugf("Successfully rescheduled orphan mitigation operation %+v", operation)
+	}
 }
 
 // markOrphanOperationsFailed checks for operations which are stuck in state IN_PROGRESS, updates their status to FAILED and schedules a delete action
@@ -349,11 +352,9 @@ func (om *Maintainer) markOrphanOperationsFailed() {
 		operation := operations.ItemAt(i).(*types.Operation)
 		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
 
-		operation.DeletionScheduled = time.Now()
-
-		if _, err := om.repository.Update(om.smCtx, operation, types.LabelChanges{}); err != nil {
-			logger.Warnf("Failed to update orphan operation with ID (%s) state to FAILED: %s", operation.ID, err)
-			continue
+		operation.State = types.FAILED
+		if operation.Type == types.CREATE || operation.Type == types.DELETE {
+			operation.DeletionScheduled = time.Now()
 		}
 
 		if operation.Type == types.CREATE || operation.Type == types.DELETE {
