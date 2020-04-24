@@ -360,6 +360,7 @@ func (om *Maintainer) markStuckOperationsFailed() {
 
 		if _, err := om.repository.Update(om.smCtx, operation, types.LabelChanges{}); err != nil {
 			logger.Warnf("Failed to update orphan operation with ID (%s) state to FAILED: %s", operation.ID, err)
+			continue
 		}
 
 		if operation.Type == types.CREATE || operation.Type == types.DELETE {

@@ -25,11 +25,6 @@ import (
 
 const (
 	minTimePeriod = time.Nanosecond
-
-	defaultActionTimeout     = 12 * time.Hour
-	defaultOperationLifespan = 7 * 24 * time.Hour
-
-	defaultCleanupInterval = 24 * time.Hour
 )
 
 // Settings type to be loaded from the environment
@@ -53,13 +48,13 @@ type Settings struct {
 // DefaultSettings returns default values for API settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		ActionTimeout:                  defaultActionTimeout,
-		ReconciliationOperationTimeout: defaultOperationLifespan,
-		CleanupInterval:                defaultCleanupInterval,
+		ActionTimeout:                  15 * time.Minute,
+		ReconciliationOperationTimeout: 7 * 24 * time.Hour,
+		CleanupInterval:                1 * time.Hour,
 		MaintainerRetryInterval:        10 * time.Minute,
-		Lifespan:                       defaultOperationLifespan,
-		ReschedulingInterval:           1 * time.Second,
-		PollingInterval:                1 * time.Second,
+		Lifespan:                       7 * 24 * time.Hour,
+		ReschedulingInterval:           10 * time.Second,
+		PollingInterval:                4 * time.Second,
 		DefaultPoolSize:                20,
 		Pools:                          []PoolSettings{},
 		SMSupportedPlatformType:        types.SMPlatform,
