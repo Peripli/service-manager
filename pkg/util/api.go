@@ -130,7 +130,7 @@ func checkDuplicateKeys(d *json.Decoder, path []string) error {
 	case '[':
 		i := 0
 		for d.More() {
-			if err := checkDuplicateKeys(d, append(path, fmt.Sprintf("[%d]",i))); err != nil {
+			if err := checkDuplicateKeys(d, append(path, fmt.Sprintf("[%d]", i))); err != nil {
 				return err
 			}
 			i++
