@@ -160,21 +160,29 @@ func (s *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *t
 	return nil
 }
 
-func (s *Scheduler) getResourceLastOperation(ctx context.Context, operation *types.Operation) (*types.Operation, bool, error) {
+func (s *Scheduler) getResourceLastOperation(ctx context.Context, operation *types.Operation) (*types.Operation, bool, bool, error) {
 	byResourceID := query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID)
 	orderDesc := query.OrderResultBy("paging_sequence", query.DescOrder)
-	lastOperationObject, err := s.repository.Get(ctx, types.OperationType, byResourceID, orderDesc)
+	operationsForResourceID, err := s.repository.List(ctx, types.OperationType, byResourceID, orderDesc)
 	if err != nil {
-		if err == util.ErrNotFoundInStorage {
-			log.C(ctx).Debugf("Could not find last operation for resource with id %s and type %s in SMDB. Ignoring missing operation", operation.ResourceID, operation.ResourceType)
-			return nil, false, nil
-		}
-		return nil, false, util.HandleStorageError(err, types.OperationType.String())
+		return nil, false, false, util.HandleStorageError(err, types.OperationType.String())
 	}
-	lastOperation := lastOperationObject.(*types.Operation)
+	if operationsForResourceID.Len() == 0 {
+		log.C(ctx).Debugf("Could not find last operation for resource with id %s and type %s in SMDB. Ignoring missing operation", operation.ResourceID, operation.ResourceType)
+		return nil, false, false, nil
+	}
+
+	currentOperationExists := false
+	for i := 0; i < operationsForResourceID.Len(); i++ {
+		operationObject := operationsForResourceID.ItemAt(i)
+		if operationObject.GetID() == operation.GetID() {
+			currentOperationExists = true
+		}
+	}
+	lastOperation := operationsForResourceID.ItemAt(0).(*types.Operation)
 	log.C(ctx).Infof("Last operation for resource with id %s of type %s is %+v", lastOperation.ResourceID, lastOperation.ResourceType, lastOperation)
 
-	return lastOperation, true, nil
+	return lastOperation, true, currentOperationExists, nil
 }
 
 func (s *Scheduler) checkForConcurrentOperations(ctx context.Context, operation *types.Operation, lastOperation *types.Operation) error {
@@ -297,23 +305,18 @@ func (s *Scheduler) checkForConcurrentOperations(ctx context.Context, operation 
 	return nil
 }
 
-func (s *Scheduler) storeOrUpdateOperation(ctx context.Context, operation, lastOperation *types.Operation) error {
+func (s *Scheduler) storeOrUpdateOperation(ctx context.Context, operation *types.Operation, currentOpExists bool) error {
 	// if a new operation is scheduled we need to store it
-	if lastOperation == nil || operation.ID != lastOperation.ID {
+	if !currentOpExists {
 		log.C(ctx).Infof("Storing %s operation with id %s", operation.Type, operation.ID)
 		if _, err := s.repository.Create(ctx, operation); err != nil {
 			return util.HandleStorageError(err, types.OperationType.String())
 		}
-		// if its a reschedule of an existing operation (reschedule=true or deletion is scheduled), we need to update it
-		// so that maintainer can know if other maintainers are currently processing it
-	} else if operation.Reschedule || !operation.DeletionScheduled.IsZero() {
+	} else {
 		log.C(ctx).Infof("Updating rescheduled %s operation with id %s", operation.Type, operation.ID)
 		if _, err := s.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 			return util.HandleStorageError(err, types.OperationType.String())
 		}
-		// otherwise we should not allow executing an existing operation again
-	} else {
-		return fmt.Errorf("operation with this id was already executed")
 	}
 
 	return nil
@@ -555,8 +558,9 @@ func (s *Scheduler) addOperationToContext(ctx context.Context, operation *types.
 }
 
 func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation *types.Operation) error {
-	if operation.State == types.SUCCEEDED {
-		return fmt.Errorf("scheduling for operations of type %s is not allowed", string(types.SUCCEEDED))
+	if operation.State == types.SUCCEEDED ||
+		(operation.State == types.FAILED && operation.DeletionScheduled.IsZero()) {
+		return fmt.Errorf("scheduling for operations %+v is not allowed due to invalid state", operation)
 	}
 
 	if time.Now().UTC().After(operation.CreatedAt.Add(s.reconciliationOperationTimeout)) {
@@ -576,26 +580,24 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 		return fmt.Errorf("scheduled operation is not valid: %s", err)
 	}
 
-	lastOperation, found, err := s.getResourceLastOperation(ctx, operation)
+	lastOperation, lastOpFound, currentOpExists, err := s.getResourceLastOperation(ctx, operation)
 	if err != nil {
 		return err
 	}
 
-	if found {
+	if lastOpFound {
 		if err := s.checkForConcurrentOperations(ctx, operation, lastOperation); err != nil {
 			log.C(ctx).Errorf("concurrent operation has been rejected: last operation is %+v, current operation is %+v and error is %s", lastOperation, operation, err)
 			return err
 		}
 	}
 
-	if err := s.storeOrUpdateOperation(ctx, operation, lastOperation); err != nil {
+	if err := s.storeOrUpdateOperation(ctx, operation, currentOpExists); err != nil {
 		return err
 	}
 
 	return nil
 }
-
-// when sm starts - mark in progress non resch ops to failed, del sched
 
 func initialLogMessage(ctx context.Context, operation *types.Operation, async bool) {
 	var logPrefix string

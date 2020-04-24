@@ -81,13 +81,13 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			interval: options.CleanupInterval,
 		},
 		{
-			name:     "markOrphanOperationsFailed",
-			execute:  maintainer.markOrphanOperationsFailed,
+			name:     "markStuckOperationsFailed",
+			execute:  maintainer.markStuckOperationsFailed,
 			interval: options.MaintainerRetryInterval,
 		},
 		{
-			name:     "rescheduleUnprocessedOperations",
-			execute:  maintainer.rescheduleUnprocessedOperations,
+			name:     "rescheduleUnfinishedOperations",
+			execute:  maintainer.rescheduleUnfinishedOperations,
 			interval: options.MaintainerRetryInterval,
 		},
 		{
@@ -209,8 +209,8 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 	log.C(om.smCtx).Debug("Finished cleaning up failed internal operations")
 }
 
-// rescheduleUnprocessedOperations reschedules IN_PROGRESS operations which are reschedulable, not scheduled for deletion and no goroutine is processing at the moment
-func (om *Maintainer) rescheduleUnprocessedOperations() {
+// rescheduleUnfinishedOperations reschedules IN_PROGRESS operations which are reschedulable, not scheduled for deletion and no goroutine is processing at the moment
+func (om *Maintainer) rescheduleUnfinishedOperations() {
 	currentTime := time.Now()
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
@@ -329,8 +329,8 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 	}
 }
 
-// markOrphanOperationsFailed checks for operations which are stuck in state IN_PROGRESS, updates their status to FAILED and schedules a delete action
-func (om *Maintainer) markOrphanOperationsFailed() {
+// markStuckOperationsFailed checks for operations which are stuck in state IN_PROGRESS, updates their status to FAILED and schedules a delete action
+func (om *Maintainer) markStuckOperationsFailed() {
 	currentTime := time.Now()
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
@@ -343,7 +343,7 @@ func (om *Maintainer) markOrphanOperationsFailed() {
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
 	if err != nil {
-		log.C(om.smCtx).Debugf("Failed to fetch orphan operations: %s", err)
+		log.C(om.smCtx).Debugf("Failed to fetch stuck operations: %s", err)
 		return
 	}
 
@@ -353,8 +353,13 @@ func (om *Maintainer) markOrphanOperationsFailed() {
 		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
 
 		operation.State = types.FAILED
+
 		if operation.Type == types.CREATE || operation.Type == types.DELETE {
 			operation.DeletionScheduled = time.Now()
+		}
+
+		if _, err := om.repository.Update(om.smCtx, operation, types.LabelChanges{}); err != nil {
+			logger.Warnf("Failed to update orphan operation with ID (%s) state to FAILED: %s", operation.ID, err)
 		}
 
 		if operation.Type == types.CREATE || operation.Type == types.DELETE {
@@ -371,10 +376,10 @@ func (om *Maintainer) markOrphanOperationsFailed() {
 			}
 
 			if err := om.scheduler.ScheduleAsyncStorageAction(om.smCtx, operation, action); err != nil {
-				logger.Warnf("Failed to schedule delete action for operation with ID (%s): %s", operation.ID, err)
+				logger.Warnf("Failed to schedule delete action for stuck operation with ID (%s): %s", operation.ID, err)
 			}
 		}
 	}
 
-	log.C(om.smCtx).Debug("Finished marking orphan operations as failed")
+	log.C(om.smCtx).Debug("Finished marking stuck operations as failed")
 }

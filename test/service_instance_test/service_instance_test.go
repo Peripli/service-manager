@@ -785,6 +785,7 @@ var _ = DescribeTestsFor(TestCase{
 										BeforeEach(func() {
 											newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 												e.Set("server.shutdown_timeout", 1*time.Second)
+												e.Set("operations.maintainer_retry_interval", 1*time.Second)
 											}).BuildWithoutCleanup()
 
 											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", func(_ *http.Request) (int, map[string]interface{}) {
@@ -1194,6 +1195,7 @@ var _ = DescribeTestsFor(TestCase{
 									BeforeEach(func() {
 										newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("server.shutdown_timeout", 1*time.Second)
+											e.Set("operations.maintainer_retry_interval", 1*time.Second)
 										}).BuildWithoutCleanup()
 
 										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
@@ -2843,6 +2845,7 @@ var _ = DescribeTestsFor(TestCase{
 											BeforeEach(func() {
 												newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 													e.Set("server.shutdown_timeout", 1*time.Second)
+													e.Set("operations.maintainer_retry_interval", 1*time.Second)
 												}).BuildWithoutCleanup()
 
 												brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", func(_ *http.Request) (int, map[string]interface{}) {

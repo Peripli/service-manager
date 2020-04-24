@@ -38,7 +38,7 @@ type Settings struct {
 	ReconciliationOperationTimeout time.Duration `mapstructure:"reconciliation_operation_timeout" description:"the maximum allowed timeout for auto rescheduling of operation actions"`
 
 	CleanupInterval         time.Duration `mapstructure:"cleanup_interval" description:"cleanup interval of old operations"`
-	MaintainerRetryInterval time.Duration `mapstructure:"mainatainer_retry_interval" description:"maintenance retry interval"`
+	MaintainerRetryInterval time.Duration `mapstructure:"maintainer_retry_interval" description:"maintenance retry interval"`
 	Lifespan                time.Duration `mapstructure:"lifespan" description:"after that time is passed since its creation, the operation can be cleaned up by the maintainer"`
 
 	ReschedulingInterval time.Duration `mapstructure:"rescheduling_interval" description:"the interval between auto rescheduling of operation actions"`
@@ -56,7 +56,7 @@ func DefaultSettings() *Settings {
 		ActionTimeout:                  defaultActionTimeout,
 		ReconciliationOperationTimeout: defaultOperationLifespan,
 		CleanupInterval:                defaultCleanupInterval,
-		MaintainerRetryInterval:        5 * time.Minute,
+		MaintainerRetryInterval:        10 * time.Minute,
 		Lifespan:                       defaultOperationLifespan,
 		ReschedulingInterval:           1 * time.Second,
 		PollingInterval:                1 * time.Second,

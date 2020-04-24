@@ -228,9 +228,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 			Context("Maintainer", func() {
 				const (
-					actionTimeout       = 1 * time.Second
-					cleanupInterval     = 2 * time.Second
-					operationExpiration = 2 * time.Second
+					maintainerRetry     = 1 * time.Second
+					actionTimeout       = 2 * time.Second
+					cleanupInterval     = 3 * time.Second
+					operationExpiration = 3 * time.Second
 				)
 
 				var ctxBuilder *TestContextBuilder
@@ -238,6 +239,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				postHookWithOperationsConfig := func() func(e env.Environment, servers map[string]FakeServer) {
 					return func(e env.Environment, servers map[string]FakeServer) {
 						e.Set("operations.action_timeout", actionTimeout)
+						e.Set("operations.maintainer_retry_interval", maintainerRetry)
 						e.Set("operations.cleanup_interval", cleanupInterval)
 						e.Set("operations.lifespan", operationExpiration)
 						e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)
@@ -253,10 +255,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				BeforeEach(func() {
 					postHook := postHookWithOperationsConfig()
 					ctxBuilder = NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook)
-					ctx = ctxBuilder.Build()
 				})
 
 				When("Specified cleanup interval passes", func() {
+					BeforeEach(func() {
+						ctx = ctxBuilder.Build()
+					})
+
 					Context("operation platform is service Manager", func() {
 						It("Deletes operations older than that interval", func() {
 							ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
@@ -370,6 +375,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				When("Specified action timeout passes", func() {
+					BeforeEach(func() {
+						ctx = ctxBuilder.Build()
+					})
+
 					It("Marks orphans as failed operations", func() {
 						operation := &types.Operation{
 							Base: types.Base{
@@ -402,10 +411,110 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						}, actionTimeout*6).Should(Equal(types.FAILED))
 					})
 				})
+
+				When("operation gets stuck in progress without being reschedulable", func() {
+					var operation *types.Operation
+
+					BeforeEach(func() {
+						ctxBuilder.WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+							smb.WithDeleteAroundTxInterceptorProvider(types.ServiceBrokerType, DeleteBrokerDelayingInterceptorProvider{}).Register()
+							return nil
+						})
+
+						ctx = ctxBuilder.Build()
+
+						operation = &types.Operation{
+							Base: types.Base{
+								ID:        defaultOperationID,
+								CreatedAt: time.Now().Add(-5 * actionTimeout),
+								UpdatedAt: time.Now().Add(-5 * actionTimeout),
+								Labels:    make(map[string][]string),
+								Ready:     true,
+							},
+							State:         types.IN_PROGRESS,
+							ResourceID:    "test-resource-id",
+							ResourceType:  web.ServiceBrokersURL,
+							PlatformID:    types.SMPlatform,
+							CorrelationID: "test-correlation-id",
+							Reschedule:    false,
+						}
+					})
+
+					When("when operation is create", func() {
+						It("marks the operation as failed with scheduled deletion", func() {
+							operation.Type = types.CREATE
+
+							object, err := ctx.SMRepository.Create(context.Background(), operation)
+							Expect(err).To(BeNil())
+							Expect(object).To(Not(BeNil()))
+
+							VerifyOperationExists(ctx, "", OperationExpectations{
+								Category:          operation.Type,
+								State:             types.FAILED,
+								ResourceType:      operation.ResourceType,
+								Reschedulable:     false,
+								DeletionScheduled: true,
+							})
+						})
+					})
+
+					When("when operation is delete", func() {
+						It("marks the operation as failed with scheduled deletion", func() {
+							operation.Type = types.DELETE
+
+							object, err := ctx.SMRepository.Create(context.Background(), operation)
+							Expect(err).To(BeNil())
+							Expect(object).To(Not(BeNil()))
+
+							VerifyOperationExists(ctx, "", OperationExpectations{
+								Category:          operation.Type,
+								State:             types.FAILED,
+								ResourceType:      operation.ResourceType,
+								Reschedulable:     false,
+								DeletionScheduled: true,
+							})
+						})
+					})
+
+					When("when operation is update", func() {
+						It("marks the operation as failed without scheduled deletion", func() {
+							operation.Type = types.UPDATE
+
+							object, err := ctx.SMRepository.Create(context.Background(), operation)
+							Expect(err).To(BeNil())
+							Expect(object).To(Not(BeNil()))
+
+							VerifyOperationExists(ctx, "", OperationExpectations{
+								Category:          operation.Type,
+								State:             types.FAILED,
+								ResourceType:      operation.ResourceType,
+								Reschedulable:     false,
+								DeletionScheduled: false,
+							})
+						})
+					})
+				})
 			})
 		})
 	},
 })
+
+type DeleteBrokerDelayingInterceptorProvider struct{}
+
+func (DeleteBrokerDelayingInterceptorProvider) Name() string {
+	return "DeleteBrokerDelayingInterceptorProvider"
+}
+
+func (DeleteBrokerDelayingInterceptorProvider) Provide() storage.DeleteAroundTxInterceptor {
+	return DeleteBrokerDelayingInterceptor{}
+}
+
+type DeleteBrokerDelayingInterceptor struct{}
+
+func (DeleteBrokerDelayingInterceptor) AroundTxDelete(f storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
+	<-time.After(2 * time.Second)
+	return f
+}
 
 func blueprint(ctx *TestContext, _ *SMExpect, _ bool) Object {
 	cPaidPlan := GeneratePaidTestPlan()
