@@ -877,6 +877,7 @@ var _ = DescribeTestsFor(TestCase{
 										BeforeEach(func() {
 											newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 												e.Set("server.shutdown_timeout", 1*time.Second)
+												e.Set("operations.maintainer_retry_interval", 1*time.Second)
 											}).BuildWithoutCleanup()
 
 											brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
@@ -1070,6 +1071,7 @@ var _ = DescribeTestsFor(TestCase{
 									BeforeEach(func() {
 										newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("server.shutdown_timeout", 1*time.Second)
+											e.Set("operations.maintainer_retry_interval", 1*time.Second)
 										}).BuildWithoutCleanup()
 
 										brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
@@ -1260,6 +1262,7 @@ var _ = DescribeTestsFor(TestCase{
 									BeforeEach(func() {
 										newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("server.shutdown_timeout", 1*time.Second)
+											e.Set("operations.maintainer_retry_interval", 1*time.Second)
 										}).BuildWithoutCleanup()
 
 										brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
@@ -1834,6 +1837,7 @@ var _ = DescribeTestsFor(TestCase{
 										BeforeEach(func() {
 											newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 												e.Set("server.shutdown_timeout", 1*time.Second)
+												e.Set("operations.maintainer_retry_interval", 1*time.Second)
 											}).BuildWithoutCleanup()
 
 											brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
