@@ -23,11 +23,6 @@ import (
 
 const (
 	minTimePeriod = time.Nanosecond
-
-	defaultActionTimeout     = 12 * time.Hour
-	defaultOperationLifespan = 7 * 24 * time.Hour
-
-	defaultCleanupInterval = 24 * time.Hour
 )
 
 // Settings type to be loaded from the environment
@@ -35,8 +30,9 @@ type Settings struct {
 	ActionTimeout                  time.Duration `mapstructure:"action_timeout" description:"timeout for async operations"`
 	ReconciliationOperationTimeout time.Duration `mapstructure:"reconciliation_operation_timeout" description:"the maximum allowed timeout for auto rescheduling of operation actions"`
 
-	CleanupInterval time.Duration `mapstructure:"cleanup_interval" description:"cleanup interval of old operations"`
-	Lifespan        time.Duration `mapstructure:"lifespan" description:"after that time is passed since its creation, the operation can be cleaned up by the maintainer"`
+	CleanupInterval         time.Duration `mapstructure:"cleanup_interval" description:"cleanup interval of old operations"`
+	MaintainerRetryInterval time.Duration `mapstructure:"maintainer_retry_interval" description:"maintenance retry interval"`
+	Lifespan                time.Duration `mapstructure:"lifespan" description:"after that time is passed since its creation, the operation can be cleaned up by the maintainer"`
 
 	ReschedulingInterval time.Duration `mapstructure:"rescheduling_interval" description:"the interval between auto rescheduling of operation actions"`
 	PollingInterval      time.Duration `mapstructure:"polling_interval" description:"the interval between polls for async requests"`
@@ -48,15 +44,15 @@ type Settings struct {
 // DefaultSettings returns default values for API settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		ActionTimeout:                  defaultActionTimeout,
-		CleanupInterval:                defaultCleanupInterval,
-		Lifespan:                       defaultOperationLifespan,
+		ActionTimeout:                  15 * time.Minute,
+		ReconciliationOperationTimeout: 7 * 24 * time.Hour,
+		CleanupInterval:                1 * time.Hour,
+		MaintainerRetryInterval:        10 * time.Minute,
+		Lifespan:                       7 * 24 * time.Hour,
+		ReschedulingInterval:           10 * time.Second,
+		PollingInterval:                4 * time.Second,
 		DefaultPoolSize:                20,
 		Pools:                          []PoolSettings{},
-		ReconciliationOperationTimeout: defaultOperationLifespan,
-
-		ReschedulingInterval: 1 * time.Second,
-		PollingInterval:      1 * time.Second,
 	}
 }
 
@@ -76,6 +72,9 @@ func (s *Settings) Validate() error {
 	}
 	if s.PollingInterval <= minTimePeriod {
 		return fmt.Errorf("validate Settings: PollingInterval must be larger than %s", minTimePeriod)
+	}
+	if s.MaintainerRetryInterval <= minTimePeriod {
+		return fmt.Errorf("validate Settings: MaintainerRetryInterval must be larger than %s", minTimePeriod)
 	}
 	if s.DefaultPoolSize <= 0 {
 		return fmt.Errorf("validate Settings: DefaultPoolSize must be larger than 0")
