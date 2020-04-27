@@ -313,7 +313,7 @@ func (ssi *StorePlugin) Unbind(request *web.Request, next web.Handler) (*web.Res
 		response.StatusCode,
 		types.ServiceInstanceType,
 		requestPayload.BindingID,
-		func(ctx context.Context ,storage storage.Repository, state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error{
+		func(storage storage.Repository, state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error{
 			return ssi.storeOperation(ctx , storage, requestPayload, resp.OperationData, state, category, correlationID, objectType)
 		},
 	); err != nil {
@@ -386,7 +386,7 @@ func (ssi *StorePlugin) Deprovision(request *web.Request, next web.Handler) (*we
 		response.StatusCode,
 		types.ServiceInstanceType,
 		requestPayload.InstanceID,
-		func(ctx context.Context ,storage storage.Repository, state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error{
+		func(storage storage.Repository, state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error{
 			return ssi.storeOperation(ctx , storage, requestPayload, resp.OperationData, state, category, correlationID, objectType)
 		},
 		); err != nil {
@@ -890,7 +890,7 @@ func handleCreate(repository storage.TransactionalRepository, ctx context.Contex
 }
 
 func handleDelete(repository storage.TransactionalRepository, ctx context.Context, resStatusCode int, entityType types.ObjectType, entityId string,
-	storeOperation func(ctx context.Context, storage storage.Repository, state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error) error {
+	storeOperation func(storage storage.Repository, state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error) error {
 
 	err := repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
 		switch resStatusCode {
