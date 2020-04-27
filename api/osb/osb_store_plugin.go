@@ -904,11 +904,11 @@ func handleDelete(repository storage.TransactionalRepository, ctx context.Contex
 
 				}
 			}
-			if err := storeOperation(ctx, storage, types.SUCCEEDED, types.DELETE, entityType); err != nil {
+			if err := storeOperation(storage, types.SUCCEEDED, types.DELETE, entityType); err != nil {
 				return err
 			}
 		case http.StatusAccepted:
-			if err := storeOperation(ctx, storage, types.IN_PROGRESS, types.DELETE, entityType); err != nil {
+			if err := storeOperation(storage, types.IN_PROGRESS, types.DELETE, entityType); err != nil {
 				return err
 			}
 		}
