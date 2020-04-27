@@ -96,6 +96,20 @@ type bindingRequest struct {
 	Parameters   map[string]interface{} `json:"parameters"`
 }
 
+type unbindRequest struct {
+	commonRequestDetails
+
+	ServiceID    string                 `json:"service_id"`
+	PlanID       string                 `json:"plan_id"`
+	BindingID    string                 `json:"binding_id"`
+}
+
+type unbindResponse struct {
+	OperationData   string          `json:"operation"`
+	Error           string          `json:"error"`
+	Description     string          `json:"description"`
+}
+
 func (b *bindingResponse) GetOperationData() string {
 	return b.OperationData
 }
@@ -116,6 +130,17 @@ func (pr *provisionRequest) Validate() error {
 }
 
 func (br *bindingRequest) Validate() error {
+	if len(br.ServiceID) == 0 {
+		return errors.New("service_id cannot be empty")
+	}
+	if len(br.PlanID) == 0 {
+		return errors.New("plan_id cannot be empty")
+	}
+
+	return nil
+}
+
+func (br *unbindRequest) Validate() error {
 	if len(br.ServiceID) == 0 {
 		return errors.New("service_id cannot be empty")
 	}
@@ -245,7 +270,7 @@ func (ssi *StorePlugin) Bind(request *web.Request, next web.Handler) (*web.Respo
 	// TODO saving just if subaccountID does exist
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
-	err = handleCreateOperation(
+	err = handleCreate(
 		ssi.Repository,
 		request.Context(),
 		response.StatusCode,
@@ -262,45 +287,40 @@ func (ssi *StorePlugin) Bind(request *web.Request, next web.Handler) (*web.Respo
 	return response, nil
 }
 
-func handleCreateOperation(
-	repository storage.TransactionalRepository,
-	ctx context.Context,
-	resStatusCode int,
-	storeOperation func(storage storage.Repository, state types.OperationState, category types.OperationCategory) error,
-	storeEntity func(storage storage.Repository, ready bool) error,
-) error {
-	if err := repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		switch resStatusCode {
-		case http.StatusCreated:
-			if err := storeOperation(storage, types.SUCCEEDED, types.CREATE); err != nil {
-				return err
-			}
-			if err := storeEntity(storage, true); err != nil {
-				return err
-			}
-		case http.StatusOK:
-			if err := storeEntity(storage, true); err != nil {
-				if err != util.ErrAlreadyExistsInStorage {
-					return err
-				}
-			} else {
-				if err := storeOperation(storage, types.SUCCEEDED, types.CREATE); err != nil {
-					return err
-				}
-			}
-		case http.StatusAccepted:
-			if err := storeOperation(storage, types.IN_PROGRESS, types.CREATE); err != nil {
-				return err
-			}
-			if err := storeEntity(storage, false); err != nil {
-				return err
-			}
-		}
-		return nil
-	}); err != nil {
-		return err
+func (ssi *StorePlugin) Unbind(request *web.Request, next web.Handler) (*web.Response, error) {
+	ctx := request.Context()
+
+	requestPayload := &unbindRequest{}
+	if err := parseRequestForm(request, requestPayload); err != nil {
+		return nil, err
 	}
-	return nil
+
+	response, err := next.Handle(request)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := unbindResponse {}
+	if err := json.Unmarshal(response.Body, &resp); err != nil {
+		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), requestPayload.BrokerID)
+	}
+
+	// TODO saving just if subaccountID does exist
+	correlationID := log.CorrelationIDForRequest(request.Request)
+	if err := handleDelete (
+		ssi.Repository,
+		request.Context(),
+		response.StatusCode,
+		types.ServiceInstanceType,
+		requestPayload.BindingID,
+		func(ctx context.Context ,storage storage.Repository, state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error{
+			return ssi.storeOperation(ctx , storage, requestPayload, resp.OperationData, state, category, correlationID, objectType)
+		},
+	); err != nil {
+		return nil, err
+	}
+
+	return response, nil
 }
 
 func (ssi *StorePlugin) Provision(request *web.Request, next web.Handler) (*web.Response, error) {
@@ -322,7 +342,7 @@ func (ssi *StorePlugin) Provision(request *web.Request, next web.Handler) (*web.
 	}
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
-	err = handleCreateOperation(
+	err = handleCreate(
 		ssi.Repository,
 		request.Context(),
 		response.StatusCode,
@@ -352,7 +372,7 @@ func (ssi *StorePlugin) Deprovision(request *web.Request, next web.Handler) (*we
 		return nil, err
 	}
 
-	resp := ProvisionResponse{
+	resp := ProvisionResponse {
 		InstanceUsable: true,
 	}
 	if err := json.Unmarshal(response.Body, &resp); err != nil {
@@ -360,28 +380,16 @@ func (ssi *StorePlugin) Deprovision(request *web.Request, next web.Handler) (*we
 	}
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
-	if err := ssi.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		switch response.StatusCode {
-		case http.StatusOK:
-			fallthrough
-		case http.StatusGone:
-			byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
-			if err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
-				if err != util.ErrNotFoundInStorage {
-					return util.HandleStorageError(err, string(types.ServiceInstanceType))
-
-				}
-			}
-			if err := ssi.storeOperation(ctx, storage, requestPayload, resp.OperationData, types.SUCCEEDED, types.DELETE, correlationID, types.ServiceInstanceType); err != nil {
-				return err
-			}
-		case http.StatusAccepted:
-			if err := ssi.storeOperation(ctx, storage, requestPayload, resp.OperationData, types.IN_PROGRESS, types.DELETE, correlationID, types.ServiceInstanceType); err != nil {
-				return err
-			}
-		}
-		return nil
-	}); err != nil {
+	if err := handleDelete (
+		ssi.Repository,
+		request.Context(),
+		response.StatusCode,
+		types.ServiceInstanceType,
+		requestPayload.InstanceID,
+		func(ctx context.Context ,storage storage.Repository, state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error{
+			return ssi.storeOperation(ctx , storage, requestPayload, resp.OperationData, state, category, correlationID, objectType)
+		},
+		); err != nil {
 		return nil, err
 	}
 
@@ -577,15 +585,7 @@ func (ssi *StorePlugin) updateOperation(ctx context.Context, operation *types.Op
 	return nil
 }
 
-func (ssi *StorePlugin) storeOperation(
-	ctx context.Context,
-	storage storage.Repository,
-	req commonOSBRequest,
-	operationData string,
-	state types.OperationState,
-	category types.OperationCategory,
-	correlationID string,
-	objType types.ObjectType) error {
+func (ssi *StorePlugin) storeOperation (ctx context.Context, storage storage.Repository, req commonOSBRequest, operationData string, state types.OperationState, category types.OperationCategory, correlationID string, objType types.ObjectType) error {
 
 	UUID, err := uuid.NewV4()
 	if err != nil {
@@ -852,3 +852,66 @@ func decodeRequestBody(request *web.Request, body commonOSBRequest) error {
 	return parseRequestForm(request, body)
 }
 
+func handleCreate(repository storage.TransactionalRepository, ctx context.Context, resStatusCode int,
+	storeOperation func(storage storage.Repository, state types.OperationState, category types.OperationCategory) error,
+	storeEntity func(storage storage.Repository, ready bool) error) error {
+	if err := repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
+		switch resStatusCode {
+		case http.StatusCreated:
+			if err := storeOperation(storage, types.SUCCEEDED, types.CREATE); err != nil {
+				return err
+			}
+			if err := storeEntity(storage, true); err != nil {
+				return err
+			}
+		case http.StatusOK:
+			if err := storeEntity(storage, true); err != nil {
+				if err != util.ErrAlreadyExistsInStorage {
+					return err
+				}
+			} else {
+				if err := storeOperation(storage, types.SUCCEEDED, types.CREATE); err != nil {
+					return err
+				}
+			}
+		case http.StatusAccepted:
+			if err := storeOperation(storage, types.IN_PROGRESS, types.CREATE); err != nil {
+				return err
+			}
+			if err := storeEntity(storage, false); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func handleDelete(repository storage.TransactionalRepository, ctx context.Context, resStatusCode int, entityType types.ObjectType, entityId string,
+	storeOperation func(context.Context, storage storage.Repository, state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error) error {
+
+	repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
+		switch resStatusCode {
+		case http.StatusOK:
+			fallthrough
+		case http.StatusGone:
+			byID := query.ByField(query.EqualsOperator, "id", entityId)
+			if err := storage.Delete(ctx, entityType, byID); err != nil {
+				if err != util.ErrNotFoundInStorage {
+					return util.HandleStorageError(err, string(entityType))
+
+				}
+			}
+			if err := storeOperation(ctx, storage, types.SUCCEEDED, types.DELETE, entityType); err != nil {
+				return err
+			}
+		case http.StatusAccepted:
+			if err := storeOperation(ctx, storage, types.IN_PROGRESS, types.DELETE, entityType); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
