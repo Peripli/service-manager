@@ -87,7 +87,6 @@ func (b *ProvisionResponse) GetDescription() string {
 	return b.Description
 }
 
-
 type lastOperationResponse struct {
 	ProvisionResponse
 
@@ -140,7 +139,6 @@ type unbindResponse struct {
 	Error         string `json:"error"`
 	Description   string `json:"description"`
 }
-
 
 func (p *ProvisionResponse) GetOperationData() string {
 	return p.OperationData
@@ -287,6 +285,7 @@ func (*StorePlugin) Name() string {
 
 func (sp *StorePlugin) Bind(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
+	// TODO: Getting binding_id from path url
 	requestPayload := &bindRequest{}
 	resp := bindResponse{}
 
@@ -308,7 +307,7 @@ func (sp *StorePlugin) Bind(request *web.Request, next web.Handler) (*web.Respon
 		request.Context(),
 		response.StatusCode,
 		func(storage storage.Repository, state types.OperationState, category types.OperationCategory) error {
-			return sp.storeOperation(ctx, storage, requestPayload, resp.OperationData, state, category, correlationID, types.ServiceBindingType)
+			return sp.storeOperation(ctx, storage, requestPayload.BindingID, requestPayload, resp.OperationData, state, category, correlationID, types.ServiceBindingType)
 		},
 		func(storage storage.Repository, ready bool) error {
 			return sp.storeBinding(ctx, storage, requestPayload, &resp, true)
@@ -347,7 +346,7 @@ func (sp *StorePlugin) Unbind(request *web.Request, next web.Handler) (*web.Resp
 		types.ServiceInstanceType,
 		requestPayload.BindingID,
 		func(storage storage.Repository, state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error {
-			return sp.storeOperation(ctx, storage, requestPayload, resp.OperationData, state, category, correlationID, objectType)
+			return sp.storeOperation(ctx, storage, requestPayload.BindingID, requestPayload, resp.OperationData, state, category, correlationID, objectType)
 		},
 	)
 
@@ -381,7 +380,7 @@ func (sp *StorePlugin) Provision(request *web.Request, next web.Handler) (*web.R
 		request.Context(),
 		response.StatusCode,
 		func(storage storage.Repository, state types.OperationState, category types.OperationCategory) error {
-			return sp.storeOperation(ctx, storage, requestPayload, resp.OperationData, state, category, correlationID, types.ServiceInstanceType)
+			return sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, resp.OperationData, state, category, correlationID, types.ServiceInstanceType)
 		},
 		func(storage storage.Repository, ready bool) error {
 			return sp.storeInstance(ctx, storage, requestPayload, &resp, true)
@@ -421,7 +420,7 @@ func (sp *StorePlugin) Deprovision(request *web.Request, next web.Handler) (*web
 		types.ServiceInstanceType,
 		requestPayload.InstanceID,
 		func(storage storage.Repository, state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error {
-			return sp.storeOperation(ctx, storage, requestPayload, resp.OperationData, state, category, correlationID, objectType)
+			return sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, resp.OperationData, state, category, correlationID, objectType)
 		},
 	)
 
@@ -458,14 +457,14 @@ func (sp *StorePlugin) UpdateService(request *web.Request, next web.Handler) (*w
 			if err := sp.updateInstance(ctx, storage, requestPayload, &resp, true); err != nil {
 				return err
 			}
-			if err := sp.storeOperation(ctx, storage, requestPayload, resp.OperationData, types.SUCCEEDED, types.UPDATE, correlationID, types.ServiceInstanceType); err != nil {
+			if err := sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, resp.OperationData, types.SUCCEEDED, types.UPDATE, correlationID, types.ServiceInstanceType); err != nil {
 				return err
 			}
 		case http.StatusAccepted:
 			if err := sp.updateInstance(ctx, storage, requestPayload, &resp, true); err != nil {
 				return err
 			}
-			if err := sp.storeOperation(ctx, storage, requestPayload, resp.OperationData, types.IN_PROGRESS, types.UPDATE, correlationID, types.ServiceInstanceType); err != nil {
+			if err := sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, resp.OperationData, types.IN_PROGRESS, types.UPDATE, correlationID, types.ServiceInstanceType); err != nil {
 				return err
 			}
 		}
@@ -476,6 +475,7 @@ func (sp *StorePlugin) UpdateService(request *web.Request, next web.Handler) (*w
 
 	return response, nil
 }
+
 /*func (ssi *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
 
@@ -521,7 +521,7 @@ func (ssi *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*w
 		return response, nil
 	}
 
-	resp := lastOperationResponse {
+	resp := lastOperationResponse{
 		ProvisionResponse: ProvisionResponse{
 			InstanceUsable: true,
 		},
@@ -552,7 +552,7 @@ func (ssi *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*w
 				if err != nil {
 					return err
 				}
-				
+
 			case types.UPDATE:
 				instanceOp, err = ssi.pollUpdateInstance(ctx, storage, &resp, resp.State, operationFromDB, correlationID)
 				if err != nil {
@@ -638,11 +638,11 @@ func (sp *StorePlugin) updateOperation(ctx context.Context, operation *types.Ope
 	return nil
 }
 
-func (sp *StorePlugin) storeOperation(ctx context.Context, storage storage.Repository, req commonOSBRequest, operationData string, state types.OperationState, category types.OperationCategory, correlationID string, objType types.ObjectType) error {
+func (sp *StorePlugin) storeOperation(ctx context.Context, storage storage.Repository, resourceID string, req commonOSBRequest, operationData string, state types.OperationState, category types.OperationCategory, correlationID string, objType types.ObjectType) error {
 
 	UUID, err := uuid.NewV4()
 	if err != nil {
-		return fmt.Errorf("could not generate GUID for %s: %s", "/v1/service_instances", err)
+		return fmt.Errorf("could not generate GUID for %s: %s", objType, err)
 	}
 	operation := &types.Operation{
 		Base: types.Base{
@@ -654,7 +654,7 @@ func (sp *StorePlugin) storeOperation(ctx context.Context, storage storage.Repos
 		},
 		Type:          category,
 		State:         state,
-		ResourceID:    req.GetInstanceID(),
+		ResourceID:    resourceID,
 		ResourceType:  objType,
 		PlatformID:    req.GetPlatformID(),
 		CorrelationID: correlationID,
@@ -1019,6 +1019,3 @@ func (ssi *StorePlugin) pollUpdateInstance(ctx context.Context, storage storage.
 	}
 	return "", nil
 }
-
-
-
