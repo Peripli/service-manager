@@ -75,7 +75,7 @@ type lastOperationResponse struct {
 	State types.OperationState `json:"state"`
 }
 
-type bindingResponse struct {
+type bindResponse struct {
 	OperationData   string          `json:"operation"`
 	Error           string          `json:"error"`
 	Description     string          `json:"description"`
@@ -85,7 +85,7 @@ type bindingResponse struct {
 	Endpoints       json.RawMessage `json:"endpoints"`
 }
 
-type bindingRequest struct {
+type bindRequest struct {
 	commonRequestDetails
 
 	ServiceID    string                 `json:"service_id"`
@@ -110,7 +110,7 @@ type unbindResponse struct {
 	Description   string `json:"description"`
 }
 
-func (b *bindingResponse) GetOperationData() string {
+func (b *bindResponse) GetOperationData() string {
 	return b.OperationData
 }
 
@@ -129,7 +129,7 @@ func (pr *provisionRequest) Validate() error {
 	return nil
 }
 
-func (br *bindingRequest) Validate() error {
+func (br *bindRequest) Validate() error {
 	if len(br.ServiceID) == 0 {
 		return errors.New("service_id cannot be empty")
 	}
@@ -236,8 +236,8 @@ func (r *commonRequestDetails) SetTimestamp(timestamp time.Time) {
 	r.Timestamp = timestamp
 }
 
-// NewStoreServiceInstancesPlugin creates a plugin that stores service instances on OSB requests
-func NewStoreServiceInstancesPlugin(repository storage.TransactionalRepository) *StorePlugin {
+// NewStorePlugin creates a plugin that stores service instances on OSB requests
+func NewStorePlugin(repository storage.TransactionalRepository) *StorePlugin {
 	return &StorePlugin{
 		Repository: repository,
 	}
@@ -254,8 +254,8 @@ func (*StorePlugin) Name() string {
 
 func (sp *StorePlugin) Bind(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
-	requestPayload := &bindingRequest{}
-	resp := bindingResponse{}
+	requestPayload := &bindRequest{}
+	resp := bindResponse{}
 
 	if err := decodeRequestBody(request, requestPayload); err != nil {
 		return nil, err
@@ -581,7 +581,7 @@ func (sp *StorePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 	return nil
 }
 
-func (sp *StorePlugin) storeBinding(ctx context.Context, storage storage.Repository, req *bindingRequest, resp *bindingResponse, ready bool) error {
+func (sp *StorePlugin) storeBinding(ctx context.Context, storage storage.Repository, req *bindRequest, resp *bindResponse, ready bool) error {
 	// TODO: check if binding_name does exist in the context
 	bindingName := gjson.GetBytes(req.RawContext, "binding_name").String()
 	if len(bindingName) == 0 {
@@ -789,6 +789,7 @@ func decodeRequestBody(request *web.Request, body commonOSBRequest) error {
 func handleCreate(repository storage.TransactionalRepository, ctx context.Context, resStatusCode int,
 	storeOperation func(storage storage.Repository, state types.OperationState, category types.OperationCategory) error,
 	storeEntity func(storage storage.Repository, ready bool) error) error {
+
 	if err := repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
 		switch resStatusCode {
 		case http.StatusCreated:
