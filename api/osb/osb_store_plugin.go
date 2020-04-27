@@ -49,6 +49,16 @@ const (
 	smContextKey       = "sm_context_key"
 )
 
+type entityOperation string
+
+const (
+	READY entityOperation = "ready"
+
+	ROLLBACK entityOperation = "rollback"
+
+	DELETE entityOperation = "failed"
+)
+
 type provisionRequest struct {
 	commonRequestDetails
 
@@ -69,6 +79,15 @@ type ProvisionResponse struct {
 	InstanceUsable bool   `json:"instance_usable"`
 }
 
+func (b *ProvisionResponse) GetError() string {
+	return b.Error
+}
+
+func (b *ProvisionResponse) GetDescription() string {
+	return b.Description
+}
+
+
 type lastOperationResponse struct {
 	ProvisionResponse
 
@@ -83,6 +102,18 @@ type bindResponse struct {
 	SyslogDrainUrl  string          `json:"syslog_drain_url"`
 	VolumeMounts    json.RawMessage `json:"volume_mounts"`
 	Endpoints       json.RawMessage `json:"endpoints"`
+}
+
+func (b *bindResponse) GetOperationData() string {
+	return b.OperationData
+}
+
+func (b *bindResponse) GetError() string {
+	return b.Error
+}
+
+func (b *bindResponse) GetDescription() string {
+	return b.Description
 }
 
 type bindRequest struct {
@@ -110,9 +141,6 @@ type unbindResponse struct {
 	Description   string `json:"description"`
 }
 
-func (b *bindResponse) GetOperationData() string {
-	return b.OperationData
-}
 
 func (p *ProvisionResponse) GetOperationData() string {
 	return p.OperationData
@@ -195,6 +223,11 @@ type commonOSBRequest interface {
 	SetInstanceID(string)
 	SetPlatformID(string)
 	SetTimestamp(time.Time)
+}
+
+type brokerError interface {
+	GetError() string
+	GetDescription() string
 }
 
 type commonRequestDetails struct {
@@ -443,8 +476,7 @@ func (sp *StorePlugin) UpdateService(request *web.Request, next web.Handler) (*w
 
 	return response, nil
 }
-
-func (sp *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*web.Response, error) {
+/*func (ssi *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
 
 	requestPayload := &lastOperationRequest{}
@@ -461,7 +493,35 @@ func (sp *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*we
 		return response, nil
 	}
 
-	resp := lastOperationResponse{
+	resp := lastOperationResponse {
+		ProvisionResponse: ProvisionResponse{
+			InstanceUsable: true,
+		},
+	}
+	if err := json.Unmarshal(response.Body, &resp); err != nil {
+		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), requestPayload.BrokerID)
+	}
+
+}*/
+
+func (ssi *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*web.Response, error) {
+	ctx := request.Context()
+
+	requestPayload := &lastOperationRequest{}
+	if err := parseRequestForm(request, requestPayload); err != nil {
+		return nil, err
+	}
+
+	response, err := next.Handle(request)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusGone {
+		return response, nil
+	}
+
+	resp := lastOperationResponse {
 		ProvisionResponse: ProvisionResponse{
 			InstanceUsable: true,
 		},
@@ -471,37 +531,96 @@ func (sp *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*we
 	}
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
-	err = sp.handlePollingResponse(
-		types.ServiceInstanceType,
-		&resp,
-		sp.Repository,
-		ctx,
-		requestPayload.OperationData,
-		response.StatusCode,
-		requestPayload.InstanceID,
-		func(storage storage.Repository) error {
-			return sp.rollbackInstance(ctx, requestPayload, storage, resp.InstanceUsable)
-		},
-		func(storage storage.Repository) error {
-			return sp.updateInstanceReady(ctx, storage, requestPayload.InstanceID)
-		},
-		func(storage storage.Repository, operationFromDB *types.Operation, state types.OperationState) error {
-			return sp.updateOperation(ctx, operationFromDB, storage, requestPayload, &resp.ProvisionResponse, types.SUCCEEDED, correlationID)
-		})
+	if err := ssi.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
 
-	if err != nil {
+		operationFromDB, ex := ssi.getOperationFromDB(ctx, storage, requestPayload.InstanceID, requestPayload.OperationData)
+		if ex != nil {
+			return ex
+		}
+		if response.StatusCode == http.StatusGone {
+			if operationFromDB.Type != types.DELETE {
+				return nil
+			}
+			resp.State = types.SUCCEEDED
+		}
+
+		var instanceOp entityOperation
+		if operationFromDB.State != resp.State {
+			switch operationFromDB.Type {
+			case types.CREATE:
+				instanceOp, err = ssi.pollCreation(ctx, storage, &resp, resp.State, operationFromDB, correlationID)
+				if err != nil {
+					return err
+				}
+				
+			case types.UPDATE:
+				instanceOp, err = ssi.pollUpdateInstance(ctx, storage, &resp, resp.State, operationFromDB, correlationID)
+				if err != nil {
+					return err
+				}
+			case types.DELETE:
+				instanceOp, err = ssi.pollDelete(ctx, storage, &resp, resp.State, operationFromDB, correlationID)
+				if err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("unsupported operation type %s", operationFromDB.Type)
+			}
+		}
+
+		switch instanceOp {
+		case READY:
+			if err := ssi.updateInstanceReady(ctx, storage, requestPayload.InstanceID); err != nil {
+				return err
+			}
+		case DELETE:
+			byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
+			if err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
+				if err != util.ErrNotFoundInStorage {
+					return util.HandleStorageError(err, string(types.ServiceInstanceType))
+				}
+			}
+		case ROLLBACK:
+			if err := ssi.rollbackInstance(ctx, requestPayload, storage, resp.InstanceUsable); err != nil {
+				return err
+			}
+
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
+
 	return response, nil
 }
 
-func (sp *StorePlugin) updateOperation(ctx context.Context, operation *types.Operation, storage storage.Repository, req commonOSBRequest, resp *ProvisionResponse, state types.OperationState, correlationID string) error {
+func (ssi *StorePlugin) getOperationFromDB(ctx context.Context, storage storage.Repository, id string, operation_id string) (*types.Operation, error) {
+	criteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, "resource_id", id),
+		query.OrderResultBy("paging_sequence", query.DescOrder),
+	}
+	if len(operation_id) != 0 {
+		criteria = append(criteria, query.ByField(query.EqualsOperator, "external_id", operation_id))
+	}
+	op, err := storage.Get(ctx, types.OperationType, criteria...)
+	if err != nil && err != util.ErrNotFoundInStorage {
+		return nil, util.HandleStorageError(err, string(types.OperationType))
+	}
+	if op == nil {
+		return nil, fmt.Errorf("could not fetch operation from db")
+	}
+
+	operationFromDB := op.(*types.Operation)
+	return operationFromDB, nil
+}
+
+func (sp *StorePlugin) updateOperation(ctx context.Context, operation *types.Operation, storage storage.Repository, resp brokerError, state types.OperationState, correlationID string) error {
 	operation.State = state
 	operation.CorrelationID = correlationID
-	if len(resp.Error) != 0 || len(resp.Description) != 0 {
+	if len(resp.GetError()) != 0 || len(resp.GetDescription()) != 0 {
 		errorBytes, err := json.Marshal(&util.HTTPError{
-			ErrorType:   fmt.Sprintf("BrokerError:%s", resp.Error),
-			Description: resp.Description,
+			ErrorType:   fmt.Sprintf("BrokerError:%s", resp.GetError()),
+			Description: resp.GetDescription(),
 		})
 		if err != nil {
 			return err
@@ -852,91 +971,54 @@ func handleDelete(repository storage.TransactionalRepository, ctx context.Contex
 	return err
 }
 
-func (sp *StorePlugin) handlePollingResponse(objectType types.ObjectType, responseBody *lastOperationResponse, repository storage.TransactionalRepository, ctx context.Context, operationData string, resStatusCode int, resourceID string, rollbackEntity func(storage storage.Repository) error, updateEntityToReady func(storage storage.Repository) error, updateOperation func(storage storage.Repository, operationFromDB *types.Operation, state types.OperationState) error) error {
-	return repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		criteria := []query.Criterion{
-			query.ByField(query.EqualsOperator, "resource_id", resourceID),
-			query.OrderResultBy("paging_sequence", query.DescOrder),
+func (ssi *StorePlugin) pollDelete(ctx context.Context, storage storage.Repository, resp brokerError, state types.OperationState, operationFromDB *types.Operation, correlationID string) (entityOperation, error) {
+	switch state {
+	case types.SUCCEEDED:
+		if err := ssi.updateOperation(ctx, operationFromDB, storage, resp, types.SUCCEEDED, correlationID); err != nil {
+			return "", err
 		}
-		if len(operationData) != 0 {
-			criteria = append(criteria, query.ByField(query.EqualsOperator, "external_id", operationData))
+		return DELETE, nil
+	case types.FAILED:
+		if err := ssi.updateOperation(ctx, operationFromDB, storage, resp, types.FAILED, correlationID); err != nil {
+			return "", err
 		}
-		op, err := storage.Get(ctx, types.OperationType, criteria...)
-		if err != nil && err != util.ErrNotFoundInStorage {
-			return util.HandleStorageError(err, string(types.OperationType))
-		}
-		if op == nil {
-			return nil
-		}
-
-		operationFromDB := op.(*types.Operation)
-		if resStatusCode == http.StatusGone {
-			if operationFromDB.Type != types.DELETE {
-				return nil
-			}
-			responseBody.State = types.SUCCEEDED
-		}
-
-		if operationFromDB.State != responseBody.State {
-			switch operationFromDB.Type {
-			case types.CREATE:
-				switch responseBody.State {
-				case types.SUCCEEDED:
-					if err := updateEntityToReady(storage); err != nil {
-						return err
-					}
-					if err := updateOperation(storage, operationFromDB, types.SUCCEEDED); err != nil {
-						return err
-					}
-				case types.FAILED:
-					byID := query.ByField(query.EqualsOperator, "id", resourceID)
-					if err := storage.Delete(ctx, objectType, byID); err != nil {
-						if err != util.ErrNotFoundInStorage {
-							return util.HandleStorageError(err, string(objectType))
-						}
-					}
-					if err := updateOperation(storage, operationFromDB, types.FAILED); err != nil {
-						return err
-					}
-				}
-			case types.UPDATE:
-				switch responseBody.State {
-				case types.SUCCEEDED:
-					if err := updateOperation(storage, operationFromDB, types.SUCCEEDED); err != nil {
-						return err
-					}
-				case types.FAILED:
-					if err := rollbackEntity(storage); err != nil {
-						return err
-					}
-					if err := updateOperation(storage, operationFromDB, types.FAILED); err != nil {
-						return err
-					}
-				}
-			case types.DELETE:
-				switch responseBody.State {
-				case types.SUCCEEDED:
-					byID := query.ByField(query.EqualsOperator, "id", resourceID)
-					if err := storage.Delete(ctx, objectType, byID); err != nil {
-						if err != util.ErrNotFoundInStorage {
-							return util.HandleStorageError(err, string(objectType))
-						}
-					}
-					if err := updateOperation(storage, operationFromDB, types.SUCCEEDED); err != nil {
-						return err
-					}
-				case types.FAILED:
-					if err := rollbackEntity(storage); err != nil {
-						return err
-					}
-					if err := updateOperation(storage, operationFromDB, types.FAILED); err != nil {
-						return err
-					}
-				}
-			default:
-				return fmt.Errorf("unsupported operation type %s", operationFromDB.Type)
-			}
-		}
-		return nil
-	})
+		return ROLLBACK, nil
+	}
+	return "", nil
 }
+
+func (ssi *StorePlugin) pollCreation(ctx context.Context, storage storage.Repository, resp brokerError, state types.OperationState, operationFromDB *types.Operation, correlationID string) (entityOperation, error) {
+	switch state {
+	case types.SUCCEEDED:
+		if err := ssi.updateOperation(ctx, operationFromDB, storage, resp, types.SUCCEEDED, correlationID); err != nil {
+			return "", err
+		}
+		return READY, nil
+	case types.FAILED:
+
+		if err := ssi.updateOperation(ctx, operationFromDB, storage, resp, types.FAILED, correlationID); err != nil {
+			return "", err
+		}
+		return DELETE, nil
+	}
+	return "", nil
+}
+
+func (ssi *StorePlugin) pollUpdateInstance(ctx context.Context, storage storage.Repository, resp brokerError, state types.OperationState, operationFromDB *types.Operation, correlationID string) (entityOperation, error) {
+	switch state {
+	case types.SUCCEEDED:
+		if err := ssi.updateOperation(ctx, operationFromDB, storage, resp, types.SUCCEEDED, correlationID); err != nil {
+			return "", err
+		}
+	case types.FAILED:
+
+		if err := ssi.updateOperation(ctx, operationFromDB, storage, resp, types.FAILED, correlationID); err != nil {
+			return "", err
+		}
+		return ROLLBACK, nil
+	}
+	return "", nil
+}
+
+
+
