@@ -1,17 +1,17 @@
 /*
- * Copyright 2018 The Service Manager Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+* Copyright 2018 The Service Manager Authors
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
  */
 
 package osb
@@ -43,10 +43,10 @@ import (
 )
 
 const (
-	// StoreServiceInstancePluginName is the plugin name
-	StoreServiceInstancePluginName = "StoreServiceInstancePlugin"
-	smServicePlanIDKey             = "sm_service_plan_id"
-	smContextKey                   = "sm_context_key"
+	// OSBStorePluginName is the plugin name
+	OSBStorePluginName = "OSBStorePluginName"
+	smServicePlanIDKey = "sm_service_plan_id"
+	smContextKey       = "sm_context_key"
 )
 
 type provisionRequest struct {
@@ -61,11 +61,65 @@ type provisionRequest struct {
 	RawMaintenanceInfo json.RawMessage `json:"maintenance_info"`
 }
 
+type ProvisionResponse struct {
+	OperationData  string `json:"operation"`
+	Error          string `json:"error"`
+	Description    string `json:"description"`
+	DashboardURL   string `json:"dashboard_url"`
+	InstanceUsable bool   `json:"instance_usable"`
+}
+
+type lastOperationResponse struct {
+	ProvisionResponse
+
+	State types.OperationState `json:"state"`
+}
+
+type bindingResponse struct {
+	OperationData   string          `json:"operation"`
+	Error           string          `json:"error"`
+	Description     string          `json:"description"`
+	RouteServiceUrl string          `json:"route_service_url"`
+	SyslogDrainUrl  string          `json:"syslog_drain_url"`
+	VolumeMounts    json.RawMessage `json:"volume_mounts"`
+	Endpoints       json.RawMessage `json:"endpoints"`
+}
+
+type bindingRequest struct {
+	commonRequestDetails
+
+	ServiceID    string                 `json:"service_id"`
+	PlanID       string                 `json:"plan_id"`
+	BindingID    string                 `json:"binding_id"`
+	RawContext   json.RawMessage        `json:"context"`
+	BindResource json.RawMessage        `json:"bind_resource"`
+	Parameters   map[string]interface{} `json:"parameters"`
+}
+
+func (b *bindingResponse) GetOperationData() string {
+	return b.OperationData
+}
+
+func (p *ProvisionResponse) GetOperationData() string {
+	return p.OperationData
+}
+
 func (pr *provisionRequest) Validate() error {
 	if len(pr.ServiceID) == 0 {
 		return errors.New("service_id cannot be empty")
 	}
 	if len(pr.PlanID) == 0 {
+		return errors.New("plan_id cannot be empty")
+	}
+
+	return nil
+}
+
+func (br *bindingRequest) Validate() error {
+	if len(br.ServiceID) == 0 {
+		return errors.New("service_id cannot be empty")
+	}
+	if len(br.PlanID) == 0 {
 		return errors.New("plan_id cannot be empty")
 	}
 
@@ -157,94 +211,135 @@ func (r *commonRequestDetails) SetTimestamp(timestamp time.Time) {
 	r.Timestamp = timestamp
 }
 
-type Response struct {
-	DashboardURL   string `json:"dashboard_url"`
-	OperationData  string `json:"operation"`
-	Error          string `json:"error"`
-	Description    string `json:"description"`
-	InstanceUsable bool   `json:"instance_usable"`
-}
-
-type lastOperationResponse struct {
-	Response
-
-	State types.OperationState `json:"state"`
-}
-
 // NewStoreServiceInstancesPlugin creates a plugin that stores service instances on OSB requests
-func NewStoreServiceInstancesPlugin(repository storage.TransactionalRepository) *StoreServiceInstancePlugin {
-	return &StoreServiceInstancePlugin{
+func NewStoreServiceInstancesPlugin(repository storage.TransactionalRepository) *StorePlugin {
+	return &StorePlugin{
 		Repository: repository,
 	}
 }
 
 // StoreServiceInstancePlugin represents a plugin that stores service instances on OSB requests
-type StoreServiceInstancePlugin struct {
+type StorePlugin struct {
 	Repository storage.TransactionalRepository
 }
 
-func (*StoreServiceInstancePlugin) Name() string {
-	return StoreServiceInstancePluginName
+func (*StorePlugin) Name() string {
+	return OSBStorePluginName
 }
 
-func (ssi *StoreServiceInstancePlugin) Provision(request *web.Request, next web.Handler) (*web.Response, error) {
+func (ssi *StorePlugin) Bind(request *web.Request, next web.Handler) (*web.Response, error) {
+	ctx := request.Context()
+	requestPayload := &bindingRequest{}
+	resp := bindingResponse{}
+
+	if err := decodeRequestBody(request, requestPayload); err != nil {
+		return nil, err
+	}
+	response, err := next.Handle(request)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(response.Body, &resp); err != nil {
+		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), requestPayload.BrokerID)
+	}
+	// TODO saving just if subaccountID does exist
+
+	correlationID := log.CorrelationIDForRequest(request.Request)
+	err = handleCreateOperation(
+		ssi.Repository,
+		request.Context(),
+		response.StatusCode,
+		func(storage storage.Repository, state types.OperationState, category types.OperationCategory) error {
+			return ssi.storeOperation(ctx, storage, requestPayload, resp.OperationData, state, category, correlationID, types.ServiceBindingType)
+		},
+		func(storage storage.Repository, ready bool) error {
+			return ssi.storeBinding(ctx, storage, requestPayload, &resp, true)
+		})
+
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func handleCreateOperation(
+	repository storage.TransactionalRepository,
+	ctx context.Context,
+	resStatusCode int,
+	storeOperation func(storage storage.Repository, state types.OperationState, category types.OperationCategory) error,
+	storeEntity func(storage storage.Repository, ready bool) error,
+) error {
+	if err := repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
+		switch resStatusCode {
+		case http.StatusCreated:
+			if err := storeOperation(storage, types.SUCCEEDED, types.CREATE); err != nil {
+				return err
+			}
+			if err := storeEntity(storage, true); err != nil {
+				return err
+			}
+		case http.StatusOK:
+			if err := storeEntity(storage, true); err != nil {
+				if err != util.ErrAlreadyExistsInStorage {
+					return err
+				}
+			} else {
+				if err := storeOperation(storage, types.SUCCEEDED, types.CREATE); err != nil {
+					return err
+				}
+			}
+		case http.StatusAccepted:
+			if err := storeOperation(storage, types.IN_PROGRESS, types.CREATE); err != nil {
+				return err
+			}
+			if err := storeEntity(storage, false); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ssi *StorePlugin) Provision(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
 
 	requestPayload := &provisionRequest{}
 	if err := decodeRequestBody(request, requestPayload); err != nil {
 		return nil, err
 	}
-
 	response, err := next.Handle(request)
 	if err != nil {
 		return nil, err
 	}
-
-	resp := Response{
+	resp := ProvisionResponse{
 		InstanceUsable: true,
 	}
-
 	if err := json.Unmarshal(response.Body, &resp); err != nil {
 		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), requestPayload.BrokerID)
 	}
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
-	if err := ssi.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		switch response.StatusCode {
-		case http.StatusCreated:
-			if err := ssi.storeOperation(ctx, storage, requestPayload, &resp, types.SUCCEEDED, types.CREATE, correlationID); err != nil {
-				return err
-			}
-			if err := ssi.storeInstance(ctx, storage, requestPayload, &resp, true); err != nil {
-				return err
-			}
-		case http.StatusOK:
-			if err := ssi.storeInstance(ctx, storage, requestPayload, &resp, true); err != nil {
-				if err != util.ErrAlreadyExistsInStorage {
-					return err
-				}
-			} else {
-				if err := ssi.storeOperation(ctx, storage, requestPayload, &resp, types.SUCCEEDED, types.CREATE, correlationID); err != nil {
-					return err
-				}
-			}
-		case http.StatusAccepted:
-			if err := ssi.storeOperation(ctx, storage, requestPayload, &resp, types.IN_PROGRESS, types.CREATE, correlationID); err != nil {
-				return err
-			}
-			if err := ssi.storeInstance(ctx, storage, requestPayload, &resp, false); err != nil {
-				return err
-			}
-		}
-		return nil
-	}); err != nil {
+	err = handleCreateOperation(
+		ssi.Repository,
+		request.Context(),
+		response.StatusCode,
+		func(storage storage.Repository, state types.OperationState, category types.OperationCategory) error{
+			return ssi.storeOperation(ctx, storage, requestPayload, resp.OperationData, state, category, correlationID, types.ServiceInstanceType)
+		},
+		func(storage storage.Repository, ready bool) error {
+			return ssi.storeInstance(ctx, storage, requestPayload, &resp, true)
+		})
+
+	if err != nil {
 		return nil, err
 	}
-
 	return response, nil
 }
 
-func (ssi *StoreServiceInstancePlugin) Deprovision(request *web.Request, next web.Handler) (*web.Response, error) {
+func (ssi *StorePlugin) Deprovision(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
 
 	requestPayload := &deprovisionRequest{}
@@ -257,7 +352,7 @@ func (ssi *StoreServiceInstancePlugin) Deprovision(request *web.Request, next we
 		return nil, err
 	}
 
-	resp := Response{
+	resp := ProvisionResponse{
 		InstanceUsable: true,
 	}
 	if err := json.Unmarshal(response.Body, &resp); err != nil {
@@ -277,11 +372,11 @@ func (ssi *StoreServiceInstancePlugin) Deprovision(request *web.Request, next we
 
 				}
 			}
-			if err := ssi.storeOperation(ctx, storage, requestPayload, &resp, types.SUCCEEDED, types.DELETE, correlationID); err != nil {
+			if err := ssi.storeOperation(ctx, storage, requestPayload, resp.OperationData, types.SUCCEEDED, types.DELETE, correlationID, types.ServiceInstanceType); err != nil {
 				return err
 			}
 		case http.StatusAccepted:
-			if err := ssi.storeOperation(ctx, storage, requestPayload, &resp, types.IN_PROGRESS, types.DELETE, correlationID); err != nil {
+			if err := ssi.storeOperation(ctx, storage, requestPayload, resp.OperationData, types.IN_PROGRESS, types.DELETE, correlationID, types.ServiceInstanceType); err != nil {
 				return err
 			}
 		}
@@ -293,7 +388,7 @@ func (ssi *StoreServiceInstancePlugin) Deprovision(request *web.Request, next we
 	return response, nil
 }
 
-func (ssi *StoreServiceInstancePlugin) UpdateService(request *web.Request, next web.Handler) (*web.Response, error) {
+func (ssi *StorePlugin) UpdateService(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
 
 	requestPayload := &updateRequest{}
@@ -306,7 +401,7 @@ func (ssi *StoreServiceInstancePlugin) UpdateService(request *web.Request, next 
 		return nil, err
 	}
 
-	resp := Response{
+	resp := ProvisionResponse{
 		InstanceUsable: true,
 	}
 	if err := json.Unmarshal(response.Body, &resp); err != nil {
@@ -320,14 +415,14 @@ func (ssi *StoreServiceInstancePlugin) UpdateService(request *web.Request, next 
 			if err := ssi.updateInstance(ctx, storage, requestPayload, &resp, true); err != nil {
 				return err
 			}
-			if err := ssi.storeOperation(ctx, storage, requestPayload, &resp, types.SUCCEEDED, types.UPDATE, correlationID); err != nil {
+			if err := ssi.storeOperation(ctx, storage, requestPayload, resp.OperationData, types.SUCCEEDED, types.UPDATE, correlationID, types.ServiceInstanceType); err != nil {
 				return err
 			}
 		case http.StatusAccepted:
 			if err := ssi.updateInstance(ctx, storage, requestPayload, &resp, true); err != nil {
 				return err
 			}
-			if err := ssi.storeOperation(ctx, storage, requestPayload, &resp, types.IN_PROGRESS, types.UPDATE, correlationID); err != nil {
+			if err := ssi.storeOperation(ctx, storage, requestPayload, resp.OperationData, types.IN_PROGRESS, types.UPDATE, correlationID, types.ServiceInstanceType); err != nil {
 				return err
 			}
 		}
@@ -339,7 +434,7 @@ func (ssi *StoreServiceInstancePlugin) UpdateService(request *web.Request, next 
 	return response, nil
 }
 
-func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next web.Handler) (*web.Response, error) {
+func (ssi *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
 
 	requestPayload := &lastOperationRequest{}
@@ -357,7 +452,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 	}
 
 	resp := lastOperationResponse{
-		Response: Response{
+		ProvisionResponse: ProvisionResponse{
 			InstanceUsable: true,
 		},
 	}
@@ -398,7 +493,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 					if err := ssi.updateInstanceReady(ctx, storage, requestPayload.InstanceID); err != nil {
 						return err
 					}
-					if err := ssi.updateOperation(ctx, operationFromDB, storage, requestPayload, &resp.Response, types.SUCCEEDED, correlationID); err != nil {
+					if err := ssi.updateOperation(ctx, operationFromDB, storage, requestPayload, &resp.ProvisionResponse, types.SUCCEEDED, correlationID); err != nil {
 						return err
 					}
 				case types.FAILED:
@@ -408,21 +503,21 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 							return util.HandleStorageError(err, string(types.ServiceInstanceType))
 						}
 					}
-					if err := ssi.updateOperation(ctx, operationFromDB, storage, requestPayload, &resp.Response, types.FAILED, correlationID); err != nil {
+					if err := ssi.updateOperation(ctx, operationFromDB, storage, requestPayload, &resp.ProvisionResponse, types.FAILED, correlationID); err != nil {
 						return err
 					}
 				}
 			case types.UPDATE:
 				switch resp.State {
 				case types.SUCCEEDED:
-					if err := ssi.updateOperation(ctx, operationFromDB, storage, requestPayload, &resp.Response, types.SUCCEEDED, correlationID); err != nil {
+					if err := ssi.updateOperation(ctx, operationFromDB, storage, requestPayload, &resp.ProvisionResponse, types.SUCCEEDED, correlationID); err != nil {
 						return err
 					}
 				case types.FAILED:
 					if err := ssi.rollbackInstance(ctx, requestPayload, storage, resp.InstanceUsable); err != nil {
 						return err
 					}
-					if err := ssi.updateOperation(ctx, operationFromDB, storage, requestPayload, &resp.Response, types.FAILED, correlationID); err != nil {
+					if err := ssi.updateOperation(ctx, operationFromDB, storage, requestPayload, &resp.ProvisionResponse, types.FAILED, correlationID); err != nil {
 						return err
 					}
 				}
@@ -435,14 +530,14 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 							return util.HandleStorageError(err, string(types.ServiceInstanceType))
 						}
 					}
-					if err := ssi.updateOperation(ctx, operationFromDB, storage, requestPayload, &resp.Response, types.SUCCEEDED, correlationID); err != nil {
+					if err := ssi.updateOperation(ctx, operationFromDB, storage, requestPayload, &resp.ProvisionResponse, types.SUCCEEDED, correlationID); err != nil {
 						return err
 					}
 				case types.FAILED:
 					if err := ssi.rollbackInstance(ctx, requestPayload, storage, resp.InstanceUsable); err != nil {
 						return err
 					}
-					if err := ssi.updateOperation(ctx, operationFromDB, storage, requestPayload, &resp.Response, types.FAILED, correlationID); err != nil {
+					if err := ssi.updateOperation(ctx, operationFromDB, storage, requestPayload, &resp.ProvisionResponse, types.FAILED, correlationID); err != nil {
 						return err
 					}
 				}
@@ -458,7 +553,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 	return response, nil
 }
 
-func (ssi *StoreServiceInstancePlugin) updateOperation(ctx context.Context, operation *types.Operation, storage storage.Repository, req commonOSBRequest, resp *Response, state types.OperationState, correlationID string) error {
+func (ssi *StorePlugin) updateOperation(ctx context.Context, operation *types.Operation, storage storage.Repository, req commonOSBRequest, resp *ProvisionResponse, state types.OperationState, correlationID string) error {
 	operation.State = state
 	operation.CorrelationID = correlationID
 	if len(resp.Error) != 0 || len(resp.Description) != 0 {
@@ -482,7 +577,16 @@ func (ssi *StoreServiceInstancePlugin) updateOperation(ctx context.Context, oper
 	return nil
 }
 
-func (ssi *StoreServiceInstancePlugin) storeOperation(ctx context.Context, storage storage.Repository, req commonOSBRequest, resp *Response, state types.OperationState, category types.OperationCategory, correlationID string) error {
+func (ssi *StorePlugin) storeOperation(
+	ctx context.Context,
+	storage storage.Repository,
+	req commonOSBRequest,
+	operationData string,
+	state types.OperationState,
+	category types.OperationCategory,
+	correlationID string,
+	objType types.ObjectType) error {
+
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		return fmt.Errorf("could not generate GUID for %s: %s", "/v1/service_instances", err)
@@ -498,10 +602,10 @@ func (ssi *StoreServiceInstancePlugin) storeOperation(ctx context.Context, stora
 		Type:          category,
 		State:         state,
 		ResourceID:    req.GetInstanceID(),
-		ResourceType:  "/v1/service_instances",
+		ResourceType:  objType,
 		PlatformID:    req.GetPlatformID(),
 		CorrelationID: correlationID,
-		ExternalID:    resp.OperationData,
+		ExternalID:    operationData,
 	}
 
 	if _, err := storage.Create(ctx, operation); err != nil {
@@ -511,7 +615,7 @@ func (ssi *StoreServiceInstancePlugin) storeOperation(ctx context.Context, stora
 	return nil
 }
 
-func (ssi *StoreServiceInstancePlugin) storeInstance(ctx context.Context, storage storage.Repository, req *provisionRequest, resp *Response, ready bool) error {
+func (ssi *StorePlugin) storeInstance(ctx context.Context, storage storage.Repository, req *provisionRequest, resp *ProvisionResponse, ready bool) error {
 	planID, err := findServicePlanIDByCatalogIDs(ctx, storage, req.BrokerID, req.ServiceID, req.PlanID)
 	if err != nil {
 		return err
@@ -543,7 +647,41 @@ func (ssi *StoreServiceInstancePlugin) storeInstance(ctx context.Context, storag
 	return nil
 }
 
-func (ssi *StoreServiceInstancePlugin) updateInstance(ctx context.Context, storage storage.Repository, req *updateRequest, resp *Response, usable bool) error {
+func (ssi *StorePlugin) storeBinding(ctx context.Context, storage storage.Repository, req *bindingRequest, resp *bindingResponse, ready bool) error {
+	// TODO: check if binding_name does exist in the context
+	bindingName := gjson.GetBytes(req.RawContext, "binding_name").String()
+	if len(bindingName) == 0 {
+		log.C(ctx).Debugf("Binding name missing. Defaulting to id %s", req.BindingID)
+		bindingName = req.InstanceID
+	}
+	// TODO: check integertiy
+	binding := &types.ServiceBinding{
+		Base: types.Base{
+			ID:        req.BindingID,
+			CreatedAt: req.Timestamp,
+			UpdatedAt: req.Timestamp,
+			Labels:    make(map[string][]string),
+			Ready:     ready,
+		},
+		Name:              bindingName,
+		ServiceInstanceID: req.InstanceID,
+		SyslogDrainURL:    resp.SyslogDrainUrl,
+		RouteServiceURL:   resp.RouteServiceUrl,
+		VolumeMounts:      resp.VolumeMounts,
+		Endpoints:         resp.Endpoints,
+		Context:           req.RawContext,
+		BindResource:      req.BindResource,
+		Parameters:        req.Parameters,
+		Credentials:       nil,
+	}
+
+	if _, err := storage.Create(ctx, binding); err != nil {
+		return util.HandleStorageError(err, string(binding.GetType()))
+	}
+	return nil
+}
+
+func (ssi *StorePlugin) updateInstance(ctx context.Context, storage storage.Repository, req *updateRequest, resp *ProvisionResponse, usable bool) error {
 	byID := query.ByField(query.EqualsOperator, "id", req.InstanceID)
 	var instance types.Object
 	var err error
@@ -593,7 +731,7 @@ func (ssi *StoreServiceInstancePlugin) updateInstance(ctx context.Context, stora
 	return nil
 }
 
-func (ssi *StoreServiceInstancePlugin) rollbackInstance(ctx context.Context, req commonOSBRequest, storage storage.Repository, usable bool) error {
+func (ssi *StorePlugin) rollbackInstance(ctx context.Context, req commonOSBRequest, storage storage.Repository, usable bool) error {
 	byID := query.ByField(query.EqualsOperator, "id", req.GetInstanceID())
 	var instance types.Object
 	var err error
@@ -631,7 +769,7 @@ func (ssi *StoreServiceInstancePlugin) rollbackInstance(ctx context.Context, req
 	return nil
 }
 
-func (ssi *StoreServiceInstancePlugin) updateInstanceReady(ctx context.Context, storage storage.Repository, instanceID string) error {
+func (ssi *StorePlugin) updateInstanceReady(ctx context.Context, storage storage.Repository, instanceID string) error {
 	byID := query.ByField(query.EqualsOperator, "id", instanceID)
 	var instance types.Object
 	var err error
@@ -713,3 +851,4 @@ func decodeRequestBody(request *web.Request, body commonOSBRequest) error {
 	}
 	return parseRequestForm(request, body)
 }
+

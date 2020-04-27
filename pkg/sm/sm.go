@@ -193,7 +193,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 	smb.RegisterPlugins(osb.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
 	smb.RegisterPluginsBefore(osb.CheckInstanceOwnerhipPluginName, osb.NewStoreServiceInstancesPlugin(interceptableRepository))
-	smb.RegisterPluginsBefore(osb.StoreServiceInstancePluginName, osb.NewCheckVisibilityPlugin(interceptableRepository))
+	smb.RegisterPluginsBefore(osb.OSBStorePluginName, osb.NewCheckVisibilityPlugin(interceptableRepository))
 	smb.RegisterPlugins(osb.NewCheckPlatformIDPlugin(interceptableRepository))
 
 	// Register default interceptors that represent the core SM business logic
