@@ -30,8 +30,7 @@ const ServiceInstanceCreateInterceptorName = "ServiceInstanceCreateInterceptor"
 
 type createInterceptor struct {
 	TenantIdentifier string
-	EntityType       types.ObjectType
-
+	ExtractContext   func(obj types.Object) json.RawMessage
 }
 
 type ServiceInstanceCreateInsterceptorProvider struct {
@@ -45,10 +44,19 @@ func (c *ServiceInstanceCreateInsterceptorProvider) Name() string {
 func (c *ServiceInstanceCreateInsterceptorProvider) Provide() storage.CreateOnTxInterceptor {
 	return &createInterceptor{
 		TenantIdentifier: c.TenantIdentifier,
-		EntityType: types.ServiceInstanceType,
+		ExtractContext: func(obj types.Object) json.RawMessage {
+			return obj.(*types.ServiceInstance).Context
+		},
 	}
 }
-
+func (c *ServiceBindingCreateInsterceptorProvider) Provide() storage.CreateOnTxInterceptor {
+	return &createInterceptor{
+		TenantIdentifier: c.TenantIdentifier,
+		ExtractContext: func(obj types.Object) json.RawMessage {
+			return obj.(*types.ServiceBinding).Context
+		},
+	}
+}
 
 const ServiceBindingCreateInterceptorName = "ServiceBindingCreateInterceptor"
 
@@ -60,36 +68,22 @@ func (c *ServiceBindingCreateInsterceptorProvider) Name() string {
 	return ServiceBindingCreateInterceptorName
 }
 
-func (c *ServiceBindingCreateInsterceptorProvider) Provide() storage.CreateOnTxInterceptor {
-	return &createInterceptor{
-		TenantIdentifier: c.TenantIdentifier,
-		EntityType: types.ServiceBindingType,
-	}
-}
-
 func (c *createInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 	return func(ctx context.Context, storage storage.Repository, obj types.Object) (types.Object, error) {
-
 		labels := obj.GetLabels()
 		if labels == nil {
 			labels = types.Labels{}
 		}
 
 		if _, ok := labels[c.TenantIdentifier]; ok {
-			log.C(ctx).Debugf("Label %s is already set on service instance", c.TenantIdentifier)
+			log.C(ctx).Debugf("Label %s is already set on %s", c.TenantIdentifier, obj.GetType())
 			return h(ctx, storage, obj)
 		}
 
-		var context json.RawMessage
-		if c.EntityType == types.ServiceInstanceType {
-			context = obj.(*types.ServiceInstance).Context
-		} else {
-			context = obj.(*types.ServiceBinding).Context
-		}
-
-		tenantID := gjson.GetBytes(context, c.TenantIdentifier)
+		objectContext := c.ExtractContext(obj)
+		tenantID := gjson.GetBytes(objectContext, c.TenantIdentifier)
 		if !tenantID.Exists() {
-			log.C(ctx).Debugf("Could not add %s label to service instance with id %s. Label not found in OSB context.", c.TenantIdentifier, obj.GetID())
+			log.C(ctx).Debugf("Could not add %s label to %s with id %s. Label not found in OSB context.", c.TenantIdentifier, obj.GetType(), obj.GetID())
 			return h(ctx, storage, obj)
 		}
 		labels[c.TenantIdentifier] = []string{tenantID.String()}
