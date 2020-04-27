@@ -890,9 +890,9 @@ func handleCreate(repository storage.TransactionalRepository, ctx context.Contex
 }
 
 func handleDelete(repository storage.TransactionalRepository, ctx context.Context, resStatusCode int, entityType types.ObjectType, entityId string,
-	storeOperation func(context.Context, storage storage.Repository, state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error) error {
+	storeOperation func(ctx context.Context, storage storage.Repository, state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error) error {
 
-	repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
+	err := repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
 		switch resStatusCode {
 		case http.StatusOK:
 			fallthrough
@@ -914,4 +914,5 @@ func handleDelete(repository storage.TransactionalRepository, ctx context.Contex
 		}
 		return nil
 	})
+	return err
 }
