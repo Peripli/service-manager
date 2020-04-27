@@ -851,7 +851,7 @@ func handleDelete(repository storage.TransactionalRepository, ctx context.Contex
 	return err
 }
 
-func (sp *StorePlugin) handlePollingResponse(objectType types.ObjectType, responseBody *lastOperationResponse, repository storage.TransactionalRepository, ctx context.Context, operationData string, resStatusCode int, resourceID string, rollbackEntity func(storage storage.Repository) error, updateEntityReady func(storage storage.Repository) error, updateOperation func(storage storage.Repository, operationFromDB *types.Operation, state types.OperationState) error) error {
+func (sp *StorePlugin) handlePollingResponse(objectType types.ObjectType, responseBody *lastOperationResponse, repository storage.TransactionalRepository, ctx context.Context, operationData string, resStatusCode int, resourceID string, rollbackEntity func(storage storage.Repository) error, updateEntityToReady func(storage storage.Repository) error, updateOperation func(storage storage.Repository, operationFromDB *types.Operation, state types.OperationState) error) error {
 	return repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
 		criteria := []query.Criterion{
 			query.ByField(query.EqualsOperator, "resource_id", resourceID),
@@ -881,7 +881,7 @@ func (sp *StorePlugin) handlePollingResponse(objectType types.ObjectType, respon
 			case types.CREATE:
 				switch responseBody.State {
 				case types.SUCCEEDED:
-					if err := updateEntityReady(storage); err != nil {
+					if err := updateEntityToReady(storage); err != nil {
 						return err
 					}
 					if err := updateOperation(storage, operationFromDB, types.SUCCEEDED); err != nil {
