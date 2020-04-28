@@ -108,9 +108,9 @@ type lastInstanceOperationResponse struct {
 }
 
 type lastBindOperationResponse struct {
-	State types.OperationState `json:"state"`
-	Error           string          `json:"error"`
-	Description     string          `json:"description"`
+	State       types.OperationState `json:"state"`
+	Error       string               `json:"error"`
+	Description string               `json:"description"`
 }
 
 func (lb *lastBindOperationResponse) GetError() string {
@@ -227,7 +227,7 @@ type lastInstanceOperationRequest struct {
 
 type lastBindOperationRequest struct {
 	commonRequestDetails
-	BindingID string `json:"binding_id"`
+	BindingID     string `json:"binding_id"`
 	OperationData string `json:"operation"`
 }
 
@@ -304,47 +304,39 @@ func (*StorePlugin) Name() string {
 
 func (sp *StorePlugin) Bind(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
-
-	bindingId, ok := request.PathParams[BindingIDPathParam]
-
+	bindingID, ok := request.PathParams[BindingIDPathParam]
 	if !ok {
-		return nil ,fmt.Errorf("path parameter missing: %s", BindingIDPathParam)
+		return nil, fmt.Errorf("path parameter missing: %s", BindingIDPathParam)
 	}
 
 	requestPayload := &bindRequest{}
-	resp := bindResponse{}
+	responsePayload := bindResponse{}
 
 	if err := decodeRequestBody(request, requestPayload); err != nil {
 		return nil, err
 	}
-	requestPayload.BindingID = bindingId
-
+	requestPayload.BindingID = bindingID
 	response, err := next.Handle(request)
 	if err != nil {
 		return nil, err
 	}
 
 	// TODO saving just if subaccountID does exist
-	if err := json.Unmarshal(response.Body, &resp); err != nil {
+	if err := json.Unmarshal(response.Body, &responsePayload); err != nil {
 		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), requestPayload.BrokerID)
 	}
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
-
 	err = sp.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
+		return sp.createOsbEntity(
+			response.StatusCode,
+			func(state types.OperationState, category types.OperationCategory) error {
+				return sp.storeOperation(ctx, storage, requestPayload.BindingID, requestPayload, responsePayload.OperationData, state, category, correlationID, types.ServiceBindingType)
+			},
+			func(ready bool) error {
+				return sp.storeBinding(ctx, storage, requestPayload, &responsePayload, true)
+			})
 
-		storeOp := func(state types.OperationState, category types.OperationCategory) error {
-			return sp.storeOperation(ctx, storage, requestPayload.BindingID, requestPayload, resp.OperationData, state, category, correlationID, types.ServiceBindingType)
-		}
-		storeEntity := 	func(ready bool) error {
-			return sp.storeBinding(ctx, storage, requestPayload, &resp, true)
-		}
-
-		err = sp.createOsbEntity(response.StatusCode, storeOp, storeEntity)
-		if err != nil {
-			return err
-		}
-		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -354,13 +346,10 @@ func (sp *StorePlugin) Bind(request *web.Request, next web.Handler) (*web.Respon
 
 func (sp *StorePlugin) Unbind(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
-
 	bindingId, ok := request.PathParams[BindingIDPathParam]
-
 	if !ok {
-		return nil ,fmt.Errorf("path parameter missing: %s", BindingIDPathParam)
+		return nil, fmt.Errorf("path parameter missing: %s", BindingIDPathParam)
 	}
-
 	requestPayload := &unbindRequest{}
 	if err := parseRequestForm(request, requestPayload); err != nil {
 		return nil, err
@@ -371,7 +360,6 @@ func (sp *StorePlugin) Unbind(request *web.Request, next web.Handler) (*web.Resp
 	if err != nil {
 		return nil, err
 	}
-
 	// TODO saving just if subaccountID does exist
 	resp := unbindResponse{}
 	if err := json.Unmarshal(response.Body, &resp); err != nil {
@@ -379,28 +367,21 @@ func (sp *StorePlugin) Unbind(request *web.Request, next web.Handler) (*web.Resp
 	}
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
-
 	err = sp.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-
-		storeOp := func(state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error {
-			return sp.storeOperation(ctx, storage, requestPayload.BindingID, requestPayload, resp.OperationData, state, category, correlationID, objectType)
-		}
-
-		deleteEntity := func () error{
-			byID := query.ByField(query.EqualsOperator, "id", requestPayload.BindingID)
-			if err := storage.Delete(ctx, types.ServiceBindingType, byID); err != nil {
-				if err != util.ErrNotFoundInStorage {
-					return util.HandleStorageError(err, string(types.ServiceBindingType))
+		return sp.removeOsbEntity(
+			response.StatusCode,
+			func() error {
+				byID := query.ByField(query.EqualsOperator, "id", requestPayload.BindingID)
+				if err := storage.Delete(ctx, types.ServiceBindingType, byID); err != nil {
+					if err != util.ErrNotFoundInStorage {
+						return util.HandleStorageError(err, string(types.ServiceBindingType))
+					}
 				}
-			}
-			return nil
-		}
-
-		err = sp.removeOsbEntity(response.StatusCode, deleteEntity, storeOp)
-		if err != nil {
-			return err
-		}
-		return nil
+				return nil
+			},
+			func(state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error {
+				return sp.storeOperation(ctx, storage, requestPayload.BindingID, requestPayload, resp.OperationData, state, category, correlationID, objectType)
+			})
 	})
 
 	if err != nil {
@@ -411,40 +392,34 @@ func (sp *StorePlugin) Unbind(request *web.Request, next web.Handler) (*web.Resp
 
 func (sp *StorePlugin) Provision(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
-
 	requestPayload := &provisionRequest{}
 	if err := decodeRequestBody(request, requestPayload); err != nil {
 		return nil, err
 	}
+
 	response, err := next.Handle(request)
 	if err != nil {
 		return nil, err
 	}
-	resp := ProvisionResponse{
+	responsePayload := ProvisionResponse{
 		InstanceUsable: true,
 	}
-	if err := json.Unmarshal(response.Body, &resp); err != nil {
+	if err := json.Unmarshal(response.Body, &responsePayload); err != nil {
 		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), requestPayload.BrokerID)
 	}
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
-
-
 	err = sp.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-
-		storeOp := func(state types.OperationState, category types.OperationCategory) error {
-			return sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, resp.OperationData, state, category, correlationID, types.ServiceInstanceType)
-		}
-		storeEntity := func(ready bool) error {
-			return sp.storeInstance(ctx, storage, requestPayload, &resp, true)
-		}
-
-		err = sp.createOsbEntity(response.StatusCode, storeOp, storeEntity)
-		if err != nil {
-			return err
-		}
-		return nil
+		return sp.createOsbEntity(
+			response.StatusCode,
+			func(state types.OperationState, category types.OperationCategory) error {
+				return sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, responsePayload.OperationData, state, category, correlationID, types.ServiceInstanceType)
+			},
+			func(ready bool) error {
+				return sp.storeInstance(ctx, storage, requestPayload, &responsePayload, true)
+			})
 	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -454,43 +429,38 @@ func (sp *StorePlugin) Provision(request *web.Request, next web.Handler) (*web.R
 
 func (sp *StorePlugin) Deprovision(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
-
 	requestPayload := &deprovisionRequest{}
 	if err := parseRequestForm(request, requestPayload); err != nil {
 		return nil, err
 	}
-
 	response, err := next.Handle(request)
 	if err != nil {
 		return nil, err
 	}
 
-	resp := ProvisionResponse{
+	responsePayload := ProvisionResponse{
 		InstanceUsable: true,
 	}
-	if err := json.Unmarshal(response.Body, &resp); err != nil {
+	if err := json.Unmarshal(response.Body, &responsePayload); err != nil {
 		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), requestPayload.BrokerID)
 	}
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
-
 	err = sp.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		storeOp := func(state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error {
-			return sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, resp.OperationData, state, category, correlationID, objectType)
-		}
-
-		deleteEntity := func () error {
-			byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
-			if err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
-				if err != util.ErrNotFoundInStorage {
-					return util.HandleStorageError(err, string(types.ServiceInstanceType))
-
+		err = sp.removeOsbEntity(
+			response.StatusCode,
+			func() error {
+				byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
+				if err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
+					if err != util.ErrNotFoundInStorage {
+						return util.HandleStorageError(err, string(types.ServiceInstanceType))
+					}
 				}
-			}
-			return nil
-		}
-
-		err = sp.removeOsbEntity(response.StatusCode, deleteEntity, storeOp)
+				return nil
+			},
+			func(state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error {
+				return sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, responsePayload.OperationData, state, category, correlationID, objectType)
+			})
 		if err != nil {
 			return err
 		}
@@ -510,16 +480,15 @@ func (sp *StorePlugin) UpdateService(request *web.Request, next web.Handler) (*w
 	if err := decodeRequestBody(request, requestPayload); err != nil {
 		return nil, err
 	}
-
 	response, err := next.Handle(request)
 	if err != nil {
 		return nil, err
 	}
 
-	resp := ProvisionResponse{
+	responsePayload := ProvisionResponse{
 		InstanceUsable: true,
 	}
-	if err := json.Unmarshal(response.Body, &resp); err != nil {
+	if err := json.Unmarshal(response.Body, &responsePayload); err != nil {
 		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), requestPayload.BrokerID)
 	}
 
@@ -527,17 +496,17 @@ func (sp *StorePlugin) UpdateService(request *web.Request, next web.Handler) (*w
 	if err := sp.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
 		switch response.StatusCode {
 		case http.StatusOK:
-			if err := sp.updateInstance(ctx, storage, requestPayload, &resp); err != nil {
+			if err := sp.updateInstance(ctx, storage, requestPayload, &responsePayload); err != nil {
 				return err
 			}
-			if err := sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, resp.OperationData, types.SUCCEEDED, types.UPDATE, correlationID, types.ServiceInstanceType); err != nil {
+			if err := sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, responsePayload.OperationData, types.SUCCEEDED, types.UPDATE, correlationID, types.ServiceInstanceType); err != nil {
 				return err
 			}
 		case http.StatusAccepted:
-			if err := sp.updateInstance(ctx, storage, requestPayload, &resp); err != nil {
+			if err := sp.updateInstance(ctx, storage, requestPayload, &responsePayload); err != nil {
 				return err
 			}
-			if err := sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, resp.OperationData, types.IN_PROGRESS, types.UPDATE, correlationID, types.ServiceInstanceType); err != nil {
+			if err := sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, responsePayload.OperationData, types.IN_PROGRESS, types.UPDATE, correlationID, types.ServiceInstanceType); err != nil {
 				return err
 			}
 		}
@@ -551,18 +520,16 @@ func (sp *StorePlugin) UpdateService(request *web.Request, next web.Handler) (*w
 
 func (sp *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
-
-	bindingId, ok := request.PathParams[BindingIDPathParam]
-
+	bindingID, ok := request.PathParams[BindingIDPathParam]
 	if !ok {
-		return nil ,fmt.Errorf("path parameter missing: %s", BindingIDPathParam)
+		return nil, fmt.Errorf("path parameter missing: %s", BindingIDPathParam)
 	}
 
 	requestPayload := &lastBindOperationRequest{}
 	if err := parseRequestForm(request, requestPayload); err != nil {
 		return nil, err
 	}
-	requestPayload.BindingID = bindingId
+	requestPayload.BindingID = bindingID
 
 	response, err := next.Handle(request)
 	if err != nil {
@@ -575,8 +542,8 @@ func (sp *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web
 		return response, nil
 	}
 
-	resp := lastBindOperationResponse{}
-	if err := json.Unmarshal(response.Body, &resp); err != nil {
+	responsePayload := lastBindOperationResponse{}
+	if err := json.Unmarshal(response.Body, &responsePayload); err != nil {
 		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), requestPayload.BrokerID)
 	}
 	correlationID := log.CorrelationIDForRequest(request.Request)
@@ -590,19 +557,19 @@ func (sp *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web
 			if operationFromDB.Type != types.DELETE {
 				return nil
 			}
-			resp.State = types.SUCCEEDED
+			responsePayload.State = types.SUCCEEDED
 		}
 
 		var instanceOp entityOperation
-		if operationFromDB.State != resp.State {
+		if operationFromDB.State != responsePayload.State {
 			switch operationFromDB.Type {
 			case types.CREATE:
-				instanceOp, err = sp.pollCreation(ctx, storage, &resp, resp.State, operationFromDB, correlationID)
+				instanceOp, err = sp.pollCreation(ctx, storage, &responsePayload, responsePayload.State, operationFromDB, correlationID)
 				if err != nil {
 					return err
 				}
 			case types.DELETE:
-				instanceOp, err = sp.pollDelete(ctx, storage, &resp, resp.State, operationFromDB, correlationID)
+				instanceOp, err = sp.pollDelete(ctx, storage, &responsePayload, responsePayload.State, operationFromDB, correlationID)
 				if err != nil {
 					return err
 				}
