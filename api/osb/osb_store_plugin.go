@@ -330,39 +330,19 @@ func (sp *StorePlugin) Bind(request *web.Request, next web.Handler) (*web.Respon
 	}
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
-	storeOp := func(storage storage.Repository, state types.OperationState, category types.OperationCategory) error {
-		return sp.storeOperation(ctx, storage, requestPayload.BindingID, requestPayload, resp.OperationData, state, category, correlationID, types.ServiceBindingType)
-	}
-	storeEntity := 	func(storage storage.Repository, ready bool) error {
-			return sp.storeBinding(ctx, storage, requestPayload, &resp, true)
-	}
 
 	err = sp.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		switch response.StatusCode {
-		case http.StatusCreated:
-			if err := storeOp(storage, types.SUCCEEDED, types.CREATE); err != nil {
-				return err
-			}
-			if err := storeEntity(storage, true); err != nil {
-				return err
-			}
-		case http.StatusOK:
-			if err := storeEntity(storage, true); err != nil {
-				if err != util.ErrAlreadyExistsInStorage {
-					return err
-				}
-			} else {
-				if err := storeOp(storage, types.SUCCEEDED, types.CREATE); err != nil {
-					return err
-				}
-			}
-		case http.StatusAccepted:
-			if err := storeOp(storage, types.IN_PROGRESS, types.CREATE); err != nil {
-				return err
-			}
-			if err := storeEntity(storage, false); err != nil {
-				return err
-			}
+
+		storeOp := func(state types.OperationState, category types.OperationCategory) error {
+			return sp.storeOperation(ctx, storage, requestPayload.BindingID, requestPayload, resp.OperationData, state, category, correlationID, types.ServiceBindingType)
+		}
+		storeEntity := 	func(ready bool) error {
+			return sp.storeBinding(ctx, storage, requestPayload, &resp, true)
+		}
+
+		err = sp.createOsbEntity(response.StatusCode, storeOp, storeEntity)
+		if err != nil {
+			return err
 		}
 		return nil
 	})
@@ -416,7 +396,7 @@ func (sp *StorePlugin) Unbind(request *web.Request, next web.Handler) (*web.Resp
 			return nil
 		}
 
-		err = sp.removeEntity(response.StatusCode, deleteEntity, storeOp)
+		err = sp.removeOsbEntity(response.StatusCode, deleteEntity, storeOp)
 		if err != nil {
 			return err
 		}
@@ -449,39 +429,19 @@ func (sp *StorePlugin) Provision(request *web.Request, next web.Handler) (*web.R
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
 
-	storeOp := func(storage storage.Repository, state types.OperationState, category types.OperationCategory) error {
-		return sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, resp.OperationData, state, category, correlationID, types.ServiceInstanceType)
-	}
-	storeEntity := func(storage storage.Repository, ready bool) error {
-		return sp.storeInstance(ctx, storage, requestPayload, &resp, true)
-	}
 
 	err = sp.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		switch response.StatusCode {
-		case http.StatusCreated:
-			if err := storeOp(storage, types.SUCCEEDED, types.CREATE); err != nil {
-				return err
-			}
-			if err := storeEntity(storage, true); err != nil {
-				return err
-			}
-		case http.StatusOK:
-			if err := storeEntity(storage, true); err != nil {
-				if err != util.ErrAlreadyExistsInStorage {
-					return err
-				}
-			} else {
-				if err := storeOp(storage, types.SUCCEEDED, types.CREATE); err != nil {
-					return err
-				}
-			}
-		case http.StatusAccepted:
-			if err := storeOp(storage, types.IN_PROGRESS, types.CREATE); err != nil {
-				return err
-			}
-			if err := storeEntity(storage, false); err != nil {
-				return err
-			}
+
+		storeOp := func(state types.OperationState, category types.OperationCategory) error {
+			return sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, resp.OperationData, state, category, correlationID, types.ServiceInstanceType)
+		}
+		storeEntity := func(ready bool) error {
+			return sp.storeInstance(ctx, storage, requestPayload, &resp, true)
+		}
+
+		err = sp.createOsbEntity(response.StatusCode, storeOp, storeEntity)
+		if err != nil {
+			return err
 		}
 		return nil
 	})
@@ -530,7 +490,7 @@ func (sp *StorePlugin) Deprovision(request *web.Request, next web.Handler) (*web
 			return nil
 		}
 
-		err = sp.removeEntity(response.StatusCode, deleteEntity, storeOp)
+		err = sp.removeOsbEntity(response.StatusCode, deleteEntity, storeOp)
 		if err != nil {
 			return err
 		}
@@ -1011,6 +971,7 @@ func (sp *StorePlugin) updateInstanceReady(ctx context.Context, storage storage.
 
 	return nil
 }
+
 func (sp *StorePlugin) updateBindingReady(ctx context.Context, storage storage.Repository, bindingID string) error {
 	byID := query.ByField(query.EqualsOperator, "id", bindingID)
 	var instance types.Object
@@ -1094,34 +1055,6 @@ func decodeRequestBody(request *web.Request, body commonOSBRequest) error {
 	return parseRequestForm(request, body)
 }
 
-/*func (sp *StorePlugin) handleDelete(repository storage.TransactionalRepository, ctx context.Context, resStatusCode int, entityType types.ObjectType, entityId string,
-	storeOperation func(storage storage.Repository, state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error) error {
-
-	err := repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		switch resStatusCode {
-		case http.StatusOK:
-			fallthrough
-		case http.StatusGone:
-			byID := query.ByField(query.EqualsOperator, "id", entityId)
-			if err := storage.Delete(ctx, entityType, byID); err != nil {
-				if err != util.ErrNotFoundInStorage {
-					return util.HandleStorageError(err, string(entityType))
-
-				}
-			}
-			if err := storeOperation(storage, types.SUCCEEDED, types.DELETE, entityType); err != nil {
-				return err
-			}
-		case http.StatusAccepted:
-			if err := storeOperation(storage, types.IN_PROGRESS, types.DELETE, entityType); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	return err
-}*/
-
 func (sp *StorePlugin) pollDelete(ctx context.Context, storage storage.Repository, resp brokerError, state types.OperationState, operationFromDB *types.Operation, correlationID string) (entityOperation, error) {
 	switch state {
 	case types.SUCCEEDED:
@@ -1171,7 +1104,7 @@ func (sp *StorePlugin) pollUpdate(ctx context.Context, storage storage.Repositor
 	return "", nil
 }
 
-func (sp *StorePlugin) removeEntity(status int, deleteEntity func() error, storeOp func(state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error) error {
+func (sp *StorePlugin) removeOsbEntity(status int, deleteEntity func() error, storeOp func(state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error) error {
 	switch status {
 	case http.StatusOK:
 		fallthrough
@@ -1184,6 +1117,36 @@ func (sp *StorePlugin) removeEntity(status int, deleteEntity func() error, store
 		}
 	case http.StatusAccepted:
 		if err := storeOp(types.IN_PROGRESS, types.DELETE, types.ServiceInstanceType); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (sp *StorePlugin) createOsbEntity(status int, storeOp func(state types.OperationState, category types.OperationCategory) error, storeEntity func(ready bool) error) error {
+	switch status {
+	case http.StatusCreated:
+		if err := storeOp(types.SUCCEEDED, types.CREATE); err != nil {
+			return err
+		}
+		if err := storeEntity(true); err != nil {
+			return err
+		}
+	case http.StatusOK:
+		if err := storeEntity(true); err != nil {
+			if err != util.ErrAlreadyExistsInStorage {
+				return err
+			}
+		} else {
+			if err := storeOp(types.SUCCEEDED, types.CREATE); err != nil {
+				return err
+			}
+		}
+	case http.StatusAccepted:
+		if err := storeOp(types.IN_PROGRESS, types.CREATE); err != nil {
+			return err
+		}
+		if err := storeEntity(false); err != nil {
 			return err
 		}
 	}
