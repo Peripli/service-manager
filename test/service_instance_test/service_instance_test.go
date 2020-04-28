@@ -825,6 +825,7 @@ var _ = DescribeTestsFor(TestCase{
 										BeforeEach(func() {
 											newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 												e.Set("server.shutdown_timeout", 1*time.Second)
+												e.Set("operations.maintainer_retry_interval", 1*time.Second)
 											}).BuildWithoutCleanup()
 
 											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", func(_ *http.Request) (int, map[string]interface{}) {
@@ -1010,6 +1011,57 @@ var _ = DescribeTestsFor(TestCase{
 										})
 									})
 								})
+
+								When("broker unavailable during polling", func() {
+
+									It("polling proceeds until success on 500", func() {
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"3", MultipleErrorsBeforeSuccessHandler(
+											http.StatusServiceUnavailable, http.StatusOK,
+											Object{"error": "error"}, Object{"state": "succeeded"},
+										))
+
+										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    instanceID,
+											Type:  types.ServiceInstanceType,
+											Ready: true,
+										})
+									})
+									It("polling proceeds until success on 404", func() {
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"3", MultipleErrorsBeforeSuccessHandler(
+											http.StatusNotFound, http.StatusOK,
+											Object{"error": "error"}, Object{"state": "succeeded"},
+										))
+
+										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    instanceID,
+											Type:  types.ServiceInstanceType,
+											Ready: true,
+										})
+									})
+								})
+
 							})
 
 							if testCase.async {
@@ -1020,6 +1072,7 @@ var _ = DescribeTestsFor(TestCase{
 									BeforeEach(func() {
 										newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("server.shutdown_timeout", 1*time.Second)
+											e.Set("operations.maintainer_retry_interval", 1*time.Second)
 										}).BuildWithoutCleanup()
 
 										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
@@ -1234,6 +1287,7 @@ var _ = DescribeTestsFor(TestCase{
 									BeforeEach(func() {
 										newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 											e.Set("server.shutdown_timeout", 1*time.Second)
+											e.Set("operations.maintainer_retry_interval", 1*time.Second)
 										}).BuildWithoutCleanup()
 
 										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
@@ -2883,6 +2937,7 @@ var _ = DescribeTestsFor(TestCase{
 											BeforeEach(func() {
 												newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
 													e.Set("server.shutdown_timeout", 1*time.Second)
+													e.Set("operations.maintainer_retry_interval", 1*time.Second)
 												}).BuildWithoutCleanup()
 
 												brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", func(_ *http.Request) (int, map[string]interface{}) {
