@@ -192,7 +192,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	smb.RegisterPlugins(osb.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
-	smb.RegisterPluginsBefore(osb.CheckInstanceOwnerhipPluginName, osb.NewStoreServiceInstancesPlugin(interceptableRepository))
+	smb.RegisterPluginsBefore(osb.CheckInstanceOwnerhipPluginName, osb.NewStorePlugin(interceptableRepository))
 	smb.RegisterPluginsBefore(osb.OSBStorePluginName, osb.NewCheckVisibilityPlugin(interceptableRepository))
 	smb.RegisterPlugins(osb.NewCheckPlatformIDPlugin(interceptableRepository))
 
