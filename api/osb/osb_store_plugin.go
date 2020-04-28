@@ -400,27 +400,25 @@ func (sp *StorePlugin) Unbind(request *web.Request, next web.Handler) (*web.Resp
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
 
-	storeOp := func(storage storage.Repository, state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error {
-		return sp.storeOperation(ctx, storage, requestPayload.BindingID, requestPayload, resp.OperationData, state, category, correlationID, objectType)
-	}
 	err = sp.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		switch response.StatusCode {
-		case http.StatusOK:
-			fallthrough
-		case http.StatusGone:
+
+		storeOp := func(state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error {
+			return sp.storeOperation(ctx, storage, requestPayload.BindingID, requestPayload, resp.OperationData, state, category, correlationID, objectType)
+		}
+
+		deleteEntity := func () error{
 			byID := query.ByField(query.EqualsOperator, "id", requestPayload.BindingID)
 			if err := storage.Delete(ctx, types.ServiceBindingType, byID); err != nil {
 				if err != util.ErrNotFoundInStorage {
 					return util.HandleStorageError(err, string(types.ServiceBindingType))
 				}
 			}
-			if err := storeOp(storage, types.SUCCEEDED, types.DELETE, types.ServiceBindingType); err != nil {
-				return err
-			}
-		case http.StatusAccepted:
-			if err := storeOp(storage, types.IN_PROGRESS, types.DELETE, types.ServiceBindingType); err != nil {
-				return err
-			}
+			return nil
+		}
+
+		err = sp.removeEntity(response.StatusCode, deleteEntity, storeOp)
+		if err != nil {
+			return err
 		}
 		return nil
 	})
@@ -516,15 +514,12 @@ func (sp *StorePlugin) Deprovision(request *web.Request, next web.Handler) (*web
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
 
-	storeOp := func(storage storage.Repository, state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error {
-		return sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, resp.OperationData, state, category, correlationID, objectType)
-	}
-
 	err = sp.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		switch response.StatusCode {
-		case http.StatusOK:
-			fallthrough
-		case http.StatusGone:
+		storeOp := func(state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error {
+			return sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, resp.OperationData, state, category, correlationID, objectType)
+		}
+
+		deleteEntity := func () error {
 			byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
 			if err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
 				if err != util.ErrNotFoundInStorage {
@@ -532,13 +527,12 @@ func (sp *StorePlugin) Deprovision(request *web.Request, next web.Handler) (*web
 
 				}
 			}
-			if err := storeOp(storage, types.SUCCEEDED, types.DELETE, types.ServiceInstanceType); err != nil {
-				return err
-			}
-		case http.StatusAccepted:
-			if err := storeOp(storage, types.IN_PROGRESS, types.DELETE, types.ServiceInstanceType); err != nil {
-				return err
-			}
+			return nil
+		}
+
+		err = sp.removeEntity(response.StatusCode, deleteEntity, storeOp)
+		if err != nil {
+			return err
 		}
 		return nil
 	})
@@ -1175,4 +1169,23 @@ func (sp *StorePlugin) pollUpdate(ctx context.Context, storage storage.Repositor
 		return ROLLBACK, nil
 	}
 	return "", nil
+}
+
+func (sp *StorePlugin) removeEntity(status int, deleteEntity func() error, storeOp func(state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error) error {
+	switch status {
+	case http.StatusOK:
+		fallthrough
+	case http.StatusGone:
+		if err := deleteEntity(); err != nil {
+			return err
+		}
+		if err := storeOp(types.SUCCEEDED, types.DELETE, types.ServiceInstanceType); err != nil {
+			return err
+		}
+	case http.StatusAccepted:
+		if err := storeOp(types.IN_PROGRESS, types.DELETE, types.ServiceInstanceType); err != nil {
+			return err
+		}
+	}
+	return nil
 }
