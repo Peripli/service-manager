@@ -334,7 +334,7 @@ func (sp *StorePlugin) Bind(request *web.Request, next web.Handler) (*web.Respon
 				return sp.storeOperation(ctx, storage, requestPayload.BindingID, requestPayload, responsePayload.OperationData, state, category, correlationID, types.ServiceBindingType)
 			},
 			func(ready bool) error {
-				return sp.storeBinding(ctx, storage, requestPayload, &responsePayload, true)
+				return sp.storeBinding(ctx, storage, requestPayload, &responsePayload, ready)
 			})
 
 	})
@@ -416,7 +416,7 @@ func (sp *StorePlugin) Provision(request *web.Request, next web.Handler) (*web.R
 				return sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, responsePayload.OperationData, state, category, correlationID, types.ServiceInstanceType)
 			},
 			func(ready bool) error {
-				return sp.storeInstance(ctx, storage, requestPayload, &responsePayload, true)
+				return sp.storeInstance(ctx, storage, requestPayload, &responsePayload, ready)
 			})
 	})
 
@@ -553,6 +553,9 @@ func (sp *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web
 		if ex != nil {
 			return ex
 		}
+		if operationFromDB == nil {
+			return nil
+		}
 		if response.StatusCode == http.StatusGone {
 			if operationFromDB.Type != types.DELETE {
 				return nil
@@ -632,6 +635,9 @@ func (sp *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*we
 		if ex != nil {
 			return ex
 		}
+		if operationFromDB == nil {
+			return nil
+		}
 		if response.StatusCode == http.StatusGone {
 			if operationFromDB.Type != types.DELETE {
 				return nil
@@ -665,7 +671,7 @@ func (sp *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*we
 
 		switch instanceOp {
 		case READY:
-			if err := sp.updateBindingReady(ctx, storage, requestPayload.InstanceID); err != nil {
+			if err := sp.updateInstanceReady(ctx, storage, requestPayload.InstanceID); err != nil {
 				return err
 			}
 		case DELETE:
@@ -702,7 +708,7 @@ func (sp *StorePlugin) getOperationFromDB(ctx context.Context, storage storage.R
 		return nil, util.HandleStorageError(err, string(types.OperationType))
 	}
 	if op == nil {
-		return nil, fmt.Errorf("could not fetch operation from db")
+		return nil, nil
 	}
 
 	operationFromDB := op.(*types.Operation)
@@ -1033,7 +1039,7 @@ func (sp *StorePlugin) pollDelete(ctx context.Context, storage storage.Repositor
 		if err := sp.updateOperation(ctx, operationFromDB, storage, resp, types.FAILED, correlationID); err != nil {
 			return "", err
 		}
-		return "", nil
+		return ROLLBACK, nil
 	}
 	return "", nil
 }
