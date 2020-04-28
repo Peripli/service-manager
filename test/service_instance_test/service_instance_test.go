@@ -971,6 +971,57 @@ var _ = DescribeTestsFor(TestCase{
 										})
 									})
 								})
+
+								When("broker unavailable during polling", func() {
+
+									It("polling proceeds until success on 500", func() {
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"3", MultipleErrorsBeforeSuccessHandler(
+											http.StatusServiceUnavailable, http.StatusOK,
+											Object{"error": "error"}, Object{"state": "succeeded"},
+										))
+
+										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    instanceID,
+											Type:  types.ServiceInstanceType,
+											Ready: true,
+										})
+									})
+									It("polling proceeds until success on 404", func() {
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"3", MultipleErrorsBeforeSuccessHandler(
+											http.StatusNotFound, http.StatusOK,
+											Object{"error": "error"}, Object{"state": "succeeded"},
+										))
+
+										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    instanceID,
+											Type:  types.ServiceInstanceType,
+											Ready: true,
+										})
+									})
+								})
+
 							})
 
 							if testCase.async {
