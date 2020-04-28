@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -121,6 +122,19 @@ var _ = Describe("Utils test", func() {
 
 				validateHTTPErrorOccurred(err, http.StatusBadRequest)
 			})
+
+			DescribeTable("when JSON body has duplicate keys", func(body string) {
+				req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(body))
+				req.Header.Add("Content-Type", "application/json")
+				_, err := util.RequestBodyToBytes(req)
+
+				validateHTTPErrorOccurred(err, http.StatusBadRequest)
+			}, []TableEntry{
+				Entry("top level keys", `{"key1":"value1","key1":"value2"}`),
+				Entry("nested keys", `{"key1":{"key2":"value1","key2":"value2"}}`),
+				Entry("duplicate keys in array element", `{"key1":[{"key3":"value3"},{"key2":"value1","key2":"value2"}]}`),
+			}...)
+
 		})
 
 		Context("when successful", func() {
@@ -147,6 +161,7 @@ var _ = Describe("Utils test", func() {
 			})
 
 		})
+
 	})
 
 	Describe("BytesToObject", func() {

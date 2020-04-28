@@ -328,6 +328,46 @@ var _ = DescribeTestsFor(TestCase{
 							})
 						})
 
+						Context("when request body contains protected labels", func() {
+							It("returns 400", func() {
+								ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+									WithQuery("async", testCase.async).
+									WithHeader("Content-Type", "application/json").
+									WithBytes([]byte(fmt.Sprintf(`{
+										"name": "test-instance-name",
+										"service_plan_id": "%s",
+										"maintenance_info": {},
+										"labels": {
+											"%s":["test-tenant"]
+										}
+									}`, servicePlanID, TenantIdentifier))).
+									Expect().
+									Status(http.StatusBadRequest).
+									JSON().Object().
+									Keys().Contains("error", "description")
+							})
+
+							Context("when request body contains multiple label objects", func() {
+								It("returns 400", func() {
+									ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", testCase.async).
+										WithHeader("Content-Type", "application/json").
+										WithBytes([]byte(fmt.Sprintf(`{
+										"name": "test-instance-name",
+										"service_plan_id": "%s",
+										"maintenance_info": {},
+										"labels": {},
+										"labels": {
+											"%s":["test-tenant"]
+										}
+									}`, servicePlanID, TenantIdentifier))).
+										Expect().
+										Status(http.StatusBadRequest).
+										JSON().Object().Value("description").String().Contains("invalid json: duplicate key labels")
+								})
+							})
+						})
+
 						When("a request body field is missing", func() {
 							assertPOSTWhenFieldIsMissing := func(field string, expectedStatusCode int) {
 								var servicePlanID string
