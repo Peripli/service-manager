@@ -363,8 +363,7 @@ var _ = DescribeTestsFor(TestCase{
 									}`, servicePlanID, TenantIdentifier))).
 										Expect().
 										Status(http.StatusBadRequest).
-										JSON().Object().
-										Keys().Contains("error", "description")
+										JSON().Object().Value("description").String().Contains("invalid json: duplicate key labels")
 								})
 							})
 						})

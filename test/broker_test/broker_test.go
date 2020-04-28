@@ -301,8 +301,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							}`, brokerWithLabelsServer.URL(), brokerWithLabelsServer.Username, brokerWithLabelsServer.Password, TenantLabelKey))).
 								Expect().
 								Status(http.StatusBadRequest).
-								JSON().Object().
-								Keys().Contains("error", "description")
+								JSON().Object().Value("description").String().Contains("invalid json: duplicate key labels")
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
 						})
