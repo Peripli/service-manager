@@ -304,13 +304,21 @@ func (*StorePlugin) Name() string {
 
 func (sp *StorePlugin) Bind(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
-	// TODO: Getting binding_id from path url
+
+	bindingId, ok := request.PathParams[BindingIDPathParam]
+
+	if !ok {
+		return nil ,fmt.Errorf("path parameter missing: %s", BindingIDPathParam)
+	}
+
 	requestPayload := &bindRequest{}
 	resp := bindResponse{}
 
 	if err := decodeRequestBody(request, requestPayload); err != nil {
 		return nil, err
 	}
+	requestPayload.BindingID = bindingId
+
 	response, err := next.Handle(request)
 	if err != nil {
 		return nil, err
@@ -342,10 +350,17 @@ func (sp *StorePlugin) Bind(request *web.Request, next web.Handler) (*web.Respon
 func (sp *StorePlugin) Unbind(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
 
+	bindingId, ok := request.PathParams[BindingIDPathParam]
+
+	if !ok {
+		return nil ,fmt.Errorf("path parameter missing: %s", BindingIDPathParam)
+	}
+
 	requestPayload := &unbindRequest{}
 	if err := parseRequestForm(request, requestPayload); err != nil {
 		return nil, err
 	}
+	requestPayload.BindingID = bindingId
 
 	response, err := next.Handle(request)
 	if err != nil {
@@ -499,10 +514,17 @@ func (sp *StorePlugin) UpdateService(request *web.Request, next web.Handler) (*w
 func (sp *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
 
+	bindingId, ok := request.PathParams[BindingIDPathParam]
+
+	if !ok {
+		return nil ,fmt.Errorf("path parameter missing: %s", BindingIDPathParam)
+	}
+
 	requestPayload := &lastBindOperationRequest{}
 	if err := parseRequestForm(request, requestPayload); err != nil {
 		return nil, err
 	}
+	requestPayload.BindingID = bindingId
 
 	response, err := next.Handle(request)
 	if err != nil {
