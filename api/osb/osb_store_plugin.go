@@ -53,11 +53,11 @@ type entityOperation string
 
 const (
 	READY entityOperation = "ready"
-
 	ROLLBACK entityOperation = "rollback"
-
 	DELETE entityOperation = "failed"
 )
+
+type BindingStorageKey struct{}
 
 type provisionRequest struct {
 	commonRequestDetails
@@ -321,7 +321,9 @@ func (sp *StorePlugin) Bind(request *web.Request, next web.Handler) (*web.Respon
 		return nil, err
 	}
 
-	// TODO saving just if subaccountID does exist
+	if !storeBindingNeeded(ctx) {
+		return response, nil
+	}
 	if err := json.Unmarshal(response.Body, &responsePayload); err != nil {
 		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), requestPayload.BrokerID)
 	}
@@ -360,7 +362,10 @@ func (sp *StorePlugin) Unbind(request *web.Request, next web.Handler) (*web.Resp
 	if err != nil {
 		return nil, err
 	}
-	// TODO saving just if subaccountID does exist
+
+	if !storeBindingNeeded(ctx) {
+		return response, nil
+	}
 	resp := unbindResponse{}
 	if err := json.Unmarshal(response.Body, &resp); err != nil {
 		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), requestPayload.BrokerID)
@@ -536,7 +541,9 @@ func (sp *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web
 		return nil, err
 	}
 
-	// TODO saving just if subaccountID does exist
+	if !storeBindingNeeded(ctx) {
+		return response, nil
+	}
 
 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusGone {
 		return response, nil
@@ -580,7 +587,6 @@ func (sp *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web
 				return fmt.Errorf("unsupported operation type %s", operationFromDB.Type)
 			}
 		}
-
 		switch instanceOp {
 		case READY:
 			if err := sp.updateBindingReady(ctx, storage, requestPayload.BindingID); err != nil {
@@ -600,6 +606,15 @@ func (sp *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web
 	}
 
 	return response, nil
+}
+
+func storeBindingNeeded(ctx context.Context) bool {
+	storageNeeded := ctx.Value(BindingStorageKey{})
+	if storageNeeded == nil {
+		return true
+	}
+	return storageNeeded.(bool)
+
 }
 
 func (sp *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*web.Response, error) {
