@@ -17,6 +17,7 @@
 package osb_test
 
 import (
+	"github.com/Peripli/service-manager/test/common"
 	"net/http"
 
 	. "github.com/onsi/ginkgo"
@@ -33,31 +34,21 @@ var _ = Describe("Bind", func() {
 	})
 
 	AfterEach(func() {
-		credentials := brokerPlatformCredentialsIDMap[brokerID]
-		ctx.SMWithBasic.SetBasicCredentials(ctx, credentials.username, credentials.password)
-		brokerServer.BindingHandler = parameterizedHandler(http.StatusOK, `{}`)
-		ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/" +IID+ "/service_bindings/bid").
-			WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-			WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
-			Expect().Status(http.StatusOK)
-
-		ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/" +IID).
-			WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-			WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
-			Expect().Status(http.StatusOK)
+		common.RemoveAllBindings(ctx)
+		common.RemoveAllInstances(ctx)
 	})
 
 	Context("call to working service broker", func() {
 
 		It("should succeed", func() {
 			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/" +IID+ "/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/" + IID + "/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
 		})
 
 		It("Binding to a server that supports gzip encoded responses", func() {
 			brokerServer.BindingHandler = gzipHandler(http.StatusCreated, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+ IID +"/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
 		})
 
