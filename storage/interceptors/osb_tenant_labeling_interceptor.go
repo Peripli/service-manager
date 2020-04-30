@@ -28,15 +28,6 @@ import (
 
 const ServiceInstanceCreateInterceptorName = "ServiceInstanceCreateInterceptor"
 
-type createInterceptor struct {
-	TenantIdentifier string
-	ExtractContext   func(obj types.Object) json.RawMessage
-}
-
-type ServiceInstanceCreateInsterceptorProvider struct {
-	TenantIdentifier string
-}
-
 func (c *ServiceInstanceCreateInsterceptorProvider) Name() string {
 	return ServiceInstanceCreateInterceptorName
 }
@@ -49,6 +40,17 @@ func (c *ServiceInstanceCreateInsterceptorProvider) Provide() storage.CreateOnTx
 		},
 	}
 }
+
+type ServiceInstanceCreateInsterceptorProvider struct {
+	TenantIdentifier string
+}
+
+const ServiceBindingCreateInterceptorName = "ServiceBindingCreateInterceptor"
+
+func (c *ServiceBindingCreateInsterceptorProvider) Name() string {
+	return ServiceBindingCreateInterceptorName
+}
+
 func (c *ServiceBindingCreateInsterceptorProvider) Provide() storage.CreateOnTxInterceptor {
 	return &createInterceptor{
 		TenantIdentifier: c.TenantIdentifier,
@@ -58,14 +60,14 @@ func (c *ServiceBindingCreateInsterceptorProvider) Provide() storage.CreateOnTxI
 	}
 }
 
-const ServiceBindingCreateInterceptorName = "ServiceBindingCreateInterceptor"
-
 type ServiceBindingCreateInsterceptorProvider struct {
 	TenantIdentifier string
 }
 
-func (c *ServiceBindingCreateInsterceptorProvider) Name() string {
-	return ServiceBindingCreateInterceptorName
+
+type createInterceptor struct {
+	TenantIdentifier string
+	ExtractContext   func(obj types.Object) json.RawMessage
 }
 
 func (c *createInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
