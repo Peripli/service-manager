@@ -384,8 +384,8 @@ func (sp *StorePlugin) Unbind(request *web.Request, next web.Handler) (*web.Resp
 				}
 				return nil
 			},
-			func(state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error {
-				return sp.storeOperation(ctx, storage, requestPayload.BindingID, requestPayload, resp.OperationData, state, category, correlationID, objectType)
+			func(state types.OperationState, category types.OperationCategory) error {
+				return sp.storeOperation(ctx, storage, requestPayload.BindingID, requestPayload, resp.OperationData, state, category, correlationID, types.ServiceBindingType)
 			})
 	})
 
@@ -463,8 +463,8 @@ func (sp *StorePlugin) Deprovision(request *web.Request, next web.Handler) (*web
 				}
 				return nil
 			},
-			func(state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error {
-				return sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, responsePayload.OperationData, state, category, correlationID, objectType)
+			func(state types.OperationState, category types.OperationCategory) error {
+				return sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, responsePayload.OperationData, state, category, correlationID, types.ServiceInstanceType)
 			})
 		if err != nil {
 			return err
@@ -1092,7 +1092,7 @@ func (sp *StorePlugin) pollUpdate(ctx context.Context, storage storage.Repositor
 	return "", nil
 }
 
-func (sp *StorePlugin) removeOsbEntity(status int, deleteEntity func() error, storeOp func(state types.OperationState, category types.OperationCategory, objectType types.ObjectType) error) error {
+func (sp *StorePlugin) removeOsbEntity(status int, deleteEntity func() error, storeOp func(state types.OperationState, category types.OperationCategory) error) error {
 	switch status {
 	case http.StatusOK:
 		fallthrough
@@ -1100,11 +1100,11 @@ func (sp *StorePlugin) removeOsbEntity(status int, deleteEntity func() error, st
 		if err := deleteEntity(); err != nil {
 			return err
 		}
-		if err := storeOp(types.SUCCEEDED, types.DELETE, types.ServiceInstanceType); err != nil {
+		if err := storeOp(types.SUCCEEDED, types.DELETE); err != nil {
 			return err
 		}
 	case http.StatusAccepted:
-		if err := storeOp(types.IN_PROGRESS, types.DELETE, types.ServiceInstanceType); err != nil {
+		if err := storeOp(types.IN_PROGRESS, types.DELETE); err != nil {
 			return err
 		}
 	}
