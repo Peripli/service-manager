@@ -120,9 +120,6 @@ var _ = Describe("Unbind", func() {
 			assertUnresponsiveBrokerError(ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+IID +"/service_bindings/" + BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithQueryObject(provisionRequestBodyMap()()).
 				Expect())
-			ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
-				Expect().Status(http.StatusOK)
-			verifyOperationDoesNotExist(BID, "delete")
 		}, testTimeout)
 	})
 
