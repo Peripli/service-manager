@@ -535,12 +535,10 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 
 	smb.RegisterPlugins(osb.NewCheckInstanceOwnershipPlugin(smb.Storage, labelKey))
 
-	smb.WithCreateOnTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceCreateInsterceptorProvider{
-		TenantIdentifier: labelKey,
-	}).AroundTxAfter(interceptors.ServiceInstanceCreateInterceptorProviderName).Register()
-	smb.WithCreateOnTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingCreateInsterceptorProvider{
-		TenantIdentifier: labelKey,
-	}).AroundTxAfter(interceptors.ServiceBindingCreateInterceptorProviderName).Register()
+	smb.WithCreateOnTxInterceptorProvider(types.ServiceInstanceType, interceptors.NewOSBServiceInstanceTenantLabelingInterceptor(labelKey)).
+		AroundTxAfter(interceptors.ServiceInstanceCreateInterceptorProviderName).Register()
+	smb.WithCreateOnTxInterceptorProvider(types.ServiceBindingType, interceptors.NewOSBBindingTenantLabelingInterceptor(labelKey)).
+		AroundTxAfter(interceptors.ServiceBindingCreateInterceptorProviderName).Register()
 	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.OperationsCreateInsterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).Register()
