@@ -216,6 +216,7 @@ var _ = BeforeEach(func() {
 
 var _ = JustAfterEach(func() {
 	common.RemoveAllOperations(ctx.SMRepository)
+	common.RemoveAllBindings(ctx)
 	common.RemoveAllInstances(ctx)
 	common.RemoveAllOperations(ctx.SMRepository)
 })

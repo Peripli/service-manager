@@ -63,8 +63,6 @@ var _ = Describe("OSB Security", func() {
 	})
 
 	AfterEach(func() {
-		common.RemoveAllBindings(ctx)
-		common.RemoveAllInstances(ctx)
 		ctx.CleanupBroker(brokerID)
 		ctx.CleanupPlatforms()
 	})

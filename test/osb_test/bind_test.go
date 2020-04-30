@@ -17,7 +17,6 @@
 package osb_test
 
 import (
-	"github.com/Peripli/service-manager/test/common"
 	"net/http"
 
 	. "github.com/onsi/ginkgo"
@@ -31,11 +30,6 @@ var _ = Describe("Bind", func() {
 			WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 			WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
 			Expect().Status(http.StatusCreated)
-	})
-
-	AfterEach(func() {
-		common.RemoveAllBindings(ctx)
-		common.RemoveAllInstances(ctx)
 	})
 
 	Context("call to working service broker", func() {
