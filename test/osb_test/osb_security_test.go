@@ -69,7 +69,7 @@ var _ = Describe("OSB Security", func() {
 		ctx.CleanupPlatforms()
 	})
 
-	FContext("from the same subaccount", func() {
+	Context("from the same subaccount", func() {
 
 		Context("get binding", func() {
 			BeforeEach(func() {
@@ -124,7 +124,7 @@ var _ = Describe("OSB Security", func() {
 
 	})
 
-	FContext("from other subaccount", func() {
+	Context("from other subaccount", func() {
 		var SMPlatformOtherSubaccountExpect *httpexpect.Expect
 		var brokerExpect *httpexpect.Expect
 		BeforeEach(func() {
