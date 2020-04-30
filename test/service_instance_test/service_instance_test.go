@@ -303,7 +303,6 @@ var _ = DescribeTestsFor(TestCase{
 									WithQuery("async", true).
 									WithJSON(postInstanceRequestTLS).
 									Expect().Status(http.StatusAccepted)
-
 							})
 
 							It("returns 201", func() {
@@ -3407,7 +3406,7 @@ func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
 		panic(err)
 	}
 
-	instanceReqBody := make(Object, 0)
+	instanceReqBody := make(Object)
 	instanceReqBody["name"] = "test-service-instance-" + ID.String()
 	_, array := prepareBrokerWithCatalog(ctx, auth)
 	instanceReqBody["service_plan_id"] = array.First().Object().Value("id").String().Raw()

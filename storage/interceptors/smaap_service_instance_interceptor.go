@@ -612,12 +612,15 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 		EnableAlphaFeatures: true,
 		URL:                 broker.BrokerURL,
 		APIVersion:          osbc.LatestAPIVersion(),
-		AuthConfig: &osbc.AuthConfig{
+	}
+
+	if broker.Credentials.Basic != nil {
+		osbClientConfig.AuthConfig = &osbc.AuthConfig{
 			BasicAuthConfig: &osbc.BasicAuthConfig{
 				Username: broker.Credentials.Basic.Username,
 				Password: broker.Credentials.Basic.Password,
 			},
-		},
+		}
 	}
 
 	if tlsConfig != nil {

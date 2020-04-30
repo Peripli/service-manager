@@ -23,12 +23,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/test/tls_settings"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"time"
+
+	"github.com/Peripli/service-manager/test/tls_settings"
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/gorilla/mux"
@@ -309,23 +310,25 @@ func (b *BrokerServer) BindingLastOpHandlerFunc(op string, handler func(req *htt
 
 func (b *BrokerServer) authenticationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		auth := req.Header.Get("Authorization")
-		if auth == "" {
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("Missing authorization header"))
-			return
-		}
-		const basicHeaderPrefixLength = len("Basic ")
-		decoded, err := base64.StdEncoding.DecodeString(auth[basicHeaderPrefixLength:])
-		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(err.Error()))
-			return
-		}
-		if string(decoded) != fmt.Sprintf("%s:%s", b.Username, b.Password) {
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("Credentials mismatch"))
-			return
+		if b.Server.TLS == nil {
+			auth := req.Header.Get("Authorization")
+			if auth == "" {
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte("Missing authorization header"))
+				return
+			}
+			const basicHeaderPrefixLength = len("Basic ")
+			decoded, err := base64.StdEncoding.DecodeString(auth[basicHeaderPrefixLength:])
+			if err != nil {
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			if string(decoded) != fmt.Sprintf("%s:%s", b.Username, b.Password) {
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte("Credentials mismatch"))
+				return
+			}
 		}
 		next.ServeHTTP(w, req)
 	})
