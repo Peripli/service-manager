@@ -17,35 +17,67 @@
 package osb_test
 
 import (
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 
 	. "github.com/onsi/ginkgo"
 )
 
 var _ = Describe("Unbind", func() {
+	var IID = "11011"
+	var BID = "01010"
+
+	BeforeEach(func() {
+		ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/" +IID).
+			WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+			WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
+			Expect().Status(http.StatusCreated)
+		ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/" + IID + "/service_bindings/" + BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+			WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+	})
+
 	Context("when trying to delete binding", func() {
 		It("should be successful", func() {
 			brokerServer.BindingHandler = parameterizedHandler(http.StatusOK, `{}`)
-			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+IID +"/service_bindings/" + BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithQueryObject(provisionRequestBodyMap()()).
 				Expect().Status(http.StatusOK).JSON().Object()
+
+			ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
+				Expect().Status(http.StatusNotFound)
+
+			verifyOperationExists(operationExpectations{
+				Type:         types.DELETE,
+				State:        types.SUCCEEDED,
+				ResourceID:   BID,
+				ResourceType: "/v1/service_bindings",
+				ExternalID:   "",
+			})
 
 		})
 	})
 
 	Context("when call to failing service broker", func() {
+
 		It("should return error", func() {
 			brokerServer.BindingHandler = parameterizedHandler(http.StatusInternalServerError, `internal server error`)
 			assertFailingBrokerError(
-				ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+ IID +"/service_bindings/" + BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(provisionRequestBodyMap()()).Expect(), http.StatusInternalServerError, `internal server error`)
+			ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
+				Expect().Status(http.StatusOK)
+			verifyOperationDoesNotExist(BID, "delete")
 		})
 	})
 
 	Context("when call to missing broker", func() {
 		It("unbind fails with 401", func() {
-			ctx.SMWithBasic.DELETE("http://localhost:3456/v1/osb/123"+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+			ctx.SMWithBasic.DELETE("http://localhost:3456/v1/osb/123"+"/v2/service_instances/"+IID +"/service_bindings/" + BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithQueryObject(provisionRequestBodyMap()()).Expect().Status(http.StatusUnauthorized)
+			ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
+				Expect().Status(http.StatusOK)
+			verifyOperationDoesNotExist(BID, "delete")
 		})
 	})
 
@@ -55,8 +87,11 @@ var _ = Describe("Unbind", func() {
 			ctx.SMWithBasic.SetBasicCredentials(ctx, credentials.username, credentials.password)
 
 			assertUnresponsiveBrokerError(
-				ctx.SMWithBasic.DELETE(smUrlToStoppedBroker+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				ctx.SMWithBasic.DELETE(smUrlToStoppedBroker+"/v2/service_instances/"+IID +"/service_bindings/" + BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithQueryObject(provisionRequestBodyMap()()).Expect())
+			ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
+				Expect().Status(http.StatusOK)
+			verifyOperationDoesNotExist(BID, "delete")
 
 		})
 	})
@@ -65,31 +100,33 @@ var _ = Describe("Unbind", func() {
 		It("propagates them to the service broker", func() {
 			headerKey, headerValue := generateRandomQueryParam()
 			brokerServer.BindingHandler = queryParameterVerificationHandler(headerKey, headerValue)
-			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+IID +"/service_bindings/" + BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).WithQuery(headerKey, headerValue).Expect().Status(http.StatusOK)
+			ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
+				Expect().Status(http.StatusNotFound)
+			verifyOperationExists(operationExpectations{
+				Type:         types.DELETE,
+				State:        types.SUCCEEDED,
+				ResourceID:   BID,
+				ResourceType: "/v1/service_bindings",
+				ExternalID:   "",
+			})
 		})
 	})
 
 	Context("when broker doesn't respond in a timely manner", func() {
 		It("should fail with 502", func(done chan<- interface{}) {
 			brokerServer.BindingHandler = delayingHandler(done)
-			assertUnresponsiveBrokerError(ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+			assertUnresponsiveBrokerError(ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+IID +"/service_bindings/" + BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithQueryObject(provisionRequestBodyMap()()).
 				Expect())
+			ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
+				Expect().Status(http.StatusOK)
+			verifyOperationDoesNotExist(BID, "delete")
 		}, testTimeout)
 	})
 
 	Context("broker platform credentials check", func() {
-		BeforeEach(func() {
-			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
-				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
-
-			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
-		})
 
 		Context("unbind with invalid credentials", func() {
 			BeforeEach(func() {
@@ -98,9 +135,13 @@ var _ = Describe("Unbind", func() {
 
 			It("should return 404", func() {
 				brokerServer.BindingHandler = parameterizedHandler(http.StatusOK, `{}`)
-				ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/bid").
+				ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/" + BID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusUnauthorized)
+
+				verifyOperationDoesNotExist(BID, "delete")
+				ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
+					Expect().Status(http.StatusOK)
 			})
 		})
 	})
