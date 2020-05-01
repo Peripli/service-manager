@@ -609,17 +609,16 @@ func (sp *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web
 }
 
 func storeBindingNeeded(ctx context.Context) bool {
-	storageNeeded := ctx.Value(BindingStorageKey{})
-	if storageNeeded == nil {
+	isStoreNeeded := ctx.Value(BindingStorageKey{})
+	if isStoreNeeded == nil {
 		return true
 	}
-	return storageNeeded.(bool)
+	return isStoreNeeded.(bool)
 
 }
 
 func (sp *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
-
 	requestPayload := &lastInstanceOperationRequest{}
 	if err := parseRequestForm(request, requestPayload); err != nil {
 		return nil, err
@@ -629,11 +628,9 @@ func (sp *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*we
 	if err != nil {
 		return nil, err
 	}
-
 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusGone {
 		return response, nil
 	}
-
 	resp := lastInstanceOperationResponse{
 		ProvisionResponse: ProvisionResponse{
 			InstanceUsable: true,
@@ -817,7 +814,6 @@ func (sp *StorePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 }
 
 func (sp *StorePlugin) storeBinding(ctx context.Context, storage storage.Repository, req *bindRequest, resp *bindResponse, ready bool) error {
-	// TODO: check if binding_name does exist in the context
 	bindingName := gjson.GetBytes(req.RawContext, "binding_name").String()
 	if len(bindingName) == 0 {
 		log.C(ctx).Debugf("Binding name missing. Defaulting to id %s", req.BindingID)
