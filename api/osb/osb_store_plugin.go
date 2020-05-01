@@ -52,9 +52,9 @@ const (
 type entityOperation string
 
 const (
-	READY entityOperation = "ready"
+	READY    entityOperation = "ready"
 	ROLLBACK entityOperation = "rollback"
-	DELETE entityOperation = "failed"
+	DELETE   entityOperation = "failed"
 )
 
 type BindingStorageKey struct{}

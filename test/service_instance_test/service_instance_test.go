@@ -1513,7 +1513,7 @@ var _ = DescribeTestsFor(TestCase{
 													WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 													WithJSON(Object{
 														"service_id": service1CatalogID,
-														"plan_id": plan1CatalogID,
+														"plan_id":    plan1CatalogID,
 													}).
 													Expect().Status(http.StatusNotFound)
 
@@ -1559,7 +1559,7 @@ var _ = DescribeTestsFor(TestCase{
 													WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 													WithJSON(Object{
 														"service_id": service1CatalogID,
-														"plan_id": plan1CatalogID,
+														"plan_id":    plan1CatalogID,
 													}).
 													Expect().Status(http.StatusNotFound)
 
@@ -1568,7 +1568,7 @@ var _ = DescribeTestsFor(TestCase{
 													WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 													WithJSON(Object{
 														"service_id": service1CatalogID,
-														"plan_id": plan1CatalogID,
+														"plan_id":    plan1CatalogID,
 													}).
 													Expect().Status(http.StatusNotFound)
 
@@ -1576,7 +1576,7 @@ var _ = DescribeTestsFor(TestCase{
 												testCtx.SMWithBasic.DELETE("/v1/osb/"+brokerID+"/v2/service_instances/"+SID).
 													WithJSON(Object{
 														"service_id": service1CatalogID,
-														"plan_id": plan1CatalogID,
+														"plan_id":    plan1CatalogID,
 													}).
 													WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 													Expect().Status(http.StatusNotFound)
