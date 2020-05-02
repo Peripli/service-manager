@@ -98,7 +98,7 @@ var _ = Describe("Get Binding Last Operation", func() {
 		})
 	})
 
-	Context("binding storage check", func() {
+	Context("get binding last operation store in SM", func() {
 		var BID = "1111223"
 		BeforeEach(func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
