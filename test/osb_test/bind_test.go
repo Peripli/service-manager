@@ -54,6 +54,27 @@ var _ = Describe("Bind", func() {
 			})
 		})
 
+		It("same binding exist should succeed", func() {
+			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+
+			brokerServer.BindingHandler = parameterizedHandler(http.StatusOK, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusConflict)
+
+			ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
+				Expect().Status(http.StatusOK)
+
+			verifyOperationExists(operationExpectations{
+				Type:         types.CREATE,
+				State:        types.SUCCEEDED,
+				ResourceID:   BID,
+				ResourceType: "/v1/service_bindings",
+				ExternalID:   "",
+			})
+		})
+
 		It("Binding to a server that supports gzip encoded responses", func() {
 			brokerServer.BindingHandler = gzipHandler(http.StatusCreated, `{}`)
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).

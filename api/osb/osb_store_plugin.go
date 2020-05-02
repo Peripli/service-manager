@@ -1122,9 +1122,7 @@ func (sp *StorePlugin) createOsbEntity(status int, storeOp func(state types.Oper
 		}
 	case http.StatusOK:
 		if err := storeEntity(true); err != nil {
-			if err != util.ErrAlreadyExistsInStorage {
-				return err
-			}
+			return err
 		} else {
 			if err := storeOp(types.SUCCEEDED, types.CREATE); err != nil {
 				return err
