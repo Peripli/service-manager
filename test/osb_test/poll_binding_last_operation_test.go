@@ -163,6 +163,21 @@ var _ = Describe("Get Binding Last Operation", func() {
 				ctx.SMWithOAuth.GET("/v1/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusNotFound)
 			})
+			It("last op error", func() {
+				brokerServer.BindingLastOpHandler = parameterizedHandler(http.StatusInternalServerError, `{}`)
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusInternalServerError)
+
+				verifyOperationExists(operationExpectations{
+					Type:         types.CREATE,
+					State:        types.IN_PROGRESS,
+					ResourceID:   BID,
+					ResourceType: "/v1/service_bindings",
+					ExternalID:   "",
+				})
+				ctx.SMWithOAuth.GET("/v1/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusOK).JSON().Object().Value("ready").Boolean().Equal(false)
+			})
 		})
 
 		Context("Unbind", func() {
@@ -234,6 +249,22 @@ var _ = Describe("Get Binding Last Operation", func() {
 				verifyOperationExists(operationExpectations{
 					Type:         types.DELETE,
 					State:        types.FAILED,
+					ResourceID:   BID,
+					ResourceType: "/v1/service_bindings",
+					ExternalID:   "",
+				})
+				ctx.SMWithOAuth.GET("/v1/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusOK).JSON().Object().Value("ready").Boolean().Equal(true)
+			})
+
+			It("last op error", func() {
+				brokerServer.BindingLastOpHandler = parameterizedHandler(http.StatusInternalServerError, `{}`)
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusInternalServerError)
+
+				verifyOperationExists(operationExpectations{
+					Type:         types.DELETE,
+					State:        types.IN_PROGRESS,
 					ResourceID:   BID,
 					ResourceType: "/v1/service_bindings",
 					ExternalID:   "",
