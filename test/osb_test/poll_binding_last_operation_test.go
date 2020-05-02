@@ -191,13 +191,29 @@ var _ = Describe("Get Binding Last Operation", func() {
 					ExternalID:   "",
 				})
 				ctx.SMWithOAuth.GET("/v1/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					Expect().Status(http.StatusOK).JSON().Object().Value("ready").Boolean().Equal(false)
+					Expect().Status(http.StatusOK).JSON().Object().Value("ready").Boolean().Equal(true)
 			})
 
 			It("last op succeeded", func() {
 				brokerServer.BindingLastOpHandler = parameterizedHandler(http.StatusOK, `{"state":"succeeded"}`)
 				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
+
+				verifyOperationExists(operationExpectations{
+					Type:         types.DELETE,
+					State:        types.SUCCEEDED,
+					ResourceID:   BID,
+					ResourceType: "/v1/service_bindings",
+					ExternalID:   "",
+				})
+				ctx.SMWithOAuth.GET("/v1/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusNotFound)
+			})
+
+			It("last op succeeded status gone", func() {
+				brokerServer.BindingLastOpHandler = parameterizedHandler(http.StatusGone, `{}`)
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusGone)
 
 				verifyOperationExists(operationExpectations{
 					Type:         types.DELETE,
