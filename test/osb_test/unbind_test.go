@@ -19,14 +19,13 @@ package osb_test
 import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
-	"net/http"
-
 	. "github.com/onsi/ginkgo"
+	"net/http"
 )
 
 var _ = Describe("Unbind", func() {
 	var IID = "11011"
-	var BID = "01010"
+	var BID = "01011"
 
 	BeforeEach(func() {
 		ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+IID).
@@ -117,7 +116,7 @@ var _ = Describe("Unbind", func() {
 	Context("when broker doesn't respond in a timely manner", func() {
 		It("should fail with 502", func(done chan<- interface{}) {
 			brokerServer.BindingHandler = delayingHandler(done)
-			assertUnresponsiveBrokerError(ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+			assertUnresponsiveBrokerError(ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/bid"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithQueryObject(provisionRequestBodyMap()()).
 				Expect())
 			verifyOperationDoesNotExist(BID, "delete")
