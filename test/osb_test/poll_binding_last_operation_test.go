@@ -118,7 +118,6 @@ var _ = Describe("Get Binding Last Operation", func() {
 				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
-
 				verifyOperationExists(operationExpectations{
 					Type:         types.CREATE,
 					State:        types.IN_PROGRESS,
@@ -135,7 +134,6 @@ var _ = Describe("Get Binding Last Operation", func() {
 				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
-
 				verifyOperationExists(operationExpectations{
 					Type:         types.CREATE,
 					State:        types.SUCCEEDED,
@@ -151,7 +149,6 @@ var _ = Describe("Get Binding Last Operation", func() {
 				brokerServer.BindingLastOpHandler = parameterizedHandler(http.StatusOK, `{"state":"failed"}`)
 				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
-
 
 				verifyOperationExists(operationExpectations{
 					Type:         types.CREATE,
@@ -194,7 +191,6 @@ var _ = Describe("Get Binding Last Operation", func() {
 				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
-
 				verifyOperationExists(operationExpectations{
 					Type:         types.DELETE,
 					State:        types.SUCCEEDED,
@@ -210,7 +206,6 @@ var _ = Describe("Get Binding Last Operation", func() {
 				brokerServer.BindingLastOpHandler = parameterizedHandler(http.StatusOK, `{"state":"failed"}`)
 				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
-
 
 				verifyOperationExists(operationExpectations{
 					Type:         types.DELETE,
