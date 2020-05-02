@@ -17,6 +17,7 @@
 package osb_test
 
 import (
+	"github.com/Peripli/service-manager/pkg/types"
 	"net/http"
 
 	. "github.com/onsi/ginkgo"
@@ -95,5 +96,134 @@ var _ = Describe("Get Binding Last Operation", func() {
 					Expect().Status(http.StatusUnauthorized)
 			})
 		})
+	})
+
+	Context("binding storage check", func() {
+		var BID = "1111223"
+		BeforeEach(func() {
+			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+
+			brokerServer.BindingHandler = parameterizedHandler(http.StatusAccepted, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID).
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusAccepted)
+		})
+
+		Context("Bind", func() {
+			It("last op in progress", func() {
+				brokerServer.BindingLastOpHandler = parameterizedHandler(http.StatusOK, `{"state":"in progress"}`)
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusOK)
+
+
+				verifyOperationExists(operationExpectations{
+					Type:         types.CREATE,
+					State:        types.IN_PROGRESS,
+					ResourceID:   BID,
+					ResourceType: "/v1/service_bindings",
+					ExternalID:   "",
+				})
+				ctx.SMWithOAuth.GET("/v1/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusOK).JSON().Object().Value("ready").Boolean().Equal(false)
+			})
+
+			It("last op succeeded", func() {
+				brokerServer.BindingLastOpHandler = parameterizedHandler(http.StatusOK, `{"state":"succeeded"}`)
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusOK)
+
+
+				verifyOperationExists(operationExpectations{
+					Type:         types.CREATE,
+					State:        types.SUCCEEDED,
+					ResourceID:   BID,
+					ResourceType: "/v1/service_bindings",
+					ExternalID:   "",
+				})
+				ctx.SMWithOAuth.GET("/v1/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusOK).JSON().Object().Value("ready").Boolean().Equal(true)
+			})
+
+			It("last op failed", func() {
+				brokerServer.BindingLastOpHandler = parameterizedHandler(http.StatusOK, `{"state":"failed"}`)
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusOK)
+
+
+				verifyOperationExists(operationExpectations{
+					Type:         types.CREATE,
+					State:        types.FAILED,
+					ResourceID:   BID,
+					ResourceType: "/v1/service_bindings",
+					ExternalID:   "",
+				})
+				ctx.SMWithOAuth.GET("/v1/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusNotFound)
+			})
+		})
+
+		Context("Unbind", func() {
+			BeforeEach(func() {
+				brokerServer.BindingHandler = parameterizedHandler(http.StatusAccepted, `{}`)
+				ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusAccepted)
+			})
+
+			It("last op in progress", func() {
+				brokerServer.BindingLastOpHandler = parameterizedHandler(http.StatusOK, `{"state":"in progress"}`)
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusOK)
+
+				verifyOperationExists(operationExpectations{
+					Type:         types.DELETE,
+					State:        types.IN_PROGRESS,
+					ResourceID:   BID,
+					ResourceType: "/v1/service_bindings",
+					ExternalID:   "",
+				})
+				ctx.SMWithOAuth.GET("/v1/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusOK).JSON().Object().Value("ready").Boolean().Equal(false)
+			})
+
+			It("last op succeeded", func() {
+				brokerServer.BindingLastOpHandler = parameterizedHandler(http.StatusOK, `{"state":"succeeded"}`)
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusOK)
+
+
+				verifyOperationExists(operationExpectations{
+					Type:         types.DELETE,
+					State:        types.SUCCEEDED,
+					ResourceID:   BID,
+					ResourceType: "/v1/service_bindings",
+					ExternalID:   "",
+				})
+				ctx.SMWithOAuth.GET("/v1/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusNotFound)
+			})
+
+			It("last op failed", func() {
+				brokerServer.BindingLastOpHandler = parameterizedHandler(http.StatusOK, `{"state":"failed"}`)
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusOK)
+
+
+				verifyOperationExists(operationExpectations{
+					Type:         types.DELETE,
+					State:        types.FAILED,
+					ResourceID:   BID,
+					ResourceType: "/v1/service_bindings",
+					ExternalID:   "",
+				})
+				ctx.SMWithOAuth.GET("/v1/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusOK).JSON().Object().Value("ready").Boolean().Equal(false)
+			})
+
+		})
+
 	})
 })
