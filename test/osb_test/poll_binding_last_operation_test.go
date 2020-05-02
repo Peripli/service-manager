@@ -106,13 +106,16 @@ var _ = Describe("Get Binding Last Operation", func() {
 				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
 
-			brokerServer.BindingHandler = parameterizedHandler(http.StatusAccepted, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID).
-				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusAccepted)
 		})
 
 		Context("Bind", func() {
+			BeforeEach(func() {
+				brokerServer.BindingHandler = parameterizedHandler(http.StatusAccepted, `{}`)
+				ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusAccepted)
+			})
+
 			It("last op in progress", func() {
 				brokerServer.BindingLastOpHandler = parameterizedHandler(http.StatusOK, `{"state":"in progress"}`)
 				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
@@ -164,6 +167,11 @@ var _ = Describe("Get Binding Last Operation", func() {
 
 		Context("Unbind", func() {
 			BeforeEach(func() {
+				brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+				ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+
 				brokerServer.BindingHandler = parameterizedHandler(http.StatusAccepted, `{}`)
 				ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/"+BID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
@@ -215,7 +223,7 @@ var _ = Describe("Get Binding Last Operation", func() {
 					ExternalID:   "",
 				})
 				ctx.SMWithOAuth.GET("/v1/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					Expect().Status(http.StatusOK).JSON().Object().Value("ready").Boolean().Equal(false)
+					Expect().Status(http.StatusOK).JSON().Object().Value("ready").Boolean().Equal(true)
 			})
 
 		})
