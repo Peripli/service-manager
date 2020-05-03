@@ -34,23 +34,15 @@ const planIDProperty = "service_plan_id"
 
 const ServiceInstanceVisibilityFilterName = "ServiceInstanceVisibilityFilter"
 
-// InstanceVisibilityMetadata contains metadata required for visibility checks during instance creation
-type InstanceVisibilityMetadata struct {
-	PlatformID   string
-	PlatformType string
-	LabelKey     string
-	LabelValue   string
-}
-
 // serviceInstanceVisibilityFilter ensures that the tenant making the provisioning/update request
 // has the necessary visibilities - i.e. that he has the right to consume the requested plan.
 type serviceInstanceVisibilityFilter struct {
 	repository                    storage.Repository
-	getInstanceVisibilityMetadata func(req *web.Request, repository storage.Repository) (*InstanceVisibilityMetadata, error)
+	getInstanceVisibilityMetadata func(req *web.Request, repository storage.Repository) (*VisibilityMetadata, error)
 }
 
 // NewServiceInstanceVisibilityFilter creates a new serviceInstanceVisibilityFilter filter
-func NewServiceInstanceVisibilityFilter(repository storage.Repository, getInstanceVisibilityMetadata func(req *web.Request, repository storage.Repository) (*InstanceVisibilityMetadata, error)) *serviceInstanceVisibilityFilter {
+func NewServiceInstanceVisibilityFilter(repository storage.Repository, getInstanceVisibilityMetadata func(req *web.Request, repository storage.Repository) (*VisibilityMetadata, error)) *serviceInstanceVisibilityFilter {
 	return &serviceInstanceVisibilityFilter{
 		repository:                    repository,
 		getInstanceVisibilityMetadata: getInstanceVisibilityMetadata,

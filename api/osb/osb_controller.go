@@ -20,15 +20,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/client"
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
 	"regexp"
+
+	"github.com/Peripli/service-manager/pkg/client"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 
 	"github.com/sirupsen/logrus"
 
@@ -77,7 +78,7 @@ func (c *Controller) handler(request *web.Request, f func(r *web.Request, logger
 	if err != nil {
 		return nil, err
 	}
-	logger.Debugf("Fetched broker %s with id %s accessible at %s", broker.ID, broker.Name, broker.BrokerURL)
+	logger.Debugf("Fetched broker %s with id %s accessible at %s", broker.Name, broker.ID, broker.BrokerURL)
 
 	response, err := f(request, logger, broker)
 	if err != nil {

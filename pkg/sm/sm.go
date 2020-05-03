@@ -578,8 +578,8 @@ func (smb *ServiceManagerBuilder) calculateIntegrity() error {
 	})
 }
 
-func DefaultInstanceVisibilityFunc(labelKey string) func(req *web.Request, repository storage.Repository) (metadata *filters.InstanceVisibilityMetadata, err error) {
-	return func(req *web.Request, repository storage.Repository) (metadata *filters.InstanceVisibilityMetadata, err error) {
+func DefaultInstanceVisibilityFunc(labelKey string) func(req *web.Request, repository storage.Repository) (metadata *filters.VisibilityMetadata, err error) {
+	return func(req *web.Request, repository storage.Repository) (metadata *filters.VisibilityMetadata, err error) {
 		tenantID := query.RetrieveFromCriteria(labelKey, query.CriteriaForContext(req.Context())...)
 		user, ok := web.UserFromContext(req.Context())
 		if !ok {
@@ -595,7 +595,7 @@ func DefaultInstanceVisibilityFunc(labelKey string) func(req *web.Request, repos
 			}
 		}
 
-		return &filters.InstanceVisibilityMetadata{
+		return &filters.VisibilityMetadata{
 			PlatformID:   types.SMPlatform,
 			PlatformType: types.SMPlatform,
 			LabelKey:     labelKey,

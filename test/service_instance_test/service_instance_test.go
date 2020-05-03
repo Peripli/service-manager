@@ -328,6 +328,46 @@ var _ = DescribeTestsFor(TestCase{
 							})
 						})
 
+						Context("when request body contains protected labels", func() {
+							It("returns 400", func() {
+								ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+									WithQuery("async", testCase.async).
+									WithHeader("Content-Type", "application/json").
+									WithBytes([]byte(fmt.Sprintf(`{
+										"name": "test-instance-name",
+										"service_plan_id": "%s",
+										"maintenance_info": {},
+										"labels": {
+											"%s":["test-tenant"]
+										}
+									}`, servicePlanID, TenantIdentifier))).
+									Expect().
+									Status(http.StatusBadRequest).
+									JSON().Object().
+									Keys().Contains("error", "description")
+							})
+
+							Context("when request body contains multiple label objects", func() {
+								It("returns 400", func() {
+									ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", testCase.async).
+										WithHeader("Content-Type", "application/json").
+										WithBytes([]byte(fmt.Sprintf(`{
+										"name": "test-instance-name",
+										"service_plan_id": "%s",
+										"maintenance_info": {},
+										"labels": {},
+										"labels": {
+											"%s":["test-tenant"]
+										}
+									}`, servicePlanID, TenantIdentifier))).
+										Expect().
+										Status(http.StatusBadRequest).
+										JSON().Object().Value("description").String().Contains("invalid json: duplicate key labels")
+								})
+							})
+						})
+
 						When("a request body field is missing", func() {
 							assertPOSTWhenFieldIsMissing := func(field string, expectedStatusCode int) {
 								var servicePlanID string
@@ -971,6 +1011,57 @@ var _ = DescribeTestsFor(TestCase{
 										})
 									})
 								})
+
+								When("broker unavailable during polling", func() {
+
+									It("polling proceeds until success on 500", func() {
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"3", MultipleErrorsBeforeSuccessHandler(
+											http.StatusServiceUnavailable, http.StatusOK,
+											Object{"error": "error"}, Object{"state": "succeeded"},
+										))
+
+										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    instanceID,
+											Type:  types.ServiceInstanceType,
+											Ready: true,
+										})
+									})
+									It("polling proceeds until success on 404", func() {
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"3", MultipleErrorsBeforeSuccessHandler(
+											http.StatusNotFound, http.StatusOK,
+											Object{"error": "error"}, Object{"state": "succeeded"},
+										))
+
+										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:    instanceID,
+											Type:  types.ServiceInstanceType,
+											Ready: true,
+										})
+									})
+								})
+
 							})
 
 							if testCase.async {
