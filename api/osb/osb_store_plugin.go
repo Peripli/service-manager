@@ -590,7 +590,7 @@ func (sp *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web
 		}
 		switch instanceOp {
 		case READY:
-			if err := sp.updateBindingReady(ctx, storage, requestPayload.BindingID); err != nil {
+			if err := sp.updateEntityReady(ctx, storage, requestPayload.BindingID, types.ServiceBindingType); err != nil {
 				return err
 			}
 		case DELETE:
@@ -684,7 +684,7 @@ func (sp *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*we
 
 		switch instanceOp {
 		case READY:
-			if err := sp.updateInstanceReady(ctx, storage, requestPayload.InstanceID); err != nil {
+			if err := sp.updateEntityReady(ctx, storage, requestPayload.InstanceID, types.ServiceInstanceType); err != nil {
 				return err
 			}
 		case DELETE:
@@ -934,33 +934,11 @@ func (sp *StorePlugin) rollbackInstance(ctx context.Context, req commonOSBReques
 	return nil
 }
 
-func (sp *StorePlugin) updateInstanceReady(ctx context.Context, storage storage.Repository, instanceID string) error {
-	byID := query.ByField(query.EqualsOperator, "id", instanceID)
-	var instance types.Object
-	var err error
-	if instance, err = storage.Get(ctx, types.ServiceInstanceType, byID); err != nil {
-		if err != util.ErrNotFoundInStorage {
-			return util.HandleStorageError(err, string(types.ServiceInstanceType))
-		}
-	}
-	if instance == nil {
-		return nil
-	}
-	serviceInstance := instance.(*types.ServiceInstance)
-	serviceInstance.Ready = true
-
-	if _, err := storage.Update(ctx, serviceInstance, types.LabelChanges{}); err != nil {
-		return util.HandleStorageError(err, string(serviceInstance.GetType()))
-	}
-
-	return nil
-}
-
-func (sp *StorePlugin) updateBindingReady(ctx context.Context, storage storage.Repository, bindingID string) error {
+func (sp *StorePlugin) updateEntityReady(ctx context.Context, storage storage.Repository, bindingID string, objectType types.ObjectType) error {
 	byID := query.ByField(query.EqualsOperator, "id", bindingID)
 	var instance types.Object
 	var err error
-	if instance, err = storage.Get(ctx, types.ServiceBindingType, byID); err != nil {
+	if instance, err = storage.Get(ctx, objectType, byID); err != nil {
 		if err != util.ErrNotFoundInStorage {
 			return util.HandleStorageError(err, string(types.ServiceInstanceType))
 		}
@@ -968,11 +946,10 @@ func (sp *StorePlugin) updateBindingReady(ctx context.Context, storage storage.R
 	if instance == nil {
 		return nil
 	}
-	serviceBinding := instance.(*types.ServiceBinding)
-	serviceBinding.Ready = true
+	instance.SetReady(true)
 
-	if _, err := storage.Update(ctx, serviceBinding, types.LabelChanges{}); err != nil {
-		return util.HandleStorageError(err, string(serviceBinding.GetType()))
+	if _, err := storage.Update(ctx, instance, types.LabelChanges{}); err != nil {
+		return util.HandleStorageError(err, string(instance.GetType()))
 	}
 
 	return nil
