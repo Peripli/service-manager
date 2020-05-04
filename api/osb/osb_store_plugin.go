@@ -55,7 +55,7 @@ const (
 	READY    entityOperation = "ready"
 	ROLLBACK entityOperation = "rollback"
 	DELETE   entityOperation = "failed"
-	NONE	entityOperation = "none"
+	NONE     entityOperation = "none"
 )
 
 type BindingStorageKey struct{}
