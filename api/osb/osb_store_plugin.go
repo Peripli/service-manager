@@ -55,6 +55,7 @@ const (
 	READY    entityOperation = "ready"
 	ROLLBACK entityOperation = "rollback"
 	DELETE   entityOperation = "failed"
+	NONE	entityOperation = "none"
 )
 
 type BindingStorageKey struct{}
@@ -1043,49 +1044,49 @@ func (sp *StorePlugin) pollDelete(ctx context.Context, storage storage.Repositor
 	switch state {
 	case types.SUCCEEDED:
 		if err := sp.updateOperation(ctx, operationFromDB, storage, resp, types.SUCCEEDED, correlationID); err != nil {
-			return "", err
+			return NONE, err
 		}
 		return DELETE, nil
 	case types.FAILED:
 		if err := sp.updateOperation(ctx, operationFromDB, storage, resp, types.FAILED, correlationID); err != nil {
-			return "", err
+			return NONE, err
 		}
 		return ROLLBACK, nil
 	}
-	return "", nil
+	return NONE, nil
 }
 
 func (sp *StorePlugin) pollCreation(ctx context.Context, storage storage.Repository, resp brokerError, state types.OperationState, operationFromDB *types.Operation, correlationID string) (entityOperation, error) {
 	switch state {
 	case types.SUCCEEDED:
 		if err := sp.updateOperation(ctx, operationFromDB, storage, resp, types.SUCCEEDED, correlationID); err != nil {
-			return "", err
+			return NONE, err
 		}
 		return READY, nil
 	case types.FAILED:
 
 		if err := sp.updateOperation(ctx, operationFromDB, storage, resp, types.FAILED, correlationID); err != nil {
-			return "", err
+			return NONE, err
 		}
 		return DELETE, nil
 	}
-	return "", nil
+	return NONE, nil
 }
 
 func (sp *StorePlugin) pollUpdate(ctx context.Context, storage storage.Repository, resp brokerError, state types.OperationState, operationFromDB *types.Operation, correlationID string) (entityOperation, error) {
 	switch state {
 	case types.SUCCEEDED:
 		if err := sp.updateOperation(ctx, operationFromDB, storage, resp, types.SUCCEEDED, correlationID); err != nil {
-			return "", err
+			return NONE, err
 		}
 	case types.FAILED:
 
 		if err := sp.updateOperation(ctx, operationFromDB, storage, resp, types.FAILED, correlationID); err != nil {
-			return "", err
+			return NONE, err
 		}
 		return ROLLBACK, nil
 	}
-	return "", nil
+	return NONE, nil
 }
 
 func (sp *StorePlugin) removeOsbEntity(status int, deleteEntity func() error, storeOp func(state types.OperationState, category types.OperationCategory) error) error {
