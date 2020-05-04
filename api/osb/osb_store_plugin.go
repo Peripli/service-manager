@@ -820,7 +820,6 @@ func (sp *StorePlugin) storeBinding(ctx context.Context, storage storage.Reposit
 		log.C(ctx).Debugf("Binding name missing. Defaulting to id %s", req.BindingID)
 		bindingName = req.InstanceID
 	}
-	// TODO: check integertiy
 	binding := &types.ServiceBinding{
 		Base: types.Base{
 			ID:        req.BindingID,
