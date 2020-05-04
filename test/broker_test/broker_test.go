@@ -533,6 +533,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							}, "services.0.description")
 						})
 
+						Context("that has an empty description", func() {
+							verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
+								r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
+							}, "services.0.plans.0.description")
+						})
+
 						Context("that has invalid tags", func() {
 							verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
 								r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
@@ -1421,6 +1427,43 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								CreatedNotifications: 1,
 							})
 						})
+					})
+
+					Context("when a new service offering with new plans with empty description is added", func() {
+						var anotherServiceID string
+
+
+						BeforeEach(func() {
+
+							planStr:= GeneratePaidTestPlan()
+							planStr, err := sjson.Delete(planStr, "description")
+							Expect(err).ToNot(HaveOccurred())
+							anotherPlan := JSONToMap(planStr)
+
+							anotherServiceWithAnotherPlan, err := sjson.Set(GenerateTestServiceWithPlans(), "plans.-1", anotherPlan)
+							Expect(err).ShouldNot(HaveOccurred())
+
+							anotherService := JSONToMap(anotherServiceWithAnotherPlan)
+							anotherServiceID = anotherService["id"].(string)
+							Expect(anotherServiceID).ToNot(BeEmpty())
+
+							catalog, err := sjson.Set(string(brokerServer.Catalog), "services.-1", anotherService)
+							Expect(err).ShouldNot(HaveOccurred())
+
+							brokerServer.Catalog = SBCatalog(catalog)
+						})
+
+						It("400 bad request is returned", func() {
+							ctx.SMWithOAuth.List(web.ServiceOfferingsURL).
+								Path("$[*].catalog_id").Array().NotContains(anotherServiceID)
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
+								WithJSON(Object{}).
+								Expect().
+								Status(http.StatusBadRequest)
+
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+						})
+
 					})
 
 					verifyPATCHWhenCatalogFieldIsMissing := func(responseVerifier func(r *httpexpect.Response), shouldUpdateCatalog bool, fieldPath string) {

@@ -87,6 +87,9 @@ func (e *ServicePlan) Validate() error {
 	if e.ServiceOfferingID == "" {
 		return fmt.Errorf("service plan service offering id missing")
 	}
+	if e.Description == "" {
+		return fmt.Errorf("service plan description is missing")
+	}
 	var obj map[string]interface{}
 	if len(e.Schemas) != 0 {
 		if err := json.Unmarshal(e.Schemas, &obj); err != nil {
