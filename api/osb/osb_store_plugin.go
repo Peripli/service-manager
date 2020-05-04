@@ -294,7 +294,7 @@ func NewStorePlugin(repository storage.TransactionalRepository) *StorePlugin {
 	}
 }
 
-// StoreServiceInstancePlugin represents a plugin that stores service instances on OSB requests
+// StoreServiceInstancePlugin represents a plugin that stores service instances and bindings on OSB requests
 type StorePlugin struct {
 	Repository storage.TransactionalRepository
 }
