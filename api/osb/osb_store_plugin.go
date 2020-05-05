@@ -54,7 +54,7 @@ type entityOperation string
 const (
 	READY    entityOperation = "ready"
 	ROLLBACK entityOperation = "rollback"
-	DELETE   entityOperation = "failed"
+	DELETE   entityOperation = "delete"
 	NONE     entityOperation = "none"
 )
 
@@ -81,7 +81,7 @@ func (pr *provisionRequest) Validate() error {
 	return nil
 }
 
-type ProvisionResponse struct {
+type provisionResponse struct {
 	OperationData  string `json:"operation"`
 	Error          string `json:"error"`
 	Description    string `json:"description"`
@@ -89,20 +89,16 @@ type ProvisionResponse struct {
 	InstanceUsable bool   `json:"instance_usable"`
 }
 
-func (p *ProvisionResponse) GetOperationData() string {
-	return p.OperationData
-}
-
-func (b *ProvisionResponse) GetError() string {
+func (b *provisionResponse) GetError() string {
 	return b.Error
 }
 
-func (b *ProvisionResponse) GetDescription() string {
+func (b *provisionResponse) GetDescription() string {
 	return b.Description
 }
 
 type lastInstanceOperationResponse struct {
-	ProvisionResponse
+	provisionResponse
 	State types.OperationState `json:"state"`
 }
 
@@ -150,10 +146,6 @@ type bindResponse struct {
 	SyslogDrainUrl  string          `json:"syslog_drain_url"`
 	VolumeMounts    json.RawMessage `json:"volume_mounts"`
 	Endpoints       json.RawMessage `json:"endpoints"`
-}
-
-func (b *bindResponse) GetOperationData() string {
-	return b.OperationData
 }
 
 func (b *bindResponse) GetError() string {
@@ -286,22 +278,22 @@ func (r *commonRequestDetails) SetTimestamp(timestamp time.Time) {
 }
 
 // NewStorePlugin creates a plugin that stores service instances on OSB requests
-func NewStorePlugin(repository storage.TransactionalRepository) *StorePlugin {
-	return &StorePlugin{
+func NewStorePlugin(repository storage.TransactionalRepository) *storePlugin {
+	return &storePlugin{
 		Repository: repository,
 	}
 }
 
 // StoreServiceInstancePlugin represents a plugin that stores service instances and bindings on OSB requests
-type StorePlugin struct {
+type storePlugin struct {
 	Repository storage.TransactionalRepository
 }
 
-func (*StorePlugin) Name() string {
+func (*storePlugin) Name() string {
 	return OSBStorePluginName
 }
 
-func (sp *StorePlugin) Bind(request *web.Request, next web.Handler) (*web.Response, error) {
+func (sp *storePlugin) Bind(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
 	bindingID, ok := request.PathParams[BindingIDPathParam]
 	if !ok {
@@ -345,7 +337,7 @@ func (sp *StorePlugin) Bind(request *web.Request, next web.Handler) (*web.Respon
 	return response, nil
 }
 
-func (sp *StorePlugin) Unbind(request *web.Request, next web.Handler) (*web.Response, error) {
+func (sp *storePlugin) Unbind(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
 	bindingId, ok := request.PathParams[BindingIDPathParam]
 	if !ok {
@@ -394,7 +386,7 @@ func (sp *StorePlugin) Unbind(request *web.Request, next web.Handler) (*web.Resp
 	return response, nil
 }
 
-func (sp *StorePlugin) Provision(request *web.Request, next web.Handler) (*web.Response, error) {
+func (sp *storePlugin) Provision(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
 	requestPayload := &provisionRequest{}
 	if err := decodeRequestBody(request, requestPayload); err != nil {
@@ -405,7 +397,7 @@ func (sp *StorePlugin) Provision(request *web.Request, next web.Handler) (*web.R
 	if err != nil {
 		return nil, err
 	}
-	responsePayload := ProvisionResponse{
+	responsePayload := provisionResponse{
 		InstanceUsable: true,
 	}
 	if err := json.Unmarshal(response.Body, &responsePayload); err != nil {
@@ -431,7 +423,7 @@ func (sp *StorePlugin) Provision(request *web.Request, next web.Handler) (*web.R
 
 }
 
-func (sp *StorePlugin) Deprovision(request *web.Request, next web.Handler) (*web.Response, error) {
+func (sp *storePlugin) Deprovision(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
 	requestPayload := &deprovisionRequest{}
 	if err := parseRequestForm(request, requestPayload); err != nil {
@@ -442,7 +434,7 @@ func (sp *StorePlugin) Deprovision(request *web.Request, next web.Handler) (*web
 		return nil, err
 	}
 
-	responsePayload := ProvisionResponse{
+	responsePayload := provisionResponse{
 		InstanceUsable: true,
 	}
 	if err := json.Unmarshal(response.Body, &responsePayload); err != nil {
@@ -477,7 +469,7 @@ func (sp *StorePlugin) Deprovision(request *web.Request, next web.Handler) (*web
 	return response, nil
 }
 
-func (sp *StorePlugin) UpdateService(request *web.Request, next web.Handler) (*web.Response, error) {
+func (sp *storePlugin) UpdateService(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
 
 	requestPayload := &updateRequest{}
@@ -489,7 +481,7 @@ func (sp *StorePlugin) UpdateService(request *web.Request, next web.Handler) (*w
 		return nil, err
 	}
 
-	responsePayload := ProvisionResponse{
+	responsePayload := provisionResponse{
 		InstanceUsable: true,
 	}
 	if err := json.Unmarshal(response.Body, &responsePayload); err != nil {
@@ -498,21 +490,21 @@ func (sp *StorePlugin) UpdateService(request *web.Request, next web.Handler) (*w
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
 	if err := sp.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
+		var state types.OperationState
 		switch response.StatusCode {
 		case http.StatusOK:
-			if err := sp.updateInstance(ctx, storage, requestPayload, &responsePayload); err != nil {
-				return err
-			}
-			if err := sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, responsePayload.OperationData, types.SUCCEEDED, types.UPDATE, correlationID, types.ServiceInstanceType); err != nil {
-				return err
-			}
+			state = types.SUCCEEDED
 		case http.StatusAccepted:
-			if err := sp.updateInstance(ctx, storage, requestPayload, &responsePayload); err != nil {
-				return err
-			}
-			if err := sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, responsePayload.OperationData, types.IN_PROGRESS, types.UPDATE, correlationID, types.ServiceInstanceType); err != nil {
-				return err
-			}
+			state = types.IN_PROGRESS
+		default:
+			return nil
+		}
+
+		if err := sp.updateInstance(ctx, storage, requestPayload, &responsePayload); err != nil {
+			return err
+		}
+		if err := sp.storeOperation(ctx, storage, requestPayload.InstanceID, requestPayload, responsePayload.OperationData, state, types.UPDATE, correlationID, types.ServiceInstanceType); err != nil {
+			return err
 		}
 		return nil
 	}); err != nil {
@@ -522,7 +514,7 @@ func (sp *StorePlugin) UpdateService(request *web.Request, next web.Handler) (*w
 	return response, nil
 }
 
-func (sp *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web.Response, error) {
+func (sp *storePlugin) PollBinding(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
 	bindingID, ok := request.PathParams[BindingIDPathParam]
 	if !ok {
@@ -555,9 +547,9 @@ func (sp *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web
 	correlationID := log.CorrelationIDForRequest(request.Request)
 	if err := sp.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
 
-		operationFromDB, ex := sp.getOperationFromDB(ctx, storage, requestPayload.BindingID, requestPayload.OperationData)
-		if ex != nil {
-			return ex
+		operationFromDB, err := sp.getOperationFromDB(ctx, storage, requestPayload.BindingID, requestPayload.OperationData)
+		if err != nil {
+			return err
 		}
 		if operationFromDB == nil {
 			return nil
@@ -573,12 +565,12 @@ func (sp *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web
 		if operationFromDB.State != responsePayload.State {
 			switch operationFromDB.Type {
 			case types.CREATE:
-				instanceOp, err = sp.pollCreation(ctx, storage, &responsePayload, responsePayload.State, operationFromDB, correlationID)
+				instanceOp, err = sp.handlePollCreateResponse(ctx, storage, &responsePayload, responsePayload.State, operationFromDB, correlationID)
 				if err != nil {
 					return err
 				}
 			case types.DELETE:
-				instanceOp, err = sp.pollDelete(ctx, storage, &responsePayload, responsePayload.State, operationFromDB, correlationID)
+				instanceOp, err = sp.handlePollDeleteResponse(ctx, storage, &responsePayload, responsePayload.State, operationFromDB, correlationID)
 				if err != nil {
 					return err
 				}
@@ -607,7 +599,7 @@ func (sp *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web
 	return response, nil
 }
 
-func (sp *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*web.Response, error) {
+func (sp *storePlugin) PollInstance(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
 	requestPayload := &lastInstanceOperationRequest{}
 	if err := parseRequestForm(request, requestPayload); err != nil {
@@ -622,7 +614,7 @@ func (sp *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*we
 		return response, nil
 	}
 	resp := lastInstanceOperationResponse{
-		ProvisionResponse: ProvisionResponse{
+		provisionResponse: provisionResponse{
 			InstanceUsable: true,
 		},
 	}
@@ -651,18 +643,18 @@ func (sp *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*we
 		if operationFromDB.State != resp.State {
 			switch operationFromDB.Type {
 			case types.CREATE:
-				instanceOp, err = sp.pollCreation(ctx, storage, &resp, resp.State, operationFromDB, correlationID)
+				instanceOp, err = sp.handlePollCreateResponse(ctx, storage, &resp, resp.State, operationFromDB, correlationID)
 				if err != nil {
 					return err
 				}
 
 			case types.UPDATE:
-				instanceOp, err = sp.pollUpdate(ctx, storage, &resp, resp.State, operationFromDB, correlationID)
+				instanceOp, err = sp.handlePollUpdateResponse(ctx, storage, &resp, resp.State, operationFromDB, correlationID)
 				if err != nil {
 					return err
 				}
 			case types.DELETE:
-				instanceOp, err = sp.pollDelete(ctx, storage, &resp, resp.State, operationFromDB, correlationID)
+				instanceOp, err = sp.handlePollDeleteResponse(ctx, storage, &resp, resp.State, operationFromDB, correlationID)
 				if err != nil {
 					return err
 				}
@@ -697,7 +689,7 @@ func (sp *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*we
 	return response, nil
 }
 
-func (sp *StorePlugin) getOperationFromDB(ctx context.Context, storage storage.Repository, id string, operation_id string) (*types.Operation, error) {
+func (sp *storePlugin) getOperationFromDB(ctx context.Context, storage storage.Repository, id string, operation_id string) (*types.Operation, error) {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "resource_id", id),
 		query.OrderResultBy("paging_sequence", query.DescOrder),
@@ -717,7 +709,7 @@ func (sp *StorePlugin) getOperationFromDB(ctx context.Context, storage storage.R
 	return operationFromDB, nil
 }
 
-func (sp *StorePlugin) updateOperation(ctx context.Context, operation *types.Operation, storage storage.Repository, resp brokerError, state types.OperationState, correlationID string) error {
+func (sp *storePlugin) updateOperation(ctx context.Context, operation *types.Operation, storage storage.Repository, resp brokerError, state types.OperationState, correlationID string) error {
 	operation.State = state
 	operation.CorrelationID = correlationID
 	if len(resp.GetError()) != 0 || len(resp.GetDescription()) != 0 {
@@ -741,7 +733,7 @@ func (sp *StorePlugin) updateOperation(ctx context.Context, operation *types.Ope
 	return nil
 }
 
-func (sp *StorePlugin) storeOperation(ctx context.Context, storage storage.Repository, resourceID string, req commonOSBRequest, operationData string, state types.OperationState, category types.OperationCategory, correlationID string, objType types.ObjectType) error {
+func (sp *storePlugin) storeOperation(ctx context.Context, storage storage.Repository, resourceID string, req commonOSBRequest, operationData string, state types.OperationState, category types.OperationCategory, correlationID string, objType types.ObjectType) error {
 
 	UUID, err := uuid.NewV4()
 	if err != nil {
@@ -771,7 +763,7 @@ func (sp *StorePlugin) storeOperation(ctx context.Context, storage storage.Repos
 	return nil
 }
 
-func (sp *StorePlugin) storeInstance(ctx context.Context, storage storage.Repository, req *provisionRequest, resp *ProvisionResponse, ready bool) error {
+func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Repository, req *provisionRequest, resp *provisionResponse, ready bool) error {
 	planID, err := findServicePlanIDByCatalogIDs(ctx, storage, req.BrokerID, req.ServiceID, req.PlanID)
 	if err != nil {
 		return err
@@ -803,7 +795,7 @@ func (sp *StorePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 	return nil
 }
 
-func (sp *StorePlugin) storeBinding(ctx context.Context, storage storage.Repository, req *bindRequest, resp *bindResponse, ready bool) error {
+func (sp *storePlugin) storeBinding(ctx context.Context, storage storage.Repository, req *bindRequest, resp *bindResponse, ready bool) error {
 	bindingName := gjson.GetBytes(req.RawContext, "binding_name").String()
 	if len(bindingName) == 0 {
 		log.C(ctx).Debugf("Binding name missing. Defaulting to id %s", req.BindingID)
@@ -835,7 +827,7 @@ func (sp *StorePlugin) storeBinding(ctx context.Context, storage storage.Reposit
 	return nil
 }
 
-func (sp *StorePlugin) updateInstance(ctx context.Context, storage storage.Repository, req *updateRequest, resp *ProvisionResponse) error {
+func (sp *storePlugin) updateInstance(ctx context.Context, storage storage.Repository, req *updateRequest, resp *provisionResponse) error {
 	byID := query.ByField(query.EqualsOperator, "id", req.InstanceID)
 	var instance types.Object
 	var err error
@@ -885,7 +877,7 @@ func (sp *StorePlugin) updateInstance(ctx context.Context, storage storage.Repos
 	return nil
 }
 
-func (sp *StorePlugin) rollbackInstance(ctx context.Context, req commonOSBRequest, storage storage.Repository, usable bool) error {
+func (sp *storePlugin) rollbackInstance(ctx context.Context, req commonOSBRequest, storage storage.Repository, usable bool) error {
 	byID := query.ByField(query.EqualsOperator, "id", req.GetInstanceID())
 	var instance types.Object
 	var err error
@@ -923,8 +915,8 @@ func (sp *StorePlugin) rollbackInstance(ctx context.Context, req commonOSBReques
 	return nil
 }
 
-func (sp *StorePlugin) updateEntityReady(ctx context.Context, storage storage.Repository, bindingID string, objectType types.ObjectType) error {
-	byID := query.ByField(query.EqualsOperator, "id", bindingID)
+func (sp *storePlugin) updateEntityReady(ctx context.Context, storage storage.Repository, resourceID string, objectType types.ObjectType) error {
+	byID := query.ByField(query.EqualsOperator, "id", resourceID)
 	var instance types.Object
 	var err error
 	if instance, err = storage.Get(ctx, objectType, byID); err != nil {
@@ -1005,56 +997,55 @@ func decodeRequestBody(request *web.Request, body commonOSBRequest) error {
 	return parseRequestForm(request, body)
 }
 
-func (sp *StorePlugin) pollDelete(ctx context.Context, storage storage.Repository, resp brokerError, state types.OperationState, operationFromDB *types.Operation, correlationID string) (entityOperation, error) {
+func (sp *storePlugin) handlePollDeleteResponse(ctx context.Context, storage storage.Repository, resp brokerError, state types.OperationState, operationFromDB *types.Operation, correlationID string) (entityOperation, error) {
+	var entOp entityOperation
 	switch state {
 	case types.SUCCEEDED:
-		if err := sp.updateOperation(ctx, operationFromDB, storage, resp, types.SUCCEEDED, correlationID); err != nil {
-			return NONE, err
-		}
-		return DELETE, nil
+		entOp = DELETE
 	case types.FAILED:
-		if err := sp.updateOperation(ctx, operationFromDB, storage, resp, types.FAILED, correlationID); err != nil {
-			return NONE, err
-		}
-		return ROLLBACK, nil
+		entOp = ROLLBACK
+	default:
+		return NONE, nil
 	}
-	return NONE, nil
+	if err := sp.updateOperation(ctx, operationFromDB, storage, resp, state, correlationID); err != nil {
+		return NONE, err
+	}
+	return entOp, nil
 }
 
-func (sp *StorePlugin) pollCreation(ctx context.Context, storage storage.Repository, resp brokerError, state types.OperationState, operationFromDB *types.Operation, correlationID string) (entityOperation, error) {
+func (sp *storePlugin) handlePollCreateResponse(ctx context.Context, storage storage.Repository, resp brokerError, state types.OperationState, operationFromDB *types.Operation, correlationID string) (entityOperation, error) {
+	var entOp entityOperation
 	switch state {
 	case types.SUCCEEDED:
-		if err := sp.updateOperation(ctx, operationFromDB, storage, resp, types.SUCCEEDED, correlationID); err != nil {
-			return NONE, err
-		}
-		return READY, nil
+		entOp = READY
 	case types.FAILED:
-
-		if err := sp.updateOperation(ctx, operationFromDB, storage, resp, types.FAILED, correlationID); err != nil {
-			return NONE, err
-		}
-		return DELETE, nil
+		entOp = DELETE
+	default:
+		return NONE, nil
 	}
-	return NONE, nil
+	if err := sp.updateOperation(ctx, operationFromDB, storage, resp, state, correlationID); err != nil {
+		return NONE, err
+	}
+	return entOp, nil
 }
 
-func (sp *StorePlugin) pollUpdate(ctx context.Context, storage storage.Repository, resp brokerError, state types.OperationState, operationFromDB *types.Operation, correlationID string) (entityOperation, error) {
+func (sp *storePlugin) handlePollUpdateResponse(ctx context.Context, storage storage.Repository, resp brokerError, state types.OperationState, operationFromDB *types.Operation, correlationID string) (entityOperation, error) {
+	var entOp entityOperation
 	switch state {
 	case types.SUCCEEDED:
-		if err := sp.updateOperation(ctx, operationFromDB, storage, resp, types.SUCCEEDED, correlationID); err != nil {
-			return NONE, err
-		}
+		entOp = NONE
 	case types.FAILED:
-
-		if err := sp.updateOperation(ctx, operationFromDB, storage, resp, types.FAILED, correlationID); err != nil {
-			return NONE, err
-		}
-		return ROLLBACK, nil
+		entOp = ROLLBACK
+	default:
+		return NONE, nil
 	}
-	return NONE, nil
+	if err := sp.updateOperation(ctx, operationFromDB, storage, resp, state, correlationID); err != nil {
+		return NONE, err
+	}
+	return entOp, nil
 }
 
-func (sp *StorePlugin) removeOsbEntity(status int, deleteEntity func() error, storeOp func(state types.OperationState, category types.OperationCategory) error) error {
+func (sp *storePlugin) removeOsbEntity(status int, deleteEntity func() error, storeOp func(state types.OperationState, category types.OperationCategory) error) error {
 	switch status {
 	case http.StatusOK:
 		fallthrough
@@ -1073,7 +1064,7 @@ func (sp *StorePlugin) removeOsbEntity(status int, deleteEntity func() error, st
 	return nil
 }
 
-func (sp *StorePlugin) createOsbEntity(status int, storeOp func(state types.OperationState, category types.OperationCategory) error, storeEntity func(ready bool) error) error {
+func (sp *storePlugin) createOsbEntity(status int, storeOp func(state types.OperationState, category types.OperationCategory) error, storeEntity func(ready bool) error) error {
 	switch status {
 	case http.StatusCreated:
 		if err := storeOp(types.SUCCEEDED, types.CREATE); err != nil {
@@ -1084,7 +1075,9 @@ func (sp *StorePlugin) createOsbEntity(status int, storeOp func(state types.Oper
 		}
 	case http.StatusOK:
 		if err := storeEntity(true); err != nil {
-			return err
+			if err != util.ErrAlreadyExistsInStorage {
+				return err
+			}
 		} else {
 			if err := storeOp(types.SUCCEEDED, types.CREATE); err != nil {
 				return err
