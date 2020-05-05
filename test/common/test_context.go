@@ -649,10 +649,6 @@ func (ctx *TestContext) RegisterBrokerWithRandomCatalogAndTLS(expect *SMExpect) 
 		"broker_url":  brokerServerWithTLS.URL(),
 		"description": BrokerServerPrefixTLS + UUID2.String(),
 		"credentials": Object{
-			"basic": Object{
-				"username": brokerServerWithTLS.Username,
-				"password": brokerServerWithTLS.Password,
-			},
 			"tls": Object{
 				"client_certificate": tls_settings.ClientCertificate,
 				"client_key":         tls_settings.ClientKey,

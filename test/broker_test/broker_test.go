@@ -487,11 +487,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					//actually the broker return invalid credentials, however the response is converted by the catalog fetch into badRequest
 					Context("when broker tls settings are valid but basic auth credentials are missing", func() {
-						It("returns StatusBadRequest", func() {
+						It("returns StatusCreated", func() {
 							ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLS).
 								Expect().
-								Status(http.StatusBadRequest)
-							assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 0)
+								Status(http.StatusCreated)
+							assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 1)
 						})
 					})
 
