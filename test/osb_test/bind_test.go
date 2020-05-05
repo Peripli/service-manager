@@ -92,6 +92,18 @@ var _ = Describe("Bind", func() {
 			})
 		})
 
+		It("when ctx has value false should not store bindings", func() {
+			shouldStoreBinding = false
+			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+
+			ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
+				Expect().Status(http.StatusNotFound)
+
+			verifyOperationDoesNotExist(BID)
+		})
+
 	})
 
 	Context("when call to failing service broker", func() {
