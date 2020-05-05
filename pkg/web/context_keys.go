@@ -12,7 +12,19 @@ const (
 	isAuthorizedKey
 	authenticationErrorKey
 	authorizationErrorKey
+	shouldStoreBindingsKey
 )
+
+// ShouldStoreBindings returns whether the request has to store bindings
+func ShouldStoreBindings(ctx context.Context) bool {
+	shouldStoreBindings := ctx.Value(shouldStoreBindingsKey)
+	return shouldStoreBindings == nil || shouldStoreBindings.(bool)
+}
+
+// ContextWithStoreBindings sets the shouldStoreBindings flag in the context
+func ContextWithStoreBindingsFlag(ctx context.Context, shouldStoreBindings bool) context.Context {
+	return context.WithValue(ctx, shouldStoreBindingsKey, shouldStoreBindings)
+}
 
 // UserFromContext gets the authenticated user from the context
 func UserFromContext(ctx context.Context) (*UserContext, bool) {

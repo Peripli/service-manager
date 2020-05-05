@@ -58,8 +58,6 @@ const (
 	NONE     entityOperation = "none"
 )
 
-type BindingStorageKey struct{}
-
 type provisionRequest struct {
 	commonRequestDetails
 
@@ -322,7 +320,7 @@ func (sp *StorePlugin) Bind(request *web.Request, next web.Handler) (*web.Respon
 		return nil, err
 	}
 
-	if !storeBindingNeeded(ctx) {
+	if !web.ShouldStoreBindings(ctx) {
 		return response, nil
 	}
 	if err := json.Unmarshal(response.Body, &responsePayload); err != nil {
@@ -364,7 +362,7 @@ func (sp *StorePlugin) Unbind(request *web.Request, next web.Handler) (*web.Resp
 		return nil, err
 	}
 
-	if !storeBindingNeeded(ctx) {
+	if !web.ShouldStoreBindings(ctx) {
 		return response, nil
 	}
 	resp := unbindResponse{}
@@ -542,7 +540,7 @@ func (sp *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web
 		return nil, err
 	}
 
-	if !storeBindingNeeded(ctx) {
+	if !web.ShouldStoreBindings(ctx) {
 		return response, nil
 	}
 
@@ -607,15 +605,6 @@ func (sp *StorePlugin) PollBinding(request *web.Request, next web.Handler) (*web
 	}
 
 	return response, nil
-}
-
-func storeBindingNeeded(ctx context.Context) bool {
-	isStoreNeeded := ctx.Value(BindingStorageKey{})
-	if isStoreNeeded == nil {
-		return true
-	}
-	return isStoreNeeded.(bool)
-
 }
 
 func (sp *StorePlugin) PollInstance(request *web.Request, next web.Handler) (*web.Response, error) {
