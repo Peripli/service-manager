@@ -679,7 +679,6 @@ func (sp *storePlugin) PollInstance(request *web.Request, next web.Handler) (*we
 			if err := sp.rollbackInstance(ctx, requestPayload, storage, resp.InstanceUsable); err != nil {
 				return err
 			}
-
 		}
 		return nil
 	}); err != nil {
