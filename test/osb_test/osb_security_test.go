@@ -15,6 +15,17 @@ var _ = Describe("OSB Security", func() {
 	var planID, serviceID, brokerID string
 	var origBrokerExpect *httpexpect.Expect
 
+	createBinding := func() *httpexpect.Response {
+		return origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
+			WithJSON(common.Object{
+				"service_id": serviceID,
+				"plan_id":    planID,
+				"context": common.Object{
+					"platform": "kubernetes",
+				},
+			}).Expect().Status(http.StatusCreated)
+	}
+
 	BeforeEach(func() {
 		plan := common.GenerateFreeTestPlan()
 		planID = gjson.Get(plan, "id").String()
@@ -70,14 +81,7 @@ var _ = Describe("OSB Security", func() {
 	Context("from the same subaccount", func() {
 		Context("bindings", func() {
 			BeforeEach(func() {
-				origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
-					WithJSON(common.Object{
-						"service_id": serviceID,
-						"plan_id":    planID,
-						"context": common.Object{
-							"platform": "kubernetes",
-						},
-					}).Expect().Status(http.StatusCreated)
+				createBinding()
 			})
 
 			Context("get binding", func() {
@@ -135,15 +139,7 @@ var _ = Describe("OSB Security", func() {
 			brokerExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
 				req = req.WithBasicAuth("admin2", "admin")
 			})
-
-			origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
-				WithJSON(common.Object{
-					"service_id": serviceID,
-					"plan_id":    planID,
-					"context": common.Object{
-						"platform": "kubernetes",
-					},
-				}).Expect().Status(http.StatusCreated)
+			createBinding()
 		})
 
 		Context("get instance", func() {
