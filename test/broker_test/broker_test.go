@@ -1429,8 +1429,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 					})
 
-
-
 					verifyPATCHWhenCatalogFieldIsMissing := func(responseVerifier func(r *httpexpect.Response), shouldUpdateCatalog bool, fieldPath string) {
 						var expectedCatalog string
 
@@ -1871,10 +1869,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						Context("when a new service offering with new plans with empty description is added", func() {
 							var anotherServiceID string
 
-
 							BeforeEach(func() {
 
-								planStr:= GeneratePaidTestPlan()
+								planStr := GeneratePaidTestPlan()
 								planStr, err := sjson.Delete(planStr, "description")
 								Expect(err).ToNot(HaveOccurred())
 								anotherPlan := JSONToMap(planStr)
