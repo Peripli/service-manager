@@ -15,15 +15,15 @@ var _ = Describe("OSB Security", func() {
 	var planID, serviceID, brokerID string
 	var origBrokerExpect *httpexpect.Expect
 
-	createBinding := func () *httpexpect.Response {
+	createBinding := func() *httpexpect.Response {
 		return origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
-		WithJSON(common.Object{
-		"service_id": serviceID,
-		"plan_id":    planID,
-		"context": common.Object{
-		"platform": "kubernetes",
-	},
-	}).Expect().Status(http.StatusCreated)
+			WithJSON(common.Object{
+				"service_id": serviceID,
+				"plan_id":    planID,
+				"context": common.Object{
+					"platform": "kubernetes",
+				},
+			}).Expect().Status(http.StatusCreated)
 	}
 
 	BeforeEach(func() {
@@ -171,4 +171,3 @@ var _ = Describe("OSB Security", func() {
 		})
 	})
 })
-
