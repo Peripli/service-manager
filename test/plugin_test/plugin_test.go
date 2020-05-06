@@ -117,6 +117,11 @@ var _ = Describe("Service Manager Plugins", func() {
 			brokerServer.ShouldRecordRequests(true)
 			common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
 			osbURL = "/v1/osb/" + brokerID
+
+			ctx.SMWithBasic.PUT(osbURL+"/v2/service_instances/12345").
+				WithHeader("Content-Type", "application/json").
+				WithJSON(object{"service_id": serviceID, "plan_id": planID}).
+				Expect().Status(http.StatusCreated)
 		})
 
 		It("Plugin modifies the request & response body", func() {
@@ -221,7 +226,7 @@ var _ = Describe("Service Manager Plugins", func() {
 			{"deprovision", "DELETE", "/v2/service_instances/1234", []string{""}, http.StatusOK},
 			{"updateService", "PATCH", "/v2/service_instances/1234", []string{""}, http.StatusOK},
 			{"fetchService", "GET", "/v2/service_instances/1234", []string{""}, http.StatusOK},
-			{"bind", "PUT", "/v2/service_instances/1234/service_bindings/111", []string{""}, http.StatusCreated},
+			{"bind", "PUT", "/v2/service_instances/12345/service_bindings/111", []string{""}, http.StatusCreated},
 			{"unbind", "DELETE", "/v2/service_instances/1234/service_bindings/111", []string{""}, http.StatusOK},
 			{"fetchBinding", "GET", "/v2/service_instances/1234/service_bindings/111", []string{""}, http.StatusOK},
 			{"pollInstance", "GET", "/v2/service_instances/1234/last_operation", []string{"", "service_id=serviceId", "plan_id=planId", "operation=provision", "service_id=serviceId&plan_id=planId&operation=provision"}, http.StatusOK},

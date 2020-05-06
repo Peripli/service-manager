@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/api/osb"
 	"io"
 	"net/http"
 	"strings"
@@ -99,6 +100,7 @@ var (
 
 	brokerPlatformCredentialsIDMap map[string]brokerPlatformCredentials
 	utils                          *common.BrokerUtils
+	shouldStoreBinding             bool
 )
 
 type brokerPlatformCredentials struct {
@@ -115,6 +117,7 @@ var _ = BeforeSuite(func() {
 		"cid": "tenancyClient",
 		"zid": TenantValue,
 	}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+		smb.RegisterPluginsBefore(osb.OSBStorePluginName, &storeBindingIndicatorPlugin{})
 		_, err := smb.EnableMultitenancy(TenantIdentifier, func(request *web.Request) (string, error) {
 			extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")
 			user, ok := web.UserFromContext(request.Context())
@@ -212,10 +215,12 @@ var _ = BeforeEach(func() {
 
 	credentials := brokerPlatformCredentialsIDMap[brokerID]
 	ctx.SMWithBasic.SetBasicCredentials(ctx, credentials.username, credentials.password)
+	shouldStoreBinding = true
 })
 
 var _ = JustAfterEach(func() {
 	common.RemoveAllOperations(ctx.SMRepository)
+	common.RemoveAllBindings(ctx)
 	common.RemoveAllInstances(ctx)
 	common.RemoveAllOperations(ctx.SMRepository)
 })
@@ -511,4 +516,16 @@ func hashPassword(password string) string {
 	}
 
 	return string(passwordHash)
+}
+
+type storeBindingIndicatorPlugin struct{}
+
+func (p *storeBindingIndicatorPlugin) Name() string { return "storeBindingIndicatorPlugin" }
+
+func (p *storeBindingIndicatorPlugin) Bind(request *web.Request, next web.Handler) (*web.Response, error) {
+	if !shouldStoreBinding {
+		newCtx := web.ContextWithStoreBindingsFlag(request.Context(), shouldStoreBinding)
+		request.Request = request.WithContext(newCtx)
+	}
+	return next.Handle(request)
 }

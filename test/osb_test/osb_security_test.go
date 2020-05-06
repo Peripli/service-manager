@@ -15,6 +15,17 @@ var _ = Describe("OSB Security", func() {
 	var planID, serviceID, brokerID string
 	var origBrokerExpect *httpexpect.Expect
 
+	createBinding := func() *httpexpect.Response {
+		return origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
+			WithJSON(common.Object{
+				"service_id": serviceID,
+				"plan_id":    planID,
+				"context": common.Object{
+					"platform": "kubernetes",
+				},
+			}).Expect().Status(http.StatusCreated)
+	}
+
 	BeforeEach(func() {
 		plan := common.GenerateFreeTestPlan()
 		planID = gjson.Get(plan, "id").String()
@@ -60,14 +71,6 @@ var _ = Describe("OSB Security", func() {
 				},
 			}).Expect().Status(http.StatusCreated)
 
-		origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
-			WithJSON(common.Object{
-				"service_id": serviceID,
-				"plan_id":    planID,
-				"context": common.Object{
-					"platform": "kubernetes",
-				},
-			}).Expect().Status(http.StatusCreated)
 	})
 
 	AfterEach(func() {
@@ -76,30 +79,34 @@ var _ = Describe("OSB Security", func() {
 	})
 
 	Context("from the same subaccount", func() {
-		Context("get instance", func() {
+		Context("bindings", func() {
+			BeforeEach(func() {
+				createBinding()
+			})
+
+			Context("get binding", func() {
+				It("should respond with the binding", func() {
+					origBrokerExpect.GET(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
+						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("credentials")
+
+				})
+			})
+
+			Context("delete binding", func() {
+				It("should be successful", func() {
+					origBrokerExpect.DELETE(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
+						Expect().Status(http.StatusOK).JSON().Object().Empty()
+				})
+			})
+		})
+
+		Context("instances", func() {
 			It("should respond with the instance", func() {
 				origBrokerExpect.GET(fmt.Sprintf("%s/%s/v2/service_instances/12345", web.OSBURL, brokerID)).
 					Expect().Status(http.StatusOK).JSON().Object().Empty()
 			})
-		})
-
-		Context("delete instance", func() {
 			It("should be successful", func() {
 				origBrokerExpect.DELETE(fmt.Sprintf("%s/%s/v2/service_instances/12345", web.OSBURL, brokerID)).
-					Expect().Status(http.StatusOK).JSON().Object().Empty()
-			})
-		})
-
-		Context("get binding", func() {
-			It("should respond with the binding", func() {
-				origBrokerExpect.GET(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
-					Expect().Status(http.StatusOK).JSON().Object().ContainsKey("credentials")
-			})
-		})
-
-		Context("delete binding", func() {
-			It("should be successful", func() {
-				origBrokerExpect.DELETE(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
 					Expect().Status(http.StatusOK).JSON().Object().Empty()
 			})
 		})
@@ -132,6 +139,7 @@ var _ = Describe("OSB Security", func() {
 			brokerExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
 				req = req.WithBasicAuth("admin2", "admin")
 			})
+			createBinding()
 		})
 
 		Context("get instance", func() {

@@ -1603,6 +1603,7 @@ var _ = DescribeTestsFor(TestCase{
 													WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 													WithJSON(Object{
 														"service_id": service1CatalogID,
+														"plan_id":    plan1CatalogID,
 													}).
 													Expect().Status(http.StatusNotFound)
 
@@ -1646,17 +1647,27 @@ var _ = DescribeTestsFor(TestCase{
 												By("verify instance binds in old platform does not work after transfer")
 												testCtx.SMWithBasic.PUT("/v1/osb/"+brokerID+"/v2/service_instances/"+SID+"/service_bindings/"+bindingID).
 													WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-													WithJSON(Object{}).
+													WithJSON(Object{
+														"service_id": service1CatalogID,
+														"plan_id":    plan1CatalogID,
+													}).
 													Expect().Status(http.StatusNotFound)
 
 												By("verify instance unbind in old platform does not after transfer")
 												testCtx.SMWithBasic.DELETE("/v1/osb/"+brokerID+"/v2/service_instances/"+SID+"/service_bindings/"+bindingID).
 													WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-													WithJSON(Object{}).
+													WithJSON(Object{
+														"service_id": service1CatalogID,
+														"plan_id":    plan1CatalogID,
+													}).
 													Expect().Status(http.StatusNotFound)
 
 												By("verify instance deprovision in old platform does not after transfer")
 												testCtx.SMWithBasic.DELETE("/v1/osb/"+brokerID+"/v2/service_instances/"+SID).
+													WithJSON(Object{
+														"service_id": service1CatalogID,
+														"plan_id":    plan1CatalogID,
+													}).
 													WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 													Expect().Status(http.StatusNotFound)
 
