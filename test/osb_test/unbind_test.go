@@ -129,7 +129,7 @@ var _ = Describe("Unbind", func() {
 				ctx.SMWithBasic.SetBasicCredentials(ctx, "test", "test")
 			})
 
-			It("should return 404", func() {
+			It("should return 401", func() {
 				brokerServer.BindingHandler = parameterizedHandler(http.StatusOK, `{}`)
 				ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/"+BID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).

@@ -32,20 +32,20 @@ const (
 )
 
 type osbTenantLabelingInterceptor struct {
-	TenantIdentifier string
-	InterceptorName  string
-	ExtractContext   func(obj types.Object) json.RawMessage
+	tenantIdentifier string
+	interceptorName  string
+	extractContext   func(obj types.Object) json.RawMessage
 }
 
 func (otl *osbTenantLabelingInterceptor) Name() string {
-	return otl.InterceptorName
+	return otl.interceptorName
 }
 
 func NewOSBServiceInstanceTenantLabelingInterceptor(tenantIdentifier string) *osbTenantLabelingInterceptor {
 	return &osbTenantLabelingInterceptor{
-		TenantIdentifier: tenantIdentifier,
-		InterceptorName:  ServiceInstanceCreateInterceptorName,
-		ExtractContext: func(obj types.Object) json.RawMessage {
+		tenantIdentifier: tenantIdentifier,
+		interceptorName:  ServiceInstanceCreateInterceptorName,
+		extractContext: func(obj types.Object) json.RawMessage {
 			return obj.(*types.ServiceInstance).Context
 		},
 	}
@@ -53,9 +53,9 @@ func NewOSBServiceInstanceTenantLabelingInterceptor(tenantIdentifier string) *os
 
 func NewOSBBindingTenantLabelingInterceptor(tenantIdentifier string) *osbTenantLabelingInterceptor {
 	return &osbTenantLabelingInterceptor{
-		TenantIdentifier: tenantIdentifier,
-		InterceptorName:  ServiceBindingCreateInterceptorName,
-		ExtractContext: func(obj types.Object) json.RawMessage {
+		tenantIdentifier: tenantIdentifier,
+		interceptorName:  ServiceBindingCreateInterceptorName,
+		extractContext: func(obj types.Object) json.RawMessage {
 			return obj.(*types.ServiceBinding).Context
 		},
 	}
@@ -72,19 +72,20 @@ func (otl *osbTenantLabelingInterceptor) OnTxCreate(h storage.InterceptCreateOnT
 			labels = types.Labels{}
 		}
 
-		if _, ok := labels[otl.TenantIdentifier]; ok {
-			log.C(ctx).Debugf("Label %s is already set on %s", otl.TenantIdentifier, obj.GetType())
+		if _, ok := labels[otl.tenantIdentifier]; ok {
+			log.C(ctx).Debugf("Label %s is already set on %s", otl.tenantIdentifier, obj.GetType())
 			return h(ctx, storage, obj)
 		}
 
-		objectContext := otl.ExtractContext(obj)
-		tenantID := gjson.GetBytes(objectContext, otl.TenantIdentifier)
+		objectContext := otl.extractContext(obj)
+		tenantID := gjson.GetBytes(objectContext, otl.tenantIdentifier)
 		if !tenantID.Exists() {
-			log.C(ctx).Debugf("Could not add %s label to %s with id %s. Label not found in OSB context.", otl.TenantIdentifier, obj.GetType(), obj.GetID())
+			log.C(ctx).Debugf("Could not add %s label to %s with id %s. Label not found in OSB context.", otl.tenantIdentifier, obj.GetType(), obj.GetID())
 			return h(ctx, storage, obj)
 		}
-		labels[otl.TenantIdentifier] = []string{tenantID.String()}
+		labels[otl.tenantIdentifier] = []string{tenantID.String()}
 		obj.SetLabels(labels)
+		log.C(ctx).Debugf("Adding label %s=%s to %s with id %s.", otl.tenantIdentifier, tenantID, obj.GetType(), obj.GetID())
 
 		return h(ctx, storage, obj)
 	}

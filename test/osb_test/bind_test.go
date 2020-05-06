@@ -43,7 +43,14 @@ var _ = Describe("Bind", func() {
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
 
 			ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
-				Expect().Status(http.StatusOK)
+				Expect().
+				Status(http.StatusOK).
+				JSON().
+				Object().
+				ContainsMap(map[string]interface{}{
+					"id":                  BID,
+					"service_instance_id": IID,
+				})
 
 			verifyOperationExists(operationExpectations{
 				Type:         types.CREATE,
@@ -54,17 +61,35 @@ var _ = Describe("Bind", func() {
 			})
 		})
 
-		It("same binding exist should succeed", func() {
+		It("same binding should return conflict", func() {
 			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/"+BID).
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).
+				Expect().
+				Status(http.StatusCreated)
+
+			bindingJSON := ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
+				Expect().
+				Status(http.StatusOK).
+				JSON().
+				Object()
 
 			brokerServer.BindingHandler = parameterizedHandler(http.StatusOK, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusConflict)
+			ctx.
+				SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/"+BID).
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).
+				Expect().
+				Status(http.StatusConflict)
 
-			ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
-				Expect().Status(http.StatusOK)
+			ctx.
+				SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
+				Expect().
+				Status(http.StatusOK).
+				JSON().
+				Object().
+				ContainsMap(bindingJSON)
 
 			verifyOperationExists(operationExpectations{
 				Type:         types.CREATE,

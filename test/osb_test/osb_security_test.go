@@ -68,8 +68,7 @@ var _ = Describe("OSB Security", func() {
 	})
 
 	Context("from the same subaccount", func() {
-
-		Context("get binding", func() {
+		Context("bindings", func() {
 			BeforeEach(func() {
 				origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
 					WithJSON(common.Object{
@@ -81,45 +80,32 @@ var _ = Describe("OSB Security", func() {
 					}).Expect().Status(http.StatusCreated)
 			})
 
-			It("should respond with the binding", func() {
-				origBrokerExpect.GET(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
-					Expect().Status(http.StatusOK).JSON().Object().ContainsKey("credentials")
+			Context("get binding", func() {
+				It("should respond with the binding", func() {
+					origBrokerExpect.GET(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
+						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("credentials")
 
+				})
+			})
+
+			Context("delete binding", func() {
+				It("should be successful", func() {
+					origBrokerExpect.DELETE(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
+						Expect().Status(http.StatusOK).JSON().Object().Empty()
+				})
 			})
 		})
 
-		Context("delete binding", func() {
-			BeforeEach(func() {
-				origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
-					WithJSON(common.Object{
-						"service_id": serviceID,
-						"plan_id":    planID,
-						"context": common.Object{
-							"platform": "kubernetes",
-						},
-					}).Expect().Status(http.StatusCreated)
-			})
-
-			It("should be successful", func() {
-				origBrokerExpect.DELETE(fmt.Sprintf("%s/%s/v2/service_instances/12345/service_bindings/5678", web.OSBURL, brokerID)).
-					Expect().Status(http.StatusOK).JSON().Object().Empty()
-			})
-		})
-
-		Context("get instance", func() {
+		Context("instances", func() {
 			It("should respond with the instance", func() {
 				origBrokerExpect.GET(fmt.Sprintf("%s/%s/v2/service_instances/12345", web.OSBURL, brokerID)).
 					Expect().Status(http.StatusOK).JSON().Object().Empty()
 			})
-		})
-
-		Context("delete instance", func() {
 			It("should be successful", func() {
 				origBrokerExpect.DELETE(fmt.Sprintf("%s/%s/v2/service_instances/12345", web.OSBURL, brokerID)).
 					Expect().Status(http.StatusOK).JSON().Object().Empty()
 			})
 		})
-
 	})
 
 	Context("from other subaccount", func() {
