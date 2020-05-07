@@ -533,6 +533,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							}, "services.0.description")
 						})
 
+						Context("that has an empty description", func() {
+							verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
+								r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
+							}, "services.0.plans.0.description")
+						})
+
 						Context("that has invalid tags", func() {
 							verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
 								r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
@@ -567,7 +573,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						Context("that has an empty description", func() {
 							verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
-								r.Status(http.StatusCreated).JSON().Object().Keys().NotContains("services").Contains("credentials")
+								r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
 							}, "services.0.plans.0.description")
 						})
 
@@ -1844,8 +1850,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						Context("when catalog plan description is removed", func() {
 							verifyPATCHWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
-								r.Status(http.StatusOK)
-							}, true, "services.0.plans.0.description")
+								r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+							}, false, "services.0.plans.0.description")
 						})
 
 						Context("when schemas is invalid json", func() {
@@ -1859,7 +1865,45 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
 							}, false, "services.0.plans.0.metadata", []byte(`{invalid`))
 						})
+
+						Context("when a new service offering with new plans with empty description is added", func() {
+							var anotherServiceID string
+
+							BeforeEach(func() {
+
+								planStr := GeneratePaidTestPlan()
+								planStr, err := sjson.Delete(planStr, "description")
+								Expect(err).ToNot(HaveOccurred())
+								anotherPlan := JSONToMap(planStr)
+
+								anotherServiceWithAnotherPlan, err := sjson.Set(GenerateTestServiceWithPlans(), "plans.-1", anotherPlan)
+								Expect(err).ShouldNot(HaveOccurred())
+
+								anotherService := JSONToMap(anotherServiceWithAnotherPlan)
+								anotherServiceID = anotherService["id"].(string)
+								Expect(anotherServiceID).ToNot(BeEmpty())
+
+								catalog, err := sjson.Set(string(brokerServer.Catalog), "services.-1", anotherService)
+								Expect(err).ShouldNot(HaveOccurred())
+
+								brokerServer.Catalog = SBCatalog(catalog)
+							})
+
+							It("400 bad request is returned", func() {
+								ctx.SMWithOAuth.List(web.ServiceOfferingsURL).
+									Path("$[*].catalog_id").Array().NotContains(anotherServiceID)
+								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
+									WithJSON(Object{}).
+									Expect().
+									Status(http.StatusBadRequest)
+
+								assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+							})
+
+						})
+
 					})
+
 				})
 
 				Describe("Labelled", func() {
