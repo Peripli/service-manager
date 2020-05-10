@@ -66,16 +66,10 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 		}
 	}
 
-	var err error
-	var instanceID string
-
-	switch req.Method {
-	case http.MethodPost:
-		instanceID = gjson.GetBytes(req.Body, serviceInstanceIDProperty).String()
-		if instanceID == "" {
-			log.C(ctx).Info("Service Instance ID is not provided in the request. Proceeding with the next handler...")
-			return next.Handle(req)
-		}
+	instanceID := gjson.GetBytes(req.Body, serviceInstanceIDProperty).String()
+	if instanceID == "" {
+		log.C(ctx).Info("Service Instance ID is not provided in the request. Proceeding with the next handler...")
+		return next.Handle(req)
 	}
 
 	criteria := []query.Criterion{
@@ -100,17 +94,6 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 	return next.Handle(req)
 }
 
-func (*serviceBindingVisibilityFilter) FilterMatchers() []web.FilterMatcher {
-	return []web.FilterMatcher{
-		{
-			Matchers: []web.Matcher{
-				web.Path(web.ServiceBindingsURL + "/**"),
-				web.Methods(http.MethodPost),
-			},
-		},
-	}
-}
-
 func (f *serviceBindingVisibilityFilter) fetchInstanceID(ctx context.Context, tenantID string, bindingID string) (string, error) {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "id", bindingID),
@@ -124,4 +107,15 @@ func (f *serviceBindingVisibilityFilter) fetchInstanceID(ctx context.Context, te
 
 	sb := object.(*types.ServiceBinding)
 	return sb.ServiceInstanceID, nil
+}
+
+func (*serviceBindingVisibilityFilter) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
+		{
+			Matchers: []web.Matcher{
+				web.Path(web.ServiceBindingsURL + "/**"),
+				web.Methods(http.MethodPost),
+			},
+		},
+	}
 }
