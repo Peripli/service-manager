@@ -143,9 +143,14 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 								verifyResourceDeletion(ctx.SMWithOAuth, successfulDeletionRequestResponseCode, 0, types.SUCCEEDED)
 							})
 						} else {
-							It("returns 400", func() {
-								ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).Expect().
-									Status(http.StatusBadRequest)
+							It("returns success", func() {
+								resp := ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).Expect()
+								statusCode := resp.Raw().StatusCode
+								if async, err := strconv.ParseBool(asyncParam); err == nil && async {
+									Expect(statusCode).To(Equal(http.StatusAccepted))
+								} else {
+									Expect(statusCode).To(Equal(http.StatusOK))
+								}
 							})
 						}
 					})
@@ -193,11 +198,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 							Error:             notFoundMsg,
 						})
 					} else {
-						if !t.StrictlyTenantScoped {
-							Expect(statusCode).To(Equal(http.StatusNotFound))
-						} else {
-							Expect(statusCode).To(Equal(http.StatusBadRequest))
-						}
+						Expect(statusCode).To(Equal(http.StatusNotFound))
 					}
 				})
 			})
