@@ -64,9 +64,6 @@ func (*PlatformIDInstanceValidationFilter) Run(req *web.Request, next web.Handle
 			}
 		}
 	case http.MethodPatch:
-		fallthrough
-		//TODO delete case remove when deletion of instances from all platforms is enabled
-	case http.MethodDelete:
 		// we don't want to explicitly add SMPlatform criteria for patch if instance is being migrated to SM
 		if platformID != types.SMPlatform {
 			byPlatformID := query.ByField(query.EqualsOperator, platformIDProperty, types.SMPlatform)
@@ -86,7 +83,7 @@ func (*PlatformIDInstanceValidationFilter) FilterMatchers() []web.FilterMatcher 
 		{
 			Matchers: []web.Matcher{
 				web.Path(web.ServiceInstancesURL + "/**"),
-				web.Methods(http.MethodPost, http.MethodPatch, http.MethodDelete),
+				web.Methods(http.MethodPost, http.MethodPatch),
 			},
 		},
 	}

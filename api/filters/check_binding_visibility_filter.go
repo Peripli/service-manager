@@ -76,16 +76,6 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 			log.C(ctx).Info("Service Instance ID is not provided in the request. Proceeding with the next handler...")
 			return next.Handle(req)
 		}
-	case http.MethodDelete:
-		bindingID := req.PathParams[web.PathParamResourceID]
-		if bindingID != "" {
-			log.C(ctx).Info("Service Binding ID is not provided in the request. Proceeding with the next handler...")
-			return next.Handle(req)
-		}
-		instanceID, err = f.fetchInstanceID(ctx, tenantID, bindingID)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	criteria := []query.Criterion{
@@ -115,7 +105,7 @@ func (*serviceBindingVisibilityFilter) FilterMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Path(web.ServiceBindingsURL + "/**"),
-				web.Methods(http.MethodPost, http.MethodDelete),
+				web.Methods(http.MethodPost),
 			},
 		},
 	}
