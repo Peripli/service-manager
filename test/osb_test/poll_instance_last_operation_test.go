@@ -125,10 +125,10 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 				BeforeEach(func() {
 					brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 
-					By(fmt.Sprintf("Deleting instance with id %s", SID))
-					byID := query.ByField(query.EqualsOperator, "id", SID)
-					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
-					Expect(err).ToNot(HaveOccurred())
+					ctx.SMWithOAuthForTenant.DELETE("/v1/service_instances/"+SID).
+						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						WithQuery("async", false).
+						Expect().Status(http.StatusOK)
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
@@ -358,10 +358,10 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 				BeforeEach(func() {
 					brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 
-					By(fmt.Sprintf("Deleting instance with id %s", SID))
-					byID := query.ByField(query.EqualsOperator, "id", SID)
-					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
-					Expect(err).ToNot(HaveOccurred())
+					ctx.SMWithOAuthForTenant.DELETE("/v1/service_instances/"+SID).
+						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						WithQuery("async", false).
+						Expect().Status(http.StatusOK)
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
@@ -503,10 +503,10 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 				BeforeEach(func() {
 					brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 
-					By(fmt.Sprintf("Deleting instance with id %s", SID))
-					byID := query.ByField(query.EqualsOperator, "id", SID)
-					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
-					Expect(err).ToNot(HaveOccurred())
+					ctx.SMWithOAuthForTenant.DELETE("/v1/service_instances/"+SID).
+						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						WithQuery("async", false).
+						Expect().Status(http.StatusOK)
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
@@ -583,10 +583,10 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 				BeforeEach(func() {
 					brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 
-					By(fmt.Sprintf("Deleting instance with id %s", SID))
-					byID := query.ByField(query.EqualsOperator, "id", SID)
-					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
-					Expect(err).ToNot(HaveOccurred())
+					ctx.SMWithOAuthForTenant.DELETE("/v1/service_instances/"+SID).
+						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						WithQuery("async", false).
+						Expect().Status(http.StatusOK)
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
@@ -678,10 +678,10 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 				BeforeEach(func() {
 					brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 
-					By(fmt.Sprintf("Deleting instance with id %s", SID))
-					byID := query.ByField(query.EqualsOperator, "id", SID)
-					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
-					Expect(err).ToNot(HaveOccurred())
+					ctx.SMWithOAuthForTenant.DELETE("/v1/service_instances/"+SID).
+						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						WithQuery("async", false).
+						Expect().Status(http.StatusOK)
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
