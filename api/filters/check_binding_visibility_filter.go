@@ -65,7 +65,7 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 		}
 	}
 
-	if req.Method ==  http.MethodDelete {
+	if req.Method == http.MethodDelete {
 		return next.Handle(req)
 	}
 
