@@ -17,7 +17,6 @@
 package filters
 
 import (
-	"context"
 	"github.com/tidwall/gjson"
 	"net/http"
 
@@ -106,19 +105,4 @@ func (*serviceBindingVisibilityFilter) FilterMatchers() []web.FilterMatcher {
 			},
 		},
 	}
-}
-
-func (f *serviceBindingVisibilityFilter) fetchInstanceID(ctx context.Context, tenantID string, bindingID string) (string, error) {
-	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "id", bindingID),
-		query.ByLabel(query.EqualsOperator, f.tenantIdentifier, tenantID),
-	}
-
-	object, err := f.repository.Get(ctx, types.ServiceBindingType, criteria...)
-	if err != nil {
-		return "", util.HandleStorageError(err, types.ServiceBindingType.String())
-	}
-
-	sb := object.(*types.ServiceBinding)
-	return sb.ServiceInstanceID, nil
 }
