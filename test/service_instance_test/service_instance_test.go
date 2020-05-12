@@ -2551,8 +2551,7 @@ var _ = DescribeTestsFor(TestCase{
 									JSON().Object().Value("platform_id").Equal(ctx.TestPlatform.ID)
 							})
 
-							//TODO enable when deletion of instances of other platforms is allowed via SM APIs
-							XIt("is successfully deleted", func() {
+							It("is successfully deleted", func() {
 								requestsBeforeDeletion := len(brokerServer.ServiceInstanceEndpointRequests)
 								resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
 								instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -2571,26 +2570,6 @@ var _ = DescribeTestsFor(TestCase{
 								Expect(requestsAfterDeletion - requestsBeforeDeletion).To(Equal(1))
 							})
 
-							//TODO remove when deletion is enabled
-							It("cannot be deleted", func() {
-								expectedStatusCode := http.StatusAccepted
-								if !testCase.async {
-									expectedStatusCode = http.StatusNotFound
-								}
-								resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, expectedStatusCode)
-								instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-									Category:          types.DELETE,
-									State:             types.FAILED,
-									ResourceType:      types.ServiceInstanceType,
-									Reschedulable:     false,
-									DeletionScheduled: false,
-								})
-								VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-									ID:    instanceID,
-									Type:  types.ServiceInstanceType,
-									Ready: true,
-								})
-							})
 						})
 
 						When("instance exists in service manager platform", func() {

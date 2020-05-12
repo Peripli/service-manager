@@ -17,17 +17,15 @@
 package filters
 
 import (
-	"context"
+	"github.com/tidwall/gjson"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/storage"
-	"github.com/tidwall/gjson"
-
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/storage"
 )
 
 const serviceInstanceIDProperty = "service_instance_id"
@@ -66,26 +64,14 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 		}
 	}
 
-	var err error
-	var instanceID string
+	if req.Method == http.MethodDelete {
+		return next.Handle(req)
+	}
 
-	switch req.Method {
-	case http.MethodPost:
-		instanceID = gjson.GetBytes(req.Body, serviceInstanceIDProperty).String()
-		if instanceID == "" {
-			log.C(ctx).Info("Service Instance ID is not provided in the request. Proceeding with the next handler...")
-			return next.Handle(req)
-		}
-	case http.MethodDelete:
-		bindingID := req.PathParams[web.PathParamResourceID]
-		if bindingID != "" {
-			log.C(ctx).Info("Service Binding ID is not provided in the request. Proceeding with the next handler...")
-			return next.Handle(req)
-		}
-		instanceID, err = f.fetchInstanceID(ctx, tenantID, bindingID)
-		if err != nil {
-			return nil, err
-		}
+	instanceID := gjson.GetBytes(req.Body, serviceInstanceIDProperty).String()
+	if instanceID == "" {
+		log.C(ctx).Info("Service Instance ID is not provided in the request. Proceeding with the next handler...")
+		return next.Handle(req)
 	}
 
 	criteria := []query.Criterion{
@@ -119,19 +105,4 @@ func (*serviceBindingVisibilityFilter) FilterMatchers() []web.FilterMatcher {
 			},
 		},
 	}
-}
-
-func (f *serviceBindingVisibilityFilter) fetchInstanceID(ctx context.Context, tenantID string, bindingID string) (string, error) {
-	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "id", bindingID),
-		query.ByLabel(query.EqualsOperator, f.tenantIdentifier, tenantID),
-	}
-
-	object, err := f.repository.Get(ctx, types.ServiceBindingType, criteria...)
-	if err != nil {
-		return "", util.HandleStorageError(err, types.ServiceBindingType.String())
-	}
-
-	sb := object.(*types.ServiceBinding)
-	return sb.ServiceInstanceID, nil
 }

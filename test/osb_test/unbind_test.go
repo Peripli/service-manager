@@ -55,6 +55,26 @@ var _ = Describe("Unbind", func() {
 			})
 
 		})
+
+		It("unbind using smaap api should be successful", func() {
+			brokerServer.BindingHandler = parameterizedHandler(http.StatusOK, `{}`)
+			ctx.SMWithOAuthForTenant.DELETE(web.ServiceBindingsURL+"/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithQueryObject(provisionRequestBodyMap()()).
+				WithQuery("async", false).
+				Expect().Status(http.StatusOK).JSON().Object()
+
+			ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
+				Expect().Status(http.StatusNotFound)
+
+			verifyOperationExists(operationExpectations{
+				Type:         types.DELETE,
+				State:        types.SUCCEEDED,
+				ResourceID:   BID,
+				ResourceType: "/v1/service_bindings",
+				ExternalID:   "",
+			})
+
+		})
 	})
 
 	Context("when call to failing service broker", func() {
