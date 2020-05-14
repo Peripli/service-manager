@@ -27,18 +27,15 @@ import (
 const CascadeOperationCreateInterceptorProviderName = "CascadeOperationCreateInterceptorProvider"
 
 type cascadeOperationCreateInterceptor struct {
-	Repository storage.TransactionalRepository
 	TenantIdentifier string
 }
 
 type CascadeOperationCreateInterceptorProvider struct {
-	Repository *storage.InterceptableTransactionalRepository
 	TenantIdentifier string
 }
 
-func (c *CascadeOperationCreateInterceptorProvider) Provide() storage.CreateAroundTxInterceptor {
+func (c *CascadeOperationCreateInterceptorProvider) Provide() storage.CreateOnTxInterceptor {
 	return &cascadeOperationCreateInterceptor{
-		Repository: c.Repository.RawRepository,
 		TenantIdentifier: c.TenantIdentifier,
 	}
 }
@@ -47,33 +44,26 @@ func (c *CascadeOperationCreateInterceptorProvider) Name() string {
 	return CascadeOperationCreateInterceptorProviderName
 }
 
-func (co *cascadeOperationCreateInterceptor) AroundTxCreate(f storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
-	return func(ctx context.Context, obj types.Object) (types.Object, error) {
+func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+	return func(ctx context.Context, storage storage.Repository, obj types.Object) (types.Object, error) {
 		operation := obj.(*types.Operation)
 		if !web.IsCascadeOperation(ctx) || operation.Type != types.DELETE {
-			return f(ctx, operation)
+			return f(ctx, storage, operation)
 		}
-		ops, err := getChildren(ctx, co.Repository, operation)
+		ops, err := getChildren(ctx, storage, operation)
 		if err != nil {
 			return nil, err
 		}
-		err = co.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-			for _, operation := range ops {
-				if _, err := storage.Create(ctx, operation); err != nil {
-					return util.HandleStorageError(err, string(operation.GetType()))
-				}
+
+		for _, operation := range ops {
+			if _, err := storage.Create(ctx, operation); err != nil {
+				return nil, util.HandleStorageError(err, string(operation.GetType()))
 			}
-			return nil
-		})
-
-		if err != nil {
-			return nil, err
 		}
-
 		return operation, nil
 	}
 }
 
-func getChildren(ctx context.Context, repository storage.TransactionalRepository, op *types.Operation) ([]*types.Operation, error) {
+func getChildren(ctx context.Context, repository storage.Repository, op *types.Operation) ([]*types.Operation, error) {
 	return nil, nil
 }
