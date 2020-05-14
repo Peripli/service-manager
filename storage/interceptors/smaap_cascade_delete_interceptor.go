@@ -28,14 +28,18 @@ const CascadeOperationCreateInterceptorProviderName = "CascadeOperationCreateInt
 
 type cascadeOperationCreateInterceptor struct {
 	Repository storage.TransactionalRepository
+	TenantIdentifier string
 }
+
 type CascadeOperationCreateInterceptorProvider struct {
-	Repository storage.TransactionalRepository
+	Repository *storage.InterceptableTransactionalRepository
+	TenantIdentifier string
 }
 
 func (c *CascadeOperationCreateInterceptorProvider) Provide() storage.CreateAroundTxInterceptor {
 	return &cascadeOperationCreateInterceptor{
-		Repository: c.Repository,
+		Repository: c.Repository.RawRepository,
+		TenantIdentifier: c.TenantIdentifier,
 	}
 }
 
