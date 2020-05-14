@@ -1,6 +1,7 @@
 vendor/
 debug
 .vscode/
+.pipeline/
 .gitignore
 .gometalinter.json
 .travis.yml
