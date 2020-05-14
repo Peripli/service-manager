@@ -33,20 +33,6 @@ func UserFromContext(ctx context.Context) (*UserContext, bool) {
 	return userCtx, ok && userCtx != nil
 }
 
-// IsCascadeOperation returns whether the delete operation is cascade
-func IsCascadeOperation(ctx context.Context) bool {
-	isCascade := ctx.Value(cascadeOperationKey)
-	if isCascade == nil {
-		return false
-	}
-	return isCascade.(bool)
-}
-
-// ContextWithCascadeFlag sets the isCascade flag in the context
-func ContextWithCascadeFlag(ctx context.Context, isCascade bool) context.Context {
-	return context.WithValue(ctx, cascadeOperationKey, isCascade)
-}
-
 // ContextWithUser sets the authenticated user in the context
 func ContextWithUser(ctx context.Context, user *UserContext) context.Context {
 	return context.WithValue(ctx, userKey, user)
