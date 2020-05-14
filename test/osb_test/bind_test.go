@@ -36,6 +36,49 @@ var _ = Describe("Bind", func() {
 	})
 
 	Context("call to working service broker", func() {
+		
+		It("Ashah", func() {
+			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/1111").
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
+				Expect().Status(http.StatusCreated)
+
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/2222").
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
+				Expect().Status(http.StatusCreated)
+
+			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/1111/service_bindings/b11").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/1111/service_bindings/b12").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/2222/service_bindings/b21").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/2222/service_bindings/b22").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+
+			op := types.Operation {
+				Base: types.Base {
+					ID: "op1",
+				},
+				Description: "bla",
+				Cascade: true,
+				ResourceID: ctx.TestPlatform.ID,
+				State: types.IN_PROGRESS,
+				Type: types.DELETE,
+				ResourceType: types.PlatformType,
+				PlatformID: ctx.TestPlatform.ID,
+			}
+
+			ctx.SMRepository.Create(context.TODO(), &op)
+			fmt.Println("Drorrrr")
+			fmt.Println("Drorrrr")
+		})
 
 		It("should succeed", func() {
 			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
