@@ -11,7 +11,7 @@ import (
 )
 
 type OperationUtils struct {
-	tenantIdentifier string
+	TenantIdentifier string
 }
 
 func (o *OperationUtils) GetCascadeOperations(ctx context.Context, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
@@ -32,28 +32,28 @@ func (o *OperationUtils) GetCascadeOperations(ctx context.Context, operation *ty
 func (o *OperationUtils) getTenantChildrenOperations(ctx context.Context, operation *types.Operation, repository storage.Repository) ([]*types.Operation, error) {
 	var tenantChildren []*types.Operation
 
-	criterions := []query.Criterion{query.ByLabel(query.EqualsOperator, o.tenantIdentifier, operation.ResourceID)}
+	criterions := []query.Criterion{query.ByLabel(query.EqualsOperator, o.TenantIdentifier, operation.ResourceID)}
 	tenantVisibilityChildren, err := getChildren(ctx, repository, operation, types.VisibilityType, criterions...)
 	if err != nil {
 		return nil, err
 	}
 	tenantChildren = append(tenantChildren, tenantVisibilityChildren...)
 
-	criterions = []query.Criterion{query.ByLabel(query.EqualsOperator, o.tenantIdentifier, operation.ResourceID)}
+	criterions = []query.Criterion{query.ByLabel(query.EqualsOperator, o.TenantIdentifier, operation.ResourceID)}
 	tenantPlatformChildren, err := getChildren(ctx, repository, operation, types.PlatformType, criterions...)
 	if err != nil {
 		return nil, err
 	}
 	tenantChildren = append(tenantChildren, tenantPlatformChildren...)
 
-	criterions = []query.Criterion{query.ByLabel(query.EqualsOperator, o.tenantIdentifier, operation.ResourceID)}
+	criterions = []query.Criterion{query.ByLabel(query.EqualsOperator, o.TenantIdentifier, operation.ResourceID)}
 	tenantBrokerChildren, err := getChildren(ctx, repository, operation, types.ServiceBrokerType, criterions...)
 	if err != nil {
 		return nil, err
 	}
 	tenantChildren = append(tenantChildren, tenantBrokerChildren...)
 
-	criterions = []query.Criterion{query.ByLabel(query.EqualsOperator, o.tenantIdentifier, operation.ResourceID), query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform)}
+	criterions = []query.Criterion{query.ByLabel(query.EqualsOperator, o.TenantIdentifier, operation.ResourceID), query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform)}
 	tenantInstancesChildren, err := getChildren(ctx, repository, operation, types.ServiceInstanceType, criterions...)
 	if err != nil {
 		return nil, err

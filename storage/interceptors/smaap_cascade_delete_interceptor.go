@@ -18,6 +18,7 @@ package interceptors
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -50,7 +51,12 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 		if !web.IsCascadeOperation(ctx) || operation.Type != types.DELETE {
 			return f(ctx, storage, operation)
 		}
-		ops, err := getChildren(ctx, storage, operation)
+
+		opUtil := operations.OperationUtils{
+			co.TenantIdentifier,
+		}
+
+		ops, err := opUtil.GetCascadeOperations(ctx,operation, storage)
 		if err != nil {
 			return nil, err
 		}
@@ -62,8 +68,4 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 		}
 		return operation, nil
 	}
-}
-
-func getChildren(ctx context.Context, repository storage.Repository, op *types.Operation) ([]*types.Operation, error) {
-	return nil, nil
 }
