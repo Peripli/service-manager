@@ -14,7 +14,7 @@ type OperationUtils struct {
 	TenantIdentifier string
 }
 
-// Get all cascade operations
+// Get all levels of cascade operations
 func (o *OperationUtils) GetAllLevelsCascadeOperations(ctx context.Context, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
 	cascadeOperations, err := o.GetOneLevelCascadeOperations(ctx, operation, storage)
 	if err != nil {
@@ -108,7 +108,7 @@ func getChildren(ctx context.Context, repository storage.Repository, operation *
 	var operations []*types.Operation
 	for i := 0; i < children.Len(); i++ {
 		child := children.ItemAt(i)
-		operation, err := createOperation(child.GetID(), child.GetType(), operation.PlatformID)
+		operation, err := createOperation(child.GetID(), child.GetType(), operation)
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +117,7 @@ func getChildren(ctx context.Context, repository storage.Repository, operation *
 	return operations, nil
 }
 
-func createOperation(resourceID string, resourceType types.ObjectType, platformID string) (*types.Operation, error) {
+func createOperation(resourceID string, resourceType types.ObjectType, parent *types.Operation) (*types.Operation, error) {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		return nil, err
@@ -128,13 +128,14 @@ func createOperation(resourceID string, resourceType types.ObjectType, platformI
 			ID:        UUID.String(),
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
-			Labels:    make(map[string][]string),
+			Labels:    parent.Labels,
 			Ready:     true,
 		},
 		Type:         types.DELETE,
 		State:        types.IN_PROGRESS,
 		ResourceID:   resourceID,
 		ResourceType: resourceType,
-		PlatformID:   platformID,
+		PlatformID:   parent.PlatformID,
+		Cascade:      true,
 	}, nil
 }
