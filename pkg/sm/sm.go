@@ -249,6 +249,9 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		}).Register().
 		WithDeleteAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingDeleteInterceptorProvider{
 			BaseSMAAPInterceptorProvider: baseSMAAPInterceptorProvider,
+		}).Register().
+		WithCreateAroundTxInterceptorProvider(types.OperationType, &interceptors.CascadeOperationCreateInterceptorProvider{
+			Repository: transactionalRepository,
 		}).Register()
 
 	return smb, nil
