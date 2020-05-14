@@ -21,7 +21,6 @@ import (
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 )
 
@@ -48,7 +47,7 @@ func (c *CascadeOperationCreateInterceptorProvider) Name() string {
 func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 	return func(ctx context.Context, storage storage.Repository, obj types.Object) (types.Object, error) {
 		operation := obj.(*types.Operation)
-		if !web.IsCascadeOperation(ctx) || operation.Type != types.DELETE {
+		if !operation.Cascade || operation.Type != types.DELETE {
 			return f(ctx, storage, operation)
 		}
 
