@@ -15,13 +15,13 @@ type OperationUtils struct {
 }
 
 // Get all cascade operations
-func (o *OperationUtils) GetCascadeOperations(ctx context.Context, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
-	cascadeOperations, err := o.GetChildrenCascadeOperations(ctx, operation, storage)
+func (o *OperationUtils) GetAllLevelsCascadeOperations(ctx context.Context, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
+	cascadeOperations, err := o.GetOneLevelCascadeOperations(ctx, operation, storage)
 	if err != nil {
 		return nil, err
 	}
 	for _, ch := range cascadeOperations {
-		childrenCascadeOperations, err := o.GetCascadeOperations(ctx, ch, storage)
+		childrenCascadeOperations, err := o.GetAllLevelsCascadeOperations(ctx, ch, storage)
 		if err != nil {
 			return nil, err
 		}
@@ -30,7 +30,7 @@ func (o *OperationUtils) GetCascadeOperations(ctx context.Context, operation *ty
 	return cascadeOperations, nil
 }
 
-func (o *OperationUtils) GetChildrenCascadeOperations(ctx context.Context, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
+func (o *OperationUtils) GetOneLevelCascadeOperations(ctx context.Context, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
 	switch operation.ResourceType {
 	case types.Tenant:
 		return o.getTenantChildrenOperations(ctx, operation, storage)

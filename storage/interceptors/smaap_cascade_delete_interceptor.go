@@ -56,7 +56,7 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 			co.TenantIdentifier,
 		}
 
-		ops, err := opUtil.GetChildrenCascadeOperations(ctx, operation, storage)
+		ops, err := opUtil.GetOneLevelCascadeOperations(ctx, operation, storage)
 		if err != nil {
 			return nil, err
 		}
