@@ -95,6 +95,11 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			execute:  maintainer.rescheduleOrphanMitigationOperations,
 			interval: options.MaintainerRetryInterval,
 		},
+		{
+			name: "pollCascadedOperations",
+			execute: maintainer.pollCascadedOperations,
+			interval: options.PollingInterval,
+		},
 	}
 
 	operationLockers := make(map[string]storage.Locker)
@@ -282,6 +287,11 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 		logger.Debugf("Successfully rescheduled unfinished operation %+v", operation)
 	}
 }
+
+func (om *Maintainer) pollCascadedOperations(){
+
+}
+
 
 // rescheduleOrphanMitigationOperations reschedules orphan mitigation operations which no goroutine is processing at the moment
 func (om *Maintainer) rescheduleOrphanMitigationOperations() {
