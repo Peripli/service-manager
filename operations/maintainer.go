@@ -96,8 +96,8 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			interval: options.MaintainerRetryInterval,
 		},
 		{
-			name: "pollCascadedOperations",
-			execute: maintainer.pollCascadedOperations,
+			name: "pollCascadedDeleteOperations",
+			execute: maintainer.pollCascadedDeleteOperations,
 			interval: options.PollingInterval,
 		},
 	}
@@ -288,9 +288,74 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 	}
 }
 
-func (om *Maintainer) pollCascadedOperations(){
+func (om *Maintainer) pollCascadedDeleteOperations(){
+   //poll all ops that are cascadeded and in progress
+	//if opp is cascaded and is in progress, check the status of children  if childern all done,  delete the current resroce type
+	// if opp is virutal and all the subops are done, update status to done else errors
+	currentTime := time.Now()
+	criteria:=[]query.Criterion{
+		query.ByField(query.EqualsOperator,"Cascade", "true"),
+		query.ByField(query.NotEqualsOperator, "type", string(types.DELETE)),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ActionTimeout))),
+		// check if operation is still eligible for processing
+		query.ByField(query.GreaterThanOperator, "created_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ReconciliationOperationTimeout))),
+		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
+		}
+	operations, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
+	if err != nil {
+		log.C(om.smCtx).Debugf("Failed to fetch cascaded operations in progress: %s", err)
+		return
+	}
+
+	operations = operations.(*types.Operations)
+	for i := 0; i < operations.Len(); i++ {
+		operation := operations.ItemAt(i).(*types.Operation)
+		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
+		cascadedOperations,err:=GetCascadedOperations(om.smCtx,operation,om.repository)
+		ctx := log.ContextWithLogger(om.smCtx, logger)
+		if err!=nil{
+			logger.Warnf("Failed to retrieve children of the operation with ID (%s): %s", operation.ID, err)
+		}
+
+			if len(cascadedOperations.Operations) == len(cascadedOperations.SucceededOperations) {
+				if operation.Virtual{
+					operation.State = types.SUCCEEDED
+					if _, err := om.repository.Update(om.smCtx, operation, types.LabelChanges{}); err != nil {
+						logger.Warnf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
+						continue
+					}
+
+				}else{
+					byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
+					action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+						err := repository.Delete(ctx, operation.ResourceType, byID)
+						if err != nil {
+							if err == util.ErrNotFoundInStorage {
+								return nil, nil
+							}
+							return nil, util.HandleStorageError(err, operation.ResourceType.String())
+						}
+						return nil, nil
+					}
+
+					if err := om.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
+						logger.Warnf("Failed to reschedule cascaded delete operation with ID (%s): %s", operation.ID, err)
+					}
+				}
+
+			}else if len(cascadedOperations.FailedOperations)>0{
+				//update opertaion state to FAILED
+				operation.State = types.FAILED
+				if _, err := om.repository.Update(om.smCtx, operation, types.LabelChanges{}); err != nil {
+					logger.Warnf("Failed to update the operation with ID (%s) state to Failed: %s", operation.ID, err)
+
+				}
+		    }
+
+	}
 
 }
+
 
 
 // rescheduleOrphanMitigationOperations reschedules orphan mitigation operations which no goroutine is processing at the moment

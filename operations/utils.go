@@ -16,11 +16,13 @@ type OperationUtils struct {
 
 // Get all levels of cascade operations
 func (o *OperationUtils) GetAllLevelsCascadeOperations(ctx context.Context, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
+
 	cascadeOperations, err := o.GetOneLevelCascadeOperations(ctx, operation, storage)
 	if err != nil {
 		return nil, err
 	}
 	for _, ch := range cascadeOperations {
+
 		childrenCascadeOperations, err := o.GetAllLevelsCascadeOperations(ctx, ch, storage)
 		if err != nil {
 			return nil, err
@@ -99,6 +101,52 @@ func (o *OperationUtils) getServiceBrokerChildrenOperations(ctx context.Context,
 	return getChildren(ctx, repository, operation, types.ServiceInstanceType, criterion)
 }
 
+
+type CascadedOperations struct {
+	Operation types.Operation
+	Operations []*types.Operation
+	FailedOperations []*types.Operation
+	InProgressOperations []*types.Operation
+	SucceededOperations  []*types.Operation
+
+}
+
+func GetCascadedOperations(ctx context.Context, operation *types.Operation, repository storage.Repository) (*CascadedOperations, error){
+	objs , err:= repository.List(ctx, types.OperationType , query.ByField(query.EqualsOperator, "parent", operation.ResourceID))
+	suboperations:= objs.(*types.Operations)
+	cascadedOperations:=&CascadedOperations{}
+	cascadedOperations.Operations = suboperations.Operations
+
+	if err!=nil{
+		return nil, err
+	}
+	for i := 0; i < suboperations.Len(); i++ {
+		suboperation:= suboperations.ItemAt(i).(*types.Operation)
+		switch suboperation.State {
+		case types.SUCCEEDED:
+			cascadedOperations.SucceededOperations=append(cascadedOperations.SucceededOperations, suboperation)
+		case types.FAILED:
+			cascadedOperations.FailedOperations=append(cascadedOperations.FailedOperations,suboperation)
+		case types.IN_PROGRESS:
+			cascadedOperations.InProgressOperations=append(cascadedOperations.InProgressOperations, suboperation)
+
+		}
+		children,err:=GetCascadedOperations(ctx,suboperation,repository)
+		if err != nil {
+			return nil, err
+		}
+		cascadedOperations.Operations = append(cascadedOperations.Operations,children.Operations...)
+		cascadedOperations.SucceededOperations = append(cascadedOperations.Operations,children.SucceededOperations...)
+		cascadedOperations.FailedOperations = append(cascadedOperations.Operations,children.FailedOperations...)
+		cascadedOperations.InProgressOperations = append(cascadedOperations.Operations,children.InProgressOperations...)
+	}
+	return cascadedOperations, nil
+}
+
+
+
+
+
 func getChildren(ctx context.Context, repository storage.Repository, operation *types.Operation, childrenType types.ObjectType, criterions ...query.Criterion) ([]*types.Operation, error) {
 	children, err := repository.List(ctx, childrenType, criterions...)
 	if err != nil {
@@ -137,5 +185,6 @@ func createOperation(resourceID string, resourceType types.ObjectType, parent *t
 		ResourceType: resourceType,
 		PlatformID:   parent.PlatformID,
 		Cascade:      true,
+		Parent: parent.ID,
 	}, nil
 }
