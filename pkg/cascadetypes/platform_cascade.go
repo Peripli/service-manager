@@ -21,7 +21,9 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 )
-type PlatformCascade struct {}
+type PlatformCascade struct {
+	*types.Platform
+}
 
 func (p *PlatformCascade) GetChildrenCriteria() map[types.ObjectType][]query.Criterion {
 	return map[types.ObjectType][]query.Criterion{

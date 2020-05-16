@@ -23,7 +23,9 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-type ServiceBrokerCascade struct {}
+type ServiceBrokerCascade struct {
+	*types.ServiceBroker
+}
 
 func (sb *ServiceBrokerCascade) GetChildrenCriteria() map[types.ObjectType][]query.Criterion {
 	plansIDs := gjson.GetBytes(sb.Catalog, `services.#.plans.#.id`)

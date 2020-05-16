@@ -22,7 +22,9 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-type ServiceInstanceCascade struct {}
+type ServiceInstanceCascade struct {
+	*types.ServiceInstance
+}
 
 func (si *ServiceInstanceCascade) GetChildrenCriteria() map[types.ObjectType][]query.Criterion {
 	return map[types.ObjectType][]query.Criterion{
