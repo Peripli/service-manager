@@ -5,6 +5,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-type CascadeOperationCriteria interface {
-	GetChildrenCriteria() map[types.ObjectType][]query.Criterion
+type CascadeOperationCriterion interface {
+	GetChildrenCriterion() map[types.ObjectType][]query.Criterion
 }

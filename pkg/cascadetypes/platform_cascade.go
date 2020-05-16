@@ -25,7 +25,7 @@ type PlatformCascade struct {
 	*types.Platform
 }
 
-func (p *PlatformCascade) GetChildrenCriteria() map[types.ObjectType][]query.Criterion {
+func (p *PlatformCascade) GetChildrenCriterion() map[types.ObjectType][]query.Criterion {
 	return map[types.ObjectType][]query.Criterion{
 		types.ServiceInstanceType: {query.ByField(query.EqualsOperator, "platform_id", p.ID)},
 	}

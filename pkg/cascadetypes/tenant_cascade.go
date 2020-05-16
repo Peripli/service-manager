@@ -9,7 +9,7 @@ type TenantCascade struct {
 	*types.Tenant
 }
 
-func (t *TenantCascade) GetChildrenCriteria() map[types.ObjectType][]query.Criterion {
+func (t *TenantCascade) GetChildrenCriterion() map[types.ObjectType][]query.Criterion {
 	return map[types.ObjectType][]query.Criterion{
 		types.VisibilityType:      {query.ByLabel(query.EqualsOperator, t.TenantIdentifier, t.ID)},
 		types.PlatformType:        {query.ByLabel(query.EqualsOperator, t.TenantIdentifier, t.ID)},

@@ -27,7 +27,7 @@ type ServiceBrokerCascade struct {
 	*types.ServiceBroker
 }
 
-func (sb *ServiceBrokerCascade) GetChildrenCriteria() map[types.ObjectType][]query.Criterion {
+func (sb *ServiceBrokerCascade) GetChildrenCriterion() map[types.ObjectType][]query.Criterion {
 	plansIDs := gjson.GetBytes(sb.Catalog, `services.#.plans.#.id`)
 	serviceOfferingIDs := gjson.GetBytes(sb.Catalog, `services.#.id`)
 	return map[types.ObjectType][]query.Criterion{

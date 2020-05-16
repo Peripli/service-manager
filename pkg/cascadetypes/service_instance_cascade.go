@@ -26,7 +26,7 @@ type ServiceInstanceCascade struct {
 	*types.ServiceInstance
 }
 
-func (si *ServiceInstanceCascade) GetChildrenCriteria() map[types.ObjectType][]query.Criterion {
+func (si *ServiceInstanceCascade) GetChildrenCriterion() map[types.ObjectType][]query.Criterion {
 	return map[types.ObjectType][]query.Criterion{
 		types.ServiceBindingType: {query.ByField(query.EqualsOperator, "service_instance_id", si.ID)},
 	}
