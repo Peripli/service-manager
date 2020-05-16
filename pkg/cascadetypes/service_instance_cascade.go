@@ -15,20 +15,17 @@
  */
 
 // Package types contains the Service Manager web entities
-package types
+package cascadetypes
 
 import (
 	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/tidwall/gjson"
+	"github.com/Peripli/service-manager/pkg/types"
 )
 
-func (sb *ServiceBroker) GetChildrenCriteria() map[ObjectType][]query.Criterion {
-	plansIDs := gjson.GetBytes(sb.Catalog, `services.#.plans.#.id`)
-	serviceOfferingIDs := gjson.GetBytes(sb.Catalog, `services.#.id`)
-	return map[ObjectType][]query.Criterion{
-		ServiceInstanceType: {query.ByField(query.InOperator, "service_plan_id", plansIDs.Value().([]string)...)},
-		ServiceOfferingType: {query.ByField(query.InOperator, "id", serviceOfferingIDs.Value().([]string)...)},
-		ServicePlanType:     {query.ByField(query.InOperator, "id", plansIDs.Value().([]string)...)},
-		VisibilityType:      {query.ByField(query.InOperator, "service_plan_id", plansIDs.Value().([]string)...)},
+type ServiceInstanceCascade struct {}
+
+func (si *ServiceInstanceCascade) GetChildrenCriteria() map[types.ObjectType][]query.Criterion {
+	return map[types.ObjectType][]query.Criterion{
+		types.ServiceBindingType: {query.ByField(query.EqualsOperator, "service_instance_id", si.ID)},
 	}
 }

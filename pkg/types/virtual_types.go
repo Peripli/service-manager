@@ -2,7 +2,6 @@ package types
 
 import (
 	"errors"
-	"github.com/Peripli/service-manager/pkg/query"
 )
 
 const TenantType ObjectType = "Tenant"
@@ -10,10 +9,6 @@ const TenantType ObjectType = "Tenant"
 type Tenant struct {
 	Base
 	TenantIdentifier string
-}
-
-func (t *Tenant) GetChildren() []query.Criterion {
-	return nil
 }
 
 func (e *Tenant) Equals(obj Object) bool {
@@ -33,13 +28,4 @@ func (e *Tenant) Validate() error {
 
 func (t *Tenant) GetType() ObjectType {
 	return TenantType
-}
-
-func (t *Tenant) GetChildrenCriteria() map[ObjectType][]query.Criterion {
-	return map[ObjectType][]query.Criterion{
-		VisibilityType:      {query.ByLabel(query.EqualsOperator, t.TenantIdentifier, t.ID)},
-		PlatformType:        {query.ByLabel(query.EqualsOperator, t.TenantIdentifier, t.ID)},
-		ServiceBrokerType:   {query.ByLabel(query.EqualsOperator, t.TenantIdentifier, t.ID)},
-		ServiceInstanceType: {query.ByLabel(query.EqualsOperator, t.TenantIdentifier, t.ID), query.ByField(query.EqualsOperator, "platform_id", SMPlatform)},
-	}
 }

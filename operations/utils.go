@@ -32,7 +32,7 @@ func (o *OperationUtils) GetAllLevelsCascadeOperations(ctx context.Context, oper
 
 func (o *OperationUtils) GetOneLevelCascadeOperations(ctx context.Context, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
 	switch operation.ResourceType {
-	case types.Tenant:
+	case types.TenantType:
 		return o.getTenantChildrenOperations(ctx, operation, storage)
 	case types.PlatformType:
 		return o.getPlatformChildrenOperations(ctx, operation, storage)

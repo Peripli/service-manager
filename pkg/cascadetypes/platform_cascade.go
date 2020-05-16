@@ -14,15 +14,17 @@
  *    limitations under the License.
  */
 
-// Package types contains the Service Manager web entities
-package types
+// Package types contains the Service Manager cascade query
+package cascadetypes
 
 import (
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/types"
 )
+type PlatformCascade struct {}
 
-func (si *ServiceInstance) GetChildrenCriteria() map[ObjectType][]query.Criterion {
-	return map[ObjectType][]query.Criterion{
-		ServiceBindingType: {query.ByField(query.EqualsOperator, "service_instance_id", si.ID)},
+func (p *PlatformCascade) GetChildrenCriteria() map[types.ObjectType][]query.Criterion {
+	return map[types.ObjectType][]query.Criterion{
+		types.ServiceInstanceType: {query.ByField(query.EqualsOperator, "platform_id", p.ID)},
 	}
 }

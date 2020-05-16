@@ -18,7 +18,6 @@ package types
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/pkg/query"
 	"strings"
 	"time"
 
@@ -43,10 +42,6 @@ type Strip interface {
 type Secured interface {
 	Encrypt(context.Context, func(context.Context, []byte) ([]byte, error)) error
 	Decrypt(context.Context, func(context.Context, []byte) ([]byte, error)) error
-}
-
-type ObjectCascadeDeletion interface {
-	GetChildrenCriteria() map[ObjectType][]query.Criterion
 }
 
 // Object is the common interface that all resources in the Service Manager must implement
