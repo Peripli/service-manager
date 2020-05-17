@@ -54,6 +54,7 @@ type CascadedOperations struct {
 	FailedOperations     []*types.Operation
 	InProgressOperations []*types.Operation
 	SucceededOperations  []*types.Operation
+	NotStartedOperations  []*types.Operation
 }
 
 func GetCascadedOperations(ctx context.Context, operation *types.Operation, repository storage.Repository) (*CascadedOperations, error) {
@@ -73,6 +74,8 @@ func GetCascadedOperations(ctx context.Context, operation *types.Operation, repo
 			cascadedOperations.FailedOperations = append(cascadedOperations.FailedOperations, suboperation)
 		case types.IN_PROGRESS:
 			cascadedOperations.InProgressOperations = append(cascadedOperations.InProgressOperations, suboperation)
+		case types.NOT_STARTED:
+			cascadedOperations.InProgressOperations = append(cascadedOperations.NotStartedOperations, suboperation)
 		}
 	}
 	return cascadedOperations, nil
