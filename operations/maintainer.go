@@ -328,20 +328,6 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 					continue
 				}
 			} else {
-				//check if eligible for execution
-				criteria := []query.Criterion{
-					query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
-					query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
-				}
-				ops, err := om.repository.List(ctx, types.OperationType, criteria...)
-				if err != nil {
-					logger.Warnf("Failed to fetch the operation with ID (%s) ", operation.ID, err)
-					continue
-				}
-				if ops.Len() > 0 {
-					continue
-				}
-
 				operation.State = types.IN_PROGRESS
 				byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
 				action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
