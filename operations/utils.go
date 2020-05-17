@@ -57,7 +57,7 @@ type CascadedOperations struct {
 }
 
 func GetCascadedOperations(ctx context.Context, operation *types.Operation, repository storage.Repository) (*CascadedOperations, error) {
-	objs, err := repository.List(ctx, types.OperationType, query.ByField(query.EqualsOperator, "parent", operation.ResourceID))
+	objs, err := repository.List(ctx, types.OperationType, query.ByField(query.EqualsOperator, "parent", operation.ID))
 	suboperations := objs.(*types.Operations)
 	cascadedOperations := &CascadedOperations{}
 	cascadedOperations.Operations = suboperations.Operations
