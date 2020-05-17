@@ -19,6 +19,7 @@ package interceptors
 import (
 	"context"
 	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
@@ -51,20 +52,34 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 			return f(ctx, storage, operation)
 		}
 
-		opUtil := operations.OperationUtils{
-			co.TenantIdentifier,
+		var cascadeResource types.Object
+		if operation.Virtual {
+			// currently we have only one virtual object - tenant
+			cascadeResource = &types.Tenant{
+				VirtualType: types.VirtualType{
+					Base: types.Base{
+						ID: operation.ResourceID,
+					},
+				},
+				TenantIdentifier: co.TenantIdentifier,
+			}
+		} else {
+			var err error
+			// validating object does exist
+			cascadeResource, err = storage.Get(ctx, operation.ResourceType, query.ByField(query.EqualsOperator, "id", operation.ResourceID))
+			if err != nil {
+				return nil, err
+			}
 		}
-
-		ops, err := opUtil.GetAllLevelsCascadeOperations(ctx, operation, storage)
+		ops, err := operations.GetAllLevelsCascadeOperations(ctx, cascadeResource, operation, storage)
 		if err != nil {
 			return nil, err
 		}
-
-		for _, operation := range ops {
-			if _, err := storage.Create(ctx, operation); err != nil {
-				return nil, util.HandleStorageError(err, string(operation.GetType()))
+		for _, op := range ops {
+			if _, err := storage.Create(ctx, op); err != nil {
+				return nil, util.HandleStorageError(err, string(op.GetType()))
 			}
 		}
-		return operation, nil
+		return f(ctx, storage, operation)
 	}
 }
