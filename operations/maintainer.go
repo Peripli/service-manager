@@ -292,11 +292,11 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 	//poll all ops that are cascadeded and in progress
 	//if opp is cascaded and is in progress, check the status of children  if childern all done,  delete the current resroce type
 	// if opp is virutal and all the subops are done, update status to done else errors
-	currentTime := time.Now()
+	//currentTime := time.Now()
 	//change also the critera to rescheduler = false and deletetion = false
 	criteria:=[]query.Criterion{
 		query.ByField(query.EqualsOperator,"cascade", "true"),
-		query.ByField(query.NotEqualsOperator, "type", string(types.DELETE)),
+		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
 		query.ByField(query.EqualsOperator, "reschedule", "false"),
 		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ActionTimeout))),
