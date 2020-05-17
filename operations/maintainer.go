@@ -292,10 +292,13 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 	//poll all ops that are cascadeded and in progress
 	//if opp is cascaded and is in progress, check the status of children  if childern all done,  delete the current resroce type
 	// if opp is virutal and all the subops are done, update status to done else errors
-	currentTime := time.Now()
-	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "Cascade", "true"),
-		query.ByField(query.NotEqualsOperator, "type", string(types.DELETE)),
+	//currentTime := time.Now()
+	//change also the critera to rescheduler = false and deletetion = false
+	criteria:=[]query.Criterion{
+		query.ByField(query.EqualsOperator,"cascade", "true"),
+		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
+		query.ByField(query.EqualsOperator, "reschedule", "false"),
+		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ActionTimeout))),
 		// check if operation is still eligible for processing
 		query.ByField(query.GreaterThanOperator, "created_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ReconciliationOperationTimeout))),
@@ -316,6 +319,7 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 		if err != nil {
 			logger.Warnf("Failed to retrieve children of the operation with ID (%s): %s", operation.ID, err)
 		}
+
 
 		if len(cascadedOperations.Operations) == len(cascadedOperations.SucceededOperations) {
 			if operation.Virtual {

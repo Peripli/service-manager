@@ -74,14 +74,6 @@ func GetCascadedOperations(ctx context.Context, operation *types.Operation, repo
 		case types.IN_PROGRESS:
 			cascadedOperations.InProgressOperations = append(cascadedOperations.InProgressOperations, suboperation)
 		}
-		children, err := GetCascadedOperations(ctx, suboperation, repository)
-		if err != nil {
-			return nil, err
-		}
-		cascadedOperations.Operations = append(cascadedOperations.Operations, children.Operations...)
-		cascadedOperations.SucceededOperations = append(cascadedOperations.Operations, children.SucceededOperations...)
-		cascadedOperations.FailedOperations = append(cascadedOperations.Operations, children.FailedOperations...)
-		cascadedOperations.InProgressOperations = append(cascadedOperations.Operations, children.InProgressOperations...)
 	}
 	return cascadedOperations, nil
 }
