@@ -43,6 +43,7 @@ type Settings struct {
 	Pools           []PoolSettings `mapstructure:"pools" description:"defines the different available worker pools"`
 
 	SMSupportedPlatformType string `mapstructure:"sm_supported_platform_type" description:"defines the value of the supported platform for the SM platform"`
+
 }
 
 // DefaultSettings returns default values for API settings
