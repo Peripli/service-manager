@@ -1,17 +1,17 @@
-package cascadetypes
+package cascade
 
 import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-type ChildrenCriteria = map[types.ObjectType][]query.Criterion
+type ChildrenCriterion = map[types.ObjectType][]query.Criterion
 
-type CascadeOperationCriterion interface {
-	GetChildrenCriterion() ChildrenCriteria
+type Cascade interface {
+	GetChildrenCriterion() ChildrenCriterion
 }
 
-func GetCascadeObject(object types.Object) (CascadeOperationCriterion, bool) {
+func GetCascadeObject(object types.Object) (Cascade, bool) {
 	switch object.GetType() {
 	case types.TenantType:
 		return &TenantCascade{object.(*types.Tenant)}, true

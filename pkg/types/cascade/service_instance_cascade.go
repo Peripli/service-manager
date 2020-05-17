@@ -15,7 +15,7 @@
  */
 
 // Package types contains the Service Manager web entities
-package cascadetypes
+package cascade
 
 import (
 	"github.com/Peripli/service-manager/pkg/query"
@@ -26,8 +26,8 @@ type ServiceInstanceCascade struct {
 	*types.ServiceInstance
 }
 
-func (si *ServiceInstanceCascade) GetChildrenCriterion() map[types.ObjectType][]query.Criterion {
-	return map[types.ObjectType][]query.Criterion{
+func (si *ServiceInstanceCascade) GetChildrenCriterion() ChildrenCriterion {
+	return ChildrenCriterion {
 		types.ServiceBindingType: {query.ByField(query.EqualsOperator, "service_instance_id", si.ID)},
 	}
 }

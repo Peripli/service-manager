@@ -15,7 +15,7 @@
  */
 
 // Package types contains the Service Manager web entities
-package cascadetypes
+package cascade
 
 import (
 	"github.com/Peripli/service-manager/pkg/query"
@@ -27,13 +27,9 @@ type ServiceBrokerCascade struct {
 	*types.ServiceBroker
 }
 
-func (sb *ServiceBrokerCascade) GetChildrenCriterion() map[types.ObjectType][]query.Criterion {
+func (sb *ServiceBrokerCascade) GetChildrenCriterion() ChildrenCriterion {
 	plansIDs := gjson.GetBytes(sb.Catalog, `services.#.plans.#.id`)
-	serviceOfferingIDs := gjson.GetBytes(sb.Catalog, `services.#.id`)
-	return map[types.ObjectType][]query.Criterion{
+	return ChildrenCriterion {
 		types.ServiceInstanceType: {query.ByField(query.InOperator, "service_plan_id", plansIDs.Value().([]string)...)},
-		types.ServiceOfferingType: {query.ByField(query.InOperator, "id", serviceOfferingIDs.Value().([]string)...)},
-		types.ServicePlanType:     {query.ByField(query.InOperator, "id", plansIDs.Value().([]string)...)},
-		types.VisibilityType:      {query.ByField(query.InOperator, "service_plan_id", plansIDs.Value().([]string)...)},
 	}
 }

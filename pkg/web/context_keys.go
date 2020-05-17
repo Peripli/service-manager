@@ -13,7 +13,6 @@ const (
 	authenticationErrorKey
 	authorizationErrorKey
 	shouldStoreBindingsKey
-	cascadeOperationKey
 )
 
 // ShouldStoreBindings returns whether the request has to store bindings

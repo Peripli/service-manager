@@ -15,7 +15,7 @@
  */
 
 // Package types contains the Service Manager cascade query
-package cascadetypes
+package cascade
 
 import (
 	"github.com/Peripli/service-manager/pkg/query"
@@ -25,8 +25,8 @@ type PlatformCascade struct {
 	*types.Platform
 }
 
-func (p *PlatformCascade) GetChildrenCriterion() map[types.ObjectType][]query.Criterion {
-	return map[types.ObjectType][]query.Criterion{
+func (p *PlatformCascade) GetChildrenCriterion() ChildrenCriterion {
+	return ChildrenCriterion {
 		types.ServiceInstanceType: {query.ByField(query.EqualsOperator, "platform_id", p.ID)},
 	}
 }

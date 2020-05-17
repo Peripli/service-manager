@@ -2,9 +2,9 @@ package operations
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/pkg/cascadetypes"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/types/cascade"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
 	"time"
@@ -36,7 +36,7 @@ func GetAllLevelsCascadeOperations(ctx context.Context, parentObject types.Objec
 
 func getObjectChildren(ctx context.Context, object types.Object, storage storage.Repository) ([]types.ObjectList, error) {
 	var children []types.ObjectList
-	if childrenCriterions, isCascade := cascadetypes.GetCascadeObject(object); isCascade {
+	if childrenCriterions, isCascade := cascade.GetCascadeObject(object); isCascade {
 		for childType, childCriteria := range childrenCriterions.GetChildrenCriterion() {
 			list, err := storage.List(ctx, childType, childCriteria...)
 			if err != nil {
