@@ -342,7 +342,7 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 				}
 
 				if err := om.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-					logger.Warnf("Failed to reschedule cascaded delete operation with ID (%s): %s", operation.ID, err)
+					logger.Warnf("Failed to reschedule cascaded delete operation with ID (%s): %s ok for concurrent deletion failure", operation.ID, err)
 				}
 			}
 
