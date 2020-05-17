@@ -43,6 +43,9 @@ const (
 type OperationState string
 
 const (
+	// NOT_STARTED represents the state of an operation that waiting to be handled
+	NOT_STARTED OperationState = "not started"
+
 	// SUCCEEDED represents the state of an operation after successful execution
 	SUCCEEDED OperationState = "succeeded"
 

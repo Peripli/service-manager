@@ -92,7 +92,7 @@ func makeCascadeOPForChild(object types.Object, parentOperation *types.Operation
 		return nil, err
 	}
 	now := time.Now()
-	// todo:  ExternalID CorrelationID
+	// todo:  ExternalID
 	return &types.Operation{
 		Base: types.Base{
 			ID:        UUID.String(),
@@ -102,7 +102,7 @@ func makeCascadeOPForChild(object types.Object, parentOperation *types.Operation
 			Ready:     true,
 		},
 		Type:          types.DELETE,
-		State:         types.IN_PROGRESS,
+		State:         types.NOT_STARTED,
 		ResourceID:    object.GetID(),
 		ResourceType:  object.GetType(),
 		PlatformID:    parentOperation.PlatformID,
