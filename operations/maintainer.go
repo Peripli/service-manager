@@ -321,7 +321,21 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 					logger.Warnf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
 				}
 			} else {
-				//TODO: validate no concurrent operation for the same resourceID
+				criteria := []query.Criterion{
+					query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
+					query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
+					query.ByField(query.EqualsOperator, "reschedule", "true"),
+					query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
+				}
+				cnt, err := om.repository.Count(ctx, types.OperationType, criteria...)
+				if err != nil {
+					logger.Warnf("Failed to fetch the operation with ID (%s) ", operation.ID, err)
+					continue
+				}
+				if cnt > 0 {
+					continue
+				}
+
 				operation.State = types.IN_PROGRESS
 				byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
 				action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
@@ -339,7 +353,6 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 					logger.Warnf("Failed to reschedule cascaded delete operation with ID (%s): %s ok for concurrent deletion failure", operation.ID, err)
 				}
 			}
-
 		} else if len(subOperations.FailedOperations) > 0 &&
 			len(subOperations.FailedOperations) + len(subOperations.SucceededOperations) == subOperations.AllOperationsCount {
 			//TODO: update error messages of children on current operation.errors
