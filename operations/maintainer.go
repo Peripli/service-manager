@@ -100,11 +100,11 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			execute:  maintainer.pollCascadedDeleteOperations,
 			interval: options.PollingInterval,
 		},
-		{
+		/*{
 			name:     "pollVirtualOperations",
 			execute:  maintainer.pollVirtualOperations,
 			interval: options.PollingInterval,
-		},
+		},*/
 	}
 
 	operationLockers := make(map[string]storage.Locker)
@@ -332,9 +332,12 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 			} else {
 				criteria := []query.Criterion{
 					query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
+					query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 					query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
 					query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
 					query.ByField(query.EqualsOperator, "reschedule", "true"),
+					// check if operation hasn't exceed maximum allowed time to execute
+					query.ByField(query.GreaterThanOrEqualOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ActionTimeout))),
 					query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
 				}
 				cnt, err := om.repository.Count(ctx, types.OperationType, criteria...)
