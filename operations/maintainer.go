@@ -100,6 +100,11 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			execute:  maintainer.pollCascadedDeleteOperations,
 			interval: options.PollingInterval,
 		},
+		{
+			name:     "pollVirtualOperations",
+			execute:  maintainer.pollVirtualOperations,
+			interval: options.PollingInterval,
+		},
 	}
 
 	operationLockers := make(map[string]storage.Locker)
@@ -288,11 +293,15 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 	}
 }
 
+
+
 func (om *Maintainer) pollCascadedDeleteOperations() {
+
 	//poll all ops that are cascadeded and in progress
 	//if opp is cascaded and is in progress, check the status of children  if childern all done,  delete the current resroce type
 	// if opp is virutal and all the subops are done, update status to done else errors
 	//change also the critera to rescheduler = false and deletetion = false
+
 	criteria:=[]query.Criterion{
 		query.ByField(query.EqualsOperator,"cascade", "true"),
 		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
@@ -357,6 +366,7 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 			len(subOperations.FailedOperations) + len(subOperations.SucceededOperations) == subOperations.AllOperationsCount {
 			//TODO: update error messages of children on current operation.errors
 			operation.State = types.FAILED
+
 			if _, err := om.repository.Update(om.smCtx, operation, types.LabelChanges{}); err != nil {
 				logger.Warnf("Failed to update the operation with ID (%s) state to Failed: %s", operation.ID, err)
 			}
