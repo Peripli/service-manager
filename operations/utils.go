@@ -49,19 +49,18 @@ func getObjectChildren(ctx context.Context, object types.Object, storage storage
 }
 
 type CascadedOperations struct {
-	Operation            types.Operation
-	Operations           []*types.Operation
+	AllOperationsCount           int
 	FailedOperations     []*types.Operation
 	InProgressOperations []*types.Operation
 	SucceededOperations  []*types.Operation
 	NotStartedOperations  []*types.Operation
 }
 
-func GetCascadedOperations(ctx context.Context, operation *types.Operation, repository storage.Repository) (*CascadedOperations, error) {
+func GetSubOperations(ctx context.Context, operation *types.Operation, repository storage.Repository) (*CascadedOperations, error) {
 	objs, err := repository.List(ctx, types.OperationType, query.ByField(query.EqualsOperator, "parent", operation.ID))
 	suboperations := objs.(*types.Operations)
 	cascadedOperations := &CascadedOperations{}
-	cascadedOperations.Operations = suboperations.Operations
+	cascadedOperations.AllOperationsCount = len(suboperations.Operations)
 	if err != nil {
 		return nil, err
 	}
