@@ -18,6 +18,9 @@ package operations
 
 import (
 	"context"
+	"encoding/json"
+	"github.com/Peripli/service-manager/pkg/types/cascade"
+	"github.com/tidwall/gjson"
 	"sync"
 	"time"
 
@@ -100,11 +103,6 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			execute:  maintainer.pollCascadedDeleteOperations,
 			interval: options.PollingInterval,
 		},
-		/*{
-			name:     "pollVirtualOperations",
-			execute:  maintainer.pollVirtualOperations,
-			interval: options.PollingInterval,
-		},*/
 	}
 
 	operationLockers := make(map[string]storage.Locker)
@@ -293,17 +291,13 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 	}
 }
 
-
-
 func (om *Maintainer) pollCascadedDeleteOperations() {
-
 	//poll all ops that are cascadeded and in progress
 	//if opp is cascaded and is in progress, check the status of children  if childern all done,  delete the current resroce type
 	// if opp is virutal and all the subops are done, update status to done else errors
 	//change also the critera to rescheduler = false and deletetion = false
-
-	criteria:=[]query.Criterion{
-		query.ByField(query.EqualsOperator,"cascade", "true"),
+	criteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, "cascade", "true"),
 		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
 		query.ByField(query.EqualsOperator, "state", string(types.NOT_STARTED)),
 	}
@@ -333,10 +327,7 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 				criteria := []query.Criterion{
 					query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
 					query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
-					query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
 					query.ByField(query.EqualsOperator, "reschedule", "true"),
-					// check if operation hasn't exceed maximum allowed time to execute
-					query.ByField(query.GreaterThanOrEqualOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ActionTimeout))),
 					query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
 				}
 				cnt, err := om.repository.Count(ctx, types.OperationType, criteria...)
@@ -365,11 +356,41 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 					logger.Warnf("Failed to reschedule cascaded delete operation with ID (%s): %s ok for concurrent deletion failure", operation.ID, err)
 				}
 			}
-		} else if len(subOperations.FailedOperations) > 0 &&
-			len(subOperations.FailedOperations) + len(subOperations.SucceededOperations) == subOperations.AllOperationsCount {
-			//TODO: update error messages of children on current operation.errors
-			operation.State = types.FAILED
+		} else if len(subOperations.FailedOperations) > 0 && len(subOperations.FailedOperations)+len(subOperations.SucceededOperations) == subOperations.AllOperationsCount {
+			cascadeErrors := cascade.CascadeErrors{}
+			for _, failedOP := range subOperations.FailedOperations {
+				isCascadeErrorsType := gjson.GetBytes(failedOP.Errors, "cascade_errors")
+				if isCascadeErrorsType.Exists() {
+					subCascadeErrors := cascade.CascadeErrors{}
+					err := json.Unmarshal(failedOP.Errors, &subCascadeErrors)
+					if err != nil {
+						// in case we are failing to convert it, save it as a regular error
+						subCascadeErrors = cascade.CascadeErrors{
+							Errors: []*cascade.Error{
+								{
+									ResourceType: failedOP.ResourceType,
+									ResourceID:   failedOP.ResourceID,
+									Message:      failedOP.Errors,
+								},
+							},
+						}
+					}
+					cascadeErrors.Errors = append(cascadeErrors.Errors, subCascadeErrors.Errors...)
+				} else {
+					// in case out property does not exist, its mean this operation is really failed
+					cascadeErrors.Add(&cascade.Error{
+						ResourceType: failedOP.ResourceType,
+						ResourceID:   failedOP.ResourceID,
+						Message:      failedOP.Errors,
+					})
+				}
+			}
 
+			operation.State = types.FAILED
+			operation.Errors, err = json.Marshal(cascadeErrors)
+			if err != nil {
+				continue
+			}
 			if _, err := om.repository.Update(om.smCtx, operation, types.LabelChanges{}); err != nil {
 				logger.Warnf("Failed to update the operation with ID (%s) state to Failed: %s", operation.ID, err)
 			}

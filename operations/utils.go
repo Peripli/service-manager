@@ -74,7 +74,7 @@ func GetSubOperations(ctx context.Context, operation *types.Operation, repositor
 		case types.IN_PROGRESS:
 			cascadedOperations.InProgressOperations = append(cascadedOperations.InProgressOperations, suboperation)
 		case types.NOT_STARTED:
-			cascadedOperations.NotStartedOperations = append(cascadedOperations.NotStartedOperations, suboperation)
+			cascadedOperations.InProgressOperations = append(cascadedOperations.NotStartedOperations, suboperation)
 		}
 	}
 	return cascadedOperations, nil
