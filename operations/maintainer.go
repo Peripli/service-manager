@@ -359,9 +359,11 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 		} else if len(subOperations.FailedOperations) > 0 && len(subOperations.FailedOperations)+len(subOperations.SucceededOperations) == subOperations.AllOperationsCount {
 			cascadeErrors := cascade.CascadeErrors{}
 			for _, failedOP := range subOperations.FailedOperations {
-				childErrors := gjson.GetBytes(failedOP.Errors, "cascade_errors")
-				if childErrors.Exists() {
-					if childErrors, ok := childErrors.Value().([]*cascade.Error); ok {
+				childErrorsResult := gjson.GetBytes(failedOP.Errors, "cascade_errors")
+				if childErrorsResult.Exists() {
+					var childErrors []*cascade.Error
+					err = json.Unmarshal([]byte(childErrorsResult.String()), &childErrors)
+					if err == nil {
 						cascadeErrors.Errors = append(cascadeErrors.Errors, childErrors...)
 						continue
 					}
