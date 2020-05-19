@@ -359,31 +359,19 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 		} else if len(subOperations.FailedOperations) > 0 && len(subOperations.FailedOperations)+len(subOperations.SucceededOperations) == subOperations.AllOperationsCount {
 			cascadeErrors := cascade.CascadeErrors{}
 			for _, failedOP := range subOperations.FailedOperations {
-				isCascadeErrorsType := gjson.GetBytes(failedOP.Errors, "cascade_errors")
-				if isCascadeErrorsType.Exists() {
-					subCascadeErrors := cascade.CascadeErrors{}
-					err := json.Unmarshal(failedOP.Errors, &subCascadeErrors)
-					if err != nil {
-						// in case we are failing to convert it, save it as a regular error
-						subCascadeErrors = cascade.CascadeErrors{
-							Errors: []*cascade.Error{
-								{
-									ResourceType: failedOP.ResourceType,
-									ResourceID:   failedOP.ResourceID,
-									Message:      failedOP.Errors,
-								},
-							},
-						}
+				childErrors := gjson.GetBytes(failedOP.Errors, "cascade_errors")
+				if childErrors.Exists() {
+					if childErrors, ok := childErrors.Value().([]*cascade.Error); ok {
+						cascadeErrors.Errors = append(cascadeErrors.Errors, childErrors...)
+						continue
 					}
-					cascadeErrors.Errors = append(cascadeErrors.Errors, subCascadeErrors.Errors...)
-				} else {
-					// in case out property does not exist, its mean this operation is really failed
-					cascadeErrors.Add(&cascade.Error{
-						ResourceType: failedOP.ResourceType,
-						ResourceID:   failedOP.ResourceID,
-						Message:      failedOP.Errors,
-					})
 				}
+				// in case we are failing to convert it, save it as a regular error
+				cascadeErrors.Add(&cascade.Error{
+					ResourceType: failedOP.ResourceType,
+					ResourceID:   failedOP.ResourceID,
+					Message:      failedOP.Errors,
+				})
 			}
 
 			operation.State = types.FAILED
