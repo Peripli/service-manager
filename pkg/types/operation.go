@@ -136,5 +136,9 @@ func (o *Operation) Validate() error {
 		return fmt.Errorf("missing resource type")
 	}
 
+	if o.State == NOT_STARTED && !o.Cascade {
+		return fmt.Errorf("NOT_STARTED state only allowed for cascade operations")
+	}
+
 	return nil
 }
