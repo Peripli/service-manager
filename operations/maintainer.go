@@ -368,6 +368,8 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 				}
 				// in case we are failing to convert it, save it as a regular error
 				cascadeErrors.Add(&cascade.Error{
+					ParentType:   operation.ResourceType,
+					ParentID:     operation.ResourceID,
 					ResourceType: failedOP.ResourceType,
 					ResourceID:   failedOP.ResourceID,
 					Message:      failedOP.Errors,

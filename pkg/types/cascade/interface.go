@@ -13,6 +13,8 @@ type Cascade interface {
 }
 
 type Error struct {
+	ParentType   types.ObjectType `json:"parent_type"`
+	ParentID     string           `json:"parent_id"`
 	ResourceType types.ObjectType `json:"resource_type"`
 	ResourceID   string           `json:"resource_id"`
 	Message      json.RawMessage  `json:"message"`
