@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"fmt"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/types/cascade"
@@ -16,6 +17,11 @@ func GetAllLevelsCascadeOperations(ctx context.Context, parentObject types.Objec
 	if err != nil {
 		return nil, err
 	}
+	err = validateNoGlobalPlatformInstances(ctx, parentObject, objectChildren, storage)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, children := range objectChildren {
 		for i := 0; i < children.Len(); i++ {
 			child := children.ItemAt(i)
@@ -32,6 +38,43 @@ func GetAllLevelsCascadeOperations(ctx context.Context, parentObject types.Objec
 		}
 	}
 	return operations, nil
+}
+
+func validateNoGlobalPlatformInstances(ctx context.Context, parent types.Object, objectChildren []types.ObjectList, repository storage.Repository) error {
+	if parent.GetType() != types.ServiceBrokerType {
+		return nil
+	}
+
+	platformIdsMap := make(map[string]bool)
+	for _, children := range objectChildren {
+		for i := 0; i < children.Len(); i++ {
+			instance, ok := children.ItemAt(i).(*types.ServiceInstance)
+			if !ok {
+				return fmt.Errorf("broker %s has children not of type %s", parent.GetID(), types.ServiceInstanceType)
+			}
+			if _, ok := platformIdsMap[instance.PlatformID]; !ok {
+				platformIdsMap[instance.PlatformID] = true
+			}
+		}
+	}
+
+	platformIds := make([]string, 0, len(platformIdsMap))
+	for id := range platformIdsMap {
+		platformIds = append(platformIds, id)
+	}
+
+	platforms, err := repository.List(ctx, types.PlatformType, query.ByField(query.InOperator, "id", platformIds...))
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < platforms.Len(); i++ {
+		platform := platforms.ItemAt(i)
+		if len(platform.GetLabels()) == 0 {
+			return fmt.Errorf("broker %s has instances from global platform", parent.GetID())
+		}
+	}
+	return nil
 }
 
 func getObjectChildren(ctx context.Context, object types.Object, storage storage.Repository) ([]types.ObjectList, error) {
