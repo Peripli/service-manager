@@ -332,7 +332,6 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 			} else {
 				criteria := []query.Criterion{
 					query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
-					query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 					query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
 					query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
 					query.ByField(query.EqualsOperator, "reschedule", "true"),
