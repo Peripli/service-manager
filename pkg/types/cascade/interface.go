@@ -1,12 +1,15 @@
 package cascade
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
 type ChildrenCriterion = map[types.ObjectType][]query.Criterion
+
+type ContainerKey struct {}
 
 type Cascade interface {
 	GetChildrenCriterion() ChildrenCriterion
@@ -28,7 +31,7 @@ func (c *CascadeErrors) Add(e *Error) {
 	c.Errors = append(c.Errors, e)
 }
 
-func GetCascadeObject(object types.Object) (Cascade, bool) {
+func GetCascadeObject(ctx context.Context, object types.Object) (Cascade, bool) {
 	switch object.GetType() {
 	case types.TenantType:
 		return &TenantCascade{object.(*types.Tenant)}, true
@@ -37,7 +40,8 @@ func GetCascadeObject(object types.Object) (Cascade, bool) {
 	case types.ServiceBrokerType:
 		return &ServiceBrokerCascade{object.(*types.ServiceBroker)}, true
 	case types.ServiceInstanceType:
-		return &ServiceInstanceCascade{object.(*types.ServiceInstance)}, true
+		containerId, _ := ctx.Value(ContainerKey{}).(string)
+		return &ServiceInstanceCascade{object.(*types.ServiceInstance), containerId}, true
 	}
 	return nil, false
 }

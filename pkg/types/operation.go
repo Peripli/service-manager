@@ -78,7 +78,7 @@ type Operation struct {
 	CorrelationID       string            `json:"correlation_id"`
 	ExternalID          string            `json:"-"`
 	Parent              string            `json:"parent"`
-	Virtual             bool              `json:"virtual"`
+	Root                string            `json:"root"`
 	Cascade             bool              `json:"cascade"`
 
 	// Reschedule specifies that the operation has reached a state after which it can be retried (checkpoint)

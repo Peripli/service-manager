@@ -30,3 +30,7 @@ type Tenant struct {
 func (e *Tenant) GetType() ObjectType {
 	return TenantType
 }
+
+func IsVirtualType(objectType ObjectType) bool {
+	return objectType == TenantType
+}

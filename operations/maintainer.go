@@ -47,7 +47,7 @@ type maintainerFunctor struct {
 // and that no orphan operations are left in the DB due to crashes/restarts of SM
 type Maintainer struct {
 	smCtx      context.Context
-	repository storage.Repository
+	repository storage.TransactionalRepository
 	scheduler  *Scheduler
 
 	settings *Settings
@@ -81,6 +81,11 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 		{
 			name:     "cleanupInternalFailedOperations",
 			execute:  maintainer.cleanupInternalFailedOperations,
+			interval: options.CleanupInterval,
+		},
+		{
+			name:     "cleanupFinishedCascadeOperations",
+			execute:  maintainer.cleanupFinishedCascadeOperations,
 			interval: options.CleanupInterval,
 		},
 		{
@@ -181,7 +186,51 @@ func (om *Maintainer) cleanupExternalOperations() {
 	log.C(om.smCtx).Debug("Finished cleaning up external operations")
 }
 
-// cleanupInternalSuccessfulOperations cleans up all successful internal operations which are older than some specified time
+// cleanupFinishedCascadeOperations cleans up all successful/failed internal cascade operations which are older than some specified time
+func (om *Maintainer) cleanupFinishedCascadeOperations() {
+	currentTime := time.Now()
+	rootsCriteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
+		query.ByField(query.EqualsOperator, "parent_id", ""),
+		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
+		query.ByField(query.InOperator, "state", string(types.SUCCEEDED), string(types.FAILED)),
+		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+	}
+
+	roots, err := om.repository.List(om.smCtx, types.OperationType, rootsCriteria...)
+	if err != nil {
+		log.C(om.smCtx).Debugf("Failed to fetch finished cascade operations: %s", err)
+		return
+	}
+	var root types.Object
+	err = om.repository.InTransaction(om.smCtx, func(ctx context.Context, storage storage.Repository) error {
+		for i:= 0; i < roots.Len(); i++ {
+			root = roots.ItemAt(i)
+			criteria := []query.Criterion{
+				query.ByField(query.EqualsOperator, "cascade", "true"),
+				query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
+				query.ByField(query.EqualsOperator, "root", root.GetID()),
+			}
+			if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
+				return err
+			}
+		}
+		if err := om.repository.Delete(om.smCtx, types.OperationType, rootsCriteria...); err != nil && err != util.ErrNotFoundInStorage {
+			log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		log.C(om.smCtx).Debugf("Failed to cleanup cascade operations: %s", err)
+		return
+	}
+	log.C(om.smCtx).Debug("Finished cleaning up successful cascade operations")
+}
+
+// cleanupInternalCascadeOperations cleans up all finished internal cascade operations which are older than some specified time
 func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 	currentTime := time.Now()
 	criteria := []query.Criterion{
@@ -318,7 +367,7 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 		}
 
 		if subOperations.AllOperationsCount == len(subOperations.SucceededOperations) {
-			if operation.Virtual {
+			if types.IsVirtualType(operation.ResourceType) {
 				operation.State = types.SUCCEEDED
 				if _, err := om.repository.Update(om.smCtx, operation, types.LabelChanges{}); err != nil {
 					logger.Warnf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
