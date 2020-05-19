@@ -73,7 +73,7 @@ func GetSubOperations(ctx context.Context, operation *types.Operation, repositor
 			cascadedOperations.FailedOperations = append(cascadedOperations.FailedOperations, suboperation)
 		case types.IN_PROGRESS:
 			cascadedOperations.InProgressOperations = append(cascadedOperations.InProgressOperations, suboperation)
-		case types.NOT_STARTED:
+		case types.PENDING:
 			cascadedOperations.InProgressOperations = append(cascadedOperations.NotStartedOperations, suboperation)
 		}
 	}
@@ -96,7 +96,7 @@ func makeCascadeOPForChild(object types.Object, parentOperation *types.Operation
 			Ready:     true,
 		},
 		Type:          types.DELETE,
-		State:         types.NOT_STARTED,
+		State:         types.PENDING,
 		ResourceID:    object.GetID(),
 		ResourceType:  object.GetType(),
 		PlatformID:    parentOperation.PlatformID,

@@ -299,7 +299,7 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "cascade", "true"),
 		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
-		query.ByField(query.EqualsOperator, "state", string(types.NOT_STARTED)),
+		query.ByField(query.EqualsOperator, "state", string(types.PENDING)),
 	}
 	operations, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
 	if err != nil {

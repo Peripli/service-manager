@@ -43,8 +43,8 @@ const (
 type OperationState string
 
 const (
-	// NOT_STARTED represents the state of an operation that waiting to be handled
-	NOT_STARTED OperationState = "not started"
+	// PENDING represents the state of an operation that waiting to be handled
+	PENDING OperationState = "pending"
 
 	// SUCCEEDED represents the state of an operation after successful execution
 	SUCCEEDED OperationState = "succeeded"
@@ -136,8 +136,8 @@ func (o *Operation) Validate() error {
 		return fmt.Errorf("missing resource type")
 	}
 
-	if o.State == NOT_STARTED && !o.Cascade {
-		return fmt.Errorf("NOT_STARTED state only allowed for cascade operations")
+	if o.State == PENDING && !o.Cascade {
+		return fmt.Errorf("PENDING state only allowed for cascade operations")
 	}
 
 	return nil

@@ -4,6 +4,6 @@ ALTER TABLE operations ADD COLUMN IF NOT EXISTS virtual BOOLEAN NOT NULL DEFAULT
 ALTER TABLE operations ADD COLUMN IF NOT EXISTS cascade BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE operations ADD COLUMN IF NOT EXISTS parent varchar(100);
 
-ALTER TYPE operation_state ADD VALUE 'not started';
+ALTER TYPE operation_state ADD VALUE 'pending';
 
 COMMIT;
