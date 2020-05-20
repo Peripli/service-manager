@@ -88,7 +88,6 @@ var _ = Describe("Bind", func() {
 				State:        types.IN_PROGRESS,
 				Type:         types.DELETE,
 				ResourceType: types.TenantType,
-				Virtual:      true,
 			}
 
 			ctx.SMRepository.Create(context.TODO(), &op)

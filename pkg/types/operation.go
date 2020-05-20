@@ -104,7 +104,7 @@ func (e *Operation) Equals(obj Object) bool {
 		e.Type != operation.Type ||
 		e.PlatformID != operation.PlatformID ||
 		e.Cascade != operation.Cascade ||
-		e.Virtual != operation.Virtual ||
+		e.Root != operation.Root ||
 		e.Parent != operation.Parent ||
 		!reflect.DeepEqual(e.Errors, operation.Errors) ||
 		!reflect.DeepEqual(e.TransitiveResources, operation.TransitiveResources) {

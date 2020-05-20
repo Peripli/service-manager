@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func GetAllLevelsCascadeOperations(ctx context.Context, parentObject types.Object, parentOperation *types.Operation, rootId string, storage storage.Repository) ([]*types.Operation, error) {
+func GetAllLevelsCascadeOperations(ctx context.Context, parentObject types.Object, parentOperation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
 	var operations []*types.Operation
 	objectChildren, err := getObjectChildren(ctx, parentObject, storage)
 	if err != nil {
@@ -25,12 +25,12 @@ func GetAllLevelsCascadeOperations(ctx context.Context, parentObject types.Objec
 	for _, children := range objectChildren {
 		for i := 0; i < children.Len(); i++ {
 			child := children.ItemAt(i)
-			childOperation, err := makeCascadeOPForChild(child, parentOperation, rootId)
+			childOperation, err := makeCascadeOPForChild(child, parentOperation)
 			if err != nil {
 				return nil, err
 			}
 			operations = append(operations, childOperation)
-			grandChildrenOperations, err := GetAllLevelsCascadeOperations(ctx, child, childOperation, rootId, storage)
+			grandChildrenOperations, err := GetAllLevelsCascadeOperations(ctx, child, childOperation, storage)
 			if err != nil {
 				return nil, err
 			}
@@ -92,11 +92,11 @@ func getObjectChildren(ctx context.Context, object types.Object, storage storage
 }
 
 type CascadedOperations struct {
-	AllOperationsCount           int
+	AllOperationsCount   int
 	FailedOperations     []*types.Operation
 	InProgressOperations []*types.Operation
 	SucceededOperations  []*types.Operation
-	NotStartedOperations  []*types.Operation
+	NotStartedOperations []*types.Operation
 }
 
 func GetSubOperations(ctx context.Context, operation *types.Operation, repository storage.Repository) (*CascadedOperations, error) {
@@ -123,13 +123,12 @@ func GetSubOperations(ctx context.Context, operation *types.Operation, repositor
 	return cascadedOperations, nil
 }
 
-func makeCascadeOPForChild(object types.Object, parentOperation *types.Operation, rootId string) (*types.Operation, error) {
+func makeCascadeOPForChild(object types.Object, parentOperation *types.Operation) (*types.Operation, error) {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		return nil, err
 	}
 	now := time.Now()
-	// todo:  ExternalID
 	return &types.Operation{
 		Base: types.Base{
 			ID:        UUID.String(),
@@ -146,6 +145,6 @@ func makeCascadeOPForChild(object types.Object, parentOperation *types.Operation
 		Cascade:       true,
 		Parent:        parentOperation.ID,
 		CorrelationID: parentOperation.CorrelationID,
-		Root:          rootId,
+		Root:          parentOperation.Root,
 	}, nil
 }
