@@ -564,6 +564,7 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 	}
 
 	if time.Now().UTC().After(operation.CreatedAt.Add(s.reconciliationOperationTimeout)) {
+		operation.DeletionScheduled = time.Time{}
 		manualActionRequiredError := &util.HTTPError{
 			ErrorType:   "ManualActionRequired",
 			Description: fmt.Sprintf("operation is older than %v and has exceeded the maximum reconciliation timeout. Rootcause error: %s", s.reconciliationOperationTimeout, operation.Errors),

@@ -46,25 +46,25 @@ type maintainerFunctor struct {
 // Maintainer ensures that operations old enough are deleted
 // and that no orphan operations are left in the DB due to crashes/restarts of SM
 type Maintainer struct {
-	smCtx      context.Context
-	repository storage.TransactionalRepository
-	scheduler  *Scheduler
-
-	settings *Settings
-	wg       *sync.WaitGroup
-
-	functors         []maintainerFunctor
-	operationLockers map[string]storage.Locker
+	smCtx                   context.Context
+	repository              storage.TransactionalRepository
+	scheduler               *Scheduler
+	cascadePollingScheduler *Scheduler
+	settings                *Settings
+	wg                      *sync.WaitGroup
+	functors                []maintainerFunctor
+	operationLockers        map[string]storage.Locker
 }
 
 // NewMaintainer constructs a Maintainer
 func NewMaintainer(smCtx context.Context, repository storage.TransactionalRepository, lockerCreatorFunc storage.LockerCreatorFunc, options *Settings, wg *sync.WaitGroup) *Maintainer {
 	maintainer := &Maintainer{
-		smCtx:      smCtx,
-		repository: repository,
-		scheduler:  NewScheduler(smCtx, repository, options, options.DefaultPoolSize, wg),
-		settings:   options,
-		wg:         wg,
+		smCtx:                   smCtx,
+		repository:              repository,
+		scheduler:               NewScheduler(smCtx, repository, options, options.DefaultPoolSize, wg),
+		cascadePollingScheduler: NewScheduler(smCtx, repository, options, options.DefaultPoolSize, wg),
+		settings:                options,
+		wg:                      wg,
 	}
 
 	maintainer.functors = []maintainerFunctor{
@@ -334,10 +334,6 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 }
 
 func (om *Maintainer) pollCascadedDeleteOperations() {
-	//poll all ops that are cascadeded and in progress
-	//if opp is cascaded and is in progress, check the status of children  if childern all done,  delete the current resroce type
-	// if opp is virutal and all the subops are done, update status to done else errors
-	//change also the critera to rescheduler = false and deletetion = false
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "cascade", "true"),
 		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
@@ -394,7 +390,7 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 					return nil, nil
 				}
 
-				if err := om.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
+				if err := om.cascadePollingScheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
 					logger.Warnf("Failed to reschedule cascaded delete operation with ID (%s): %s ok for concurrent deletion failure", operation.ID, err)
 				}
 			}
@@ -441,8 +437,6 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 		query.ByField(query.NotEqualsOperator, "type", string(types.UPDATE)),
 		// check if operation hasn't been updated for the operation's maximum allowed time to execute
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ActionTimeout))),
-		// check if operation is still eligible for processing
-		query.ByField(query.GreaterThanOperator, "created_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ReconciliationOperationTimeout))),
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
