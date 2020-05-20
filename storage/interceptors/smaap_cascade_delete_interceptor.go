@@ -60,8 +60,9 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 			return operation, err
 		}
 
+		isVirtual := types.IsVirtualType(operation.ResourceType)
 		var cascadeResource types.Object
-		if types.IsVirtualType(operation.ResourceType) {
+		if isVirtual {
 			// currently we have only one virtual object - tenant
 			cascadeResource = &types.Tenant{
 				VirtualType: types.VirtualType{
@@ -81,12 +82,17 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 		}
 		operation.RootID = operation.ID
 		utils := &operations.Utils{
-			co.TenantIdentifier,
+			TenantIdentifier: co.TenantIdentifier,
 		}
 		ops, err := utils.GetAllLevelsCascadeOperations(ctx, cascadeResource, operation, storage)
 		if err != nil {
 			return nil, err
 		}
+		if len(ops) == 0 && isVirtual {
+			operation.State = types.SUCCEEDED
+			return operation, nil
+		}
+
 		for _, op := range ops {
 			if _, err := storage.Create(ctx, op); err != nil {
 				return nil, util.HandleStorageError(err, string(op.GetType()))
