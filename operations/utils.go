@@ -11,13 +11,17 @@ import (
 	"time"
 )
 
-func GetAllLevelsCascadeOperations(ctx context.Context, parentObject types.Object, parentOperation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
+type Utils struct {
+	TenantIdentifier string
+}
+
+func (u *Utils) GetAllLevelsCascadeOperations(ctx context.Context, parentObject types.Object, parentOperation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
 	var operations []*types.Operation
 	objectChildren, err := getObjectChildren(ctx, parentObject, storage)
 	if err != nil {
 		return nil, err
 	}
-	err = validateNoGlobalPlatformInstances(ctx, parentObject, objectChildren, storage)
+	err = u.validateNoGlobalPlatformInstances(ctx, parentObject, objectChildren, storage)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +34,7 @@ func GetAllLevelsCascadeOperations(ctx context.Context, parentObject types.Objec
 				return nil, err
 			}
 			operations = append(operations, childOperation)
-			grandChildrenOperations, err := GetAllLevelsCascadeOperations(ctx, child, childOperation, storage)
+			grandChildrenOperations, err := u.GetAllLevelsCascadeOperations(ctx, child, childOperation, storage)
 			if err != nil {
 				return nil, err
 			}
@@ -40,7 +44,7 @@ func GetAllLevelsCascadeOperations(ctx context.Context, parentObject types.Objec
 	return operations, nil
 }
 
-func validateNoGlobalPlatformInstances(ctx context.Context, parent types.Object, objectChildren []types.ObjectList, repository storage.Repository) error {
+func (u *Utils) validateNoGlobalPlatformInstances(ctx context.Context, parent types.Object, objectChildren []types.ObjectList, repository storage.Repository) error {
 	if parent.GetType() != types.ServiceBrokerType {
 		return nil
 	}
@@ -70,7 +74,8 @@ func validateNoGlobalPlatformInstances(ctx context.Context, parent types.Object,
 
 	for i := 0; i < platforms.Len(); i++ {
 		platform := platforms.ItemAt(i)
-		if len(platform.GetLabels()) == 0 {
+		labels := platform.GetLabels()
+		if _, ok := labels[u.TenantIdentifier]; !ok && platform.GetID() != types.SMPlatform {
 			return fmt.Errorf("broker %s has instances from global platform", parent.GetID())
 		}
 	}

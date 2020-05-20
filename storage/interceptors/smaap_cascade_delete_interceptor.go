@@ -80,7 +80,10 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 			}
 		}
 		operation.Root = operation.ID
-		ops, err := operations.GetAllLevelsCascadeOperations(ctx, cascadeResource, operation, storage)
+		utils := &operations.Utils{
+			co.TenantIdentifier,
+		}
+		ops, err := utils.GetAllLevelsCascadeOperations(ctx, cascadeResource, operation, storage)
 		if err != nil {
 			return nil, err
 		}
