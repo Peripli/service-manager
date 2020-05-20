@@ -204,24 +204,25 @@ func (om *Maintainer) cleanupFinishedCascadeOperations() {
 		return
 	}
 	var root types.Object
-	err = om.repository.InTransaction(om.smCtx, func(ctx context.Context, storage storage.Repository) error {
-		for i:= 0; i < roots.Len(); i++ {
-			root = roots.ItemAt(i)
-			criteria := []query.Criterion{
-				query.ByField(query.EqualsOperator, "cascade", "true"),
-				query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
-				query.ByField(query.EqualsOperator, "root", root.GetID()),
-			}
+
+	for i := 0; i < roots.Len(); i++ {
+		root = roots.ItemAt(i)
+		criteria := []query.Criterion{
+			query.ByField(query.EqualsOperator, "cascade", "true"),
+			query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
+			query.ByField(query.EqualsOperator, "root", root.GetID()),
+		}
+		err = om.repository.InTransaction(om.smCtx, func(ctx context.Context, storage storage.Repository) error {
 			if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
 				return err
 			}
-		}
-		if err := om.repository.Delete(om.smCtx, types.OperationType, rootsCriteria...); err != nil && err != util.ErrNotFoundInStorage {
-			log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
-			return err
-		}
-		return nil
-	})
+			byID := query.ByField(query.EqualsOperator, "id", root.GetID())
+			if err := om.repository.Delete(om.smCtx, types.OperationType, byID); err != nil && err != util.ErrNotFoundInStorage {
+				return err
+			}
+			return nil
+		})
+	}
 
 	if err != nil {
 		log.C(om.smCtx).Debugf("Failed to cleanup cascade operations: %s", err)
