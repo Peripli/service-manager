@@ -148,8 +148,8 @@ func makeCascadeOPForChild(object types.Object, parentOperation *types.Operation
 		ResourceType:  object.GetType(),
 		PlatformID:    parentOperation.PlatformID,
 		Cascade:       true,
-		Parent:        parentOperation.ID,
+		ParentID:      parentOperation.ID,
 		CorrelationID: parentOperation.CorrelationID,
-		Root:          parentOperation.Root,
+		RootID:        parentOperation.RootID,
 	}, nil
 }

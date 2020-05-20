@@ -77,8 +77,8 @@ type Operation struct {
 	PlatformID          string            `json:"platform_id"`
 	CorrelationID       string            `json:"correlation_id"`
 	ExternalID          string            `json:"-"`
-	Parent              string            `json:"parent"`
-	Root                string            `json:"root"`
+	ParentID            string            `json:"parent_id"`
+	RootID              string            `json:"root_id"`
 	Cascade             bool              `json:"cascade"`
 
 	// Reschedule specifies that the operation has reached a state after which it can be retried (checkpoint)
@@ -104,8 +104,8 @@ func (e *Operation) Equals(obj Object) bool {
 		e.Type != operation.Type ||
 		e.PlatformID != operation.PlatformID ||
 		e.Cascade != operation.Cascade ||
-		e.Root != operation.Root ||
-		e.Parent != operation.Parent ||
+		e.RootID != operation.RootID ||
+		e.ParentID != operation.ParentID ||
 		!reflect.DeepEqual(e.Errors, operation.Errors) ||
 		!reflect.DeepEqual(e.TransitiveResources, operation.TransitiveResources) {
 		return false

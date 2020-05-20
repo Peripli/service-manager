@@ -89,6 +89,11 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			interval: options.CleanupInterval,
 		},
 		{
+			name:     "pollCascadedDeleteOperations",
+			execute:  maintainer.pollCascadedDeleteOperations,
+			interval: options.PollingInterval,
+		},
+		{
 			name:     "markStuckOperationsFailed",
 			execute:  maintainer.markStuckOperationsFailed,
 			interval: options.MaintainerRetryInterval,
@@ -102,11 +107,6 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			name:     "rescheduleOrphanMitigationOperations",
 			execute:  maintainer.rescheduleOrphanMitigationOperations,
 			interval: options.MaintainerRetryInterval,
-		},
-		{
-			name:     "pollCascadedDeleteOperations",
-			execute:  maintainer.pollCascadedDeleteOperations,
-			interval: options.PollingInterval,
 		},
 	}
 
@@ -209,7 +209,7 @@ func (om *Maintainer) cleanupFinishedCascadeOperations() {
 	for i := 0; i < roots.Len(); i++ {
 		root = roots.ItemAt(i)
 		err = om.repository.InTransaction(om.smCtx, func(ctx context.Context, storage storage.Repository) error {
-			if err := om.repository.Delete(om.smCtx, types.OperationType, query.ByField(query.EqualsOperator, "root", root.GetID())); err != nil && err != util.ErrNotFoundInStorage {
+			if err := om.repository.Delete(om.smCtx, types.OperationType, query.ByField(query.EqualsOperator, "root_id", root.GetID())); err != nil && err != util.ErrNotFoundInStorage {
 				return err
 			}
 			return nil
