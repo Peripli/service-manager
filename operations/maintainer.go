@@ -193,6 +193,7 @@ func (om *Maintainer) cleanupFinishedCascadeOperations() {
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "parent_id", ""),
 		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
+		query.ByField(query.EqualsOperator, "cascade", "true"),
 		query.ByField(query.InOperator, "state", string(types.SUCCEEDED), string(types.FAILED)),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
@@ -207,17 +208,8 @@ func (om *Maintainer) cleanupFinishedCascadeOperations() {
 
 	for i := 0; i < roots.Len(); i++ {
 		root = roots.ItemAt(i)
-		criteria := []query.Criterion{
-			query.ByField(query.EqualsOperator, "cascade", "true"),
-			query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
-			query.ByField(query.EqualsOperator, "root", root.GetID()),
-		}
 		err = om.repository.InTransaction(om.smCtx, func(ctx context.Context, storage storage.Repository) error {
-			if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
-				return err
-			}
-			byID := query.ByField(query.EqualsOperator, "id", root.GetID())
-			if err := om.repository.Delete(om.smCtx, types.OperationType, byID); err != nil && err != util.ErrNotFoundInStorage {
+			if err := om.repository.Delete(om.smCtx, types.OperationType, query.ByField(query.EqualsOperator, "root", root.GetID())); err != nil && err != util.ErrNotFoundInStorage {
 				return err
 			}
 			return nil
