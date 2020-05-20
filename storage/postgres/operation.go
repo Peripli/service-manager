@@ -43,7 +43,7 @@ type Operation struct {
 	Errors              sqlxtypes.JSONText `db:"errors"`
 	CorrelationID       sql.NullString     `db:"correlation_id"`
 	ExternalID          sql.NullString     `db:"external_id"`
-	Root                string             `db:"root"`
+	Root                sql.NullString     `db:"root"`
 	Reschedule          bool               `db:"reschedule"`
 	Cascade             bool               `db:"cascade"`
 	Parent              sql.NullString     `db:"parent"`
@@ -79,7 +79,7 @@ func (o *Operation) ToObject() (types.Object, error) {
 		ExternalID:          o.ExternalID.String,
 		Reschedule:          o.Reschedule,
 		Cascade:             o.Cascade,
-		Root:                o.Root,
+		Root:                o.Root.String,
 		Parent:              o.Parent.String,
 		RescheduleTimestamp: o.RescheduleTimestamp,
 		DeletionScheduled:   o.DeletionScheduled,
@@ -120,7 +120,7 @@ func (*Operation) FromObject(object types.Object) (storage.Entity, error) {
 		ExternalID:          toNullString(operation.ExternalID),
 		Reschedule:          operation.Reschedule,
 		Cascade:             operation.Cascade,
-		Root:                operation.Root,
+		Root:                toNullString(operation.Root),
 		Parent:              toNullString(operation.Parent),
 		RescheduleTimestamp: operation.RescheduleTimestamp,
 		DeletionScheduled:   operation.DeletionScheduled,
