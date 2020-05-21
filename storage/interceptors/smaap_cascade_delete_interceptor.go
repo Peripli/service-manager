@@ -81,6 +81,7 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 			}
 		}
 		operation.RootID = operation.ID
+		operation.State = types.PENDING
 		utils := &operations.Utils{
 			TenantIdentifier: co.TenantIdentifier,
 		}
@@ -90,7 +91,6 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 		}
 		if len(ops) == 0 && isVirtual {
 			operation.State = types.SUCCEEDED
-			return operation, nil
 		}
 
 		for _, op := range ops {
