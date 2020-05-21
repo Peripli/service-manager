@@ -80,7 +80,7 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 				return nil, err
 			}
 		}
-		operation.RootID = operation.ID
+		operation.CascadeRootID = operation.ID
 		operation.State = types.PENDING
 		utils := &operations.Utils{
 			TenantIdentifier: co.TenantIdentifier,

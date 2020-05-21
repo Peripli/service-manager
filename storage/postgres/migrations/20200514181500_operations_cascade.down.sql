@@ -1,7 +1,6 @@
 BEGIN;
 
-ALTER TABLE operations DROP COLUMN root_id;
-ALTER TABLE operations DROP COLUMN cascade;
+ALTER TABLE operations DROP COLUMN cascade_root_id;
 ALTER TABLE operations DROP COLUMN parent_id;
 
 DROP TYPE operation_state;

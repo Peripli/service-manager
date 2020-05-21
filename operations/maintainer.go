@@ -335,7 +335,7 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 
 func (om *Maintainer) pollCascadedDeleteOperations() {
 	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "cascade", "true"),
+		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
 		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
 		query.ByField(query.EqualsOperator, "state", string(types.PENDING)),
 	}

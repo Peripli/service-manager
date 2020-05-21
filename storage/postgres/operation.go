@@ -43,9 +43,8 @@ type Operation struct {
 	Errors              sqlxtypes.JSONText `db:"errors"`
 	CorrelationID       sql.NullString     `db:"correlation_id"`
 	ExternalID          sql.NullString     `db:"external_id"`
-	RootID              sql.NullString     `db:"root_id"`
+	CascadeRootID       sql.NullString     `db:"cascade_root_id"`
 	Reschedule          bool               `db:"reschedule"`
-	Cascade             bool               `db:"cascade"`
 	ParentID            sql.NullString     `db:"parent_id"`
 	RescheduleTimestamp time.Time          `db:"reschedule_timestamp"`
 	DeletionScheduled   time.Time          `db:"deletion_scheduled"`
@@ -78,8 +77,7 @@ func (o *Operation) ToObject() (types.Object, error) {
 		CorrelationID:       o.CorrelationID.String,
 		ExternalID:          o.ExternalID.String,
 		Reschedule:          o.Reschedule,
-		Cascade:             o.Cascade,
-		RootID:              o.RootID.String,
+		CascadeRootID:       o.CascadeRootID.String,
 		ParentID:            o.ParentID.String,
 		RescheduleTimestamp: o.RescheduleTimestamp,
 		DeletionScheduled:   o.DeletionScheduled,
@@ -119,8 +117,7 @@ func (*Operation) FromObject(object types.Object) (storage.Entity, error) {
 		CorrelationID:       toNullString(operation.CorrelationID),
 		ExternalID:          toNullString(operation.ExternalID),
 		Reschedule:          operation.Reschedule,
-		Cascade:             operation.Cascade,
-		RootID:              toNullString(operation.RootID),
+		CascadeRootID:       toNullString(operation.CascadeRootID),
 		ParentID:            toNullString(operation.ParentID),
 		RescheduleTimestamp: operation.RescheduleTimestamp,
 		DeletionScheduled:   operation.DeletionScheduled,
