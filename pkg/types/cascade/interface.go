@@ -9,7 +9,7 @@ import (
 
 type ChildrenCriterion = map[types.ObjectType][]query.Criterion
 
-type ContainerKey struct {}
+type ContainerKey struct{}
 
 type Cascade interface {
 	GetChildrenCriterion() ChildrenCriterion
@@ -22,7 +22,6 @@ type Error struct {
 	ResourceID   string           `json:"resource_id"`
 	Message      json.RawMessage  `json:"message"`
 }
-
 type CascadeErrors struct {
 	Errors []*Error `json:"cascade_errors"`
 }

@@ -48,7 +48,7 @@ func (c *CascadeOperationCreateInterceptorProvider) Name() string {
 func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 	return func(ctx context.Context, storage storage.Repository, obj types.Object) (types.Object, error) {
 		operation := obj.(*types.Operation)
-		if !operation.Cascade || operation.Type != types.DELETE {
+		if operation.CascadeRootID == "" || operation.Type != types.DELETE {
 			return f(ctx, storage, operation)
 		}
 		// validate operation is valid
@@ -106,7 +106,7 @@ func (co *cascadeOperationCreateInterceptor) operationExists(ctx context.Context
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
-		query.ByField(query.EqualsOperator, "cascade", "true"),
+		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
 	}
 	ops, err := storage.List(ctx, types.OperationType, criteria...)
 	if err != nil {

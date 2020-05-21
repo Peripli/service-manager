@@ -102,7 +102,6 @@ func (e *Operation) Equals(obj Object) bool {
 		e.State != operation.State ||
 		e.Type != operation.Type ||
 		e.PlatformID != operation.PlatformID ||
-		e.Cascade != operation.Cascade ||
 		e.CascadeRootID != operation.CascadeRootID ||
 		e.ParentID != operation.ParentID ||
 		!reflect.DeepEqual(e.Errors, operation.Errors) ||
@@ -135,7 +134,7 @@ func (o *Operation) Validate() error {
 		return fmt.Errorf("missing resource type")
 	}
 
-	if o.State == PENDING && !o.Cascade {
+	if o.State == PENDING && o.CascadeRootID == "" {
 		return fmt.Errorf("PENDING state only allowed for cascade operations")
 	}
 

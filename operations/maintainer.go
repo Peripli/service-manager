@@ -193,7 +193,7 @@ func (om *Maintainer) cleanupFinishedCascadeOperations() {
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "parent_id", ""),
 		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
-		query.ByField(query.EqualsOperator, "cascade", "true"),
+		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
 		query.ByField(query.InOperator, "state", string(types.SUCCEEDED), string(types.FAILED)),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
