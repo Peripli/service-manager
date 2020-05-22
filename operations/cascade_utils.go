@@ -22,8 +22,7 @@ func (u *CascadeUtils) GetAllLevelsCascadeOperations(ctx context.Context, object
 	if err != nil {
 		return nil, err
 	}
-	validate, hasChildrenValidator := object.(cascade.Validate)
-	if hasChildrenValidator {
+	if validate, ok := object.(cascade.Validate); ok {
 		err := validate.ValidateChildren()(ctx, objectChildren, storage, u.TenantIdentifier)
 		if err != nil {
 			return nil, err
