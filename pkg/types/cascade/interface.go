@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 )
 
 type ChildrenCriterion = map[types.ObjectType][]query.Criterion
@@ -15,6 +16,18 @@ type Cascade interface {
 	GetChildrenCriterion() ChildrenCriterion
 }
 
+type Validate interface {
+	ValidateChildren() func(ctx context.Context, objectChildren []types.ObjectList, repository storage.Repository, labelKeys ...string) error
+}
+
+type CascadedOperations struct {
+	AllOperationsCount   int
+	FailedOperations     []*types.Operation
+	InProgressOperations []*types.Operation
+	SucceededOperations  []*types.Operation
+	PendingOperations    []*types.Operation
+}
+
 type Error struct {
 	ParentType   types.ObjectType `json:"parent_type"`
 	ParentID     string           `json:"parent_id"`
@@ -22,6 +35,7 @@ type Error struct {
 	ResourceID   string           `json:"resource_id"`
 	Message      json.RawMessage  `json:"message"`
 }
+
 type CascadeErrors struct {
 	Errors []*Error `json:"cascade_errors"`
 }

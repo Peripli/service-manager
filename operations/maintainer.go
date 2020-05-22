@@ -18,9 +18,6 @@ package operations
 
 import (
 	"context"
-	"encoding/json"
-	"github.com/Peripli/service-manager/pkg/types/cascade"
-	"github.com/tidwall/gjson"
 	"sync"
 	"time"
 
@@ -204,10 +201,9 @@ func (om *Maintainer) cleanupFinishedCascadeOperations() {
 		log.C(om.smCtx).Debugf("Failed to fetch finished cascade operations: %s", err)
 		return
 	}
-	var root types.Object
-
 	for i := 0; i < roots.Len(); i++ {
-		root = roots.ItemAt(i)
+		root := roots.ItemAt(i)
+		//todo: delete transaction
 		err = om.repository.InTransaction(om.smCtx, func(ctx context.Context, storage storage.Repository) error {
 			if err := om.repository.Delete(om.smCtx, types.OperationType, query.ByField(query.EqualsOperator, "root_id", root.GetID())); err != nil && err != util.ErrNotFoundInStorage {
 				return err
@@ -229,6 +225,8 @@ func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "state", string(types.SUCCEEDED)),
+		// ignore cascade operations
+		query.ByField(query.EqualsOperator, "cascade_root_id", ""),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
 	}
@@ -248,6 +246,8 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 		query.ByField(query.EqualsOperator, "state", string(types.FAILED)),
 		query.ByField(query.EqualsOperator, "reschedule", "false"),
 		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
+		// ignore cascade operations
+		query.ByField(query.EqualsOperator, "cascade_root_id", ""),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
 	}
@@ -269,8 +269,6 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
 		// check if operation hasn't been updated for the operation's maximum allowed time to execute
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ActionTimeout))),
-		// check if operation is still eligible for processing
-		query.ByField(query.GreaterThanOperator, "created_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ReconciliationOperationTimeout))),
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
@@ -362,67 +360,54 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 					logger.Warnf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
 				}
 			} else {
-				criteria := []query.Criterion{
-					query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
-					query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
-					query.ByField(query.EqualsOperator, "reschedule", "true"),
-					query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
-				}
-				cnt, err := om.repository.Count(ctx, types.OperationType, criteria...)
+				isPolling, err := SameResourceIsAlreadyPolling(ctx, om.repository, operation.ResourceID)
 				if err != nil {
-					logger.Warnf("Failed to fetch the operation with ID (%s) ", operation.ID, err)
+					logger.Warnf("Failed to validate if operation with ID (%s) is in polling", operation.ID, err)
 					continue
 				}
-				if cnt > 0 {
+				if isPolling {
+					// no need to poll twice for the same resource
 					continue
 				}
 
-				operation.State = types.IN_PROGRESS
-				byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
-				action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-					err := repository.Delete(ctx, operation.ResourceType, byID)
-					if err != nil {
-						if err == util.ErrNotFoundInStorage {
-							return nil, nil
-						}
-						return nil, util.HandleStorageError(err, operation.ResourceType.String())
+				sameResourceInCurrentTreeState, err := SameResourceInCurrentTreeHasFinished(ctx, om.repository, operation.ResourceID, operation.CascadeRootID)
+				if err != nil {
+					logger.Warnf("Failed to fetch completed operations in the same tree for operation with ID (%s) ", operation.ID, err)
+					continue
+				}
+				if sameResourceInCurrentTreeState != "" {
+					operation.State = sameResourceInCurrentTreeState
+					if _, err := om.repository.Update(om.smCtx, operation, types.LabelChanges{}); err != nil {
+						logger.Warnf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
 					}
-					return nil, nil
-				}
-
-				if err := om.cascadePollingScheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-					logger.Warnf("Failed to reschedule cascaded delete operation with ID (%s): %s ok for concurrent deletion failure", operation.ID, err)
+				} else {
+					operation.State = types.IN_PROGRESS
+					byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
+					action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+						err := repository.Delete(ctx, operation.ResourceType, byID)
+						if err != nil {
+							if err == util.ErrNotFoundInStorage {
+								return nil, nil
+							}
+							return nil, util.HandleStorageError(err, operation.ResourceType.String())
+						}
+						return nil, nil
+					}
+					if err := om.cascadePollingScheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
+						logger.Warnf("Failed to reschedule cascaded delete operation with ID (%s): %s ok for concurrent deletion failure", operation.ID, err)
+					}
 				}
 			}
 		} else if len(subOperations.FailedOperations) > 0 && len(subOperations.FailedOperations)+len(subOperations.SucceededOperations) == subOperations.AllOperationsCount {
-			cascadeErrors := cascade.CascadeErrors{}
-			for _, failedOP := range subOperations.FailedOperations {
-				childErrorsResult := gjson.GetBytes(failedOP.Errors, "cascade_errors")
-				if childErrorsResult.Exists() {
-					var childErrors []*cascade.Error
-					err = json.Unmarshal([]byte(childErrorsResult.String()), &childErrors)
-					if err == nil {
-						cascadeErrors.Errors = append(cascadeErrors.Errors, childErrors...)
-						continue
-					}
-				}
-				// in case we are failing to convert it, save it as a regular error
-				cascadeErrors.Add(&cascade.Error{
-					ParentType:   operation.ResourceType,
-					ParentID:     operation.ResourceID,
-					ResourceType: failedOP.ResourceType,
-					ResourceID:   failedOP.ResourceID,
-					Message:      failedOP.Errors,
-				})
-			}
-
-			operation.State = types.FAILED
-			operation.Errors, err = json.Marshal(cascadeErrors)
+			array, err := PrepareAggregatedErrorsArray(subOperations.FailedOperations, operation.ResourceID, operation.ResourceType)
 			if err != nil {
-				continue
+				logger.Errorf("Couldn't aggregate errors for failed operation with id %s: %s", operation.ResourceID, err)
+			} else {
+				operation.Errors = array
 			}
+			operation.State = types.FAILED
 			if _, err := om.repository.Update(om.smCtx, operation, types.LabelChanges{}); err != nil {
-				logger.Warnf("Failed to update the operation with ID (%s) state to Failed: %s", operation.ID, err)
+				logger.Warnf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
 			}
 		}
 	}

@@ -56,14 +56,14 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 			return nil, err
 		}
 		// validate no operation for the same resource
-		if err, exists := co.operationExists(ctx, storage, operation); err != nil || exists {
+		if err, exists := doesExistCascadeOperationForResource(ctx, storage, operation); err != nil || exists {
 			return operation, err
 		}
 
 		isVirtual := types.IsVirtualType(operation.ResourceType)
 		var cascadeResource types.Object
 		if isVirtual {
-			// currently we have only one virtual object - tenant
+			// currently we have only one virtual object: tenant
 			cascadeResource = &types.Tenant{
 				VirtualType: types.VirtualType{
 					Base: types.Base{
@@ -80,9 +80,10 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 				return nil, err
 			}
 		}
+		// make sure the rootID is the operation.ID
 		operation.CascadeRootID = operation.ID
 		operation.State = types.PENDING
-		utils := &operations.Utils{
+		utils := &operations.CascadeUtils{
 			TenantIdentifier: co.TenantIdentifier,
 		}
 		ops, err := utils.GetAllLevelsCascadeOperations(ctx, cascadeResource, operation, storage)
@@ -92,7 +93,6 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 		if len(ops) == 0 && isVirtual {
 			operation.State = types.SUCCEEDED
 		}
-
 		for _, op := range ops {
 			if _, err := storage.Create(ctx, op); err != nil {
 				return nil, util.HandleStorageError(err, string(op.GetType()))
@@ -102,7 +102,7 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 	}
 }
 
-func (co *cascadeOperationCreateInterceptor) operationExists(ctx context.Context, storage storage.Repository, operation *types.Operation) (error, bool) {
+func doesExistCascadeOperationForResource(ctx context.Context, storage storage.Repository, operation *types.Operation) (error, bool) {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),

@@ -44,6 +44,7 @@ type Scheduler struct {
 	workers                        chan struct{}
 	actionTimeout                  time.Duration
 	reconciliationOperationTimeout time.Duration
+	cascadeOrphanMitigationTimeout time.Duration
 	reschedulingDelay              time.Duration
 	wg                             *sync.WaitGroup
 }
@@ -56,6 +57,7 @@ func NewScheduler(smCtx context.Context, repository storage.TransactionalReposit
 		workers:                        make(chan struct{}, poolSize),
 		actionTimeout:                  settings.ActionTimeout,
 		reconciliationOperationTimeout: settings.ReconciliationOperationTimeout,
+		cascadeOrphanMitigationTimeout: settings.CascadeOrphanMitigationTimeout,
 		reschedulingDelay:              settings.ReschedulingInterval,
 		wg:                             wg,
 	}
@@ -563,7 +565,11 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 		return fmt.Errorf("scheduling for operations %+v is not allowed due to invalid state", operation)
 	}
 
-	if time.Now().UTC().After(operation.CreatedAt.Add(s.reconciliationOperationTimeout)) {
+	// if operation has reached the maximum allowed timeout for auto rescheduling of operation actions
+	// if operation is part of cascade tree and in orphan mitigation state, its not allowed for rescheduling after reached the maximum timeout for orphan mitigation
+	if time.Now().UTC().After(operation.CreatedAt.Add(s.reconciliationOperationTimeout)) ||
+		(operation.CascadeRootID != "" && time.Now().UTC().After(operation.CreatedAt.Add(s.cascadeOrphanMitigationTimeout)) && !operation.DeletionScheduled.IsZero()) {
+
 		operation.DeletionScheduled = time.Time{}
 		manualActionRequiredError := &util.HTTPError{
 			ErrorType:   "ManualActionRequired",

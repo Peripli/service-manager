@@ -82,12 +82,12 @@ var _ = Describe("Bind", func() {
 				Base: types.Base{
 					ID: "op1",
 				},
-				Description:  "bla",
-				Cascade:      true,
-				ResourceID:   "tenant_value",
-				State:        types.IN_PROGRESS,
-				Type:         types.DELETE,
-				ResourceType: types.TenantType,
+				Description:   "bla",
+				CascadeRootID: "op1",
+				ResourceID:    "tenant_value",
+				State:         types.IN_PROGRESS,
+				Type:          types.DELETE,
+				ResourceType:  types.TenantType,
 			}
 
 			ctx.SMRepository.Create(context.TODO(), &op)

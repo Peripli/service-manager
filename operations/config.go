@@ -31,6 +31,7 @@ const (
 type Settings struct {
 	ActionTimeout                  time.Duration `mapstructure:"action_timeout" description:"timeout for async operations"`
 	ReconciliationOperationTimeout time.Duration `mapstructure:"reconciliation_operation_timeout" description:"the maximum allowed timeout for auto rescheduling of operation actions"`
+	CascadeOrphanMitigationTimeout time.Duration `mapstructure:"cascade_orphan_mitigation_timeout" description:"maximum for orphan mitigation of cascade operations"`
 
 	CleanupInterval         time.Duration `mapstructure:"cleanup_interval" description:"cleanup interval of old operations"`
 	MaintainerRetryInterval time.Duration `mapstructure:"maintainer_retry_interval" description:"maintenance retry interval"`
@@ -43,7 +44,6 @@ type Settings struct {
 	Pools           []PoolSettings `mapstructure:"pools" description:"defines the different available worker pools"`
 
 	SMSupportedPlatformType string `mapstructure:"sm_supported_platform_type" description:"defines the value of the supported platform for the SM platform"`
-
 }
 
 // DefaultSettings returns default values for API settings
@@ -51,6 +51,7 @@ func DefaultSettings() *Settings {
 	return &Settings{
 		ActionTimeout:                  15 * time.Minute,
 		ReconciliationOperationTimeout: 7 * 24 * time.Hour,
+		CascadeOrphanMitigationTimeout: 6 * time.Hour,
 		CleanupInterval:                1 * time.Hour,
 		MaintainerRetryInterval:        10 * time.Minute,
 		Lifespan:                       7 * 24 * time.Hour,
