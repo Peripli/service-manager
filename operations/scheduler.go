@@ -566,7 +566,7 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 	}
 
 	// if operation has reached the maximum allowed timeout for auto rescheduling of operation actions
-	// if operation is part of cascade tree and in orphan mitigation state, its not allowed for rescheduling after reached the maximum timeout for orphan mitigation
+	// if cascade operation has reached the maximum allowed time for orphan mitigation
 	if time.Now().UTC().After(operation.CreatedAt.Add(s.reconciliationOperationTimeout)) ||
 		(operation.CascadeRootID != "" && time.Now().UTC().After(operation.CreatedAt.Add(s.cascadeOrphanMitigationTimeout)) && !operation.DeletionScheduled.IsZero()) {
 
