@@ -188,7 +188,7 @@ func (om *Maintainer) cleanupFinishedCascadeOperations() {
 	currentTime := time.Now()
 	rootsCriteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
-		query.ByField(query.EqualsOperator, "parent_id", ""),
+		query.ByField(query.EqualsOrNilOperator, "parent_id", ""),
 		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
 		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
 		query.ByField(query.InOperator, "state", string(types.SUCCEEDED), string(types.FAILED)),
@@ -203,18 +203,10 @@ func (om *Maintainer) cleanupFinishedCascadeOperations() {
 	}
 	for i := 0; i < roots.Len(); i++ {
 		root := roots.ItemAt(i)
-		//todo: delete transaction
-		err = om.repository.InTransaction(om.smCtx, func(ctx context.Context, storage storage.Repository) error {
-			if err := om.repository.Delete(om.smCtx, types.OperationType, query.ByField(query.EqualsOperator, "root_id", root.GetID())); err != nil && err != util.ErrNotFoundInStorage {
-				return err
-			}
-			return nil
-		})
-	}
-
-	if err != nil {
-		log.C(om.smCtx).Debugf("Failed to cleanup cascade operations: %s", err)
-		return
+		if err := om.repository.Delete(om.smCtx, types.OperationType, query.ByField(query.EqualsOperator, "root_id", root.GetID())); err != nil && err != util.ErrNotFoundInStorage {
+			log.C(om.smCtx).Debugf("Failed to cleanup cascade operations: %s", err)
+			return
+		}
 	}
 	log.C(om.smCtx).Debug("Finished cleaning up successful cascade operations")
 }
@@ -226,7 +218,7 @@ func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "state", string(types.SUCCEEDED)),
 		// ignore cascade operations
-		query.ByField(query.EqualsOperator, "cascade_root_id", ""),
+		query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
 	}
@@ -247,7 +239,7 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 		query.ByField(query.EqualsOperator, "reschedule", "false"),
 		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
 		// ignore cascade operations
-		query.ByField(query.EqualsOperator, "cascade_root_id", ""),
+		query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
 	}

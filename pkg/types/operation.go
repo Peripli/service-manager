@@ -77,8 +77,8 @@ type Operation struct {
 	PlatformID          string            `json:"platform_id"`
 	CorrelationID       string            `json:"correlation_id"`
 	ExternalID          string            `json:"-"`
-	ParentID            string            `json:"parent_id"`
-	CascadeRootID       string            `json:"cascade_root_id"`
+	ParentID            string            `json:"parent_id,omitempty"`
+	CascadeRootID       string            `json:"cascade_root_id,omitempty"`
 
 	// Reschedule specifies that the operation has reached a state after which it can be retried (checkpoint)
 	Reschedule bool `json:"reschedule"`
