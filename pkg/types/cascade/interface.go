@@ -9,7 +9,7 @@ import (
 )
 
 type ChildrenCriterion = map[types.ObjectType][]query.Criterion
-
+// key for configurable hierarchies
 type ContainerKey struct{}
 
 type Cascade interface {
