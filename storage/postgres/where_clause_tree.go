@@ -108,6 +108,9 @@ func criterionSQL(c query.Criterion, dbTags []tagType, tableAlias string) (strin
 	if c.Operator.IsNullable() {
 		clause = fmt.Sprintf("(%s OR %s IS NULL)", clause, c.LeftOp)
 	}
+	if c.Operator.IsNotNull() {
+		clause = fmt.Sprintf("(%s AND %s IS NOT NULL)", clause, c.LeftOp)
+	}
 	return clause, rightOpQueryValue
 }
 
@@ -139,6 +142,8 @@ func translateOperationToSQLEquivalent(operator query.Operator) string {
 		fallthrough
 	case query.EqualsOrNilOperator:
 		return "="
+	case query.NotEqualsAndNotNilOperator:
+		return "!="
 	case query.NotEqualsOperator:
 		return "!="
 	default:
