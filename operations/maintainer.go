@@ -355,7 +355,7 @@ func (om *Maintainer) PollCascadedDeleteOperations() {
 			} else {
 				isPolling, err := SameResourceIsAlreadyPolling(ctx, om.repository, operation.ResourceID)
 				if err != nil {
-					logger.Warnf("Failed to validate if operation with ID (%s) is in polling", operation.ID, err)
+					logger.Warnf("Failed to validate if operation with ID (%s) is in polling: %s", operation.ID, err)
 					continue
 				}
 				if isPolling {
@@ -365,7 +365,7 @@ func (om *Maintainer) PollCascadedDeleteOperations() {
 
 				sameResourceInCurrentTreeState, err := SameResourceInCurrentTreeHasFinished(ctx, om.repository, operation.ResourceID, operation.CascadeRootID)
 				if err != nil {
-					logger.Warnf("Failed to fetch completed operations in the same tree for operation with ID (%s) ", operation.ID, err)
+					logger.Warnf("Failed to fetch completed operations in the same tree for operation with ID (%s): %s ", operation.ID, err)
 					continue
 				}
 				if sameResourceInCurrentTreeState != "" {

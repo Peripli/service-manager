@@ -47,7 +47,7 @@ var _ = Describe("Bind", func() {
 
 	Context("call to working service broker", func() {
 
-		FIt("Ashah", func() {
+		XIt("Ashah", func() {
 
 			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/1111").
