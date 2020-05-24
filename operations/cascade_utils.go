@@ -55,10 +55,37 @@ func getObjectChildren(ctx context.Context, object types.Object, storage storage
 			if err != nil {
 				return nil, err
 			}
+			if childType == types.ServiceBrokerType {
+				if err := enrichBrokersOfferings(ctx, list, storage); err != nil {
+					return nil, err
+				}
+			}
 			children = append(children, list)
 		}
 	}
 	return children, nil
+}
+
+func enrichBrokersOfferings(ctx context.Context, list types.ObjectList, storage storage.Repository) error {
+	for i := 0; i < list.Len(); i++ {
+		broker := list.ItemAt(i).(*types.ServiceBroker)
+		serviceOfferings, err := storage.List(ctx, types.ServiceOfferingType, query.ByField(query.EqualsOperator, "broker_id", broker.GetID()))
+		if err != nil {
+			return err
+		}
+		for j := 0; j < serviceOfferings.Len(); j++ {
+			serviceOffering := serviceOfferings.ItemAt(j).(*types.ServiceOffering)
+			servicePlans, err := storage.List(ctx, types.ServicePlanType, query.ByField(query.EqualsOperator, "service_offering_id", serviceOffering.GetID()))
+			if err != nil {
+				return err
+			}
+			for g := 0; g < serviceOfferings.Len(); g++ {
+				serviceOffering.Plans = append(serviceOffering.Plans, servicePlans.ItemAt(g).(*types.ServicePlan))
+			}
+			broker.Services = append(broker.Services, serviceOffering)
+		}
+	}
+	return nil
 }
 
 func GetSubOperations(ctx context.Context, operation *types.Operation, repository storage.Repository) (*cascade.CascadedOperations, error) {
@@ -134,7 +161,6 @@ func SameResourceInCurrentTreeHasFinished(ctx context.Context, storage storage.R
 		query.ByField(query.InOperator, "state", string(types.SUCCEEDED), string(types.FAILED)),
 		query.ByField(query.EqualsOperator, "cascade_root_id", cascadeRootID),
 		query.OrderResultBy("paging_sequence", query.DescOrder),
-		query.LimitResultBy(1),
 	}
 	completed, err := storage.List(ctx, types.OperationType, completedCriteria...)
 	if err != nil {

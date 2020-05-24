@@ -23,7 +23,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/tidwall/gjson"
 )
 
 type ServiceBrokerCascade struct {
@@ -69,8 +68,13 @@ func (sb *ServiceBrokerCascade) ValidateChildren() func(ctx context.Context, obj
 }
 
 func (sb *ServiceBrokerCascade) GetChildrenCriterion() ChildrenCriterion {
-	plansIDs := gjson.GetBytes(sb.Catalog, `services.#.plans.#.id`)
+	var planIDs []string
+	for _, serviceOffering := range sb.Services {
+		for _, servicePlan := range serviceOffering.Plans {
+			planIDs = append(planIDs, servicePlan.ID)
+		}
+	}
 	return ChildrenCriterion{
-		types.ServiceInstanceType: {query.ByField(query.InOperator, "service_plan_id", plansIDs.Value().([]string)...)},
+		types.ServiceInstanceType: {query.ByField(query.InOperator, "service_plan_id", planIDs...)},
 	}
 }

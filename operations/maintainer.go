@@ -86,8 +86,8 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			interval: options.CleanupInterval,
 		},
 		{
-			name:     "pollCascadedDeleteOperations",
-			execute:  maintainer.pollCascadedDeleteOperations,
+			name:     "PollCascadedDeleteOperations",
+			execute:  maintainer.PollCascadedDeleteOperations,
 			interval: options.PollingInterval,
 		},
 		{
@@ -190,9 +190,10 @@ func (om *Maintainer) cleanupFinishedCascadeOperations() {
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOrNilOperator, "parent_id", ""),
 		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
+		// todo: checking cascaderootIDs null are not collected
 		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
 		query.ByField(query.InOperator, "state", string(types.SUCCEEDED), string(types.FAILED)),
-		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
+		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB//
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
 	}
 
@@ -203,7 +204,7 @@ func (om *Maintainer) cleanupFinishedCascadeOperations() {
 	}
 	for i := 0; i < roots.Len(); i++ {
 		root := roots.ItemAt(i)
-		if err := om.repository.Delete(om.smCtx, types.OperationType, query.ByField(query.EqualsOperator, "root_id", root.GetID())); err != nil && err != util.ErrNotFoundInStorage {
+		if err := om.repository.Delete(om.smCtx, types.OperationType, query.ByField(query.EqualsOperator, "cascade_root_id", root.GetID())); err != nil && err != util.ErrNotFoundInStorage {
 			log.C(om.smCtx).Debugf("Failed to cleanup cascade operations: %s", err)
 			return
 		}
@@ -323,7 +324,7 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 	}
 }
 
-func (om *Maintainer) pollCascadedDeleteOperations() {
+func (om *Maintainer) PollCascadedDeleteOperations() {
 	criteria := []query.Criterion{
 		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
 		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
