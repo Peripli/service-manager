@@ -5,9 +5,9 @@ type NamedQuery string
 const (
 
 QueryByLabelMissing = `
-	select * from {{.ENTITY}}
+	SELECT * FROM {{.ENTITY_TABLE}}
 	WHERE NOT EXISTS
-	(select id from {{.ENTITY_LABELS}} WHERE key=${key} AND {{.ENTITY_LABELS.ref_id}} = {{.ENTITY.id}})
+	(SELECT ID FROM {{.ENTITY_LABELS}} WHERE key=${key} AND {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}})
 `
 )
 
