@@ -169,17 +169,14 @@ func (pq *pgQuery) ListNoLabels(ctx context.Context) (*sqlx.Rows, error) {
 }
 
 func (pq *pgQuery) Query(ctx context.Context, queryName storage.NamedQuery, queryParams map[string]interface{}) (*sqlx.Rows, error) {
-
 	sql , err:= tsprintf(storage.GetNamedQuery(queryName), pq.getTemplateParams())
 	if err != nil {
 		return nil, err
 	}
-
 	stmt, err  := pq.db.PrepareNamedContext(ctx, sql)
 	if err != nil {
 		return nil, err
 	}
-
 	return stmt.Queryx(queryParams)
 }
 
