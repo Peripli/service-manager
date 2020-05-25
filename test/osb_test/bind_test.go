@@ -18,6 +18,7 @@ package osb_test
 
 import (
 	"context"
+	"fmt"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
@@ -40,13 +41,12 @@ var _ = Describe("Bind", func() {
 	Context("call to working service broker", func() {
 
 		FIt("should succeed", func() {
+			params := map[string]interface{}{
+				"key": "subaccount_id"}
 
+			res, _ := ctx.SMRepository.QueryForList(context.TODO(), types.ServiceInstanceType, storage.QueryByMissingLabel, params)
 
-
-			ctx.SMRepository.QueryForList(context.TODO(), types.ServiceInstanceType, storage.QueryByLabelMissing,
-				map[string]interface{}{
-				"key": "subaccount_id"},
-			)
+			fmt.Println(res.Len())
 
 		})
 
