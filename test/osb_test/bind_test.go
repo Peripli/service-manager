@@ -17,22 +17,12 @@
 package osb_test
 
 import (
-	"context"
-	"fmt"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/test/common"
 	"net/http"
-	"testing"
 
 	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 )
-
-func TestFilters(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Filters Test Suite")
-}
 
 var _ = Describe("Bind", func() {
 	var IID = "10101"
@@ -46,54 +36,6 @@ var _ = Describe("Bind", func() {
 	})
 
 	Context("call to working service broker", func() {
-
-		XIt("Ashah", func() {
-
-			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/1111").
-				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
-				Expect().Status(http.StatusCreated)
-
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/2222").
-				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
-				Expect().Status(http.StatusCreated)
-
-			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/1111/service_bindings/b11").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
-			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/1111/service_bindings/b12").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
-			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/2222/service_bindings/b21").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
-			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/2222/service_bindings/b22").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
-
-			platform := common.MakePlatform("platform1", "cf-10", "cf", "descr")
-			ctx.SMWithOAuthForTenant.POST(web.PlatformsURL).
-				WithJSON(platform).
-				Expect().Status(http.StatusCreated)
-
-			op := types.Operation{
-				Base: types.Base{
-					ID: "op1",
-				},
-				Description:   "bla",
-				CascadeRootID: "op1",
-				ResourceID:    "tenant_value",
-				State:         types.IN_PROGRESS,
-				Type:          types.DELETE,
-				ResourceType:  types.TenantType,
-			}
-
-			ctx.SMRepository.Create(context.TODO(), &op)
-			fmt.Println("Drorrrr")
-			fmt.Println("Drorrrr")
-		})
 
 		It("should succeed", func() {
 			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)

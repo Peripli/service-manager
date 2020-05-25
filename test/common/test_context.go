@@ -227,6 +227,7 @@ type TestContext struct {
 	TestContextData      BrokerUtils
 	Servers              map[string]FakeServer
 	HttpClient           *http.Client
+	Maintainer           *operations.Maintainer
 }
 
 type SMExpect struct {
@@ -481,7 +482,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 	}
 	wg := &sync.WaitGroup{}
 
-	smServer, smRepository, smScheduler, config := newSMServer(environment, wg, tcb.smExtensions, listener)
+	smServer, smRepository, smScheduler, maintainer, config := newSMServer(environment, wg, tcb.smExtensions, listener)
 	tcb.Servers[SMServer] = smServer
 
 	SM := httpexpect.New(ginkgo.GinkgoT(), smServer.URL())
@@ -501,6 +502,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 		wg:                   wg,
 		Config:               config,
 		SM:                   &SMExpect{Expect: SM},
+		Maintainer:           maintainer,
 		SMWithOAuth:          &SMExpect{Expect: SMWithOAuth},
 		SMWithOAuthForTenant: &SMExpect{Expect: SMWithOAuthForTenant},
 		Servers:              tcb.Servers,
@@ -585,7 +587,7 @@ func NewSMListener() (net.Listener, error) {
 	return nil, fmt.Errorf("unable to create sm listener: %s", err)
 }
 
-func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.TransactionalRepository, *operations.Scheduler, *config.Settings) {
+func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.TransactionalRepository, *operations.Scheduler, *operations.Maintainer, *config.Settings) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	cfg, err := config.New(smEnv)
@@ -620,12 +622,11 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 		testServer.Listener = listener
 	}
 	testServer.Start()
-
 	scheduler := operations.NewScheduler(ctx, smb.Storage, cfg.Operations, 1000, wg)
 	return &testSMServer{
 		cancel: cancel,
 		Server: testServer,
-	}, smb.Storage, scheduler, cfg
+	}, smb.Storage, scheduler, smb.OperationMaintainer, cfg
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) *BrokerUtils {

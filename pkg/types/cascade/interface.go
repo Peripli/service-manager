@@ -9,6 +9,7 @@ import (
 )
 
 type ChildrenCriterion = map[types.ObjectType][]query.Criterion
+
 // key for configurable hierarchies
 type ContainerKey struct{}
 
@@ -53,8 +54,12 @@ func GetCascadeObject(ctx context.Context, object types.Object) (Cascade, bool) 
 	case types.ServiceBrokerType:
 		return &ServiceBrokerCascade{object.(*types.ServiceBroker)}, true
 	case types.ServiceInstanceType:
-		containerId, _ := ctx.Value(ContainerKey{}).(string)
-		return &ServiceInstanceCascade{object.(*types.ServiceInstance), containerId}, true
+		containerID := ""
+		containerIDValue := ctx.Value(ContainerKey{})
+		if containerIDValue != nil {
+			containerID = containerIDValue.(string)
+		}
+		return &ServiceInstanceCascade{object.(*types.ServiceInstance), containerID}, true
 	}
 	return nil, false
 }

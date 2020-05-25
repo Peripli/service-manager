@@ -105,7 +105,7 @@ func GetSubOperations(ctx context.Context, operation *types.Operation, repositor
 		case types.IN_PROGRESS:
 			cascadedOperations.InProgressOperations = append(cascadedOperations.InProgressOperations, subOperation)
 		case types.PENDING:
-			cascadedOperations.InProgressOperations = append(cascadedOperations.PendingOperations, subOperation)
+			cascadedOperations.PendingOperations = append(cascadedOperations.PendingOperations, subOperation)
 		}
 	}
 	return &cascadedOperations, nil
@@ -136,11 +136,10 @@ func makeCascadeOPForChild(object types.Object, operation *types.Operation) (*ty
 	}, nil
 }
 
-func SameResourceIsAlreadyPolling(ctx context.Context, storage storage.Repository, resourceID string) (bool, error) {
+func SameResourceIsAlreadyInProgress(ctx context.Context, storage storage.Repository, resourceID string) (bool, error) {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "resource_id", resourceID),
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
-		query.ByField(query.EqualsOperator, "reschedule", "true"),
 		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
 	}
 	cnt, err := storage.Count(ctx, types.OperationType, criteria...)
@@ -172,7 +171,7 @@ func SameResourceInCurrentTreeHasFinished(ctx context.Context, storage storage.R
 }
 
 func PrepareAggregatedErrorsArray(failedSubOperations []*types.Operation, resourceID string, resourceType types.ObjectType) ([]byte, error) {
-	cascadeErrors := cascade.CascadeErrors{}
+	cascadeErrors := cascade.CascadeErrors{Errors: []*cascade.Error{}}
 	for _, failedOP := range failedSubOperations {
 		childErrorsResult := gjson.GetBytes(failedOP.Errors, "cascade_errors")
 		if childErrorsResult.Exists() {
@@ -183,14 +182,17 @@ func PrepareAggregatedErrorsArray(failedSubOperations []*types.Operation, resour
 				continue
 			}
 		}
-		// in case we are failing to convert it, save it as a regular error
-		cascadeErrors.Add(&cascade.Error{
-			ParentType:   resourceType,
-			ParentID:     resourceID,
-			ResourceType: failedOP.ResourceType,
-			ResourceID:   failedOP.ResourceID,
-			Message:      failedOP.Errors,
-		})
+
+		if len(failedOP.Errors) > 0 {
+			// in case we are failing to convert it, save it as a regular error
+			cascadeErrors.Add(&cascade.Error{
+				ParentType:   resourceType,
+				ParentID:     resourceID,
+				ResourceType: failedOP.ResourceType,
+				ResourceID:   failedOP.ResourceID,
+				Message:      failedOP.Errors,
+			})
+		}
 	}
 	return json.Marshal(cascadeErrors)
 }
