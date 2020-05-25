@@ -123,6 +123,19 @@ func (er *encryptingRepository) Create(ctx context.Context, obj types.Object) (t
 	return newObj, nil
 }
 
+func (er *encryptingRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName string, queryParams map[string]interface{}) (types.ObjectList, error) {
+	objList, err := er.repository.QueryForList(ctx, objectType, queryName, queryParams)
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < objList.Len(); i++ {
+		if err := er.decrypt(ctx, objList.ItemAt(i)); err != nil {
+			return nil, err
+		}
+	}
+	return objList, nil
+}
+
 func (er *encryptingRepository) Get(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
 	obj, err := er.repository.Get(ctx, objectType, criteria...)
 	if err != nil {

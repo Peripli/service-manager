@@ -17,8 +17,10 @@
 package osb_test
 
 import (
+	"context"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/storage"
 	"net/http"
 
 	. "github.com/onsi/ginkgo"
@@ -37,28 +39,15 @@ var _ = Describe("Bind", func() {
 
 	Context("call to working service broker", func() {
 
-		It("should succeed", func() {
-			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+		FIt("should succeed", func() {
 
-			ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
-				Expect().
-				Status(http.StatusOK).
-				JSON().
-				Object().
-				ContainsMap(map[string]interface{}{
-					"id":                  BID,
-					"service_instance_id": IID,
-				})
 
-			verifyOperationExists(operationExpectations{
-				Type:         types.CREATE,
-				State:        types.SUCCEEDED,
-				ResourceID:   BID,
-				ResourceType: "/v1/service_bindings",
-				ExternalID:   "",
-			})
+
+			ctx.SMRepository.QueryForList(context.TODO(), types.ServiceInstanceType, storage.QueryByLabelMissing,
+				map[string]interface{}{
+				"key": "subaccount_id"},
+			)
+
 		})
 
 		It("same binding should return conflict", func() {

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/storage"
 	"regexp"
 	"strings"
 	"text/template"
@@ -165,6 +166,12 @@ func (pq *pgQuery) ListNoLabels(ctx context.Context) (*sqlx.Rows, error) {
 		return nil, err
 	}
 	return pq.db.QueryxContext(ctx, q, pq.queryParams...)
+}
+
+func (pq *pgQuery) Query(ctx context.Context, queryName string, queryParams map[string]interface{}) (*sqlx.Rows, error) {
+	//TODO: write query engine
+	sql := storage.QueryByLabelMissing
+	return pq.db.QueryxContext(ctx, sql, pq.queryParams...)
 }
 
 func (pq *pgQuery) Count(ctx context.Context) (int, error) {

@@ -183,6 +183,10 @@ func (ir *queryScopedInterceptableRepository) List(ctx context.Context, objectTy
 	return ir.list(ctx, objectType, true, criteria...)
 }
 
+func (ir *queryScopedInterceptableRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName string, queryParams map[string]interface{}) (types.ObjectList, error) {
+return ir.repositoryInTransaction.QueryForList(ctx, objectType, queryName, queryParams)
+}
+
 func (ir *queryScopedInterceptableRepository) ListNoLabels(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	return ir.list(ctx, objectType, false, criteria...)
 }
@@ -540,6 +544,10 @@ func (itr *InterceptableTransactionalRepository) Create(ctx context.Context, obj
 	}
 
 	return obj, nil
+}
+
+func (itr *InterceptableTransactionalRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName string, queryParams map[string]interface{}) (types.ObjectList, error) {
+	return itr.RawRepository.QueryForList(ctx, objectType, queryName, queryParams)
 }
 
 func (itr *InterceptableTransactionalRepository) Get(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
