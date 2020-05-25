@@ -115,7 +115,7 @@ func (cr *integrityRepository) list(ctx context.Context, objectType types.Object
 	return objectList, nil
 }
 
-func (cr *integrityRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName string, queryParams map[string]interface{}) (types.ObjectList, error) {
+func (cr *integrityRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (types.ObjectList, error) {
 	objectList, err := cr.repository.QueryForList(ctx, objectType, queryName, queryParams)
 	if err != nil {
 		return nil, err

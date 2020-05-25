@@ -168,10 +168,19 @@ func (pq *pgQuery) ListNoLabels(ctx context.Context) (*sqlx.Rows, error) {
 	return pq.db.QueryxContext(ctx, q, pq.queryParams...)
 }
 
-func (pq *pgQuery) Query(ctx context.Context, queryName string, queryParams map[string]interface{}) (*sqlx.Rows, error) {
-	//TODO: write query engine
-	sql := storage.QueryByLabelMissing
-	return pq.db.QueryxContext(ctx, sql, pq.queryParams...)
+func (pq *pgQuery) Query(ctx context.Context, queryName storage.NamedQuery, queryParams map[string]interface{}) (*sqlx.Rows, error) {
+
+	sql , err:= tsprintf(storage.GetNamedQuery(queryName), pq.getTemplateParams())
+	if err != nil {
+		return nil, err
+	}
+
+	stmt, err  := pq.db.PrepareNamedContext(ctx, sql)
+	if err != nil {
+		return nil, err
+	}
+
+	return stmt.Queryx(queryParams)
 }
 
 func (pq *pgQuery) Count(ctx context.Context) (int, error) {
@@ -224,6 +233,20 @@ func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, template string) (s
 	if pq.labelEntity == nil {
 		return "", fmt.Errorf("query builder requires the entity to have associated label entity")
 	}
+	data := pq.getTemplateParams()
+
+	q, err := tsprintf(template, data)
+	if err != nil {
+		return "", err
+	}
+	if q, err = pq.finalizeSQL(ctx, q); err != nil {
+		return "", err
+	}
+
+	return q, nil
+}
+
+func (pq *pgQuery) getTemplateParams() map[string]interface{} {
 	hasFieldCriteria := len(pq.fieldsWhereClause.children) != 0 || len(pq.limit) != 0
 	hasLabelCriteria := len(pq.labelsWhereClause.children) != 0
 	data := map[string]interface{}{
@@ -241,16 +264,7 @@ func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, template string) (s
 		"LIMIT":             pq.limitSQL(),
 		"RETURNING":         pq.returningSQL(),
 	}
-
-	q, err := tsprintf(template, data)
-	if err != nil {
-		return "", err
-	}
-	if q, err = pq.finalizeSQL(ctx, q); err != nil {
-		return "", err
-	}
-
-	return q, nil
+	return data
 }
 
 func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {

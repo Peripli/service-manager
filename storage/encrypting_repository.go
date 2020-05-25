@@ -123,7 +123,7 @@ func (er *encryptingRepository) Create(ctx context.Context, obj types.Object) (t
 	return newObj, nil
 }
 
-func (er *encryptingRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName string, queryParams map[string]interface{}) (types.ObjectList, error) {
+func (er *encryptingRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (types.ObjectList, error) {
 	objList, err := er.repository.QueryForList(ctx, objectType, queryName, queryParams)
 	if err != nil {
 		return nil, err

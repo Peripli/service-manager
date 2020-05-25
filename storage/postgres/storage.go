@@ -300,7 +300,7 @@ func (ps *Storage) Get(ctx context.Context, objectType types.ObjectType, criteri
 	return result.ItemAt(0), nil
 }
 
-func (ps *Storage) QueryForList(ctx context.Context, objectType types.ObjectType, queryName string, queryParams map[string]interface{}) (types.ObjectList, error) {
+func (ps *Storage) QueryForList(ctx context.Context, objectType types.ObjectType, queryName storage.NamedQuery, queryParams map[string]interface{}) (types.ObjectList, error) {
 	entity, err := ps.scheme.provide(objectType)
 	if err != nil {
 		return nil, err
