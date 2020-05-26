@@ -19,20 +19,7 @@ var _ = Describe("cascade operations", func() {
 		})
 
 		It("should cleaned", func() {
-			op := types.Operation{
-				Base: types.Base{
-					ID:        rootOpID,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				Description:   "bla",
-				CascadeRootID: rootOpID,
-				ResourceID:    tenantID,
-				Type:          types.DELETE,
-				ResourceType:  types.TenantType,
-			}
-			_, err := ctx.SMRepository.Create(context.TODO(), &op)
-			Expect(err).NotTo(HaveOccurred())
+			triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
 
 			Eventually(func() int {
 				count, err := ctx.SMRepository.Count(

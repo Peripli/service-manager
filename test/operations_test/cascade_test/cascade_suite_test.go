@@ -305,3 +305,21 @@ type tree struct {
 	byParentID    map[string][]*types.Operation
 	byOperationID map[string]*types.Operation
 }
+
+func triggerCascadeOperation(repoCtx context.Context, resourceType types.ObjectType, resourceID string) {
+	op := types.Operation{
+		Base: types.Base{
+			ID:        rootOpID,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Ready:     true,
+		},
+		Description:   "bla",
+		CascadeRootID: rootOpID,
+		ResourceID:    resourceID,
+		Type:          types.DELETE,
+		ResourceType:  resourceType,
+	}
+	_, err := ctx.SMRepository.Create(repoCtx, &op)
+	Expect(err).NotTo(HaveOccurred())
+}

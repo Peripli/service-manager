@@ -53,20 +53,7 @@ var _ = Describe("cascade operations", func() {
 				})
 			}
 
-			op := types.Operation{
-				Base: types.Base{
-					ID:        rootOpID,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				Description:   "bla",
-				CascadeRootID: rootOpID,
-				ResourceID:    tenantID,
-				Type:          types.DELETE,
-				ResourceType:  types.TenantType,
-			}
-			_, err := ctx.SMRepository.Create(context.TODO(), &op)
-			Expect(err).NotTo(HaveOccurred())
+			triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
 
 			AssertOperationCount(func(count int) { Expect(count).To(Equal(3 + subtreeCount*3)) }, query.ByField(query.EqualsOperator, "parent_id", rootOpID))
 			AssertOperationCount(func(count int) { Expect(count).To(Equal(tenantOperationsCount + subtreeCount*10)) }, queryForOperationsInTheSameTree)
@@ -91,20 +78,7 @@ var _ = Describe("cascade operations", func() {
 		})
 
 		It("should succeed - cascade a platform", func() {
-			op := types.Operation{
-				Base: types.Base{
-					ID:        rootOpID,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				Description:   "bla",
-				CascadeRootID: rootOpID,
-				ResourceID:    platformID,
-				Type:          types.DELETE,
-				ResourceType:  types.PlatformType,
-			}
-			_, err := ctx.SMRepository.Create(context.TODO(), &op)
-			Expect(err).NotTo(HaveOccurred())
+			triggerCascadeOperation(context.Background(), types.PlatformType, platformID)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -129,22 +103,8 @@ var _ = Describe("cascade operations", func() {
 			registerInstanceLastOPHandlers(brokerServer, http.StatusInternalServerError, "")
 			createContainerWithChildren()
 
-			op := types.Operation{
-				Base: types.Base{
-					ID:        rootOpID,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-					Ready:     true,
-				},
-				Description:   "bla",
-				CascadeRootID: rootOpID,
-				ResourceID:    platformID,
-				Type:          types.DELETE,
-				ResourceType:  types.PlatformType,
-			}
 			newCtx := context.WithValue(context.Background(), cascade.ContainerKey{}, "containerID")
-			_, err := ctx.SMRepository.Create(newCtx, &op)
-			Expect(err).NotTo(HaveOccurred())
+			triggerCascadeOperation(newCtx, types.PlatformType, platformID)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -184,21 +144,7 @@ var _ = Describe("cascade operations", func() {
 
 		It("validate errors aggregated from bottom up", func() {
 			registerBindingLastOPHandlers(brokerServer, http.StatusInternalServerError, types.FAILED)
-
-			op := types.Operation{
-				Base: types.Base{
-					ID:        rootOpID,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				Description:   "bla",
-				CascadeRootID: rootOpID,
-				ResourceID:    tenantID,
-				Type:          types.DELETE,
-				ResourceType:  types.TenantType,
-			}
-			_, err := ctx.SMRepository.Create(context.TODO(), &op)
-			Expect(err).NotTo(HaveOccurred())
+			triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -239,21 +185,8 @@ var _ = Describe("cascade operations", func() {
 		It("should succeed - cascade a container", func() {
 			containerID := createContainerWithChildren()
 
-			op := types.Operation{
-				Base: types.Base{
-					ID:        rootOpID,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				Description:   "bla",
-				CascadeRootID: rootOpID,
-				ResourceID:    containerID,
-				Type:          types.DELETE,
-				ResourceType:  types.ServiceInstanceType,
-			}
 			newCtx := context.WithValue(context.Background(), cascade.ContainerKey{}, "containerID")
-			_, err := ctx.SMRepository.Create(newCtx, &op)
-			Expect(err).NotTo(HaveOccurred())
+			triggerCascadeOperation(newCtx, types.ServiceInstanceType, containerID)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -290,20 +223,7 @@ var _ = Describe("cascade operations", func() {
 				}
 			})
 
-			op := types.Operation{
-				Base: types.Base{
-					ID:        rootOpID,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				Description:   "bla",
-				CascadeRootID: rootOpID,
-				ResourceID:    tenantID,
-				Type:          types.DELETE,
-				ResourceType:  types.TenantType,
-			}
-			_, err := ctx.SMRepository.Create(context.TODO(), &op)
-			Expect(err).NotTo(HaveOccurred())
+			triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
 
 			By("validating binding failed and marked as orphan mitigation")
 			Eventually(func() int {
@@ -374,20 +294,7 @@ var _ = Describe("cascade operations", func() {
 				}
 			})
 
-			op := types.Operation{
-				Base: types.Base{
-					ID:        rootOpID,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				Description:   "bla",
-				CascadeRootID: rootOpID,
-				ResourceID:    tenantID,
-				Type:          types.DELETE,
-				ResourceType:  types.TenantType,
-			}
-			_, err := ctx.SMRepository.Create(context.TODO(), &op)
-			Expect(err).NotTo(HaveOccurred())
+			triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
 
 			By("validating binding failed and marked as orphan mitigation")
 			Eventually(func() int {
@@ -458,20 +365,7 @@ var _ = Describe("cascade operations", func() {
 				return http.StatusOK, common.Object{"state": "succeeded"}
 			})
 
-			op := types.Operation{
-				Base: types.Base{
-					ID:        rootOpID,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				Description:   "bla",
-				CascadeRootID: rootOpID,
-				ResourceID:    tenantID,
-				Type:          types.DELETE,
-				ResourceType:  types.TenantType,
-			}
-			_, err := ctx.SMRepository.Create(context.TODO(), &op)
-			Expect(err).NotTo(HaveOccurred())
+			triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
 
 			instanceOPValue, err := ctx.SMRepository.Get(context.Background(), types.OperationType,
 				query.ByField(query.EqualsOperator, "resource_id", "test-instance"),
@@ -522,20 +416,7 @@ var _ = Describe("cascade operations", func() {
 					return http.StatusOK, common.Object{"state": "in progress"}
 				})
 
-				op := types.Operation{
-					Base: types.Base{
-						ID:        rootOpID,
-						CreatedAt: time.Now(),
-						UpdatedAt: time.Now(),
-					},
-					Description:   "bla",
-					CascadeRootID: rootOpID,
-					ResourceID:    tenantID,
-					Type:          types.DELETE,
-					ResourceType:  types.TenantType,
-				}
-				_, err := ctx.SMRepository.Create(context.TODO(), &op)
-				Expect(err).NotTo(HaveOccurred())
+				triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
 
 				Eventually(func() int {
 					count, err := ctx.SMRepository.Count(
