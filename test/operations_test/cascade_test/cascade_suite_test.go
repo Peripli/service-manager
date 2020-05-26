@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/tidwall/gjson"
 	"net/http"
+	"testing"
 	"time"
 )
 
@@ -30,8 +31,13 @@ var (
 	tenantOperationsCount = 11 //the number of operations that will be created after tenant creation in JustBeforeEach
 	rootOpID              = "op1"
 	tenantID              = "tenant_value"
-	osbInstanceID        = "test-instance"
+	osbInstanceID         = "test-instance"
 )
+
+func TestCascade(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Cascade Test Suite")
+}
 
 const (
 	polling                 = 1 * time.Millisecond
@@ -198,21 +204,29 @@ func registerSubaccountScopedBroker(ctx *TestContext, serviceNameID string, plan
 		return http.StatusAccepted, Object{"async": true}
 	})
 
-	registerInstanceLastOPHandlers(brokerServer, types.SUCCEEDED)
-	registerBindingLastOPHandlers(brokerServer, types.SUCCEEDED)
+	registerInstanceLastOPHandlers(brokerServer, http.StatusOK, types.SUCCEEDED)
+	registerBindingLastOPHandlers(brokerServer, http.StatusOK, types.SUCCEEDED)
 	CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, id)
 	return id, brokerServer
 }
 
-func registerInstanceLastOPHandlers(brokerServer *BrokerServer, state types.OperationState) {
+func registerInstanceLastOPHandlers(brokerServer *BrokerServer, status int, state types.OperationState) {
 	brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", func(req *http.Request) (int, map[string]interface{}) {
-		return http.StatusOK, Object{"state": state}
+		if status == http.StatusOK {
+			return status, Object{"state": state}
+		} else {
+			return status, Object{}
+		}
 	})
 }
 
-func registerBindingLastOPHandlers(brokerServer *BrokerServer, state types.OperationState) {
+func registerBindingLastOPHandlers(brokerServer *BrokerServer, status int, state types.OperationState) {
 	brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
-		return http.StatusOK, Object{"state": state}
+		if status == http.StatusOK {
+			return status, Object{"state": state}
+		} else {
+			return status, Object{}
+		}
 	})
 }
 

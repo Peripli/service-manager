@@ -13,14 +13,8 @@ import (
 	. "github.com/onsi/gomega"
 	"net/http"
 	"strconv"
-	"testing"
 	"time"
 )
-
-func TestCascade(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Cascade Test Suite")
-}
 
 var _ = Describe("Poll Cascade Delete", func() {
 	Context("Cascade Delete", func() {
@@ -127,7 +121,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 		})
 
 		It("should failed - container failed to be deleted when cascade a platform", func() {
-			registerInstanceLastOPHandlers(brokerServer, "failed")
+			registerInstanceLastOPHandlers(brokerServer, http.StatusInternalServerError, "")
 			createContainerWithChildren()
 
 			op := types.Operation{
@@ -184,7 +178,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 		})
 
 		It("validate errors aggregated from bottom up", func() {
-			registerBindingLastOPHandlers(brokerServer, types.FAILED)
+			registerBindingLastOPHandlers(brokerServer, http.StatusInternalServerError, types.FAILED)
 
 			op := types.Operation{
 				Base: types.Base{
