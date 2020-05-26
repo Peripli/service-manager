@@ -17,7 +17,6 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 		ctx.Cleanup()
 	})
 	Context("Create", func() {
-
 		Context("having global instances", func() {
 			It("should fail ", func() {
 				common.CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, plan.GetID())
@@ -42,7 +41,7 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 			})
 		})
 
-		Context ("not cascade ops", func() {
+		Context("not cascade ops", func() {
 			It("should skip", func() {
 				op := types.Operation{
 					Base: types.Base{
@@ -95,7 +94,6 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 				Expect(len(tree.byParentID[brokerOpID])).To(Equal(2))
 				// Instance[binding1, binding2]
 				Expect(len(tree.byParentID[instanceOpID])).To(Equal(2))
-
 			})
 		})
 

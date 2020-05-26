@@ -7,6 +7,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/types/cascade"
+	"github.com/Peripli/service-manager/storage"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"strconv"
@@ -14,14 +15,12 @@ import (
 )
 
 var _ = Describe("Poll Cascade Delete", func() {
-
 	Context("Cascade Delete", func() {
-
 		AfterEach(func() {
 			ctx.Cleanup()
 		})
 
-		It("big tenant tree should succeed", func() {
+		It("should succeed - cascade a big tenant tree", func() {
 			subtreeCount := 5
 			for i := 0; i < subtreeCount; i++ {
 				registerSubaccountScopedPlatform(ctx, fmt.Sprintf("platform%s", strconv.Itoa(i*10)))
@@ -84,7 +83,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 			validateDuplicationsWaited(fullTree)
 		})
 
-		It("platform tree should succeed", func() {
+		It("should succeed - cascade a platform", func() {
 			op := types.Operation{
 				Base: types.Base{
 					ID:        rootOpID,
@@ -119,31 +118,9 @@ var _ = Describe("Poll Cascade Delete", func() {
 			validateDuplicationsWaited(fullTree)
 		})
 
-		It("platform with container instance should fail", func() {
+		FIt("should failed - container failed to be deleted when cascade a platform", func() {
 			registerInstanceLastOPHandlers(brokerServer, "failed")
-			createOSBInstance(ctx, ctx.SMWithBasic, brokerID, "container-instance", map[string]interface{}{
-				"service_id":        "test-service",
-				"plan_id":           "plan-service",
-				"organization_guid": "my-org",
-			})
-			createOSBInstance(ctx, ctx.SMWithBasic, brokerID, "child-instance", map[string]interface{}{
-				"service_id":        "test-service",
-				"plan_id":           "plan-service",
-				"organization_guid": "my-org",
-			})
-
-			containerInstance, err := ctx.SMRepository.Get(context.Background(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "name", "container-instance"))
-			Expect(err).NotTo(HaveOccurred())
-			instanceInContainer, err := ctx.SMRepository.Get(context.Background(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "name", "child-instance"))
-			Expect(err).NotTo(HaveOccurred())
-
-			change := types.LabelChange{
-				Operation: "add",
-				Key:       "containerID",
-				Values:    []string{containerInstance.GetID()},
-			}
-			_, err = ctx.SMRepository.Update(context.Background(), instanceInContainer, []*types.LabelChange{&change}, query.ByField(query.EqualsOperator, "id", instanceInContainer.GetID()))
-			Expect(err).NotTo(HaveOccurred())
+			createContainer()
 
 			op := types.Operation{
 				Base: types.Base{
@@ -159,7 +136,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 				ResourceType:  types.PlatformType,
 			}
 			newCtx := context.WithValue(context.Background(), cascade.ContainerKey{}, "containerID")
-			_, err = ctx.SMRepository.Create(newCtx, &op)
+			_, err := ctx.SMRepository.Create(newCtx, &op)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("waiting cascading process to finish")
@@ -252,19 +229,63 @@ var _ = Describe("Poll Cascade Delete", func() {
 			}
 		})
 
-		It("Cascade container", func() {
+		It("should succeeded - cascade a container", func() {
 
 		})
 
-		It("Activate a orphan mitigation for instance and expect for failures", func() {
+		It("should failed - activate a orphan mitigation for instance and expect for failures", func() {
 
 		})
 
-		It("Handle a stuck operation in cascade tree", func() {
+		It("should succeeded - activate a orphan mitigation and wait it recover", func() {
+
+		})
+
+		It("should failed - handle a stuck operation in cascade tree", func() {
 
 		})
 	})
 })
+
+func createContainer() {
+	createOSBInstance(ctx, ctx.SMWithBasic, brokerID, "container-instance", map[string]interface{}{
+		"service_id":        "test-service",
+		"plan_id":           "plan-service",
+		"organization_guid": "my-org",
+	})
+	containerInstanceID := createSMAAPInstance(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
+		"name":            "instance-in-container",
+		"service_plan_id": plan.GetID(),
+	})
+
+	containerInstance, err := ctx.SMRepository.Get(context.Background(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "name", "container-instance"))
+	Expect(err).NotTo(HaveOccurred())
+	instanceInContainer, err := ctx.SMRepository.Get(context.Background(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "id", containerInstanceID))
+	Expect(err).NotTo(HaveOccurred())
+
+	change := types.LabelChange{
+		Operation: "add",
+		Key:       "containerID",
+		Values:    []string{containerInstance.GetID()},
+	}
+
+	_, err = ctx.SMScheduler.ScheduleSyncStorageAction(context.TODO(), &types.Operation{
+		Base: types.Base{
+			ID:        "afasfasfasfasf",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Ready:     true,
+		},
+		Type:          types.UPDATE,
+		State:         types.IN_PROGRESS,
+		ResourceID:    instanceInContainer.GetID(),
+		ResourceType:  types.ServiceInstanceType,
+		CorrelationID: "-",
+	}, func(ctx context.Context, repository storage.Repository) (object types.Object, e error) {
+		return repository.Update(ctx, instanceInContainer, []*types.LabelChange{&change}, query.ByField(query.EqualsOperator, "id", instanceInContainer.GetID()))
+	})
+	Expect(err).NotTo(HaveOccurred())
+}
 
 func validateDuplicationsWaited(fullTree *tree) {
 	By("validating duplications waited and updated like sibling operators")
