@@ -41,7 +41,7 @@ func (u *CascadeUtils) GetAllLevelsCascadeOperations(ctx context.Context, object
 	return operations, nil
 }
 
-func (u *CascadeUtils)  getObjectChildren(ctx context.Context, object types.Object, storage storage.Repository) ([]types.ObjectList, error) {
+func (u *CascadeUtils) getObjectChildren(ctx context.Context, object types.Object, storage storage.Repository) ([]types.ObjectList, error) {
 	var children []types.ObjectList
 	isBroker := object.GetType() == types.ServiceBrokerType
 	if isBroker {
@@ -69,58 +69,58 @@ func (u *CascadeUtils)  getObjectChildren(ctx context.Context, object types.Obje
 }
 
 func (u *CascadeUtils) validateNoGlobalInstances(ctx context.Context, broker types.Object, brokerChildren []types.ObjectList, repository storage.Repository) error {
-		platformIdsMap := make(map[string]bool)
-		for _, children := range brokerChildren {
-			for i := 0; i < children.Len(); i++ {
-				instance, ok := children.ItemAt(i).(*types.ServiceInstance)
-				if !ok {
-					return fmt.Errorf("broker %s has children not of type %s", broker.GetID(), types.ServiceInstanceType)
-				}
-				if _, ok := platformIdsMap[instance.PlatformID]; !ok {
-					platformIdsMap[instance.PlatformID] = true
-				}
+	platformIdsMap := make(map[string]bool)
+	for _, children := range brokerChildren {
+		for i := 0; i < children.Len(); i++ {
+			instance, ok := children.ItemAt(i).(*types.ServiceInstance)
+			if !ok {
+				return fmt.Errorf("broker %s has children not of type %s", broker.GetID(), types.ServiceInstanceType)
+			}
+			if _, ok := platformIdsMap[instance.PlatformID]; !ok {
+				platformIdsMap[instance.PlatformID] = true
 			}
 		}
-		delete(platformIdsMap, types.SMPlatform)
+	}
+	delete(platformIdsMap, types.SMPlatform)
 
-		platformIds := make([]string, len(platformIdsMap))
-		index := 0
-		for id, _ := range platformIdsMap {
-			platformIds[index] = id
-			index++
-		}
+	platformIds := make([]string, len(platformIdsMap))
+	index := 0
+	for id, _ := range platformIdsMap {
+		platformIds[index] = id
+		index++
+	}
 
-		platforms, err := repository.List(ctx, types.PlatformType, query.ByField(query.InOperator, "id", platformIds...))
-		if err != nil {
-			return err
+	platforms, err := repository.List(ctx, types.PlatformType, query.ByField(query.InOperator, "id", platformIds...))
+	if err != nil {
+		return err
+	}
+	for i := 0; i < platforms.Len(); i++ {
+		platform := platforms.ItemAt(i)
+		labels := platform.GetLabels()
+		if _, found := labels[u.TenantIdentifier]; !found {
+			return fmt.Errorf("broker %s has instances from global platform", broker.GetID())
 		}
-		for i := 0; i < platforms.Len(); i++ {
-			platform := platforms.ItemAt(i)
-			labels := platform.GetLabels()
-			if _, found := labels[u.TenantIdentifier]; !found {
-				return fmt.Errorf("broker %s has instances from global platform", broker.GetID())
-			}
-		}
-		return nil
+	}
+	return nil
 }
 
 func enrichBrokersOfferings(ctx context.Context, brokerObj types.Object, storage storage.Repository) error {
-		broker := brokerObj.(*types.ServiceBroker)
-		serviceOfferings, err := storage.List(ctx, types.ServiceOfferingType, query.ByField(query.EqualsOperator, "broker_id", broker.GetID()))
+	broker := brokerObj.(*types.ServiceBroker)
+	serviceOfferings, err := storage.List(ctx, types.ServiceOfferingType, query.ByField(query.EqualsOperator, "broker_id", broker.GetID()))
+	if err != nil {
+		return err
+	}
+	for j := 0; j < serviceOfferings.Len(); j++ {
+		serviceOffering := serviceOfferings.ItemAt(j).(*types.ServiceOffering)
+		servicePlans, err := storage.List(ctx, types.ServicePlanType, query.ByField(query.EqualsOperator, "service_offering_id", serviceOffering.GetID()))
 		if err != nil {
 			return err
 		}
-		for j := 0; j < serviceOfferings.Len(); j++ {
-			serviceOffering := serviceOfferings.ItemAt(j).(*types.ServiceOffering)
-			servicePlans, err := storage.List(ctx, types.ServicePlanType, query.ByField(query.EqualsOperator, "service_offering_id", serviceOffering.GetID()))
-			if err != nil {
-				return err
-			}
-			for g := 0; g < serviceOfferings.Len(); g++ {
-				serviceOffering.Plans = append(serviceOffering.Plans, servicePlans.ItemAt(g).(*types.ServicePlan))
-			}
-			broker.Services = append(broker.Services, serviceOffering)
+		for g := 0; g < serviceOfferings.Len(); g++ {
+			serviceOffering.Plans = append(serviceOffering.Plans, servicePlans.ItemAt(g).(*types.ServicePlan))
 		}
+		broker.Services = append(broker.Services, serviceOffering)
+	}
 	return nil
 }
 
@@ -134,15 +134,19 @@ func GetSubOperations(ctx context.Context, operation *types.Operation, repositor
 	}
 	for i := 0; i < subOperations.Len(); i++ {
 		subOperation := subOperations.ItemAt(i).(*types.Operation)
-		switch subOperation.State {
-		case types.SUCCEEDED:
-			cascadedOperations.SucceededOperations = append(cascadedOperations.SucceededOperations, subOperation)
-		case types.FAILED:
-			cascadedOperations.FailedOperations = append(cascadedOperations.FailedOperations, subOperation)
-		case types.IN_PROGRESS:
-			cascadedOperations.InProgressOperations = append(cascadedOperations.InProgressOperations, subOperation)
-		case types.PENDING:
-			cascadedOperations.PendingOperations = append(cascadedOperations.PendingOperations, subOperation)
+		if !subOperation.DeletionScheduled.IsZero() {
+			cascadedOperations.OrphanMitigationOperations = append(cascadedOperations.OrphanMitigationOperations, subOperation)
+		} else {
+			switch subOperation.State {
+			case types.SUCCEEDED:
+				cascadedOperations.SucceededOperations = append(cascadedOperations.SucceededOperations, subOperation)
+			case types.FAILED:
+				cascadedOperations.FailedOperations = append(cascadedOperations.FailedOperations, subOperation)
+			case types.IN_PROGRESS:
+				cascadedOperations.InProgressOperations = append(cascadedOperations.InProgressOperations, subOperation)
+			case types.PENDING:
+				cascadedOperations.PendingOperations = append(cascadedOperations.PendingOperations, subOperation)
+			}
 		}
 	}
 	return &cascadedOperations, nil
@@ -173,7 +177,7 @@ func makeCascadeOPForChild(object types.Object, operation *types.Operation) (*ty
 	}, nil
 }
 
-func SameResourceIsAlreadyInProgress(ctx context.Context, storage storage.Repository, resourceID string) (bool, error) {
+func SameResourceIsAlreadyInProgress(ctx context.Context, storage storage.Repository, resourceID string, cascadeRootID string) (bool, error) {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "resource_id", resourceID),
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
@@ -186,6 +190,20 @@ func SameResourceIsAlreadyInProgress(ctx context.Context, storage storage.Reposi
 	if cnt > 0 {
 		return true, nil
 	}
+
+	criteriaForOrphanMitigationInTheSameTree := []query.Criterion{
+		query.ByField(query.EqualsOperator, "resource_id", resourceID),
+		query.ByField(query.NotEqualsOperator, "deletion_scheduled", ZeroTime),
+		query.ByField(query.EqualsOperator, "cascade_root_id", cascadeRootID),
+	}
+	cnt, err = storage.Count(ctx, types.OperationType, criteriaForOrphanMitigationInTheSameTree...)
+	if err != nil {
+		return false, err
+	}
+	if cnt > 0 {
+		return true, nil
+	}
+
 	return false, nil
 }
 

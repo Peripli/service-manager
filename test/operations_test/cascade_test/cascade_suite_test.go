@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/multitenancy"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -17,7 +18,6 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/tidwall/gjson"
 	"net/http"
-	"testing"
 	"time"
 )
 
@@ -33,26 +33,23 @@ var (
 )
 
 const (
-	polling         = 1 * time.Millisecond
-	maintainerRetry = 1 * time.Second
-	actionTimeout   = 2 * time.Second
-	cleanupInterval = 9999 * time.Hour
-	pollCascade     = 500 * time.Millisecond
-	reconciliation  = 9999 * time.Hour
-	lifespan        = 1 * time.Millisecond
+	polling                 = 1 * time.Millisecond
+	maintainerRetry         = 1 * time.Second
+	actionTimeout           = 2 * time.Second
+	cleanupInterval         = 9999 * time.Hour
+	pollCascade             = 500 * time.Millisecond
+	reconciliation          = 9999 * time.Hour
+	lifespan                = 1 * time.Millisecond
+	cascadeOrphanMitigation = 5 * time.Second
 )
-
-func TestCascade(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Cascade Test Suite")
-}
-
 
 var queryForOperationsInTheSameTree = query.ByField(query.EqualsOperator, "cascade_root_id", rootOpID)
 var queryForRoot = query.ByField(query.EqualsOperator, "id", rootOpID)
 
-//var queryForInstanceOperations := query.ByField(query.EqualsOperator, "resource_type", types.ServiceInstanceType.String())
-//var queryForBindingsOperations := query.ByField(query.EqualsOperator, "resource_type", types.ServiceBindingType.String())
+var queryForInstanceOperations = query.ByField(query.EqualsOperator, "resource_type", types.ServiceInstanceType.String())
+var queryForBindingsOperations = query.ByField(query.EqualsOperator, "resource_type", types.ServiceBindingType.String())
+var queryForOrphanMitigationOperations = query.ByField(query.NotEqualsOperator, "deletion_scheduled", operations.ZeroTime)
+
 //var queryForPlatformOperations := query.ByField(query.EqualsOperator, "resource_type", types.PlatformType.String())
 //var queryForTenantOperations := query.ByField(query.EqualsOperator, "resource_type", types.TenantType.String())
 //var queryForBrokerOperations := query.ByField(query.EqualsOperator, "resource_type", types.ServiceBrokerType.String())
@@ -74,6 +71,7 @@ var _ = BeforeEach(func() {
 			e.Set("operations.poll_cascade_interval", pollCascade)
 			e.Set("operations.lifespan", lifespan)
 			e.Set("operations.reconciliation_operation_timeout", reconciliation)
+			e.Set("operations.cascade_orphan_mitigation_timeout", cascadeOrphanMitigation)
 		}
 	}
 	postHook := postHookWithOperationsConfig()
@@ -138,7 +136,6 @@ var _ = JustBeforeEach(func() {
 	})
 })
 
-
 func createOSBInstance(ctx *TestContext, sm *SMExpect, brokerID string, instanceID string, osbContext map[string]interface{}) {
 	smBrokerURL := ctx.Servers[SMServer].URL() + "/v1/osb/" + brokerID
 	sm.PUT(smBrokerURL+"/v2/service_instances/"+instanceID).
@@ -158,13 +155,14 @@ func createSMAAPInstance(ctx *TestContext, sm *SMExpect, context map[string]inte
 		Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 }
 
-/*func createSMAAPBinding(ctx *TestContext, sm *SMExpect, context map[string]interface{}) {
+func createSMAAPBinding(ctx *TestContext, sm *SMExpect, context map[string]interface{}) {
 	smBrokerURL := ctx.Servers[SMServer].URL()
 	sm.POST(smBrokerURL+web.ServiceBindingsURL).
 		WithQuery("async", false).
 		WithJSON(context).
-		Expect()
-}*/
+		Expect().
+		Status(http.StatusCreated)
+}
 
 func createOSBBinding(ctx *TestContext, sm *SMExpect, brokerID string, instanceID string, bindingID string, osbContext map[string]interface{}) {
 	smBrokerURL := ctx.Servers[SMServer].URL() + "/v1/osb/" + brokerID
@@ -247,6 +245,7 @@ func SimpleCatalog(serviceID, planID string) SBCatalog {
 			"id": "%s",
 			"description": "A fake service.",
 			"plans": [{
+				"bindable": true,
 				"name": "fake-plan-1",
 				"id": "%s",
 				"description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections."

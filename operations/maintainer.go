@@ -357,7 +357,7 @@ func (om *Maintainer) PollCascadedDeleteOperations() {
 					logger.Warnf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
 				}
 			} else {
-				sameResourceInPollingState, err := SameResourceIsAlreadyInProgress(ctx, om.repository, operation.ResourceID)
+				sameResourceInPollingState, err := SameResourceIsAlreadyInProgress(ctx, om.repository, operation.ResourceID, operation.CascadeRootID)
 				if err != nil {
 					logger.Warnf("Failed to validate if operation with ID (%s) is in polling: %s", operation.ID, err)
 					continue

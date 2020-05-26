@@ -17,11 +17,12 @@ type Cascade interface {
 }
 
 type CascadedOperations struct {
-	AllOperationsCount   int
-	FailedOperations     []*types.Operation
-	InProgressOperations []*types.Operation
-	SucceededOperations  []*types.Operation
-	PendingOperations    []*types.Operation
+	AllOperationsCount         int
+	FailedOperations           []*types.Operation
+	InProgressOperations       []*types.Operation
+	SucceededOperations        []*types.Operation
+	OrphanMitigationOperations []*types.Operation
+	PendingOperations          []*types.Operation
 }
 
 type Error struct {

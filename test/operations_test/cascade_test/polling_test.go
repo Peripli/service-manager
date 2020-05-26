@@ -8,11 +8,19 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/types/cascade"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"net/http"
 	"strconv"
+	"testing"
 	"time"
 )
+
+func TestCascade(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Cascade Test Suite")
+}
 
 var _ = Describe("Poll Cascade Delete", func() {
 	Context("Cascade Delete", func() {
@@ -120,7 +128,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 
 		It("should failed - container failed to be deleted when cascade a platform", func() {
 			registerInstanceLastOPHandlers(brokerServer, "failed")
-			createContainer()
+			createContainerWithChildren()
 
 			op := types.Operation{
 				Base: types.Base{
@@ -230,15 +238,219 @@ var _ = Describe("Poll Cascade Delete", func() {
 		})
 
 		It("should succeeded - cascade a container", func() {
+			containerID := createContainerWithChildren()
 
+			op := types.Operation{
+				Base: types.Base{
+					ID:        rootOpID,
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				Description:   "bla",
+				CascadeRootID: rootOpID,
+				ResourceID:    containerID,
+				Type:          types.DELETE,
+				ResourceType:  types.ServiceInstanceType,
+			}
+			newCtx := context.WithValue(context.Background(), cascade.ContainerKey{}, "containerID")
+			_, err := ctx.SMRepository.Create(newCtx, &op)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("waiting cascading process to finish")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForRoot,
+					querySucceeded)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*3+pollCascade*3).Should(Equal(1))
+
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootOpID)
+			Expect(err).NotTo(HaveOccurred())
+
+			rootChildren := fullTree.byParentID[rootOpID]
+			Expect(len(rootChildren)).To(Equal(1), "expected container has 1 instance")
+			Expect(len(fullTree.byParentID[rootChildren[0].ID])).To(Equal(1), "expected instance has 1 binding")
+
+			validateParentsRanAfterChildren(fullTree)
+			validateDuplicationsWaited(fullTree)
+			AssertOperationCount(func(count int) { Expect(count).To(Equal(3)) }, queryForOperationsInTheSameTree)
 		})
 
 		It("should failed - activate a orphan mitigation for instance and expect for failures", func() {
+			pollingCount := 0
+			brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
+				if pollingCount == 0 {
+					pollingCount++
+					return http.StatusOK, common.Object{"state": "in progress"}
+				} else {
+					return http.StatusOK, common.Object{"state": "failed"}
+				}
+			})
 
+			op := types.Operation{
+				Base: types.Base{
+					ID:        rootOpID,
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				Description:   "bla",
+				CascadeRootID: rootOpID,
+				ResourceID:    tenantID,
+				Type:          types.DELETE,
+				ResourceType:  types.TenantType,
+			}
+			_, err := ctx.SMRepository.Create(context.TODO(), &op)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("validating binding failed and marked as orphan mitigation")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForOperationsInTheSameTree,
+					queryFailedOperations,
+					queryForOrphanMitigationOperations,
+					queryForBindingsOperations)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*2+pollCascade*2).Should(Equal(2))
+
+			By("validating that instances that haven't bindings succeeded to be deleted")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForOperationsInTheSameTree,
+					querySucceeded,
+					queryForInstanceOperations)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*2+pollCascade*2).Should(Equal(2))
+
+			By("validating bindings released from orphan mitigation")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForOperationsInTheSameTree,
+					queryForOrphanMitigationOperations)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*2+maintainerRetry*2+cascadeOrphanMitigation*4).Should(Equal(0))
+
+			By("validating root marked as failed")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForRoot,
+					queryFailedOperations)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*8+maintainerRetry*8).Should(Equal(1))
+
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootOpID)
+			Expect(err).NotTo(HaveOccurred())
+
+			validateParentsRanAfterChildren(fullTree)
+			validateDuplicationsWaited(fullTree)
 		})
 
 		It("should succeeded - activate a orphan mitigation and wait it recover", func() {
+			pollingCount := 0
+			brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
+				if pollingCount == 0 {
+					pollingCount++
+					return http.StatusOK, common.Object{"state": "in progress"}
+				} else {
+					return http.StatusOK, common.Object{"state": "failed"}
+				}
+			})
 
+			op := types.Operation{
+				Base: types.Base{
+					ID:        rootOpID,
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				Description:   "bla",
+				CascadeRootID: rootOpID,
+				ResourceID:    tenantID,
+				Type:          types.DELETE,
+				ResourceType:  types.TenantType,
+			}
+			_, err := ctx.SMRepository.Create(context.TODO(), &op)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("validating binding failed and marked as orphan mitigation")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForOperationsInTheSameTree,
+					queryFailedOperations,
+					queryForOrphanMitigationOperations,
+					queryForBindingsOperations)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*2+pollCascade*2).Should(Equal(2))
+
+			By("validating that instances that haven't bindings succeeded to be deleted")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForOperationsInTheSameTree,
+					querySucceeded,
+					queryForInstanceOperations)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*2+pollCascade*2).Should(Equal(2))
+
+			brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
+				return http.StatusOK, common.Object{"state": "succeeded"}
+			})
+
+			By("validating bindings released from orphan mitigation and mark as succeeded")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForBindingsOperations,
+					queryForOperationsInTheSameTree,
+					querySucceeded)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*2+maintainerRetry*2+cascadeOrphanMitigation*4).Should(Equal(4))
+
+			By("validating root is succeeded")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForRoot,
+					querySucceeded)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*8+maintainerRetry*8).Should(Equal(1))
+
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootOpID)
+			Expect(err).NotTo(HaveOccurred())
+
+			validateParentsRanAfterChildren(fullTree)
+			validateDuplicationsWaited(fullTree)
 		})
 
 		It("should failed - handle a stuck operation in cascade tree", func() {
@@ -247,7 +459,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 	})
 })
 
-func createContainer() {
+func createContainerWithChildren() string {
 	createOSBInstance(ctx, ctx.SMWithBasic, brokerID, "container-instance", map[string]interface{}{
 		"service_id":        "test-service",
 		"plan_id":           "plan-service",
@@ -256,6 +468,10 @@ func createContainer() {
 	containerInstanceID := createSMAAPInstance(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
 		"name":            "instance-in-container",
 		"service_plan_id": plan.GetID(),
+	})
+	createSMAAPBinding(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
+		"name":                "binding-in-container",
+		"service_instance_id": containerInstanceID,
 	})
 
 	containerInstance, err := ctx.SMRepository.Get(context.Background(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "name", "container-instance"))
@@ -285,6 +501,7 @@ func createContainer() {
 		return repository.Update(ctx, instanceInContainer, []*types.LabelChange{&change}, query.ByField(query.EqualsOperator, "id", instanceInContainer.GetID()))
 	})
 	Expect(err).NotTo(HaveOccurred())
+	return "container-instance"
 }
 
 func validateDuplicationsWaited(fullTree *tree) {
