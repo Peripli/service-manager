@@ -106,7 +106,7 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 func doesExistCascadeOperationForResource(ctx context.Context, storage storage.Repository, operation *types.Operation) (error, bool) {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
-		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
+		query.ByField(query.InOperator, "state", string(types.IN_PROGRESS), string(types.PENDING)),
 		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
 	}
 	ops, err := storage.List(ctx, types.OperationType, criteria...)

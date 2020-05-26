@@ -18,8 +18,8 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 	})
 	Context("Create", func() {
 
-		Context("having global instances", func() {
-			It("should fail ", func() {
+		Context("should fail", func() {
+			It("having global instances", func() {
 				common.CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, plan.GetID())
 				op := types.Operation{
 					Base: types.Base{
@@ -30,7 +30,6 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 					Description:   "bla",
 					ResourceID:    tenantID,
 					CascadeRootID: rootOpID,
-					State:         types.PENDING,
 					Type:          types.DELETE,
 					ResourceType:  types.TenantType,
 				}
@@ -40,10 +39,51 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 				expectedErrMsg := fmt.Sprintf("broker %s has instances from global platform", brokerID)
 				Expect(err.Error()).To(Equal(expectedErrMsg))
 			})
+
+			It("not valid op root not equals op id", func() {
+				op := types.Operation{
+					Base: types.Base{
+						ID:        rootOpID,
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+					},
+					Description:   "bla",
+					ResourceID:    tenantID,
+					CascadeRootID: "fake-id",
+					Type:          types.DELETE,
+					ResourceType:  types.TenantType,
+				}
+
+				_, err := ctx.SMRepository.Create(context.TODO(), &op)
+				Expect(err).To(HaveOccurred())
+				expectedErrMsg := fmt.Sprintf("root operation should have the same CascadeRootID and ID")
+				Expect(err.Error()).To(Equal(expectedErrMsg))
+			})
+
+			It("resourceID not exists", func() {
+				op := types.Operation{
+					Base: types.Base{
+						ID:        rootOpID,
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+					},
+					Description:   "bla",
+					ResourceID:    "fake-resource",
+					CascadeRootID: rootOpID,
+					Type:          types.DELETE,
+					ResourceType:  types.PlatformType,
+				}
+
+				_, err := ctx.SMRepository.Create(context.TODO(), &op)
+				Expect(err).To(HaveOccurred())
+				expectedErrMsg := fmt.Sprintf("not found")
+				Expect(err.Error()).To(Equal(expectedErrMsg))
+			})
+
 		})
 
-		Context ("not cascade ops", func() {
-			It("should skip", func() {
+		Context ("should skip", func() {
+			It("not cascade ops", func() {
 				op := types.Operation{
 					Base: types.Base{
 						ID:        rootOpID,
@@ -60,11 +100,55 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 				_, err := ctx.SMRepository.Create(context.TODO(), &op)
 				Expect(err).NotTo(HaveOccurred())
 				AssertOperationCount(func(count int) { Expect(count).To(Equal(1)) }, query.ByField(query.EqualsOperator, "resource_id", tenantID))
+				AssertOperationCount(func(count int) { Expect(count).To(Equal(0)) }, query.ByField(query.EqualsOperator, "parent_id", rootOpID))
+			})
+
+			It("op type different than delete", func() {
+				op := types.Operation{
+					Base: types.Base{
+						ID:        rootOpID,
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+					},
+					Description:  "bla",
+					ResourceID:   tenantID,
+					State:        types.PENDING,
+					Type:         types.CREATE,
+					ResourceType: types.TenantType,
+				}
+
+				_, err := ctx.SMRepository.Create(context.TODO(), &op)
+				Expect(err).NotTo(HaveOccurred())
+				AssertOperationCount(func(count int) { Expect(count).To(Equal(1)) }, query.ByField(query.EqualsOperator, "resource_id", tenantID))
+				AssertOperationCount(func(count int) { Expect(count).To(Equal(0)) }, query.ByField(query.EqualsOperator, "parent_id", rootOpID))
+			})
+
+			It("operation for the same resource exists", func() {
+				op := types.Operation{
+					Base: types.Base{
+						ID:        rootOpID,
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+					},
+					Description:   "bla",
+					ResourceID:    tenantID,
+					CascadeRootID: rootOpID,
+					Type:          types.DELETE,
+					ResourceType:  types.TenantType,
+				}
+
+				_, err := ctx.SMRepository.Create(context.TODO(), &op)
+				Expect(err).NotTo(HaveOccurred())
+				op.ID = "some-id"
+				op.CascadeRootID = "some-id"
+				_, err = ctx.SMRepository.Create(context.TODO(), &op)
+				Expect(err).NotTo(HaveOccurred())
+				AssertOperationCount(func(count int) { Expect(count).To(Equal(1)) }, query.ByField(query.EqualsOperator, "resource_id", tenantID))
 			})
 		})
 
-		Context("cascade ops", func() {
-			It("should succeed", func() {
+		Context("should succeed", func() {
+			It("cascade ops", func() {
 				op := types.Operation{
 					Base: types.Base{
 						ID:        rootOpID,
