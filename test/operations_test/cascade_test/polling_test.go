@@ -229,7 +229,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 			Expect(len(errors.Errors)).To(Equal(2))
 
 			for _, e := range errors.Errors {
-				Expect(e.ParentID).To(Equal("test-instance"))
+				Expect(e.ParentID).To(Equal(osbInstanceID))
 				Expect(e.ResourceID).To(Or(Equal("binding1"), Equal("binding2")))
 				Expect(len(e.Message)).Should(BeNumerically(">", 0))
 				Expect(e.ResourceType).To(Equal(types.ServiceBindingType))

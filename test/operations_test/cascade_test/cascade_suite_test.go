@@ -30,6 +30,7 @@ var (
 	tenantOperationsCount = 11 //the number of operations that will be created after tenant creation in JustBeforeEach
 	rootOpID              = "op1"
 	tenantID              = "tenant_value"
+	osbInstanceID        = "test-instance"
 )
 
 const (
@@ -119,17 +120,17 @@ var _ = JustBeforeEach(func() {
 		"name":            "test-instance-smaap",
 		"service_plan_id": plan.GetID(),
 	})
-	createOSBInstance(ctx, ctx.SMWithBasic, brokerID, "test-instance", map[string]interface{}{
+	createOSBInstance(ctx, ctx.SMWithBasic, brokerID, osbInstanceID, map[string]interface{}{
 		"service_id":        "test-service",
 		"plan_id":           "plan-service",
 		"organization_guid": "my-org",
 	})
-	createOSBBinding(ctx, ctx.SMWithBasic, brokerID, "test-instance", "binding1", map[string]interface{}{
+	createOSBBinding(ctx, ctx.SMWithBasic, brokerID, osbInstanceID, "binding1", map[string]interface{}{
 		"service_id":        "test-service",
 		"plan_id":           "plan-service",
 		"organization_guid": "my-org",
 	})
-	createOSBBinding(ctx, ctx.SMWithBasic, brokerID, "test-instance", "binding2", map[string]interface{}{
+	createOSBBinding(ctx, ctx.SMWithBasic, brokerID, osbInstanceID, "binding2", map[string]interface{}{
 		"service_id":        "test-service",
 		"plan_id":           "plan-service",
 		"organization_guid": "my-org",
