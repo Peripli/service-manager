@@ -148,21 +148,14 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 		})
 
 		Context("should succeed", func() {
+			It("empty virtual operation", func() {
+				triggerCascadeOperation(context.Background(), types.TenantType, "fake-tenant-id", rootOpID)
+				AssertOperationCount(func(count int) { Expect(count).To(Equal(1)) }, query.ByField(query.EqualsOperator, "resource_id", "fake-id"))
+			})
+
 			It("virtual cascade op", func() {
-				op := types.Operation{
-					Base: types.Base{
-						ID:        rootOpID,
-						CreatedAt: time.Now(),
-						UpdatedAt: time.Now(),
-					},
-					Description:   "bla",
-					CascadeRootID: rootOpID,
-					ResourceID:    tenantID,
-					Type:          types.DELETE,
-					ResourceType:  types.TenantType,
-				}
-				_, err := ctx.SMRepository.Create(context.TODO(), &op)
-				Expect(err).NotTo(HaveOccurred())
+				triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
+
 				tree, err := fetchFullTree(ctx.SMRepository, rootOpID)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(len(tree.byOperationID)).To(Equal(11))
@@ -183,21 +176,9 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 			})
 
 			It("non virtual cascade op", func() {
-				op := types.Operation{
-					Base: types.Base{
-						ID:        rootOpID,
-						CreatedAt: time.Now(),
-						UpdatedAt: time.Now(),
-					},
-					Description:   "bla",
-					CascadeRootID: rootOpID,
-					ResourceID:    brokerID,
-					Type:          types.DELETE,
-					ResourceType:  types.ServiceBrokerType,
-				}
-				_, err := ctx.SMRepository.Create(context.TODO(), &op)
-				Expect(err).NotTo(HaveOccurred())
+				triggerCascadeOperation(context.Background(), types.ServiceBrokerType, brokerID, rootOpID)
 				tree, err := fetchFullTree(ctx.SMRepository, rootOpID)
+				Expect(err).ToNot(HaveOccurred())
 				Expect(len(tree.byOperationID)).To(Equal(5))
 				// Broker[instance, smaap_instance]
 				Expect(len(tree.byParentID[rootOpID])).To(Equal(2))
