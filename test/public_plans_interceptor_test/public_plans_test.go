@@ -80,6 +80,11 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 		return ctx.SMWithOAuth.ListWithQuery(web.VisibilitiesURL, fmt.Sprintf("fieldQuery=service_plan_id eq '%s'", servicePlanID))
 	}
 
+	findVisibilitiesForServicePlanIDAndPlatformID := func(servicePlanID, platformID string) *httpexpect.Array {
+		return ctx.SMWithOAuth.ListWithQuery(web.VisibilitiesURL,
+			fmt.Sprintf("fieldQuery=service_plan_id eq '%s' and platform_id eq '%s'", servicePlanID, platformID))
+	}
+
 	findOneVisibilityForServicePlanID := func(servicePlanID string) map[string]interface{} {
 		vs := findVisibilitiesForServicePlanID(servicePlanID)
 
@@ -89,6 +94,11 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 
 	verifyZeroVisibilityForServicePlanID := func(servicePlanID string) {
 		vs := findVisibilitiesForServicePlanID(servicePlanID)
+		vs.Length().Equal(0)
+	}
+
+	verifyZeroVisibilityForServicePlanIDAndPlatformID := func(servicePlanID, platformID string) {
+		vs := findVisibilitiesForServicePlanIDAndPlatformID(servicePlanID, platformID)
 		vs.Length().Equal(0)
 	}
 
@@ -631,4 +641,135 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 		})
 	})
 
+	Context("when a plan has specified excluded platform names", func() {
+		var excludedPlatformsByID map[string]*types.Platform
+		var planID string
+		var platformsCount float64
+
+		var getExcludedPlatformNames = func() []string {
+			result := make([]string, 0)
+			for _, platform := range excludedPlatformsByID {
+				result = append(result, platform.Name)
+			}
+
+			return result
+		}
+
+		BeforeEach(func() {
+			platformsCount = ctx.SMWithOAuth.GET(web.PlatformsURL).Expect().Status(http.StatusOK).JSON().Path("$.num_items").Number().Raw()
+			Expect(platformsCount).ToNot((BeZero()))
+		})
+
+		JustBeforeEach(func() {
+			catalog, err := sjson.Set(testCatalog, "services.0.plans.0.metadata.excludedPlatformNames", getExcludedPlatformNames())
+			Expect(err).ToNot(HaveOccurred())
+
+			existingBrokerServer.Catalog = common.SBCatalog(catalog)
+
+			plan := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_name eq '%s'", oldPublicPlanCatalogName))
+
+			plan.Path("$[*].metadata.excludedPlatformNames").NotNull().Array().Empty()
+
+			planID = plan.First().Object().Value("id").String().Raw()
+			Expect(planID).ToNot(BeEmpty())
+
+			visibilities := findOneVisibilityForServicePlanID(planID)
+			Expect(visibilities["platform_id"]).To(Equal(""))
+		})
+
+		Context("when a plan excludes only one platform name", func() {
+			BeforeEach(func() {
+				platform := ctx.RegisterPlatform()
+				excludedPlatformsByID = map[string]*types.Platform{platform.ID: platform}
+			})
+
+			It("creates visibilities for all other platforms", func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+
+				By("does not create visibility for excluded platform")
+				for excludedPlatformID := range excludedPlatformsByID {
+					verifyZeroVisibilityForServicePlanIDAndPlatformID(planID, excludedPlatformID)
+				}
+
+				By("creates visibilities for all non-excluded platform")
+				vis := findVisibilitiesForServicePlanID(planID)
+				Expect(vis.Length().Raw()).To(Equal(platformsCount))
+
+			})
+		})
+
+		Context("when a plan excludes multiple platform names", func() {
+
+			BeforeEach(func() {
+				firstPlatform := ctx.RegisterPlatform()
+				secondPlatform := ctx.RegisterPlatform()
+				excludedPlatformsByID = map[string]*types.Platform{
+					firstPlatform.ID:  firstPlatform,
+					secondPlatform.ID: secondPlatform,
+				}
+			})
+
+			It("creates a single visibility for each supported platform", func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+
+				By("does not create visibility for excluded platforms")
+				for excludedPlatformID := range excludedPlatformsByID {
+					verifyZeroVisibilityForServicePlanIDAndPlatformID(planID, excludedPlatformID)
+				}
+
+				By("creates visibilities for all non-excluded platform")
+				vis := findVisibilitiesForServicePlanID(planID)
+				Expect(vis.Length().Raw()).To(Equal(platformsCount))
+			})
+		})
+
+		Context("when a broker has a plan excluding a platforms and another supporting all platforms", func() {
+			var newPlanCatalogName string
+
+			BeforeEach(func() {
+				cfPlatform := ctx.RegisterPlatformWithType(types.CFPlatformType)
+				excludedPlatformsByID = map[string]*types.Platform{
+					cfPlatform.ID: cfPlatform,
+				}
+			})
+
+			JustBeforeEach(func() {
+				newPlan := common.GenerateFreeTestPlan()
+				newPlanCatalogName = gjson.Get(newPlan, "name").String()
+				Expect(newPlanCatalogName).ToNot(BeEmpty())
+
+				catalog, err := sjson.Set(string(existingBrokerServer.Catalog), "services.0.plans.-1", common.JSONToMap(newPlan))
+				Expect(err).ShouldNot(HaveOccurred())
+
+				existingBrokerServer.Catalog = common.SBCatalog(catalog)
+			})
+
+			It("creates visibilities according to both platform names and types", func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+
+				By("no visibility created for plan with excluded platform on that platform")
+				for excludedPlatformID := range excludedPlatformsByID {
+					verifyZeroVisibilityForServicePlanIDAndPlatformID(planID, excludedPlatformID)
+				}
+
+				By("visibilities created for plan with excluded platform on all non-excluded platform")
+				vis := findVisibilitiesForServicePlanID(planID)
+				Expect(vis.Length().Raw()).To(Equal(platformsCount))
+
+				By("visibility created for plan supporting all platforms on all platform")
+				newPlanID := findDatabaseIDForServicePlanByCatalogName(newPlanCatalogName)
+				allPlatformsVisibility := findOneVisibilityForServicePlanID(newPlanID)
+				Expect(allPlatformsVisibility["platform_id"]).To(BeEmpty())
+			})
+		})
+	})
 })
