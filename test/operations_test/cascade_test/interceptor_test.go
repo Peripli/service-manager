@@ -23,13 +23,13 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 				common.CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, plan.GetID())
 				op := types.Operation{
 					Base: types.Base{
-						ID:        rootOp,
+						ID:        rootOpID,
 						CreatedAt: time.Now(),
 						UpdatedAt: time.Now(),
 					},
 					Description:   "bla",
-					ResourceID:    tenantId,
-					CascadeRootID: rootOp,
+					ResourceID:    tenantID,
+					CascadeRootID: rootOpID,
 					State:         types.PENDING,
 					Type:          types.DELETE,
 					ResourceType:  types.TenantType,
@@ -46,12 +46,12 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 			It("should skip", func() {
 				op := types.Operation{
 					Base: types.Base{
-						ID:        rootOp,
+						ID:        rootOpID,
 						CreatedAt: time.Now(),
 						UpdatedAt: time.Now(),
 					},
 					Description:  "bla",
-					ResourceID:   tenantId,
+					ResourceID:   tenantID,
 					State:        types.PENDING,
 					Type:         types.DELETE,
 					ResourceType: types.TenantType,
@@ -59,30 +59,41 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 
 				_, err := ctx.SMRepository.Create(context.TODO(), &op)
 				Expect(err).NotTo(HaveOccurred())
-				AssertOperationCount(func(count int) { Expect(count).To(Equal(1)) }, query.ByField(query.EqualsOperator, "resource_id", tenantId))
+				AssertOperationCount(func(count int) { Expect(count).To(Equal(1)) }, query.ByField(query.EqualsOperator, "resource_id", tenantID))
 			})
 		})
 
 		Context("cascade ops", func() {
-			It("should succeed", func() {
+			FIt("should succeed", func() {
 				op := types.Operation{
 					Base: types.Base{
-						ID:        rootOp,
+						ID:        rootOpID,
 						CreatedAt: time.Now(),
 						UpdatedAt: time.Now(),
 					},
 					Description:   "bla",
-					CascadeRootID: rootOp,
-					ResourceID:    tenantId,
+					CascadeRootID: rootOpID,
+					ResourceID:    tenantID,
 					Type:          types.DELETE,
 					ResourceType:  types.TenantType,
 				}
 				_, err := ctx.SMRepository.Create(context.TODO(), &op)
 				Expect(err).NotTo(HaveOccurred())
-				// direct root children
-				AssertOperationCount(func(count int) { Expect(count).To(Equal(3)) }, query.ByField(query.EqualsOperator, "parent_id", rootOp))
-				// whole tree
-				AssertOperationCount(func(count int) { Expect(count).To(Equal(tenantOperationsCount)) }, queryForOperationsInTheSameTree)
+				tree, err := fetchFullTree(ctx.SMRepository, rootOpID)
+				Expect(err).ToNot(HaveOccurred())
+
+				platformOpID := tree.byResourceID[platformID][0].ID
+				brokerOpID := tree.byResourceID[brokerID][0].ID
+				instanceOpID := tree.byParentID[platformOpID][0].ID
+				// Tenant[broker, platform , smaap_instance]
+				Expect(len(tree.byParentID[rootOpID])).To(Equal(3))
+				// Platform [instance]
+				Expect(len(tree.byParentID[platformOpID])).To(Equal(1))
+				// Broker[instance, smaap_instance]
+				Expect(len(tree.byParentID[brokerOpID])).To(Equal(2))
+				// Instance[binding1, binding2]
+				Expect(len(tree.byParentID[instanceOpID])).To(Equal(2))
+
 			})
 		})
 

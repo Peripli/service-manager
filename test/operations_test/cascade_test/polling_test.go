@@ -49,20 +49,20 @@ var _ = Describe("Poll Cascade Delete", func() {
 
 			op := types.Operation{
 				Base: types.Base{
-					ID:        rootOp,
+					ID:        rootOpID,
 					CreatedAt: time.Now(),
 					UpdatedAt: time.Now(),
 				},
 				Description:   "bla",
-				CascadeRootID: rootOp,
-				ResourceID:    tenantId,
+				CascadeRootID: rootOpID,
+				ResourceID:    tenantID,
 				Type:          types.DELETE,
 				ResourceType:  types.TenantType,
 			}
 			_, err := ctx.SMRepository.Create(context.TODO(), &op)
 			Expect(err).NotTo(HaveOccurred())
 
-			AssertOperationCount(func(count int) { Expect(count).To(Equal(3 + subtreeCount*3)) }, query.ByField(query.EqualsOperator, "parent_id", rootOp))
+			AssertOperationCount(func(count int) { Expect(count).To(Equal(3 + subtreeCount*3)) }, query.ByField(query.EqualsOperator, "parent_id", rootOpID))
 			AssertOperationCount(func(count int) { Expect(count).To(Equal(tenantOperationsCount + subtreeCount*10)) }, queryForOperationsInTheSameTree)
 
 			By("waiting cascading process to finish")
@@ -77,7 +77,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
-			fullTree, err := fetchAFullTree(ctx.SMRepository, rootOp)
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootOpID)
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
@@ -87,12 +87,12 @@ var _ = Describe("Poll Cascade Delete", func() {
 		It("platform tree should succeed", func() {
 			op := types.Operation{
 				Base: types.Base{
-					ID:        rootOp,
+					ID:        rootOpID,
 					CreatedAt: time.Now(),
 					UpdatedAt: time.Now(),
 				},
 				Description:   "bla",
-				CascadeRootID: rootOp,
+				CascadeRootID: rootOpID,
 				ResourceID:    platformID,
 				Type:          types.DELETE,
 				ResourceType:  types.PlatformType,
@@ -112,7 +112,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
-			fullTree, err := fetchAFullTree(ctx.SMRepository, rootOp)
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootOpID)
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
@@ -147,13 +147,13 @@ var _ = Describe("Poll Cascade Delete", func() {
 
 			op := types.Operation{
 				Base: types.Base{
-					ID:        rootOp,
+					ID:        rootOpID,
 					CreatedAt: time.Now(),
 					UpdatedAt: time.Now(),
 					Ready:     true,
 				},
 				Description:   "bla",
-				CascadeRootID: rootOp,
+				CascadeRootID: rootOpID,
 				ResourceID:    platformID,
 				Type:          types.DELETE,
 				ResourceType:  types.PlatformType,
@@ -174,7 +174,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
-			fullTree, err := fetchAFullTree(ctx.SMRepository, rootOp)
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootOpID)
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
@@ -203,13 +203,13 @@ var _ = Describe("Poll Cascade Delete", func() {
 
 			op := types.Operation{
 				Base: types.Base{
-					ID:        rootOp,
+					ID:        rootOpID,
 					CreatedAt: time.Now(),
 					UpdatedAt: time.Now(),
 				},
 				Description:   "bla",
-				CascadeRootID: rootOp,
-				ResourceID:    tenantId,
+				CascadeRootID: rootOpID,
+				ResourceID:    tenantID,
 				Type:          types.DELETE,
 				ResourceType:  types.TenantType,
 			}
@@ -228,7 +228,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
-			fullTree, err := fetchAFullTree(ctx.SMRepository, rootOp)
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootOpID)
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)

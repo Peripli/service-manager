@@ -28,8 +28,8 @@ var (
 	plan                  types.Object
 	platformID            string
 	tenantOperationsCount = 11 //the number of operations that will be created after tenant creation in JustBeforeEach
-	rootOp                = "op1"
-	tenantId              = "tenant_value"
+	rootOpID              = "op1"
+	tenantID              = "tenant_value"
 )
 
 const (
@@ -48,8 +48,8 @@ func TestCascade(t *testing.T) {
 }
 
 
-var queryForOperationsInTheSameTree = query.ByField(query.EqualsOperator, "cascade_root_id", rootOp)
-var queryForRoot = query.ByField(query.EqualsOperator, "id", rootOp)
+var queryForOperationsInTheSameTree = query.ByField(query.EqualsOperator, "cascade_root_id", rootOpID)
+var queryForRoot = query.ByField(query.EqualsOperator, "id", rootOpID)
 
 //var queryForInstanceOperations := query.ByField(query.EqualsOperator, "resource_type", types.ServiceInstanceType.String())
 //var queryForBindingsOperations := query.ByField(query.EqualsOperator, "resource_type", types.ServiceBindingType.String())
@@ -85,7 +85,7 @@ var _ = BeforeEach(func() {
 		}).
 		WithTenantTokenClaims(map[string]interface{}{
 			"cid": "tenancyClient",
-			"zid": tenantId,
+			"zid": tenantID,
 		}).
 		WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 			_, err := smb.EnableMultitenancy("tenant", func(request *web.Request) (string, error) {
@@ -158,13 +158,13 @@ func createSMAAPInstance(ctx *TestContext, sm *SMExpect, context map[string]inte
 		Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 }
 
-func createSMAAPBinding(ctx *TestContext, sm *SMExpect, context map[string]interface{}) {
+/*func createSMAAPBinding(ctx *TestContext, sm *SMExpect, context map[string]interface{}) {
 	smBrokerURL := ctx.Servers[SMServer].URL()
 	sm.POST(smBrokerURL+web.ServiceBindingsURL).
 		WithQuery("async", false).
 		WithJSON(context).
 		Expect()
-}
+}*/
 
 func createOSBBinding(ctx *TestContext, sm *SMExpect, brokerID string, instanceID string, bindingID string, osbContext map[string]interface{}) {
 	smBrokerURL := ctx.Servers[SMServer].URL() + "/v1/osb/" + brokerID
@@ -255,7 +255,7 @@ func SimpleCatalog(serviceID, planID string) SBCatalog {
 	}`, serviceID, planID))
 }
 
-func fetchAFullTree(repository storage.TransactionalRepository, rootID string) (*tree, error) {
+func fetchFullTree(repository storage.TransactionalRepository, rootID string) (*tree, error) {
 	fullTree := tree{
 		byResourceID:  make(map[string][]*types.Operation),
 		byParentID:    make(map[string][]*types.Operation),
