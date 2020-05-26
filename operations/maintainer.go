@@ -81,13 +81,13 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			interval: options.CleanupInterval,
 		},
 		{
-			name:     "CleanupFinishedCascadeOperations",
-			execute:  maintainer.CleanupFinishedCascadeOperations,
+			name:     "cleanupFinishedCascadeOperations",
+			execute:  maintainer.cleanupFinishedCascadeOperations,
 			interval: options.CleanupInterval,
 		},
 		{
-			name:     "PollCascadedDeleteOperations",
-			execute:  maintainer.PollCascadedDeleteOperations,
+			name:     "pollCascadedDeleteOperations",
+			execute:  maintainer.pollCascadedDeleteOperations,
 			interval: options.PollCascadeInterval,
 		},
 		{
@@ -183,8 +183,8 @@ func (om *Maintainer) cleanupExternalOperations() {
 	log.C(om.smCtx).Debug("Finished cleaning up external operations")
 }
 
-// CleanupFinishedCascadeOperations cleans up all successful/failed internal cascade operations which are older than some specified time
-func (om *Maintainer) CleanupFinishedCascadeOperations() {
+// cleanupFinishedCascadeOperations cleans up all successful/failed internal cascade operations which are older than some specified time
+func (om *Maintainer) cleanupFinishedCascadeOperations() {
 	currentTime := time.Now()
 	rootsCriteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
@@ -324,7 +324,7 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 	}
 }
 
-func (om *Maintainer) PollCascadedDeleteOperations() {
+func (om *Maintainer) pollCascadedDeleteOperations() {
 	criteria := []query.Criterion{
 		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
 		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
