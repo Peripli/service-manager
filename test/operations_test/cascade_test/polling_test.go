@@ -16,14 +16,19 @@ import (
 	"time"
 )
 
-var _ = Describe("Poll Cascade Delete", func() {
-	Context("Cascade Delete", func() {
+var _ = Describe("cascade operations", func() {
+
+	BeforeEach(func() {
+		cleanupInterval = 9999 * time.Hour
+	})
+
+	Context("deletion", func() {
 		AfterEach(func() {
 			ctx.Cleanup()
 		})
 
 		It("should succeed - cascade a big tenant tree", func() {
-			subtreeCount := 5
+			subtreeCount := 3
 			for i := 0; i < subtreeCount; i++ {
 				registerSubaccountScopedPlatform(ctx, fmt.Sprintf("platform%s", strconv.Itoa(i*10)))
 				broker2ID, _ := registerSubaccountScopedBroker(ctx, fmt.Sprintf("test-service%s", strconv.Itoa(i*10)), fmt.Sprintf("plan-service%s", strconv.Itoa(i*10)))
@@ -147,7 +152,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 					context.Background(),
 					types.OperationType,
 					queryForRoot,
-					queryFailedOperations)
+					queryFailures)
 				Expect(err).NotTo(HaveOccurred())
 
 				return count
@@ -201,7 +206,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 					context.Background(),
 					types.OperationType,
 					queryForRoot,
-					queryFailedOperations)
+					queryFailures)
 				Expect(err).NotTo(HaveOccurred())
 
 				return count
@@ -306,7 +311,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 					context.Background(),
 					types.OperationType,
 					queryForOperationsInTheSameTree,
-					queryFailedOperations,
+					queryFailures,
 					queryForOrphanMitigationOperations,
 					queryForBindingsOperations)
 				Expect(err).NotTo(HaveOccurred())
@@ -345,7 +350,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 					context.Background(),
 					types.OperationType,
 					queryForRoot,
-					queryFailedOperations)
+					queryFailures)
 				Expect(err).NotTo(HaveOccurred())
 
 				return count
@@ -390,7 +395,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 					context.Background(),
 					types.OperationType,
 					queryForOperationsInTheSameTree,
-					queryFailedOperations,
+					queryFailures,
 					queryForOrphanMitigationOperations,
 					queryForBindingsOperations)
 				Expect(err).NotTo(HaveOccurred())
@@ -448,7 +453,101 @@ var _ = Describe("Poll Cascade Delete", func() {
 		})
 
 		It("should failed - handle a stuck operation in cascade tree", func() {
+			brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
+				time.Sleep(100 * time.Millisecond)
+				return http.StatusOK, common.Object{"state": "succeeded"}
+			})
 
+			op := types.Operation{
+				Base: types.Base{
+					ID:        rootOpID,
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				Description:   "bla",
+				CascadeRootID: rootOpID,
+				ResourceID:    tenantID,
+				Type:          types.DELETE,
+				ResourceType:  types.TenantType,
+			}
+			_, err := ctx.SMRepository.Create(context.TODO(), &op)
+			Expect(err).NotTo(HaveOccurred())
+
+			instanceOPValue, err := ctx.SMRepository.Get(context.Background(), types.OperationType,
+				query.ByField(query.EqualsOperator, "resource_id", "test-instance"),
+				query.ByField(query.EqualsOperator, "cascade_root_id", rootOpID))
+
+			Expect(err).NotTo(HaveOccurred())
+
+			By("marking instance operation as stucked")
+			instanceOP := instanceOPValue.(*types.Operation)
+			instanceOP.Reschedule = false
+			instanceOP.State = types.IN_PROGRESS
+			_, err = ctx.SMRepository.Update(context.Background(), instanceOP, []*types.LabelChange{}, query.ByField(query.EqualsOperator, "id", instanceOP.ID))
+			Expect(err).NotTo(HaveOccurred())
+
+			By("validating operation activate orphan mitigation")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForOrphanMitigationOperations)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*2+maintainerRetry*2).Should(Equal(1))
+
+			By("validating root marked as succeeded")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForRoot,
+					querySucceeded)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*10+pollCascade*10).Should(Equal(1))
+		})
+
+		Context("reconciliation", func() {
+			BeforeEach(func() {
+				reconciliation = 1 * time.Second
+				actionTimeout = 500 * time.Millisecond
+			})
+
+			It("instance is reconciliation", func() {
+				brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
+					time.Sleep(1 * time.Second)
+					return http.StatusOK, common.Object{"state": "in progress"}
+				})
+
+				op := types.Operation{
+					Base: types.Base{
+						ID:        rootOpID,
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+					},
+					Description:   "bla",
+					CascadeRootID: rootOpID,
+					ResourceID:    tenantID,
+					Type:          types.DELETE,
+					ResourceType:  types.TenantType,
+				}
+				_, err := ctx.SMRepository.Create(context.TODO(), &op)
+				Expect(err).NotTo(HaveOccurred())
+
+				Eventually(func() int {
+					count, err := ctx.SMRepository.Count(
+						context.Background(),
+						types.OperationType,
+						queryForRoot,
+						queryFailures)
+					Expect(err).NotTo(HaveOccurred())
+
+					return count
+				}, actionTimeout*10+cleanupInterval*10+reconciliation*2).Should(Equal(1))
+			})
 		})
 	})
 })

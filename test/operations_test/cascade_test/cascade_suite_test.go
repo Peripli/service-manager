@@ -22,6 +22,11 @@ import (
 	"time"
 )
 
+func TestCascade(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Cascade Test Suite")
+}
+
 var (
 	ctx                   *TestContext
 	brokerServer          *BrokerServer
@@ -32,20 +37,16 @@ var (
 	rootOpID              = "op1"
 	tenantID              = "tenant_value"
 	osbInstanceID         = "test-instance"
-)
 
-func TestCascade(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Cascade Test Suite")
-}
+	cleanupInterval = 3 * time.Second
+	reconciliation  = 9999 * time.Hour
+	actionTimeout   = 2 * time.Second
+)
 
 const (
 	polling                 = 1 * time.Millisecond
 	maintainerRetry         = 1 * time.Second
-	actionTimeout           = 2 * time.Second
-	cleanupInterval         = 9999 * time.Hour
 	pollCascade             = 500 * time.Millisecond
-	reconciliation          = 9999 * time.Hour
 	lifespan                = 1 * time.Millisecond
 	cascadeOrphanMitigation = 5 * time.Second
 )
@@ -64,11 +65,11 @@ var querySucceeded = query.ByField(query.EqualsOperator, "state", string(types.S
 
 //var queryInProgress := query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS))
 //var queryPending := query.ByField(query.EqualsOperator, "state", string(types.PENDING))
-var queryFailedOperations = query.ByField(query.EqualsOperator, "state", string(types.FAILED))
+var queryFailures = query.ByField(query.EqualsOperator, "state", string(types.FAILED))
 
 //var queryForDuplications := query.ByField(query.EqualsOrNilOperator, "external_id", "")
 
-var _ = BeforeEach(func() {
+var _ = JustBeforeEach(func() {
 	postHookWithOperationsConfig := func() func(e env.Environment, servers map[string]FakeServer) {
 		return func(e env.Environment, servers map[string]FakeServer) {
 			e.Set("operations.action_timeout", actionTimeout)
@@ -114,9 +115,7 @@ var _ = BeforeEach(func() {
 			return err
 		}).
 		Build()
-})
 
-var _ = JustBeforeEach(func() {
 	brokerID, brokerServer = registerSubaccountScopedBroker(ctx, "test-service", "plan-service")
 	platformID = registerSubaccountScopedPlatform(ctx, "platform1")
 	var err error

@@ -16,7 +16,7 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 	AfterEach(func() {
 		ctx.Cleanup()
 	})
-	Context("Tree Creation", func() {
+	Context("tree creation", func() {
 
 		Context("should fail", func() {
 			It("having global instances", func() {
@@ -82,7 +82,7 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 
 		})
 
-		Context ("should skip", func() {
+		Context("should skip", func() {
 			It("not cascade ops", func() {
 				op := types.Operation{
 					Base: types.Base{
