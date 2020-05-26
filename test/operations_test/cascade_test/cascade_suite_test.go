@@ -306,16 +306,16 @@ type tree struct {
 	byOperationID map[string]*types.Operation
 }
 
-func triggerCascadeOperation(repoCtx context.Context, resourceType types.ObjectType, resourceID string) {
+func triggerCascadeOperation(repoCtx context.Context, resourceType types.ObjectType, resourceID string, rootID string) {
 	op := types.Operation{
 		Base: types.Base{
-			ID:        rootOpID,
+			ID:        rootID,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 			Ready:     true,
 		},
 		Description:   "bla",
-		CascadeRootID: rootOpID,
+		CascadeRootID: rootID,
 		ResourceID:    resourceID,
 		Type:          types.DELETE,
 		ResourceType:  resourceType,

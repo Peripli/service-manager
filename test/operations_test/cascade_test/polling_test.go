@@ -53,7 +53,7 @@ var _ = Describe("cascade operations", func() {
 				})
 			}
 
-			triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
+			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
 
 			AssertOperationCount(func(count int) { Expect(count).To(Equal(3 + subtreeCount*3)) }, query.ByField(query.EqualsOperator, "parent_id", rootOpID))
 			AssertOperationCount(func(count int) { Expect(count).To(Equal(tenantOperationsCount + subtreeCount*10)) }, queryForOperationsInTheSameTree)
@@ -78,7 +78,7 @@ var _ = Describe("cascade operations", func() {
 		})
 
 		It("should succeed - cascade a platform", func() {
-			triggerCascadeOperation(context.Background(), types.PlatformType, platformID)
+			triggerCascadeOperation(context.Background(), types.PlatformType, platformID, rootOpID)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -104,7 +104,7 @@ var _ = Describe("cascade operations", func() {
 			createContainerWithChildren()
 
 			newCtx := context.WithValue(context.Background(), cascade.ContainerKey{}, "containerID")
-			triggerCascadeOperation(newCtx, types.PlatformType, platformID)
+			triggerCascadeOperation(newCtx, types.PlatformType, platformID, rootOpID)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -144,7 +144,7 @@ var _ = Describe("cascade operations", func() {
 
 		It("validate errors aggregated from bottom up", func() {
 			registerBindingLastOPHandlers(brokerServer, http.StatusInternalServerError, types.FAILED)
-			triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
+			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -186,7 +186,7 @@ var _ = Describe("cascade operations", func() {
 			containerID := createContainerWithChildren()
 
 			newCtx := context.WithValue(context.Background(), cascade.ContainerKey{}, "containerID")
-			triggerCascadeOperation(newCtx, types.ServiceInstanceType, containerID)
+			triggerCascadeOperation(newCtx, types.ServiceInstanceType, containerID, rootOpID)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -223,7 +223,7 @@ var _ = Describe("cascade operations", func() {
 				}
 			})
 
-			triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
+			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
 
 			By("validating binding failed and marked as orphan mitigation")
 			Eventually(func() int {
@@ -294,7 +294,7 @@ var _ = Describe("cascade operations", func() {
 				}
 			})
 
-			triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
+			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
 
 			By("validating binding failed and marked as orphan mitigation")
 			Eventually(func() int {
@@ -365,7 +365,7 @@ var _ = Describe("cascade operations", func() {
 				return http.StatusOK, common.Object{"state": "succeeded"}
 			})
 
-			triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
+			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
 
 			instanceOPValue, err := ctx.SMRepository.Get(context.Background(), types.OperationType,
 				query.ByField(query.EqualsOperator, "resource_id", "test-instance"),
@@ -416,7 +416,7 @@ var _ = Describe("cascade operations", func() {
 					return http.StatusOK, common.Object{"state": "in progress"}
 				})
 
-				triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
+				triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
 
 				Eventually(func() int {
 					count, err := ctx.SMRepository.Count(
