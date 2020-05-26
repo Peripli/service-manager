@@ -118,7 +118,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 			validateDuplicationsWaited(fullTree)
 		})
 
-		FIt("should failed - container failed to be deleted when cascade a platform", func() {
+		It("should failed - container failed to be deleted when cascade a platform", func() {
 			registerInstanceLastOPHandlers(brokerServer, "failed")
 			createContainer()
 
