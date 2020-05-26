@@ -336,12 +336,12 @@ func (om *Maintainer) PollCascadedDeleteOperations() {
 		return
 	}
 
-	blockResourcesInTheTreeForThisIteration := make(map[string]bool)
+	skipSameResourcesForCurrentIteration := make(map[string]bool)
 	operations = operations.(*types.Operations)
 	for i := 0; i < operations.Len(); i++ {
 		operation := operations.ItemAt(i).(*types.Operation)
 		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
-		if blockResourcesInTheTreeForThisIteration[operation.ResourceID] {
+		if skipSameResourcesForCurrentIteration[operation.ResourceID] {
 			continue
 		}
 		subOperations, err := GetSubOperations(om.smCtx, operation, om.repository)
@@ -357,13 +357,14 @@ func (om *Maintainer) PollCascadedDeleteOperations() {
 					logger.Warnf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
 				}
 			} else {
-				isPolling, err := SameResourceIsAlreadyInProgress(ctx, om.repository, operation.ResourceID)
+				sameResourceInPollingState, err := SameResourceIsAlreadyInProgress(ctx, om.repository, operation.ResourceID)
 				if err != nil {
 					logger.Warnf("Failed to validate if operation with ID (%s) is in polling: %s", operation.ID, err)
 					continue
 				}
-				if isPolling {
+				if sameResourceInPollingState {
 					// no need to poll twice for the same resource
+					skipSameResourcesForCurrentIteration[operation.ResourceID] = true
 					continue
 				}
 
@@ -379,8 +380,8 @@ func (om *Maintainer) PollCascadedDeleteOperations() {
 					}
 				} else {
 					operation.State = types.IN_PROGRESS
-					byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
 					action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+						byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
 						err := repository.Delete(ctx, operation.ResourceType, byID)
 						if err != nil {
 							if err == util.ErrNotFoundInStorage {
@@ -393,7 +394,7 @@ func (om *Maintainer) PollCascadedDeleteOperations() {
 					if err := om.cascadePollingScheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
 						logger.Warnf("Failed to reschedule cascaded delete operation with ID (%s): %s ok for concurrent deletion failure", operation.ID, err)
 					}
-					blockResourcesInTheTreeForThisIteration[operation.ResourceID] = true
+					skipSameResourcesForCurrentIteration[operation.ResourceID] = true
 				}
 			}
 		} else if len(subOperations.FailedOperations) > 0 && len(subOperations.FailedOperations)+len(subOperations.SucceededOperations) == subOperations.AllOperationsCount {

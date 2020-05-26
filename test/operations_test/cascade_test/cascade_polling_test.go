@@ -61,7 +61,7 @@ var _ = Describe("Cascade", func() {
 
 	assertOperationCount := func(expect func(count int), criterion ...query.Criterion) {
 		count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, criterion...)
-		Expect(err).To(BeNil())
+		Expect(err).NotTo(HaveOccurred())
 		expect(count)
 	}
 
@@ -69,14 +69,14 @@ var _ = Describe("Cascade", func() {
 	queryForRoot := query.ByField(query.EqualsOperator, "id", "op1")
 	//queryForInstanceOperations := query.ByField(query.EqualsOperator, "resource_type", types.ServiceInstanceType.String())
 	//queryForBindingsOperations := query.ByField(query.EqualsOperator, "resource_type", types.ServiceBindingType.String())
-	queryForPlatformOperations := query.ByField(query.EqualsOperator, "resource_type", types.PlatformType.String())
-	queryForTenantOperations := query.ByField(query.EqualsOperator, "resource_type", types.TenantType.String())
+	//queryForPlatformOperations := query.ByField(query.EqualsOperator, "resource_type", types.PlatformType.String())
+	//queryForTenantOperations := query.ByField(query.EqualsOperator, "resource_type", types.TenantType.String())
 	//queryForBrokerOperations := query.ByField(query.EqualsOperator, "resource_type", types.ServiceBrokerType.String())
 
 	querySucceeded := query.ByField(query.EqualsOperator, "state", string(types.SUCCEEDED))
 	//queryInProgress := query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS))
 	//queryPending := query.ByField(query.EqualsOperator, "state", string(types.PENDING))
-	queryFailures := query.ByField(query.EqualsOperator, "state", string(types.FAILED))
+	queryFailedOperations := query.ByField(query.EqualsOperator, "state", string(types.FAILED))
 
 	//queryForDuplications := query.ByField(query.EqualsOrNilOperator, "external_id", "")
 
@@ -116,42 +116,48 @@ var _ = Describe("Cascade", func() {
 			Build()
 	})
 
-	Context("Cascade", func() {
+	Context("Cascade Delete", func() {
+		var beforeTestOperationsCount = 1 // virtual op for tenant
 		BeforeEach(func() {
 			brokerID, brokerServer = registerSubaccountScopedBroker(ctx, "test-service", "plan-service")
+			beforeTestOperationsCount +=1
 			platformID = registerSubaccountScopedPlatform(ctx, "platform1")
+			beforeTestOperationsCount +=1
 			var err error
 			plan, err = ctx.SMRepository.Get(context.Background(), types.ServicePlanType, query.ByField(query.EqualsOperator, "catalog_id", "plan-service"))
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
 			createSMAAPInstance(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
 				"name":            "test-instance-smaap",
 				"service_plan_id": plan.GetID(),
 			})
+			beforeTestOperationsCount +=2 //one for platform and one for broker
 			createOSBInstance(ctx, ctx.SMWithBasic, brokerID, "test-instance", map[string]interface{}{
 				"service_id":        "test-service",
 				"plan_id":           "plan-service",
 				"organization_guid": "my-org",
 			})
+			beforeTestOperationsCount +=2 //one for platform and one for broker
 			createOSBBinding(ctx, ctx.SMWithBasic, brokerID, "test-instance", "binding1", map[string]interface{}{
 				"service_id":        "test-service",
 				"plan_id":           "plan-service",
 				"organization_guid": "my-org",
 			})
+			beforeTestOperationsCount +=2 //one for platform and one for broker
 			createOSBBinding(ctx, ctx.SMWithBasic, brokerID, "test-instance", "binding2", map[string]interface{}{
 				"service_id":        "test-service",
 				"plan_id":           "plan-service",
 				"organization_guid": "my-org",
 			})
+			beforeTestOperationsCount +=2 //one for platform and one for broker
 		})
 
 		AfterEach(func() {
-			ctx.Maintainer.CleanupFinishedCascadeOperations()
-			assertOperationCount(func(count int) { Expect(count).To(Equal(0)) }, queryForOperationsInTheSameTree)
+			ctx.Cleanup()
 		})
 
-		It("Cascade a big tree of tenant operations", func() {
-			looping := 5
-			for i := 0; i < looping; i++ {
+		It("big tenant tree should succeed", func() {
+			subtreeCount := 5
+			for i := 0; i < subtreeCount; i++ {
 				registerSubaccountScopedPlatform(ctx, fmt.Sprintf("platform%s", strconv.Itoa(i*10)))
 				broker2ID, _ := registerSubaccountScopedBroker(ctx, fmt.Sprintf("test-service%s", strconv.Itoa(i*10)), fmt.Sprintf("plan-service%s", strconv.Itoa(i*10)))
 				createSMAAPInstance(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
@@ -189,10 +195,10 @@ var _ = Describe("Cascade", func() {
 				ResourceType:  types.TenantType,
 			}
 			_, err := ctx.SMRepository.Create(context.TODO(), &op)
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
 
-			assertOperationCount(func(count int) { Expect(count).To(Equal(3 + looping*3)) }, query.ByField(query.EqualsOperator, "parent_id", "op1"))
-			assertOperationCount(func(count int) { Expect(count).To(Equal(11 + looping*10)) }, queryForOperationsInTheSameTree)
+			assertOperationCount(func(count int) { Expect(count).To(Equal(3 + subtreeCount*3)) }, query.ByField(query.EqualsOperator, "parent_id", "op1"))
+			assertOperationCount(func(count int) { Expect(count).To(Equal(beforeTestOperationsCount + subtreeCount*10)) }, queryForOperationsInTheSameTree)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -201,19 +207,19 @@ var _ = Describe("Cascade", func() {
 					types.OperationType,
 					queryForRoot,
 					querySucceeded)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
 			fullTree, err := fetchAFullTree(ctx.SMRepository, "op1")
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
 
-			validateParentsRanAfterChildrenFinished(fullTree)
+			validateParentsRanAfterChildren(fullTree)
 			validateDuplicationsWaited(fullTree)
 		})
 
-		It("Succeeded to cascade a platform with full sub tree", func() {
+		It("platform tree should succeed", func() {
 			op := types.Operation{
 				Base: types.Base{
 					ID:        "op1",
@@ -228,7 +234,7 @@ var _ = Describe("Cascade", func() {
 				ResourceType:  types.PlatformType,
 			}
 			_, err := ctx.SMRepository.Create(context.TODO(), &op)
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -237,37 +243,35 @@ var _ = Describe("Cascade", func() {
 					types.OperationType,
 					queryForRoot,
 					querySucceeded)
-				Expect(err).To(BeNil())
+				Expect(err).NotTo(HaveOccurred())
 
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
 			fullTree, err := fetchAFullTree(ctx.SMRepository, "op1")
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
 
-			validateParentsRanAfterChildrenFinished(fullTree)
+			validateParentsRanAfterChildren(fullTree)
 			validateDuplicationsWaited(fullTree)
 		})
 
-		It("Failed to cascade a platform with container instance", func() {
-			brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", func(req *http.Request) (int, map[string]interface{}) {
-				return http.StatusOK, Object{"state": "failed", "description": "test check"}
-			})
-			createOSBInstance(ctx, ctx.SMWithBasic, brokerID, "test-service3", map[string]interface{}{
+		It("platform with container instance should fail", func() {
+			registerInstanceLastOPHandlers(brokerServer, "failed")
+			createOSBInstance(ctx, ctx.SMWithBasic, brokerID, "container-instance", map[string]interface{}{
 				"service_id":        "test-service",
 				"plan_id":           "plan-service",
 				"organization_guid": "my-org",
 			})
-			createOSBInstance(ctx, ctx.SMWithBasic, brokerID, "test-service4", map[string]interface{}{
+			createOSBInstance(ctx, ctx.SMWithBasic, brokerID, "child-instance", map[string]interface{}{
 				"service_id":        "test-service",
 				"plan_id":           "plan-service",
 				"organization_guid": "my-org",
 			})
 
-			containerInstance, err := ctx.SMRepository.Get(context.Background(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "name", "test-service3"))
-			Expect(err).To(BeNil())
-			instanceInContainer, err := ctx.SMRepository.Get(context.Background(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "name", "test-service4"))
-			Expect(err).To(BeNil())
+			containerInstance, err := ctx.SMRepository.Get(context.Background(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "name", "container-instance"))
+			Expect(err).NotTo(HaveOccurred())
+			instanceInContainer, err := ctx.SMRepository.Get(context.Background(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "name", "child-instance"))
+			Expect(err).NotTo(HaveOccurred())
 
 			change := types.LabelChange{
 				Operation: "add",
@@ -275,7 +279,7 @@ var _ = Describe("Cascade", func() {
 				Values:    []string{containerInstance.GetID()},
 			}
 			_, err = ctx.SMRepository.Update(context.Background(), instanceInContainer, []*types.LabelChange{&change}, query.ByField(query.EqualsOperator, "id", instanceInContainer.GetID()))
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
 
 			op := types.Operation{
 				Base: types.Base{
@@ -293,7 +297,7 @@ var _ = Describe("Cascade", func() {
 			}
 			newCtx := context.WithValue(context.Background(), cascade.ContainerKey{}, "containerID")
 			_, err = ctx.SMRepository.Create(newCtx, &op)
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -301,19 +305,19 @@ var _ = Describe("Cascade", func() {
 					context.Background(),
 					types.OperationType,
 					queryForRoot,
-					queryFailures)
-				Expect(err).To(BeNil())
+					queryFailedOperations)
+				Expect(err).NotTo(HaveOccurred())
 
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
 			By("validating containerized errors collected")
-			platformOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForPlatformOperations, queryFailures, queryForOperationsInTheSameTree)
-			Expect(err).To(BeNil())
+			platformOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot)
+			Expect(err).NotTo(HaveOccurred())
 
 			errors := cascade.CascadeErrors{}
 			err = json.Unmarshal(platformOP.(*types.Operation).Errors, &errors)
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
 			Expect(len(errors.Errors)).To(Equal(2))
 
 			count := 0
@@ -325,46 +329,7 @@ var _ = Describe("Cascade", func() {
 			Expect(count).To(Equal(1))
 		})
 
-		It("Succeeded to cascade a virtual type with full sub tree", func() {
-			op := types.Operation{
-				Base: types.Base{
-					ID:        "op1",
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				},
-				Description:   "bla",
-				CascadeRootID: "op1",
-				ResourceID:    "tenant_value",
-				State:         types.IN_PROGRESS,
-				Type:          types.DELETE,
-				ResourceType:  types.TenantType,
-			}
-			_, err := ctx.SMRepository.Create(context.TODO(), &op)
-			Expect(err).To(BeNil())
-
-			By("validating tree has 11 operations")
-			assertOperationCount(func(count int) { Expect(count).To(Equal(11)) }, queryForOperationsInTheSameTree)
-
-			By("waiting cascading process to finish")
-			Eventually(func() int {
-				count, err := ctx.SMRepository.Count(
-					context.Background(),
-					types.OperationType,
-					queryForRoot,
-					querySucceeded)
-				Expect(err).To(BeNil())
-
-				return count
-			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
-
-			fullTree, err := fetchAFullTree(ctx.SMRepository, "op1")
-			Expect(err).To(BeNil())
-
-			validateParentsRanAfterChildrenFinished(fullTree)
-			validateDuplicationsWaited(fullTree)
-		})
-
-		It("Validate errors going up when an operation is failed in the bottom of the tree", func() {
+		It("validate errors aggregated from bottom up", func() {
 			registerBindingLastOPHandlers(brokerServer, types.FAILED)
 
 			op := types.Operation{
@@ -381,7 +346,7 @@ var _ = Describe("Cascade", func() {
 				ResourceType:  types.TenantType,
 			}
 			_, err := ctx.SMRepository.Create(context.TODO(), &op)
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -389,26 +354,27 @@ var _ = Describe("Cascade", func() {
 					context.Background(),
 					types.OperationType,
 					queryForRoot,
-					queryFailures)
-				Expect(err).To(BeNil())
+					queryFailedOperations)
+				Expect(err).NotTo(HaveOccurred())
 
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
 			fullTree, err := fetchAFullTree(ctx.SMRepository, "op1")
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
 
-			validateParentsRanAfterChildrenFinished(fullTree)
+			validateParentsRanAfterChildren(fullTree)
 			validateDuplicationsWaited(fullTree)
 
 			By("validating tenant error is a collection of his child errors")
-			tenantOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForTenantOperations, queryFailures, queryForOperationsInTheSameTree)
-			Expect(err).To(BeNil())
+			tenantOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot)
+			Expect(err).NotTo(HaveOccurred())
 
 			errors := cascade.CascadeErrors{}
 			err = json.Unmarshal(tenantOP.(*types.Operation).Errors, &errors)
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
 			Expect(len(errors.Errors)).To(Equal(2))
+			//TODO: add validations
 		})
 
 		It("Cascade container", func() {
@@ -442,7 +408,7 @@ func validateDuplicationsWaited(fullTree *tree) {
 	}
 }
 
-func validateParentsRanAfterChildrenFinished(fullTree *tree) {
+func validateParentsRanAfterChildren(fullTree *tree) {
 	By("validating parents ran after their children")
 	for parentID, operations := range fullTree.byParentID {
 		var parent *types.Operation

@@ -26,15 +26,15 @@ type ServiceInstanceCascade struct {
 	*types.ServiceInstance
 
 	// in case of additional hierarchy of instances
-	containerID string
+	containerID interface{}
 }
 
 func (si *ServiceInstanceCascade) GetChildrenCriterion() ChildrenCriterion {
 	criterion := ChildrenCriterion{
 		types.ServiceBindingType: {query.ByField(query.EqualsOperator, "service_instance_id", si.ID)},
 	}
-	if si.containerID != "" {
-		criterion[types.ServiceInstanceType] = []query.Criterion{query.ByLabel(query.EqualsOperator, si.containerID, si.ID)}
+	if containerID, ok := si.containerID.(string); ok {
+		criterion[types.ServiceInstanceType] = []query.Criterion{query.ByLabel(query.EqualsOperator, containerID, si.ID)}
 	}
 	return criterion
 }
