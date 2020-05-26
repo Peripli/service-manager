@@ -120,7 +120,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 			validateDuplicationsWaited(fullTree)
 		})
 
-		It("should failed - container failed to be deleted when cascade a platform", func() {
+		It("should fail - container failed to be deleted when cascade a platform", func() {
 			registerInstanceLastOPHandlers(brokerServer, http.StatusInternalServerError, "")
 			createContainerWithChildren()
 
@@ -231,7 +231,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 			}
 		})
 
-		It("should succeeded - cascade a container", func() {
+		It("should succeed - cascade a container", func() {
 			containerID := createContainerWithChildren()
 
 			op := types.Operation{
@@ -274,7 +274,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 			AssertOperationCount(func(count int) { Expect(count).To(Equal(3)) }, queryForOperationsInTheSameTree)
 		})
 
-		It("should failed - activate a orphan mitigation for instance and expect for failures", func() {
+		It("should fail - unsuccessful orphan mitigation", func() {
 			pollingCount := 0
 			brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
 				if pollingCount == 0 {
@@ -314,7 +314,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 				return count
 			}, actionTimeout*2+pollCascade*2).Should(Equal(2))
 
-			By("validating that instances that haven't bindings succeeded to be deleted")
+			By("validating that instances without bindings were deleted")
 			Eventually(func() int {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
@@ -327,7 +327,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 				return count
 			}, actionTimeout*2+pollCascade*2).Should(Equal(2))
 
-			By("validating bindings released from orphan mitigation")
+			By("validating bindings not in orphan mitigation")
 			Eventually(func() int {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
@@ -358,7 +358,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 			validateDuplicationsWaited(fullTree)
 		})
 
-		It("should succeeded - activate a orphan mitigation and wait it recover", func() {
+		It("should succeed - successful orphan mitigation", func() {
 			pollingCount := 0
 			brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
 				if pollingCount == 0 {
@@ -398,7 +398,7 @@ var _ = Describe("Poll Cascade Delete", func() {
 				return count
 			}, actionTimeout*2+pollCascade*2).Should(Equal(2))
 
-			By("validating that instances that haven't bindings succeeded to be deleted")
+			By("validating that instances without bindings were deleted")
 			Eventually(func() int {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
