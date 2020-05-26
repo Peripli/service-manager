@@ -120,9 +120,9 @@ var _ = Describe("Cascade", func() {
 		var beforeTestOperationsCount = 1 // virtual op for tenant
 		BeforeEach(func() {
 			brokerID, brokerServer = registerSubaccountScopedBroker(ctx, "test-service", "plan-service")
-			beforeTestOperationsCount +=1
+			beforeTestOperationsCount += 1
 			platformID = registerSubaccountScopedPlatform(ctx, "platform1")
-			beforeTestOperationsCount +=1
+			beforeTestOperationsCount += 1
 			var err error
 			plan, err = ctx.SMRepository.Get(context.Background(), types.ServicePlanType, query.ByField(query.EqualsOperator, "catalog_id", "plan-service"))
 			Expect(err).NotTo(HaveOccurred())
@@ -130,25 +130,25 @@ var _ = Describe("Cascade", func() {
 				"name":            "test-instance-smaap",
 				"service_plan_id": plan.GetID(),
 			})
-			beforeTestOperationsCount +=2 //one for platform and one for broker
+			beforeTestOperationsCount += 2 //one for platform and one for broker
 			createOSBInstance(ctx, ctx.SMWithBasic, brokerID, "test-instance", map[string]interface{}{
 				"service_id":        "test-service",
 				"plan_id":           "plan-service",
 				"organization_guid": "my-org",
 			})
-			beforeTestOperationsCount +=2 //one for platform and one for broker
+			beforeTestOperationsCount += 2 //one for platform and one for broker
 			createOSBBinding(ctx, ctx.SMWithBasic, brokerID, "test-instance", "binding1", map[string]interface{}{
 				"service_id":        "test-service",
 				"plan_id":           "plan-service",
 				"organization_guid": "my-org",
 			})
-			beforeTestOperationsCount +=2 //one for platform and one for broker
+			beforeTestOperationsCount += 2 //one for platform and one for broker
 			createOSBBinding(ctx, ctx.SMWithBasic, brokerID, "test-instance", "binding2", map[string]interface{}{
 				"service_id":        "test-service",
 				"plan_id":           "plan-service",
 				"organization_guid": "my-org",
 			})
-			beforeTestOperationsCount +=2 //one for platform and one for broker
+			beforeTestOperationsCount += 2 //one for platform and one for broker
 		})
 
 		AfterEach(func() {
@@ -311,6 +311,12 @@ var _ = Describe("Cascade", func() {
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
+			fullTree, err := fetchAFullTree(ctx.SMRepository, "op1")
+			Expect(err).NotTo(HaveOccurred())
+
+			validateParentsRanAfterChildren(fullTree)
+			validateDuplicationsWaited(fullTree)
+
 			By("validating containerized errors collected")
 			platformOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot)
 			Expect(err).NotTo(HaveOccurred())
@@ -374,7 +380,14 @@ var _ = Describe("Cascade", func() {
 			err = json.Unmarshal(tenantOP.(*types.Operation).Errors, &errors)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(errors.Errors)).To(Equal(2))
-			//TODO: add validations
+
+			for _, e := range errors.Errors {
+				Expect(e.ParentID).To(Equal("test-instance"))
+				Expect(e.ResourceID).To(Or(Equal("binding1"), Equal("binding2")))
+				Expect(len(e.Message)).Should(BeNumerically(">", 0))
+				Expect(e.ResourceType).To(Equal(types.ServiceBindingType))
+				Expect(e.ParentType).To(Equal(types.ServiceInstanceType))
+			}
 		})
 
 		It("Cascade container", func() {
