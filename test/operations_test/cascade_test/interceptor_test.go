@@ -64,7 +64,7 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 		})
 
 		Context("cascade ops", func() {
-			FIt("should succeed", func() {
+			It("should succeed", func() {
 				op := types.Operation{
 					Base: types.Base{
 						ID:        rootOpID,
@@ -81,10 +81,12 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 				Expect(err).NotTo(HaveOccurred())
 				tree, err := fetchFullTree(ctx.SMRepository, rootOpID)
 				Expect(err).ToNot(HaveOccurred())
+				Expect(len(tree.byOperationID)).To(Equal(11))
 
 				platformOpID := tree.byResourceID[platformID][0].ID
 				brokerOpID := tree.byResourceID[brokerID][0].ID
 				instanceOpID := tree.byParentID[platformOpID][0].ID
+
 				// Tenant[broker, platform , smaap_instance]
 				Expect(len(tree.byParentID[rootOpID])).To(Equal(3))
 				// Platform [instance]
