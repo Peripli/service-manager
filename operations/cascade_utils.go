@@ -3,6 +3,7 @@ package operations
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/types/cascade"
@@ -18,15 +19,9 @@ type CascadeUtils struct {
 
 func (u *CascadeUtils) GetAllLevelsCascadeOperations(ctx context.Context, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
 	var operations []*types.Operation
-	objectChildren, err := getObjectChildren(ctx, object, storage)
+	objectChildren, err := u.getObjectChildren(ctx, object, storage)
 	if err != nil {
 		return nil, err
-	}
-	if validate, ok := object.(cascade.Validate); ok {
-		err := validate.ValidateChildren()(ctx, objectChildren, storage, u.TenantIdentifier)
-		if err != nil {
-			return nil, err
-		}
 	}
 	for _, children := range objectChildren {
 		for i := 0; i < children.Len(); i++ {
@@ -46,28 +41,71 @@ func (u *CascadeUtils) GetAllLevelsCascadeOperations(ctx context.Context, object
 	return operations, nil
 }
 
-func getObjectChildren(ctx context.Context, object types.Object, storage storage.Repository) ([]types.ObjectList, error) {
+func (u *CascadeUtils)  getObjectChildren(ctx context.Context, object types.Object, storage storage.Repository) ([]types.ObjectList, error) {
 	var children []types.ObjectList
-	if childrenCriterions, isCascade := cascade.GetCascadeObject(ctx, object); isCascade {
-		for childType, childCriteria := range childrenCriterions.GetChildrenCriterion() {
+	isBroker := object.GetType() == types.ServiceBrokerType
+	if isBroker {
+		if err := enrichBrokersOfferings(ctx, object, storage); err != nil {
+			return nil, err
+		}
+	}
+
+	if cascadeObject, isCascade := cascade.GetCascadeObject(ctx, object); isCascade {
+		for childType, childCriteria := range cascadeObject.GetChildrenCriterion() {
 			list, err := storage.List(ctx, childType, childCriteria...)
 			if err != nil {
 				return nil, err
 			}
-			if childType == types.ServiceBrokerType {
-				if err := enrichBrokersOfferings(ctx, list, storage); err != nil {
-					return nil, err
-				}
-			}
 			children = append(children, list)
+		}
+	}
+	if isBroker {
+		err := u.validateNoGlobalInstances(ctx, object, children, storage)
+		if err != nil {
+			return nil, err
 		}
 	}
 	return children, nil
 }
 
-func enrichBrokersOfferings(ctx context.Context, list types.ObjectList, storage storage.Repository) error {
-	for i := 0; i < list.Len(); i++ {
-		broker := list.ItemAt(i).(*types.ServiceBroker)
+func (u *CascadeUtils) validateNoGlobalInstances(ctx context.Context, broker types.Object, brokerChildren []types.ObjectList, repository storage.Repository) error {
+		platformIdsMap := make(map[string]bool)
+		for _, children := range brokerChildren {
+			for i := 0; i < children.Len(); i++ {
+				instance, ok := children.ItemAt(i).(*types.ServiceInstance)
+				if !ok {
+					return fmt.Errorf("broker %s has children not of type %s", broker.GetID(), types.ServiceInstanceType)
+				}
+				if _, ok := platformIdsMap[instance.PlatformID]; !ok {
+					platformIdsMap[instance.PlatformID] = true
+				}
+			}
+		}
+		delete(platformIdsMap, types.SMPlatform)
+
+		platformIds := make([]string, len(platformIdsMap))
+		index := 0
+		for id, _ := range platformIdsMap {
+			platformIds[index] = id
+			index++
+		}
+
+		platforms, err := repository.List(ctx, types.PlatformType, query.ByField(query.InOperator, "id", platformIds...))
+		if err != nil {
+			return err
+		}
+		for i := 0; i < platforms.Len(); i++ {
+			platform := platforms.ItemAt(i)
+			labels := platform.GetLabels()
+			if _, found := labels[u.TenantIdentifier]; !found {
+				return fmt.Errorf("broker %s has instances from global platform", broker.GetID())
+			}
+		}
+		return nil
+}
+
+func enrichBrokersOfferings(ctx context.Context, brokerObj types.Object, storage storage.Repository) error {
+		broker := brokerObj.(*types.ServiceBroker)
 		serviceOfferings, err := storage.List(ctx, types.ServiceOfferingType, query.ByField(query.EqualsOperator, "broker_id", broker.GetID()))
 		if err != nil {
 			return err
@@ -83,7 +121,6 @@ func enrichBrokersOfferings(ctx context.Context, list types.ObjectList, storage 
 			}
 			broker.Services = append(broker.Services, serviceOffering)
 		}
-	}
 	return nil
 }
 

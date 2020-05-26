@@ -138,5 +138,9 @@ func (o *Operation) Validate() error {
 		return fmt.Errorf("PENDING state only allowed for cascade operations")
 	}
 
+	if len(o.CascadeRootID) > 0 && len(o.ParentID) == 0 && o.CascadeRootID != o.ID {
+		return fmt.Errorf("root operation should have the same CascadeRootID and ID")
+	}
+
 	return nil
 }

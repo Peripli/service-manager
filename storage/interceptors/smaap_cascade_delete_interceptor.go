@@ -51,6 +51,7 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 		if operation.CascadeRootID == "" || operation.Type != types.DELETE {
 			return f(ctx, storage, operation)
 		}
+		operation.State = types.PENDING
 		// validate operation is valid
 		if err := operation.Validate(); err != nil {
 			return nil, err
@@ -82,7 +83,6 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 		}
 		// make sure the rootID is the operation.ID
 		operation.CascadeRootID = operation.ID
-		operation.State = types.PENDING
 		operation.PlatformID = types.SMPlatform
 		utils := &operations.CascadeUtils{
 			TenantIdentifier: co.TenantIdentifier,

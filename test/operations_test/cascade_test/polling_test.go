@@ -13,46 +13,9 @@ import (
 	"time"
 )
 
-var _ = Describe("Cascade Maintainers", func() {
-	var (
-		plan       types.Object
-		platformID string
-	)
+var _ = Describe("Poll Cascade Delete", func() {
 
 	Context("Cascade Delete", func() {
-		var beforeTestOperationsCount = 1 // virtual op for tenant
-		BeforeEach(func() {
-			brokerID, brokerServer = registerSubaccountScopedBroker(ctx, "test-service", "plan-service")
-			beforeTestOperationsCount++
-			platformID = registerSubaccountScopedPlatform(ctx, "platform1")
-			beforeTestOperationsCount++
-			var err error
-			plan, err = ctx.SMRepository.Get(context.Background(), types.ServicePlanType, query.ByField(query.EqualsOperator, "catalog_id", "plan-service"))
-			Expect(err).NotTo(HaveOccurred())
-			createSMAAPInstance(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
-				"name":            "test-instance-smaap",
-				"service_plan_id": plan.GetID(),
-			})
-			beforeTestOperationsCount += 2 //one for platform and one for broker
-			createOSBInstance(ctx, ctx.SMWithBasic, brokerID, "test-instance", map[string]interface{}{
-				"service_id":        "test-service",
-				"plan_id":           "plan-service",
-				"organization_guid": "my-org",
-			})
-			beforeTestOperationsCount += 2 //one for platform and one for broker
-			createOSBBinding(ctx, ctx.SMWithBasic, brokerID, "test-instance", "binding1", map[string]interface{}{
-				"service_id":        "test-service",
-				"plan_id":           "plan-service",
-				"organization_guid": "my-org",
-			})
-			beforeTestOperationsCount += 2 //one for platform and one for broker
-			createOSBBinding(ctx, ctx.SMWithBasic, brokerID, "test-instance", "binding2", map[string]interface{}{
-				"service_id":        "test-service",
-				"plan_id":           "plan-service",
-				"organization_guid": "my-org",
-			})
-			beforeTestOperationsCount += 2 //one for platform and one for broker
-		})
 
 		AfterEach(func() {
 			ctx.Cleanup()
@@ -86,22 +49,21 @@ var _ = Describe("Cascade Maintainers", func() {
 
 			op := types.Operation{
 				Base: types.Base{
-					ID:        "op1",
+					ID:        rootOp,
 					CreatedAt: time.Now(),
 					UpdatedAt: time.Now(),
 				},
 				Description:   "bla",
-				CascadeRootID: "op1",
-				ResourceID:    "tenant_value",
-				State:         types.IN_PROGRESS,
+				CascadeRootID: rootOp,
+				ResourceID:    tenantId,
 				Type:          types.DELETE,
 				ResourceType:  types.TenantType,
 			}
 			_, err := ctx.SMRepository.Create(context.TODO(), &op)
 			Expect(err).NotTo(HaveOccurred())
 
-			AssertOperationCount(func(count int) { Expect(count).To(Equal(3 + subtreeCount*3)) }, query.ByField(query.EqualsOperator, "parent_id", "op1"))
-			AssertOperationCount(func(count int) { Expect(count).To(Equal(beforeTestOperationsCount + subtreeCount*10)) }, queryForOperationsInTheSameTree)
+			AssertOperationCount(func(count int) { Expect(count).To(Equal(3 + subtreeCount*3)) }, query.ByField(query.EqualsOperator, "parent_id", rootOp))
+			AssertOperationCount(func(count int) { Expect(count).To(Equal(tenantOperationsCount + subtreeCount*10)) }, queryForOperationsInTheSameTree)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -115,7 +77,7 @@ var _ = Describe("Cascade Maintainers", func() {
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
-			fullTree, err := fetchAFullTree(ctx.SMRepository, "op1")
+			fullTree, err := fetchAFullTree(ctx.SMRepository, rootOp)
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
@@ -125,14 +87,13 @@ var _ = Describe("Cascade Maintainers", func() {
 		It("platform tree should succeed", func() {
 			op := types.Operation{
 				Base: types.Base{
-					ID:        "op1",
+					ID:        rootOp,
 					CreatedAt: time.Now(),
 					UpdatedAt: time.Now(),
 				},
 				Description:   "bla",
-				CascadeRootID: "op1",
+				CascadeRootID: rootOp,
 				ResourceID:    platformID,
-				State:         types.IN_PROGRESS,
 				Type:          types.DELETE,
 				ResourceType:  types.PlatformType,
 			}
@@ -151,7 +112,7 @@ var _ = Describe("Cascade Maintainers", func() {
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
-			fullTree, err := fetchAFullTree(ctx.SMRepository, "op1")
+			fullTree, err := fetchAFullTree(ctx.SMRepository, rootOp)
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
@@ -186,15 +147,14 @@ var _ = Describe("Cascade Maintainers", func() {
 
 			op := types.Operation{
 				Base: types.Base{
-					ID:        "op1",
+					ID:        rootOp,
 					CreatedAt: time.Now(),
 					UpdatedAt: time.Now(),
 					Ready:     true,
 				},
 				Description:   "bla",
-				CascadeRootID: "op1",
+				CascadeRootID: rootOp,
 				ResourceID:    platformID,
-				State:         types.IN_PROGRESS,
 				Type:          types.DELETE,
 				ResourceType:  types.PlatformType,
 			}
@@ -214,7 +174,7 @@ var _ = Describe("Cascade Maintainers", func() {
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
-			fullTree, err := fetchAFullTree(ctx.SMRepository, "op1")
+			fullTree, err := fetchAFullTree(ctx.SMRepository, rootOp)
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
@@ -243,14 +203,13 @@ var _ = Describe("Cascade Maintainers", func() {
 
 			op := types.Operation{
 				Base: types.Base{
-					ID:        "op1",
+					ID:        rootOp,
 					CreatedAt: time.Now(),
 					UpdatedAt: time.Now(),
 				},
 				Description:   "bla",
-				CascadeRootID: "op1",
-				ResourceID:    "tenant_value",
-				State:         types.IN_PROGRESS,
+				CascadeRootID: rootOp,
+				ResourceID:    tenantId,
 				Type:          types.DELETE,
 				ResourceType:  types.TenantType,
 			}
@@ -269,7 +228,7 @@ var _ = Describe("Cascade Maintainers", func() {
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
-			fullTree, err := fetchAFullTree(ctx.SMRepository, "op1")
+			fullTree, err := fetchAFullTree(ctx.SMRepository, rootOp)
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)

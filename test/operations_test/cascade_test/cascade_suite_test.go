@@ -22,9 +22,14 @@ import (
 )
 
 var (
-	ctx          *TestContext
-	brokerServer *BrokerServer
-	brokerID     string
+	ctx                   *TestContext
+	brokerServer          *BrokerServer
+	brokerID              string
+	plan                  types.Object
+	platformID            string
+	tenantOperationsCount = 11 //the number of operations that will be created after tenant creation in JustBeforeEach
+	rootOp                = "op1"
+	tenantId              = "tenant_value"
 )
 
 const (
@@ -42,14 +47,9 @@ func TestCascade(t *testing.T) {
 	RunSpecs(t, "Cascade Test Suite")
 }
 
-func AssertOperationCount(expect func(count int), criterion ...query.Criterion) {
-	count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, criterion...)
-	Expect(err).NotTo(HaveOccurred())
-	expect(count)
-}
 
-var queryForOperationsInTheSameTree = query.ByField(query.EqualsOperator, "cascade_root_id", "op1")
-var queryForRoot = query.ByField(query.EqualsOperator, "id", "op1")
+var queryForOperationsInTheSameTree = query.ByField(query.EqualsOperator, "cascade_root_id", rootOp)
+var queryForRoot = query.ByField(query.EqualsOperator, "id", rootOp)
 
 //var queryForInstanceOperations := query.ByField(query.EqualsOperator, "resource_type", types.ServiceInstanceType.String())
 //var queryForBindingsOperations := query.ByField(query.EqualsOperator, "resource_type", types.ServiceBindingType.String())
@@ -85,7 +85,7 @@ var _ = BeforeEach(func() {
 		}).
 		WithTenantTokenClaims(map[string]interface{}{
 			"cid": "tenancyClient",
-			"zid": "tenant_value",
+			"zid": tenantId,
 		}).
 		WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 			_, err := smb.EnableMultitenancy("tenant", func(request *web.Request) (string, error) {
@@ -110,6 +110,34 @@ var _ = BeforeEach(func() {
 		}).
 		Build()
 })
+
+var _ = JustBeforeEach(func() {
+	brokerID, brokerServer = registerSubaccountScopedBroker(ctx, "test-service", "plan-service")
+	platformID = registerSubaccountScopedPlatform(ctx, "platform1")
+	var err error
+	plan, err = ctx.SMRepository.Get(context.Background(), types.ServicePlanType, query.ByField(query.EqualsOperator, "catalog_id", "plan-service"))
+	Expect(err).NotTo(HaveOccurred())
+	createSMAAPInstance(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
+		"name":            "test-instance-smaap",
+		"service_plan_id": plan.GetID(),
+	})
+	createOSBInstance(ctx, ctx.SMWithBasic, brokerID, "test-instance", map[string]interface{}{
+		"service_id":        "test-service",
+		"plan_id":           "plan-service",
+		"organization_guid": "my-org",
+	})
+	createOSBBinding(ctx, ctx.SMWithBasic, brokerID, "test-instance", "binding1", map[string]interface{}{
+		"service_id":        "test-service",
+		"plan_id":           "plan-service",
+		"organization_guid": "my-org",
+	})
+	createOSBBinding(ctx, ctx.SMWithBasic, brokerID, "test-instance", "binding2", map[string]interface{}{
+		"service_id":        "test-service",
+		"plan_id":           "plan-service",
+		"organization_guid": "my-org",
+	})
+})
+
 
 func createOSBInstance(ctx *TestContext, sm *SMExpect, brokerID string, instanceID string, osbContext map[string]interface{}) {
 	smBrokerURL := ctx.Servers[SMServer].URL() + "/v1/osb/" + brokerID
@@ -250,6 +278,12 @@ func fetchAFullTree(repository storage.TransactionalRepository, rootID string) (
 		fullTree.byOperationID[operation.ID] = operation
 	}
 	return &fullTree, nil
+}
+
+func AssertOperationCount(expect func(count int), criterion ...query.Criterion) {
+	count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, criterion...)
+	Expect(err).NotTo(HaveOccurred())
+	expect(count)
 }
 
 type tree struct {
