@@ -16,7 +16,7 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 	AfterEach(func() {
 		ctx.Cleanup()
 	})
-	Context("Create", func() {
+	Context("Tree Creation", func() {
 
 		Context("should fail", func() {
 			It("having global instances", func() {
@@ -148,7 +148,7 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 		})
 
 		Context("should succeed", func() {
-			It("cascade ops", func() {
+			It("virtual cascade op", func() {
 				op := types.Operation{
 					Base: types.Base{
 						ID:        rootOpID,
@@ -169,7 +169,7 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 
 				platformOpID := tree.byResourceID[platformID][0].ID
 				brokerOpID := tree.byResourceID[brokerID][0].ID
-				instanceOpID := tree.byParentID[platformOpID][0].ID
+				instanceOpID := tree.byResourceID[osbInstanceID][0].ID
 
 				// Tenant[broker, platform , smaap_instance]
 				Expect(len(tree.byParentID[rootOpID])).To(Equal(3))
@@ -180,6 +180,31 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 				// Instance[binding1, binding2]
 				Expect(len(tree.byParentID[instanceOpID])).To(Equal(2))
 
+			})
+
+			It("non virtual cascade op", func() {
+				op := types.Operation{
+					Base: types.Base{
+						ID:        rootOpID,
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+					},
+					Description:   "bla",
+					CascadeRootID: rootOpID,
+					ResourceID:    brokerID,
+					Type:          types.DELETE,
+					ResourceType:  types.ServiceBrokerType,
+				}
+				_, err := ctx.SMRepository.Create(context.TODO(), &op)
+				Expect(err).NotTo(HaveOccurred())
+				tree, err := fetchFullTree(ctx.SMRepository, rootOpID)
+				Expect(len(tree.byOperationID)).To(Equal(5))
+				// Broker[instance, smaap_instance]
+				Expect(len(tree.byParentID[rootOpID])).To(Equal(2))
+
+				instanceOpID := tree.byResourceID[osbInstanceID][0].ID
+				// Instance[binding1, binding2]
+				Expect(len(tree.byParentID[instanceOpID])).To(Equal(2))
 			})
 		})
 
