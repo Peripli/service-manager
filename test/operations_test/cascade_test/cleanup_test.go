@@ -38,6 +38,7 @@ var _ = Describe("cascade operations", func() {
 			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
 			triggerCascadeOperation(context.Background(), types.PlatformType, platformID, "root1")
 			triggerCascadeOperation(context.Background(), types.ServiceBrokerType, brokerID, "root2")
+
 			Eventually(func() int {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
