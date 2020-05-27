@@ -85,7 +85,7 @@ func (u *CascadeUtils) validateNoGlobalInstances(ctx context.Context, broker typ
 
 	platformIds := make([]string, len(platformIdsMap))
 	index := 0
-	for id, _ := range platformIdsMap {
+	for id := range platformIdsMap {
 		platformIds[index] = id
 		index++
 	}

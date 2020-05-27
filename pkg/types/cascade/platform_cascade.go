@@ -21,12 +21,13 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 )
+
 type PlatformCascade struct {
 	*types.Platform
 }
 
 func (p *PlatformCascade) GetChildrenCriterion() ChildrenCriterion {
-	return ChildrenCriterion {
+	return ChildrenCriterion{
 		types.ServiceInstanceType: {query.ByField(query.EqualsOperator, "platform_id", p.ID)},
 	}
 }
