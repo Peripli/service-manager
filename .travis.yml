@@ -11,6 +11,9 @@ install:
 
 services:
   - postgresql
+  
+script:
+  - make test-int
 
 notifications:
   slack: openservicebrokerapi:KQo2QAC6LXeEeXPOemOXja48
