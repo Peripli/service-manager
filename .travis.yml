@@ -12,17 +12,5 @@ install:
 services:
   - postgresql
 
-jobs:
-  include:
-    - name: build
-      script:
-        - make build
-    - name: test-unit
-      script:
-        - make test-unit
-    - name: test-int
-      script:
-        - make test-int
-
 notifications:
   slack: openservicebrokerapi:KQo2QAC6LXeEeXPOemOXja48
