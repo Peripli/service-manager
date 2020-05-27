@@ -20,7 +20,7 @@ var _ = Describe("cascade operations", func() {
 			ctx.Cleanup()
 		})
 
-		It("should cleaned", func() {
+		It("finished tree should be deleted", func() {
 			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
 
 			Eventually(func() int {
@@ -49,7 +49,7 @@ var _ = Describe("cascade operations", func() {
 			}, actionTimeout*20+pollCascade*20+cleanupInterval*2).Should(Equal(0))
 		})
 
-		It("in_progress should not be deleted", func() {
+		It("in_progress tree should not be deleted", func() {
 			registerBindingLastOPHandlers(brokerServer, http.StatusOK, types.IN_PROGRESS)
 			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
 
