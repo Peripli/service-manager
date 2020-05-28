@@ -19,7 +19,7 @@ type CascadeUtils struct {
 
 func (u *CascadeUtils) GetAllLevelsCascadeOperations(ctx context.Context, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
 	var operations []*types.Operation
-	objectChildren, err := u.getObjectChildren(ctx, object, storage)
+	objectChildren, err := u.GetObjectChildren(ctx, object, storage)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (u *CascadeUtils) GetAllLevelsCascadeOperations(ctx context.Context, object
 	return operations, nil
 }
 
-func (u *CascadeUtils) getObjectChildren(ctx context.Context, object types.Object, storage storage.Repository) ([]types.ObjectList, error) {
+func (u *CascadeUtils) GetObjectChildren(ctx context.Context, object types.Object, storage storage.Repository) ([]types.ObjectList, error) {
 	var children []types.ObjectList
 	isBroker := object.GetType() == types.ServiceBrokerType
 	if isBroker {
