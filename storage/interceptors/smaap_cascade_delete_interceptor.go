@@ -61,8 +61,8 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 			return nil, err
 		}
 		// validate no operation for the same resource
-		if exists, err := doesExistCascadeOperationForResource(ctx, storage, operation); err != nil || exists {
-			return operation, err
+		if exists, err := doesExistCascadeOperationForResource(ctx, storage, operation); err != nil || exists != nil {
+			return exists, err
 		}
 
 		isVirtual := types.IsVirtualType(operation.ResourceType)
@@ -106,17 +106,18 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 	}
 }
 
-func doesExistCascadeOperationForResource(ctx context.Context, storage storage.Repository, operation *types.Operation) (bool, error) {
+func doesExistCascadeOperationForResource(ctx context.Context, storage storage.Repository, operation *types.Operation) (*types.Operation, error) {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
 		query.ByField(query.InOperator, "state", string(types.IN_PROGRESS), string(types.PENDING)),
 		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
 	}
-	ops, err := storage.List(ctx, types.OperationType, criteria...)
+	op, err := storage.Get(ctx, types.OperationType, criteria...)
 	if err != nil {
-		return false, err
-	} else if ops.Len() > 0 {
-		return true, nil
+		if err == util.ErrNotFoundInStorage {
+			return nil, nil
+		}
+		return nil, err
 	}
-	return false, nil
+	return op.(*types.Operation), nil
 }

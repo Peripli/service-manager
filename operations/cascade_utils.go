@@ -126,12 +126,12 @@ func enrichBrokersOfferings(ctx context.Context, brokerObj types.Object, storage
 
 func GetSubOperations(ctx context.Context, operation *types.Operation, repository storage.Repository) (*cascade.CascadedOperations, error) {
 	objs, err := repository.List(ctx, types.OperationType, query.ByField(query.EqualsOperator, "parent_id", operation.ID))
-	subOperations := objs.(*types.Operations)
-	cascadedOperations := cascade.CascadedOperations{}
-	cascadedOperations.AllOperationsCount = len(subOperations.Operations)
 	if err != nil {
 		return nil, err
 	}
+	subOperations := objs.(*types.Operations)
+	cascadedOperations := cascade.CascadedOperations{}
+	cascadedOperations.AllOperationsCount = len(subOperations.Operations)
 	for i := 0; i < subOperations.Len(); i++ {
 		subOperation := subOperations.ItemAt(i).(*types.Operation)
 		if !subOperation.DeletionScheduled.IsZero() {
