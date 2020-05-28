@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 
 	"github.com/Peripli/service-manager/test"
 	"github.com/gavv/httpexpect"
@@ -506,20 +507,22 @@ var _ = Describe("Catalog", func() {
 			var address string
 			var l net.Listener
 			var err error
+			var wg sync.WaitGroup
 			BeforeEach(func() {
 				l, err = net.Listen("tcp", "127.0.0.1:0")
 				Expect(err).ShouldNot(HaveOccurred())
 
+				wg.Add(1)
 				go func() {
+					defer wg.Done()
 					// Intentionally accepts only one connection
 					conn, err := l.Accept()
 					Expect(err).ShouldNot(HaveOccurred())
-					go func() {
-						n, err := conn.Write([]byte("Internal Data"))
-						Expect(err).ShouldNot(HaveOccurred())
-						Expect(n).To(BeNumerically(">", 0))
-						conn.Close()
-					}()
+
+					n, err := conn.Write([]byte("Internal Data"))
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(n).To(BeNumerically(">", 0))
+					conn.Close()
 				}()
 
 				address = fmt.Sprintf("http://%s", l.Addr().String())
@@ -540,6 +543,7 @@ var _ = Describe("Catalog", func() {
 						},
 					},
 				}).Expect().Status(http.StatusBadGateway).Body().NotContains("Internal Data").Contains("could not reach service broker")
+				wg.Wait()
 			})
 		})
 	})
