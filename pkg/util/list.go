@@ -30,7 +30,7 @@ type listResponse struct {
 // Next loads the next page of items
 // items should be a pointer to a slice, that will be populated with the items from the current page,
 // if nil, only the total number is returned
-// maxItems is the maximum numbe of items to load with the next page, -1 - use server default, 0 - just get the count
+// maxItems is the maximum number of items to load with the next page, -1 - use server default, 0 - just get the count
 // more is true if there are more items
 // count is the total number of items, -1 if not available
 func (li *ListIterator) Next(ctx context.Context, items interface{}, maxItems int) (more bool, count int64, err error) {
@@ -83,26 +83,53 @@ func (li *ListIterator) Next(ctx context.Context, items interface{}, maxItems in
 // items should be a pointer to a slice, that will be populated with all the items
 // doRequest function executes the HTTP request, it is responsible for authentication
 func ListAll(ctx context.Context, doRequest DoRequestFunc, url string, items interface{}) error {
-	itemsType := reflect.TypeOf(items)
+	options := ListOptions{
+		DoRequest: doRequest,
+		URL:       url,
+		PageSize:  -1, // server default page size
+		Items:     items,
+	}
+	return ListAllWithOptions(ctx, options)
+}
+
+// ListOptions provides various options to ListAllWithOptions
+type ListOptions struct {
+	// DoRequest function executes the HTTP request, it is responsible for authentication
+	DoRequest DoRequestFunc
+
+	// URL is the address of the resource to list
+	URL string
+
+	// PageSize is the max number of items to fetch on each request
+	// -1 - use server default, 0 - just get the count
+	PageSize int
+
+	// Items should be a pointer to a slice, that will be populated with all the items
+	Items interface{}
+}
+
+// ListAllWithOptions retrieves all the objects from the given url by loading all the pages
+func ListAllWithOptions(ctx context.Context, options ListOptions) error {
+	itemsType := reflect.TypeOf(options.Items)
 	if itemsType.Kind() != reflect.Ptr || itemsType.Elem().Kind() != reflect.Slice {
 		return fmt.Errorf("items should be a pointer to a slice, but got %v", itemsType)
 	}
 
 	allItems := reflect.MakeSlice(itemsType.Elem(), 0, 0)
 	iter := ListIterator{
-		URL:       url,
-		DoRequest: doRequest,
+		URL:       options.URL,
+		DoRequest: options.DoRequest,
 	}
 	more := true
 	for more {
 		var err error
 		pageSlice := reflect.New(itemsType.Elem())
-		more, _, err = iter.Next(ctx, pageSlice.Interface(), -1)
+		more, _, err = iter.Next(ctx, pageSlice.Interface(), options.PageSize)
 		if err != nil {
 			return err
 		}
 		allItems = reflect.AppendSlice(allItems, pageSlice.Elem())
 	}
-	reflect.ValueOf(items).Elem().Set(allItems)
+	reflect.ValueOf(options.Items).Elem().Set(allItems)
 	return nil
 }

@@ -174,7 +174,7 @@ var _ = Describe("List Utils", func() {
 			})
 		})
 
-		When("There the server returns error status", func() {
+		When("the server returns error status", func() {
 			It("Returns an error", func() {
 				reaction.Status = 500
 				var items []string
@@ -228,4 +228,44 @@ var _ = Describe("List Utils", func() {
 		})
 	})
 
+	Describe("ListAllWithOptions", func() {
+		It("sets the page size", func() {
+			expectations.Params["max_items"] = "2"
+			sequence := []common.HTTPCouple{
+				{
+					Expectations: &expectations,
+					Reaction: &common.HTTPReaction{
+						Status: http.StatusOK,
+						Body: `{
+							"num_items": 3,
+							"token": "page2",
+							"items":["aaa","bbb"]
+						}`,
+					},
+				},
+				{
+					Expectations: &expectations,
+					Reaction: &common.HTTPReaction{
+						Status: http.StatusOK,
+						Body: `{
+							"num_items": 3,
+							"items":["ccc"]
+						}`,
+					},
+				},
+			}
+
+			var items []string
+			options := util.ListOptions{
+				DoRequest: common.DoHTTPSequence(sequence),
+				URL:       url,
+				PageSize:  2,
+				Items:     &items,
+			}
+			err := util.ListAllWithOptions(ctx, options)
+
+			Expect(err).To(BeNil())
+			Expect(items).To(Equal([]string{"aaa", "bbb", "ccc"}))
+		})
+	})
 })
