@@ -16,10 +16,7 @@ func (v VirtualType) Validate() error {
 }
 
 func (v VirtualType) Equals(object Object) bool {
-	if object.GetID() != v.GetID() {
-		return false
-	}
-	return true
+	return object.GetID() == v.GetID()
 }
 
 type Tenant struct {
