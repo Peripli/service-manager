@@ -21,6 +21,9 @@ type ListIterator struct {
 	done bool
 }
 
+// DefaultPageSize means to use the server default page size when fetching multiple resources
+const DefaultPageSize = -1
+
 type listResponse struct {
 	Token    string      `json:"token"`
 	NumItems int64       `json:"num_items"`
@@ -86,7 +89,7 @@ func ListAll(ctx context.Context, doRequest DoRequestFunc, url string, items int
 	options := ListOptions{
 		DoRequest: doRequest,
 		URL:       url,
-		PageSize:  -1, // server default page size
+		PageSize:  DefaultPageSize,
 		Items:     items,
 	}
 	return ListAllWithOptions(ctx, options)
