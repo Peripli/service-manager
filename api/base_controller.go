@@ -336,7 +336,7 @@ func GetResourceOperation(r *web.Request, repository storage.Repository, objectT
 	operationID := r.PathParams[web.PathParamID]
 
 	ctx := r.Context()
-	log.C(ctx).Debugf("Getting operation with id %s for object of type %s with id %s", operationID, c.objectType, objectID)
+	log.C(ctx).Debugf("Getting operation with id %s for object of type %s with id %s", operationID, objectType, objectID)
 
 	byOperationID := query.ByField(query.EqualsOperator, "id", operationID)
 	byObjectID := query.ByField(query.EqualsOperator, "resource_id", objectID)
