@@ -90,6 +90,9 @@ func (u *CascadeUtils) validateNoGlobalInstances(ctx context.Context, broker typ
 		index++
 	}
 
+	if len(platformIds) == 0 {
+		return nil
+	}
 	platforms, err := repository.List(ctx, types.PlatformType, query.ByField(query.InOperator, "id", platformIds...))
 	if err != nil {
 		return err
