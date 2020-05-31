@@ -328,6 +328,10 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 
 // GetOperation handles the fetching of a single operation with the id specified for the specified resource
 func (c *BaseController) GetOperation(r *web.Request) (*web.Response, error) {
+	return GetResourceOperation(r, c.repository, c.objectType)
+}
+
+func GetResourceOperation(r *web.Request, repository storage.Repository, objectType types.ObjectType) (*web.Response, error) {
 	objectID := r.PathParams[web.PathParamResourceID]
 	operationID := r.PathParams[web.PathParamID]
 
@@ -342,9 +346,9 @@ func (c *BaseController) GetOperation(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 	criteria := query.CriteriaForContext(ctx)
-	operation, err := c.repository.Get(ctx, types.OperationType, criteria...)
+	operation, err := repository.Get(ctx, types.OperationType, criteria...)
 	if err != nil {
-		return nil, util.HandleStorageError(err, c.objectType.String())
+		return nil, util.HandleStorageError(err, objectType.String())
 	}
 
 	return util.NewJSONResponse(http.StatusOK, operation)

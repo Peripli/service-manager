@@ -1,8 +1,11 @@
 package types
 
-import "errors"
+import (
+	"errors"
+	"github.com/Peripli/service-manager/pkg/web"
+)
 
-const TenantType ObjectType = "Tenant"
+const TenantType ObjectType = web.TenantURL
 
 type VirtualType struct {
 	Base

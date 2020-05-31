@@ -53,4 +53,6 @@ const (
 
 	// ProfileURL is the Configuration API base URL path
 	ProfileURL = "/" + apiVersion + "/profile"
+
+	TenantURL = "/" + apiVersion + "/tenant"
 )

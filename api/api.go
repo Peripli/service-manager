@@ -104,6 +104,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			NewController(ctx, options, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
 			}),
+			NewTenantController(options.Repository),
 			NewServiceInstanceController(ctx, options),
 			NewServiceBindingController(ctx, options),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
