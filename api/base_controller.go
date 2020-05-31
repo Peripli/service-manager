@@ -204,7 +204,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		return newAsyncResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
+		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
@@ -293,7 +293,7 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 			return nil, err
 		}
 
-		return newAsyncResponse(operation.ID, objectID, c.resourceBaseURL)
+		return util.NewLocationResponse(operation.GetID(), objectID, c.resourceBaseURL)
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
@@ -484,7 +484,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		return newAsyncResponse(operation.GetID(), objFromDB.GetID(), c.resourceBaseURL)
+		return util.NewLocationResponse(operation.GetID(), objFromDB.GetID(), c.resourceBaseURL)
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
@@ -626,14 +626,4 @@ func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count,
 		page.Token = generateTokenForItem(page.Items[len(page.Items)-1])
 	}
 	return page
-}
-
-func newAsyncResponse(operationID, resourceID, resourceBaseURL string) (*web.Response, error) {
-	operationURL := buildOperationURL(operationID, resourceID, resourceBaseURL)
-	additionalHeaders := map[string]string{"Location": operationURL}
-	return util.NewJSONResponseWithHeaders(http.StatusAccepted, map[string]string{}, additionalHeaders)
-}
-
-func buildOperationURL(operationID, resourceID, resourceType string) string {
-	return fmt.Sprintf("%s/%s%s/%s", resourceType, resourceID, web.ResourceOperationsURL, operationID)
 }
