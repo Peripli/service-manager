@@ -11,8 +11,41 @@ func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.Ser
 	platformIDsSet := make(map[string]bool)
 
 	for _, plan := range plans {
-		if err := addSupportedPlatformIDsForPlan(ctx, plan, repository, platformIDsSet); err != nil {
+		allPlatformsSupported := false
+		criteria := make([]query.Criterion, 0)
+		if excludedPlatformNames := plan.ExcludedPlatformNames(); len(excludedPlatformNames) > 0 {
+			// plan explicitly defined excluded platforms, all other platforms are supported
+			criteria = append(criteria, query.ByField(query.NotInOperator, "name", excludedPlatformNames...))
+		} else if planSupportedPlatformNames := plan.SupportedPlatformNames(); len(planSupportedPlatformNames) > 0 {
+			// plan explicitly defined supported platform names
+			criteria = append(criteria, query.ByField(query.InOperator, "name", planSupportedPlatformNames...))
+		} else if planSupportedPlatformTypes := plan.SupportedPlatformTypes(); len(planSupportedPlatformTypes) > 0 {
+			// plan explicitly defined supported platform types
+			supportedPlatformTypes := make([]string, 0)
+			for _, platformType := range planSupportedPlatformTypes {
+				if platformType == types.GetSMSupportedPlatformType() {
+					platformType = types.SMPlatform
+				}
+				supportedPlatformTypes = append(supportedPlatformTypes, platformType)
+			}
+			criteria = append(criteria, query.ByField(query.InOperator, "type", supportedPlatformTypes...))
+		} else {
+			allPlatformsSupported = true
+		}
+
+		// fetch IDs of platform instances of the supported types from DB
+		objList, err := repository.List(ctx, types.PlatformType, criteria...)
+		if err != nil {
 			return nil, err
+		}
+
+		for i := 0; i < objList.Len(); i++ {
+			platformIDsSet[objList.ItemAt(i).GetID()] = true
+		}
+
+		if allPlatformsSupported {
+			// all platform IDs already included, no need to process additional plans
+			break
 		}
 	}
 
@@ -20,31 +53,6 @@ func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.Ser
 	for id := range platformIDsSet {
 		platformIDs = append(platformIDs, id)
 	}
+
 	return platformIDs, nil
-}
-
-func addSupportedPlatformIDsForPlan(ctx context.Context, plan *types.ServicePlan, repository storage.Repository, platformIDs map[string]bool) error {
-	criterions := make([]query.Criterion, 0)
-	if excludedPlatformNames := plan.ExcludedPlatformNames(); len(excludedPlatformNames) > 0 {
-		// plan explicitly defined excluded platforms, all other platforms are supported
-		criterions = append(criterions, query.ByField(query.NotInOperator, "name", excludedPlatformNames...))
-	} else if planSupportedPlatformNames := plan.SupportedPlatformNames(); len(planSupportedPlatformNames) > 0 {
-		// plan explicitly defined supported platform names
-		criterions = append(criterions, query.ByField(query.InOperator, "name", planSupportedPlatformNames...))
-	} else if planSupportedPlatformTypes := plan.SupportedPlatformTypes(); len(planSupportedPlatformTypes) > 0 {
-		// plan explicitly defined supported platform types
-		criterions = append(criterions, query.ByField(query.InOperator, "type", planSupportedPlatformTypes...))
-	}
-
-	// fetch IDs of platform instances of the supported types from DB
-	objList, err := repository.List(ctx, types.PlatformType, criterions...)
-	if err != nil {
-		return err
-	}
-
-	for i := 0; i < objList.Len(); i++ {
-		platformIDs[objList.ItemAt(i).GetID()] = true
-	}
-
-	return nil
 }

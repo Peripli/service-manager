@@ -595,6 +595,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
 							}, "services.0.plans.0.metadata", common.Object{"supportedPlatforms": []string{"a"}, "supportedPlatformNames": []string{"a"}})
 						})
+
+						Context("that has both supportedPlatforms and excludedPlatformNames", func() {
+
+							verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+								r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
+							}, "services.0.plans.0.metadata", common.Object{"supportedPlatforms": []string{"a"}, "excludedPlatformNames": []string{"a"}})
+						})
+
+						Context("that has both supportedPlatformNames and excludedPlatformNames", func() {
+
+							verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+								r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
+							}, "services.0.plans.0.metadata", common.Object{"supportedPlatformNames": []string{"a"}, "excludedPlatformNames": []string{"a"}})
+						})
 					})
 				})
 

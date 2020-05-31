@@ -106,5 +106,17 @@ func (e *ServicePlan) Validate() error {
 		return fmt.Errorf("only one of supportedPlatforms and supportedPlatformNames can be defined in plan metadata")
 	}
 
+	return e.validateSupportedPlatformsMetadata()
+}
+
+func (e *ServicePlan) validateSupportedPlatformsMetadata() error {
+
+	if (len(e.SupportedPlatformNames()) != 0 && (len(e.SupportedPlatformTypes()) != 0 || len(e.ExcludedPlatformNames()) != 0)) ||
+		(len(e.SupportedPlatformTypes()) != 0 && (len(e.SupportedPlatformNames()) != 0 || len(e.ExcludedPlatformNames()) != 0)) ||
+		(len(e.ExcludedPlatformNames()) != 0 && (len(e.SupportedPlatformTypes()) != 0 || len(e.SupportedPlatformNames()) != 0)) {
+
+		return fmt.Errorf("only one of supportedPlatforms, supportedPlatformNames and excludedPlatformNames can be defined in plan metadata")
+	}
+
 	return nil
 }
