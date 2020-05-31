@@ -40,7 +40,7 @@ var _ = Describe("Bind", func() {
 
 	Context("call to working service broker", func() {
 
-		FIt("should succeed", func() {
+		FIt("DELETE ME!!!!", func() {
 			params := map[string]interface{}{
 				"key": "subaccount_id"}
 
@@ -48,6 +48,30 @@ var _ = Describe("Bind", func() {
 
 			fmt.Println(res.Len())
 
+		})
+
+		It("should succeed", func() {
+			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+
+			ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
+				Expect().
+				Status(http.StatusOK).
+				JSON().
+				Object().
+				ContainsMap(map[string]interface{}{
+					"id":                  BID,
+					"service_instance_id": IID,
+				})
+
+			verifyOperationExists(operationExpectations{
+				Type:         types.CREATE,
+				State:        types.SUCCEEDED,
+				ResourceID:   BID,
+				ResourceType: "/v1/service_bindings",
+				ExternalID:   "",
+			})
 		})
 
 		It("same binding should return conflict", func() {
