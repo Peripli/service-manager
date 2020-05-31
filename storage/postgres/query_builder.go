@@ -177,6 +177,10 @@ func (pq *pgQuery) Query(ctx context.Context, queryName storage.NamedQuery, quer
 	if err != nil {
 		return nil, err
 	}
+
+	if stmt == nil {
+		return nil, fmt.Errorf("could not prepare statement")
+	}
 	return stmt.Queryx(queryParams)
 }
 

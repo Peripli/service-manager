@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"github.com/Peripli/service-manager/storage"
+
 	"regexp"
 	"strings"
 
@@ -18,6 +20,8 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
+
+
 // The query builder tests contain the full queries that are expected to be build and can therefore be used as documentation
 // to better understand the final queries that will be executed
 var _ = Describe("Postgres Storage Query builder", func() {
@@ -27,16 +31,22 @@ var _ = Describe("Postgres Storage Query builder", func() {
 	var entity *postgres.Visibility
 	var qb *postgres.QueryBuilder
 
+
 	trim := func(s string) string {
 		return strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(s, " "))
 	}
 
 	db := &postgresfakes.FakePgDB{}
+
+
 	db.QueryxContextStub = func(ctx context.Context, query string, args ...interface{}) (rows *sqlx.Rows, e error) {
+
 		executedQuery = query
 		queryArgs = args
 		return &sqlx.Rows{}, nil
 	}
+
+
 	db.SelectContextStub = func(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 		executedQuery = query
 		queryArgs = args
@@ -55,6 +65,14 @@ var _ = Describe("Postgres Storage Query builder", func() {
 	db.RebindStub = func(s string) string {
 		return s
 	}
+
+
+
+	db.PrepareNamedContextStub = func(ctx context.Context, sql string) (stmt *sqlx.NamedStmt, err error) {
+		executedQuery = sql
+		return nil,nil
+	}
+
 
 	BeforeEach(func() {
 		entity = &postgres.Visibility{}
@@ -805,5 +823,102 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 				Expect(queryArgs[11]).Should(Equal("right4"))
 			})
 		})
+	})
+
+	Describe("Query", func() {
+		Context("when query by missing label with params ", func() {
+			It("builds a valid query", func() {
+				params := map[string]interface{}{
+					"key": "subaccount_id"}
+
+				_, err := qb.NewQuery(entity).Query(ctx,storage.QueryByMissingLabel,params)
+				Expect(err).To(HaveOccurred())
+				Expect(executedQuery).Should(Equal(`
+	SELECT visibilities.*,
+	visibility_labels.id         "visibility_labels.id",
+	visibility_labels.key        "visibility_labels.key",
+	visibility_labels.val        "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id" 
+	FROM visibilities
+		LEFT JOIN visibility_labels
+		ON visibilities.id = visibility_labels.visibility_id
+	WHERE NOT EXISTS
+	(SELECT ID FROM visibility_labels 
+				WHERE key=:key
+				AND visibilities.id = visibility_labels.visibility_id)`))
+				//Expect(err.Error()).To(ContainSubstring("query builder requires the entity to have associated label entity"))
+			})
+		})
+
+		Context("when query by missing label with nil params", func() {
+			It("builds simple query for entity and its labels", func() {
+				_, err := qb.NewQuery(entity).Query(ctx,storage.QueryByMissingLabel,nil)
+				Expect(err).Should(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("could not prepare statement"))
+
+			})
+		})
+
+		Context("when query by missing label with empty params", func() {
+			It("builds simple query for entity and its labels", func() {
+				params := map[string]interface{}{}
+
+				_, err := qb.NewQuery(entity).Query(ctx,storage.QueryByMissingLabel,params)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("could not prepare statement"))
+
+
+			})
+		})
+
+		Context("when query by existing label with params ", func() {
+			It("builds a valid query", func() {
+				params := map[string]interface{}{
+					"key": "subaccount_id"}
+
+				_, err := qb.NewQuery(entity).Query(ctx,storage.QueryByExistingLabel,params)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("could not prepare statement"))
+				Expect(executedQuery).Should(Equal(`
+	SELECT visibilities.*,
+	visibility_labels.id         "visibility_labels.id",
+	visibility_labels.key        "visibility_labels.key",
+	visibility_labels.val        "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id" 
+	FROM visibilities
+		LEFT JOIN visibility_labels
+		ON visibilities.id = visibility_labels.visibility_id
+	WHERE EXISTS
+	(SELECT ID FROM visibility_labels 
+				WHERE key=:key
+				AND visibilities.id = visibility_labels.visibility_id)`))
+				//Expect(err.Error()).To(ContainSubstring("query builder requires the entity to have associated label entity"))
+			})
+		})
+
+		Context("when query by existing label with nil params", func() {
+			It("builds simple query for entity and its labels", func() {
+				_, err := qb.NewQuery(entity).Query(ctx,storage.QueryByExistingLabel,nil)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("could not prepare statement"))
+			})
+		})
+
+		Context("when query by existing label with empty params", func() {
+			It("builds simple query for entity and its labels", func() {
+				params := map[string]interface{}{}
+
+				_, err := qb.NewQuery(entity).Query(ctx,storage.QueryByExistingLabel,params)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("could not prepare statement"))
+
+			})
+		})
+
+
 	})
 })
