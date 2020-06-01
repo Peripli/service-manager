@@ -39,11 +39,6 @@ var (
 	tenantID              = "tenant_value"
 	osbInstanceID         = "test-instance"
 
-	cleanupInterval = 3 * time.Second
-	reconciliation  = 9999 * time.Hour
-	actionTimeout   = 2 * time.Second
-	pollCascade     = 500 * time.Millisecond
-
 	queryForOperationsInTheSameTree    query.Criterion
 	queryForRoot                       query.Criterion
 	queryForInstanceOperations         query.Criterion
@@ -58,7 +53,15 @@ const (
 	maintainerRetry         = 1 * time.Second
 	lifespan                = 1 * time.Millisecond
 	cascadeOrphanMitigation = 5 * time.Second
+	cleanupInterval         = 2 * time.Second
+	reconciliation          = 9999 * time.Hour
+	actionTimeout           = 2 * time.Second
+	pollCascade             = 500 * time.Millisecond
 )
+
+var _ = AfterEach(func() {
+	ctx.CleanupAdditionalResources()
+})
 
 var _ = BeforeSuite(func() {
 	UUID, err := uuid.NewV4()
@@ -72,13 +75,7 @@ var _ = BeforeSuite(func() {
 	queryForOrphanMitigationOperations = query.ByField(query.NotEqualsOperator, "deletion_scheduled", operations.ZeroTime)
 	querySucceeded = query.ByField(query.EqualsOperator, "state", string(types.SUCCEEDED))
 	queryFailures = query.ByField(query.EqualsOperator, "state", string(types.FAILED))
-})
 
-var _ = AfterEach(func() {
-	ctx.Cleanup()
-})
-
-var _ = JustBeforeEach(func() {
 	postHookWithOperationsConfig := func() func(e env.Environment, servers map[string]FakeServer) {
 		return func(e env.Environment, servers map[string]FakeServer) {
 			e.Set("operations.action_timeout", actionTimeout)

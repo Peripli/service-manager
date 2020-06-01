@@ -17,11 +17,6 @@ import (
 )
 
 var _ = Describe("cascade operations", func() {
-
-	BeforeEach(func() {
-		cleanupInterval = 9999 * time.Hour
-	})
-
 	Context("tenant tree", func() {
 		JustBeforeEach(func() {
 			initTenantResources(true)
@@ -448,37 +443,6 @@ var _ = Describe("cascade operations", func() {
 			validateParentsRanAfterChildren(fullTree)
 			validateDuplicationsWaited(fullTree)
 			AssertOperationCount(func(count int) { Expect(count).To(Equal(3)) }, queryForOperationsInTheSameTree)
-		})
-	})
-
-	Context("reconciliation", func() {
-		BeforeEach(func() {
-			reconciliation = 1 * time.Second
-			actionTimeout = 500 * time.Millisecond
-		})
-
-		JustBeforeEach(func() {
-			initTenantResources(true)
-		})
-
-		It("instance is reconciliation", func() {
-			brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
-				time.Sleep(1 * time.Second)
-				return http.StatusOK, common.Object{"state": "in progress"}
-			})
-
-			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
-
-			Eventually(func() int {
-				count, err := ctx.SMRepository.Count(
-					context.Background(),
-					types.OperationType,
-					queryForRoot,
-					queryFailures)
-				Expect(err).NotTo(HaveOccurred())
-
-				return count
-			}, actionTimeout*10+cleanupInterval*10+reconciliation*2).Should(Equal(1))
 		})
 	})
 })

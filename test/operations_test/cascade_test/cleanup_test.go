@@ -7,14 +7,9 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"net/http"
-	"time"
 )
 
 var _ = Describe("cascade operations", func() {
-	BeforeEach(func() {
-		cleanupInterval = 100 * time.Millisecond
-	})
-
 	JustBeforeEach(func() {
 		initTenantResources(true)
 	})

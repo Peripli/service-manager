@@ -559,6 +559,24 @@ func (s *Scheduler) addOperationToContext(ctx context.Context, operation *types.
 	return ctxWithOp, nil
 }
 
+func (s *Scheduler) validateOperationDoesNotExceedTimeouts(operation *types.Operation) error {
+	if operation.CascadeRootID != "" && !operation.DeletionScheduled.IsZero() && time.Now().UTC().After(operation.CreatedAt.Add(s.cascadeOrphanMitigationTimeout)) {
+		return &util.HTTPError{
+			ErrorType:   "ManualActionRequired",
+			Description: fmt.Sprintf("operations is older than %v and has exceed the maximmum cascade orphan mitigation timeout", s.cascadeOrphanMitigationTimeout),
+			StatusCode:  http.StatusUnprocessableEntity,
+		}
+	}
+	if time.Now().UTC().After(operation.CreatedAt.Add(s.reconciliationOperationTimeout)) {
+		return &util.HTTPError{
+			ErrorType:   "ManualActionRequired",
+			Description: fmt.Sprintf("operation is older than %v and has exceeded the maximum reconciliation timeout. Rootcause error: %s", s.reconciliationOperationTimeout, operation.Errors),
+			StatusCode:  http.StatusUnprocessableEntity,
+		}
+	}
+	return nil
+}
+
 func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation *types.Operation) error {
 	if operation.State == types.SUCCEEDED ||
 		(operation.State == types.FAILED && operation.DeletionScheduled.IsZero()) {
@@ -567,20 +585,13 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 
 	// if operation has reached the maximum allowed timeout for auto rescheduling of operation actions
 	// if cascade operation has reached the maximum allowed time for orphan mitigation
-	if time.Now().UTC().After(operation.CreatedAt.Add(s.reconciliationOperationTimeout)) ||
-		(operation.CascadeRootID != "" && time.Now().UTC().After(operation.CreatedAt.Add(s.cascadeOrphanMitigationTimeout)) && !operation.DeletionScheduled.IsZero()) {
-
+	err := s.validateOperationDoesNotExceedTimeouts(operation)
+	if err != nil {
 		operation.DeletionScheduled = time.Time{}
-		manualActionRequiredError := &util.HTTPError{
-			ErrorType:   "ManualActionRequired",
-			Description: fmt.Sprintf("operation is older than %v and has exceeded the maximum reconciliation timeout. Rootcause error: %s", s.reconciliationOperationTimeout, operation.Errors),
-			StatusCode:  http.StatusUnprocessableEntity,
+		if opErr := updateOperationState(ctx, s.repository, operation, types.FAILED, err); opErr != nil {
+			return fmt.Errorf("failed to update error of operation with id %s to %s", operation.ID, err)
 		}
-		if opErr := updateOperationState(ctx, s.repository, operation, types.FAILED, manualActionRequiredError); opErr != nil {
-			return fmt.Errorf("failed to update error of operation with id %s to %s", operation.ID, manualActionRequiredError)
-		}
-
-		return manualActionRequiredError
+		return err
 	}
 
 	if err := operation.Validate(); err != nil {
