@@ -140,7 +140,7 @@ func GetSubOperations(ctx context.Context, operation *types.Operation, repositor
 	cascadedOperations.AllOperationsCount = len(subOperations.Operations)
 	for i := 0; i < subOperations.Len(); i++ {
 		subOperation := subOperations.ItemAt(i).(*types.Operation)
-		if !subOperation.DeletionScheduled.IsZero() {
+		if subOperation.InOrphanMitigationState() {
 			cascadedOperations.OrphanMitigationOperations = append(cascadedOperations.OrphanMitigationOperations, subOperation)
 		} else {
 			switch subOperation.State {
@@ -182,7 +182,12 @@ func makeCascadeOPForChild(object types.Object, operation *types.Operation) (*ty
 		CascadeRootID: operation.CascadeRootID,
 	}, nil
 }
-
+/**
+	returns 3 parameters:
+	OperationState in case there is a duplicate operation that finished(SUCCESS/FAILURE)
+	bool skip in case there is duplicate operation in_progress or in OM in the same tree
+	error
+ */
 func handleDuplicateOperations(ctx context.Context, storage storage.Repository, operation *types.Operation) (types.OperationState, bool, error) {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
@@ -195,12 +200,10 @@ func handleDuplicateOperations(ctx context.Context, storage storage.Repository, 
 
 	for i := 0; i < sameResourceOperations.Len(); i++ {
 		same := sameResourceOperations.ItemAt(i).(*types.Operation)
-		if same.CascadeRootID == operation.CascadeRootID && !same.DeletionScheduled.IsZero() {
+		if same.CascadeRootID == operation.CascadeRootID && same.InOrphanMitigationState() {
 			return "", true, nil
 		}
 		switch same.State {
-		case types.PENDING:
-			continue
 		case types.IN_PROGRESS:
 			// other operation with the same resourceID is already in progress, skipping this operation
 			return "", true, nil

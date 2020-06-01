@@ -67,26 +67,18 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 		if err := operation.Validate(); err != nil {
 			return nil, err
 		}
-		if exists, err := doesExistCascadeOperationForResource(ctx, storage, operation); err != nil || exists != nil {
+		if duplicate, err := doesExistCascadeOperationForResource(ctx, storage, operation); err != nil || duplicate != nil {
 			// in case cascade operation does exists for this resource
-			return exists, err
+			return duplicate, err
 		}
 
 		isVirtual := types.IsVirtualType(operation.ResourceType)
 		var cascadeResource types.Object
 		if isVirtual {
 			// currently we have only one virtual object: tenant
-			cascadeResource = &types.Tenant{
-				VirtualType: types.VirtualType{
-					Base: types.Base{
-						ID: operation.ResourceID,
-					},
-				},
-				TenantIdentifier: co.TenantIdentifier,
-			}
+			cascadeResource = types.NewTenant(operation.ResourceID, co.TenantIdentifier)
 		} else {
 			var err error
-			// fetching and validating object does exist
 			cascadeResource, err = storage.Get(ctx, operation.ResourceType, query.ByField(query.EqualsOperator, "id", operation.ResourceID))
 			if err != nil {
 				return nil, err
@@ -110,6 +102,8 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 }
 
 func doesExistCascadeOperationForResource(ctx context.Context, storage storage.Repository, operation *types.Operation) (*types.Operation, error) {
+	// if same resource exists in other cascade tree the existing tree/subtree root will be returned
+	// in case of service instance deletion failure errors might be lost but will be available in the original tree
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
 		query.ByField(query.InOperator, "state", string(types.IN_PROGRESS), string(types.PENDING)),

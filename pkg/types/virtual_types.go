@@ -31,6 +31,17 @@ func (e *Tenant) GetType() ObjectType {
 	return TenantType
 }
 
+func NewTenant(id string, tenantIdentifier string) *Tenant {
+	return &Tenant{
+		VirtualType: VirtualType{
+			Base: Base{
+				ID: id,
+			},
+		},
+		TenantIdentifier: tenantIdentifier,
+	}
+}
+
 func IsVirtualType(objectType ObjectType) bool {
 	return objectType == TenantType
 }
