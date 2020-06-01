@@ -852,27 +852,6 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 			})
 		})
 
-		Context("when query by missing label with nil params", func() {
-			It("builds simple query for entity and its labels", func() {
-				_, err := qb.NewQuery(entity).Query(ctx,storage.QueryByMissingLabel,nil)
-				Expect(err).Should(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("could not prepare statement"))
-
-			})
-		})
-
-		Context("when query by missing label with empty params", func() {
-			It("builds simple query for entity and its labels", func() {
-				params := map[string]interface{}{}
-
-				_, err := qb.NewQuery(entity).Query(ctx,storage.QueryByMissingLabel,params)
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("could not prepare statement"))
-
-
-			})
-		})
-
 		Context("when query by existing label with params ", func() {
 			It("builds a valid query", func() {
 				params := map[string]interface{}{
@@ -899,26 +878,5 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 				//Expect(err.Error()).To(ContainSubstring("query builder requires the entity to have associated label entity"))
 			})
 		})
-
-		Context("when query by existing label with nil params", func() {
-			It("builds simple query for entity and its labels", func() {
-				_, err := qb.NewQuery(entity).Query(ctx,storage.QueryByExistingLabel,nil)
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("could not prepare statement"))
-			})
-		})
-
-		Context("when query by existing label with empty params", func() {
-			It("builds simple query for entity and its labels", func() {
-				params := map[string]interface{}{}
-
-				_, err := qb.NewQuery(entity).Query(ctx,storage.QueryByExistingLabel,params)
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("could not prepare statement"))
-
-			})
-		})
-
-
 	})
 })
