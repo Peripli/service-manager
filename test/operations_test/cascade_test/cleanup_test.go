@@ -7,19 +7,14 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"net/http"
-	"time"
 )
 
 var _ = Describe("cascade operations", func() {
-	BeforeEach(func() {
-		cleanupInterval = 100 * time.Millisecond
+	JustBeforeEach(func() {
+		initTenantResources(true)
 	})
 
 	Context("cleanup", func() {
-		AfterEach(func() {
-			ctx.Cleanup()
-		})
-
 		It("finished tree should be deleted", func() {
 			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
 

@@ -82,6 +82,9 @@ func (u *CascadeUtils) validateNoGlobalInstances(ctx context.Context, broker typ
 		}
 	}
 	delete(platformIdsMap, types.SMPlatform)
+	if len(platformIdsMap) == 0 {
+		return nil
+	}
 
 	platformIds := make([]string, len(platformIdsMap))
 	index := 0
@@ -180,34 +183,38 @@ func makeCascadeOPForChild(object types.Object, operation *types.Operation) (*ty
 	}, nil
 }
 
-func SameResourceIsAlreadyInProgress(ctx context.Context, storage storage.Repository, resourceID string, cascadeRootID string) (bool, error) {
+func handleDuplicateOperations(ctx context.Context, storage storage.Repository, operation *types.Operation) (types.OperationState, bool, error) {
 	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "resource_id", resourceID),
-		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
-		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
+		query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
+		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
 	}
-	cnt, err := storage.Count(ctx, types.OperationType, criteria...)
+	sameResourceOperations, err := storage.List(ctx, types.OperationType, criteria...)
 	if err != nil {
-		return false, err
-	}
-	if cnt > 0 {
-		return true, nil
+		return "", false, err
 	}
 
-	criteriaForOrphanMitigationInTheSameTree := []query.Criterion{
-		query.ByField(query.EqualsOperator, "resource_id", resourceID),
-		query.ByField(query.NotEqualsOperator, "deletion_scheduled", ZeroTime),
-		query.ByField(query.EqualsOperator, "cascade_root_id", cascadeRootID),
+	for i := 0; i < sameResourceOperations.Len(); i++ {
+		same := sameResourceOperations.ItemAt(i).(*types.Operation)
+		if same.CascadeRootID == operation.CascadeRootID && !same.DeletionScheduled.IsZero() {
+			return "", true, nil
+		}
+		switch same.State {
+		case types.PENDING:
+			continue
+		case types.IN_PROGRESS:
+			// other operation with the same resourceID is already in progress, skipping this operation
+			return "", true, nil
+		case types.SUCCEEDED:
+			fallthrough
+		case types.FAILED:
+			if same.CascadeRootID == operation.CascadeRootID {
+				return same.State, false, nil
+			}
+			return "", false, nil
+		}
 	}
-	cnt, err = storage.Count(ctx, types.OperationType, criteriaForOrphanMitigationInTheSameTree...)
-	if err != nil {
-		return false, err
-	}
-	if cnt > 0 {
-		return true, nil
-	}
-
-	return false, nil
+	// same operations are pending, proceeding the flow
+	return "", false, nil
 }
 
 func SameResourceInCurrentTreeHasFinished(ctx context.Context, storage storage.Repository, resourceID string, cascadeRootID string) (types.OperationState, error) {

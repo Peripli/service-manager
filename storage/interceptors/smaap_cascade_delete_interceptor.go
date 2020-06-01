@@ -23,6 +23,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
+	"time"
 )
 
 const CascadeOperationCreateInterceptorProviderName = "CascadeOperationCreateInterceptorProvider"
@@ -55,13 +56,19 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 		if operation.CascadeRootID == "" || operation.Type != types.DELETE {
 			return f(ctx, storage, operation)
 		}
+
+		// init operation properties
+		operation.PlatformID = types.SMPlatform
 		operation.State = types.PENDING
-		// validate operation is valid
+		operation.Base.CreatedAt = time.Now()
+		operation.Base.UpdatedAt = time.Now()
+		operation.Base.Ready = true
+
 		if err := operation.Validate(); err != nil {
 			return nil, err
 		}
-		// validate no operation for the same resource
 		if exists, err := doesExistCascadeOperationForResource(ctx, storage, operation); err != nil || exists != nil {
+			// in case cascade operation does exists for this resource
 			return exists, err
 		}
 
@@ -79,16 +86,12 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 			}
 		} else {
 			var err error
-			// validating object does exist
+			// fetching and validating object does exist
 			cascadeResource, err = storage.Get(ctx, operation.ResourceType, query.ByField(query.EqualsOperator, "id", operation.ResourceID))
 			if err != nil {
 				return nil, err
 			}
 		}
-
-		// make sure the rootID is the operation.ID
-		operation.CascadeRootID = operation.ID
-		operation.PlatformID = types.SMPlatform
 
 		ops, err := co.utils.GetAllLevelsCascadeOperations(ctx, cascadeResource, operation, storage)
 		if err != nil {
