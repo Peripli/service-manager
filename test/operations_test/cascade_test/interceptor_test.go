@@ -13,9 +13,10 @@ import (
 
 var _ = Describe("Cascade Operation Interceptor", func() {
 
-	AfterEach(func() {
-		ctx.Cleanup()
+	JustBeforeEach(func() {
+		initTenantResources(true)
 	})
+
 	Context("tree creation", func() {
 
 		Context("should fail", func() {

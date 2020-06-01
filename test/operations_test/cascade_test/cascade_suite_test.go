@@ -15,6 +15,7 @@ import (
 	. "github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/pflag"
 	"github.com/tidwall/gjson"
 	"net/http"
@@ -41,25 +42,41 @@ var (
 	cleanupInterval = 3 * time.Second
 	reconciliation  = 9999 * time.Hour
 	actionTimeout   = 2 * time.Second
+	pollCascade     = 500 * time.Millisecond
+
+	queryForOperationsInTheSameTree    query.Criterion
+	queryForRoot                       query.Criterion
+	queryForInstanceOperations         query.Criterion
+	queryForBindingsOperations         query.Criterion
+	queryForOrphanMitigationOperations query.Criterion
+	querySucceeded                     query.Criterion
+	queryFailures                      query.Criterion
 )
 
 const (
 	polling                 = 1 * time.Millisecond
 	maintainerRetry         = 1 * time.Second
-	pollCascade             = 500 * time.Millisecond
 	lifespan                = 1 * time.Millisecond
 	cascadeOrphanMitigation = 5 * time.Second
 )
 
-var queryForOperationsInTheSameTree = query.ByField(query.EqualsOperator, "cascade_root_id", rootOpID)
-var queryForRoot = query.ByField(query.EqualsOperator, "id", rootOpID)
+var _ = BeforeSuite(func() {
+	UUID, err := uuid.NewV4()
+	Expect(err).ToNot(HaveOccurred())
+	rootOpID = UUID.String()
 
-var queryForInstanceOperations = query.ByField(query.EqualsOperator, "resource_type", types.ServiceInstanceType.String())
-var queryForBindingsOperations = query.ByField(query.EqualsOperator, "resource_type", types.ServiceBindingType.String())
-var queryForOrphanMitigationOperations = query.ByField(query.NotEqualsOperator, "deletion_scheduled", operations.ZeroTime)
+	queryForOperationsInTheSameTree = query.ByField(query.EqualsOperator, "cascade_root_id", rootOpID)
+	queryForRoot = query.ByField(query.EqualsOperator, "id", rootOpID)
+	queryForInstanceOperations = query.ByField(query.EqualsOperator, "resource_type", types.ServiceInstanceType.String())
+	queryForBindingsOperations = query.ByField(query.EqualsOperator, "resource_type", types.ServiceBindingType.String())
+	queryForOrphanMitigationOperations = query.ByField(query.NotEqualsOperator, "deletion_scheduled", operations.ZeroTime)
+	querySucceeded = query.ByField(query.EqualsOperator, "state", string(types.SUCCEEDED))
+	queryFailures = query.ByField(query.EqualsOperator, "state", string(types.FAILED))
+})
 
-var querySucceeded = query.ByField(query.EqualsOperator, "state", string(types.SUCCEEDED))
-var queryFailures = query.ByField(query.EqualsOperator, "state", string(types.FAILED))
+var _ = AfterEach(func() {
+	ctx.Cleanup()
+})
 
 var _ = JustBeforeEach(func() {
 	postHookWithOperationsConfig := func() func(e env.Environment, servers map[string]FakeServer) {
@@ -107,32 +124,36 @@ var _ = JustBeforeEach(func() {
 			return err
 		}).
 		Build()
+})
 
+func initTenantResources(createInstances bool) {
 	brokerID, brokerServer = registerSubaccountScopedBroker(ctx, "test-service", "plan-service")
 	platformID = registerSubaccountScopedPlatform(ctx, "platform1")
 	var err error
 	plan, err = ctx.SMRepository.Get(context.Background(), types.ServicePlanType, query.ByField(query.EqualsOperator, "catalog_id", "plan-service"))
 	Expect(err).NotTo(HaveOccurred())
-	createSMAAPInstance(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
-		"name":            "test-instance-smaap",
-		"service_plan_id": plan.GetID(),
-	})
-	createOSBInstance(ctx, ctx.SMWithBasic, brokerID, osbInstanceID, map[string]interface{}{
-		"service_id":        "test-service",
-		"plan_id":           "plan-service",
-		"organization_guid": "my-org",
-	})
-	createOSBBinding(ctx, ctx.SMWithBasic, brokerID, osbInstanceID, "binding1", map[string]interface{}{
-		"service_id":        "test-service",
-		"plan_id":           "plan-service",
-		"organization_guid": "my-org",
-	})
-	createOSBBinding(ctx, ctx.SMWithBasic, brokerID, osbInstanceID, "binding2", map[string]interface{}{
-		"service_id":        "test-service",
-		"plan_id":           "plan-service",
-		"organization_guid": "my-org",
-	})
-})
+	if createInstances {
+		createSMAAPInstance(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
+			"name":            "test-instance-smaap",
+			"service_plan_id": plan.GetID(),
+		})
+		createOSBInstance(ctx, ctx.SMWithBasic, brokerID, osbInstanceID, map[string]interface{}{
+			"service_id":        "test-service",
+			"plan_id":           "plan-service",
+			"organization_guid": "my-org",
+		})
+		createOSBBinding(ctx, ctx.SMWithBasic, brokerID, osbInstanceID, "binding1", map[string]interface{}{
+			"service_id":        "test-service",
+			"plan_id":           "plan-service",
+			"organization_guid": "my-org",
+		})
+		createOSBBinding(ctx, ctx.SMWithBasic, brokerID, osbInstanceID, "binding2", map[string]interface{}{
+			"service_id":        "test-service",
+			"plan_id":           "plan-service",
+			"organization_guid": "my-org",
+		})
+	}
+}
 
 func createOSBInstance(ctx *TestContext, sm *SMExpect, brokerID string, instanceID string, osbContext map[string]interface{}) {
 	smBrokerURL := ctx.Servers[SMServer].URL() + "/v1/osb/" + brokerID

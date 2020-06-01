@@ -15,11 +15,11 @@ var _ = Describe("cascade operations", func() {
 		cleanupInterval = 100 * time.Millisecond
 	})
 
-	Context("cleanup", func() {
-		AfterEach(func() {
-			ctx.Cleanup()
-		})
+	JustBeforeEach(func() {
+		initTenantResources(true)
+	})
 
+	Context("cleanup", func() {
 		It("finished tree should be deleted", func() {
 			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
 

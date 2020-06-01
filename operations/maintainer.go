@@ -357,24 +357,17 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 					logger.Warnf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
 				}
 			} else {
-				sameResourceInPollingState, err := SameResourceIsAlreadyInProgress(ctx, om.repository, operation.ResourceID, operation.CascadeRootID)
+				sameResourceState, skip, err := handleDuplicateOperations(ctx, om.repository, operation)
 				if err != nil {
 					logger.Warnf("Failed to validate if operation with ID (%s) is in polling: %s", operation.ID, err)
 					continue
 				}
-				if sameResourceInPollingState {
-					// no need to poll twice for the same resource
+				if skip {
 					skipSameResourcesForCurrentIteration[operation.ResourceID] = true
 					continue
 				}
-
-				sameResourceInCurrentTreeState, err := SameResourceInCurrentTreeHasFinished(ctx, om.repository, operation.ResourceID, operation.CascadeRootID)
-				if err != nil {
-					logger.Warnf("Failed to fetch completed operations in the same tree for operation with ID (%s): %s ", operation.ID, err)
-					continue
-				}
-				if sameResourceInCurrentTreeState != "" {
-					operation.State = sameResourceInCurrentTreeState
+				if sameResourceState != "" {
+					operation.State = sameResourceState
 					if _, err := om.repository.Update(om.smCtx, operation, types.LabelChanges{}); err != nil {
 						logger.Warnf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
 					}
