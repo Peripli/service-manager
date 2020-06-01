@@ -221,3 +221,13 @@ func NewJSONResponseWithHeaders(code int, value interface{}, additionalHeaders m
 		Body:       body,
 	}, err
 }
+
+func NewLocationResponse(operationID, resourceID, resourceBaseURL string) (*web.Response, error) {
+	operationURL := buildOperationURL(operationID, resourceID, resourceBaseURL)
+	additionalHeaders := map[string]string{"Location": operationURL}
+	return NewJSONResponseWithHeaders(http.StatusAccepted, map[string]string{}, additionalHeaders)
+}
+
+func buildOperationURL(operationID, resourceID, resourceType string) string {
+	return fmt.Sprintf("%s/%s%s/%s", resourceType, resourceID, web.ResourceOperationsURL, operationID)
+}

@@ -58,16 +58,8 @@ var queryForInstanceOperations = query.ByField(query.EqualsOperator, "resource_t
 var queryForBindingsOperations = query.ByField(query.EqualsOperator, "resource_type", types.ServiceBindingType.String())
 var queryForOrphanMitigationOperations = query.ByField(query.NotEqualsOperator, "deletion_scheduled", operations.ZeroTime)
 
-//var queryForPlatformOperations := query.ByField(query.EqualsOperator, "resource_type", types.PlatformType.String())
-//var queryForTenantOperations := query.ByField(query.EqualsOperator, "resource_type", types.TenantType.String())
-//var queryForBrokerOperations := query.ByField(query.EqualsOperator, "resource_type", types.ServiceBrokerType.String())
 var querySucceeded = query.ByField(query.EqualsOperator, "state", string(types.SUCCEEDED))
-
-//var queryInProgress := query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS))
-//var queryPending := query.ByField(query.EqualsOperator, "state", string(types.PENDING))
 var queryFailures = query.ByField(query.EqualsOperator, "state", string(types.FAILED))
-
-//var queryForDuplications := query.ByField(query.EqualsOrNilOperator, "external_id", "")
 
 var _ = JustBeforeEach(func() {
 	postHookWithOperationsConfig := func() func(e env.Environment, servers map[string]FakeServer) {

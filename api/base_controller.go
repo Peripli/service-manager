@@ -204,7 +204,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		return newAsyncResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
+		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
@@ -293,7 +293,7 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 			return nil, err
 		}
 
-		return newAsyncResponse(operation.ID, objectID, c.resourceBaseURL)
+		return util.NewLocationResponse(operation.GetID(), objectID, c.resourceBaseURL)
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
@@ -328,11 +328,15 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 
 // GetOperation handles the fetching of a single operation with the id specified for the specified resource
 func (c *BaseController) GetOperation(r *web.Request) (*web.Response, error) {
+	return GetResourceOperation(r, c.repository, c.objectType)
+}
+
+func GetResourceOperation(r *web.Request, repository storage.Repository, objectType types.ObjectType) (*web.Response, error) {
 	objectID := r.PathParams[web.PathParamResourceID]
 	operationID := r.PathParams[web.PathParamID]
 
 	ctx := r.Context()
-	log.C(ctx).Debugf("Getting operation with id %s for object of type %s with id %s", operationID, c.objectType, objectID)
+	log.C(ctx).Debugf("Getting operation with id %s for object of type %s with id %s", operationID, objectType, objectID)
 
 	byOperationID := query.ByField(query.EqualsOperator, "id", operationID)
 	byObjectID := query.ByField(query.EqualsOperator, "resource_id", objectID)
@@ -342,9 +346,9 @@ func (c *BaseController) GetOperation(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 	criteria := query.CriteriaForContext(ctx)
-	operation, err := c.repository.Get(ctx, types.OperationType, criteria...)
+	operation, err := repository.Get(ctx, types.OperationType, criteria...)
 	if err != nil {
-		return nil, util.HandleStorageError(err, c.objectType.String())
+		return nil, util.HandleStorageError(err, objectType.String())
 	}
 
 	return util.NewJSONResponse(http.StatusOK, operation)
@@ -484,7 +488,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		return newAsyncResponse(operation.GetID(), objFromDB.GetID(), c.resourceBaseURL)
+		return util.NewLocationResponse(operation.GetID(), objFromDB.GetID(), c.resourceBaseURL)
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
@@ -626,14 +630,4 @@ func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count,
 		page.Token = generateTokenForItem(page.Items[len(page.Items)-1])
 	}
 	return page
-}
-
-func newAsyncResponse(operationID, resourceID, resourceBaseURL string) (*web.Response, error) {
-	operationURL := buildOperationURL(operationID, resourceID, resourceBaseURL)
-	additionalHeaders := map[string]string{"Location": operationURL}
-	return util.NewJSONResponseWithHeaders(http.StatusAccepted, map[string]string{}, additionalHeaders)
-}
-
-func buildOperationURL(operationID, resourceID, resourceType string) string {
-	return fmt.Sprintf("%s/%s%s/%s", resourceType, resourceID, web.ResourceOperationsURL, operationID)
 }
