@@ -20,9 +20,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 
 	"github.com/Peripli/service-manager/test"
 	"github.com/gavv/httpexpect"
@@ -451,6 +453,97 @@ var _ = Describe("Catalog", func() {
 					k8sOSBClient.GET(osbURL + "/v2/catalog").
 						Expect().Status(http.StatusUnauthorized)
 				})
+			})
+		})
+
+		When("registering broker which is not actually an OSB complient broker application", func() {
+			var notBrokerApp *httptest.Server
+			var brokerResponseCode int
+			BeforeEach(func() {
+				notBrokerApp = httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+					rw.WriteHeader(brokerResponseCode)
+					rw.Write([]byte("Internal Data"))
+				}))
+			})
+
+			AfterEach(func() {
+				notBrokerApp.Close()
+			})
+
+			It("should not disclose internal information if response code is bad request", func() {
+				brokerResponseCode = http.StatusBadRequest
+				brokerURL := notBrokerApp.URL
+				ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(common.Object{
+					"broker_url": brokerURL,
+					"name":       "not_broker",
+					"credentials": common.Object{
+						"basic": common.Object{
+							"username": "admin",
+							"password": "admin",
+						},
+					},
+				}).Expect().Status(http.StatusBadRequest).Body().NotContains("Internal Data")
+
+			})
+
+			It("should not disclose internal information if response code is ok", func() {
+				brokerResponseCode = http.StatusOK
+				brokerURL := notBrokerApp.URL
+				ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(common.Object{
+					"broker_url": brokerURL,
+					"name":       "not_broker",
+					"credentials": common.Object{
+						"basic": common.Object{
+							"username": "admin",
+							"password": "admin",
+						},
+					},
+				}).Expect().Status(http.StatusBadRequest).Body().NotContains("Internal Data").Contains("Failed to decode")
+
+			})
+		})
+
+		When("registering broker which is not an http server", func() {
+			var address string
+			var l net.Listener
+			var err error
+			var wg sync.WaitGroup
+			BeforeEach(func() {
+				l, err = net.Listen("tcp", "127.0.0.1:0")
+				Expect(err).ShouldNot(HaveOccurred())
+
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					// Intentionally accepts only one connection
+					conn, err := l.Accept()
+					Expect(err).ShouldNot(HaveOccurred())
+
+					n, err := conn.Write([]byte("Internal Data"))
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(n).To(BeNumerically(">", 0))
+					conn.Close()
+				}()
+
+				address = fmt.Sprintf("http://%s", l.Addr().String())
+			})
+
+			AfterEach(func() {
+				l.Close()
+			})
+
+			It("should not disclose internal information", func() {
+				ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(common.Object{
+					"broker_url": address,
+					"name":       "not_broker",
+					"credentials": common.Object{
+						"basic": common.Object{
+							"username": "admin",
+							"password": "admin",
+						},
+					},
+				}).Expect().Status(http.StatusBadGateway).Body().NotContains("Internal Data").Contains("could not reach service broker")
+				wg.Wait()
 			})
 		})
 	})
