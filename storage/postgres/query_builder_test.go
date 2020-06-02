@@ -60,7 +60,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 	db.PrepareNamedContextStub = func(ctx context.Context, sql string) (stmt *sqlx.NamedStmt, err error) {
 		executedQuery = sql
-		return nil,nil
+		return nil, nil
 	}
 
 	BeforeEach(func() {
@@ -820,7 +820,7 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 				params := map[string]interface{}{
 					"key": "subaccount_id"}
 
-				qb.NewQuery(entity).Query(ctx,storage.QueryByMissingLabel,params)
+				qb.NewQuery(entity).Query(ctx, storage.QueryByMissingLabel, params)
 				Expect(executedQuery).Should(Equal(`
 	SELECT visibilities.*,
 	visibility_labels.id         "visibility_labels.id",
@@ -845,7 +845,7 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 				params := map[string]interface{}{
 					"key": "subaccount_id"}
 
-				qb.NewQuery(entity).Query(ctx,storage.QueryByExistingLabel,params)
+				qb.NewQuery(entity).Query(ctx, storage.QueryByExistingLabel, params)
 				Expect(executedQuery).Should(Equal(`
 	SELECT visibilities.*,
 	visibility_labels.id         "visibility_labels.id",

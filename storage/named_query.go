@@ -7,9 +7,9 @@ const (
 	QueryByExistingLabel
 )
 
-var namedQueries =  map[NamedQuery]string {
+var namedQueries = map[NamedQuery]string{
 
-	QueryByMissingLabel : `
+	QueryByMissingLabel: `
 	SELECT {{.ENTITY_TABLE}}.*,
 	{{.LABELS_TABLE}}.id         "{{.LABELS_TABLE}}.id",
 	{{.LABELS_TABLE}}.key        "{{.LABELS_TABLE}}.key",
