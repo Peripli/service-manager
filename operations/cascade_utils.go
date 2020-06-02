@@ -13,7 +13,6 @@ import (
 	"time"
 )
 
-
 func GetAllLevelsCascadeOperations(ctx context.Context, tenantIdentifier string, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
 	var operations []*types.Operation
 	objectChildren, err := GetObjectChildren(ctx, tenantIdentifier, object, storage)

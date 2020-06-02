@@ -33,7 +33,7 @@ func (si *ServiceInstanceCascade) GetChildrenCriterion() ChildrenCriterion {
 	criterion := ChildrenCriterion{
 		types.ServiceBindingType: {query.ByField(query.EqualsOperator, "service_instance_id", si.ID)},
 	}
-	if  len(si.containerIdKey) > 0 {
+	if len(si.containerIdKey) > 0 {
 		criterion[types.ServiceInstanceType] = []query.Criterion{query.ByLabel(query.EqualsOperator, si.containerIdKey, si.ID)}
 	}
 	return criterion
