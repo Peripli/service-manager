@@ -34,30 +34,38 @@ func (e *ServicePlan) SupportsPlatformType(platformType string) bool {
 
 // SupportsPlatformInstance determines whether a specific platform instance is among the ones that a plan supports
 func (e *ServicePlan) SupportsPlatformInstance(platform Platform) bool {
-	platformNames := e.SupportedPlatformNames()
+	if excludedPlatformNames := e.ExcludedPlatformNames(); len(excludedPlatformNames) > 0 {
+		return !slice.StringsAnyEquals(excludedPlatformNames, platform.Name)
+	}
 
-	if len(platformNames) == 0 {
-		return e.SupportsPlatformType(platform.Type)
-	} else {
+	if platformNames := e.SupportedPlatformNames(); len(platformNames) > 0 {
 		return slice.StringsAnyEquals(platformNames, platform.Name)
+	} else {
+		return e.SupportsPlatformType(platform.Type)
 	}
 }
 
 // SupportsAllPlatforms determines whether the plan supports all platforms
 func (e *ServicePlan) SupportsAllPlatforms() bool {
-	return len(e.SupportedPlatformNames()) == 0 && len(e.SupportedPlatformTypes()) == 0
+	return len(e.SupportedPlatformNames()) == 0 && len(e.SupportedPlatformTypes()) == 0 && len(e.ExcludedPlatformNames()) == 0
 }
 
 // SupportedPlatformTypes returns the supportedPlatforms provided in a plan's metadata (if a value is provided at all).
-// If there are no supported platforms, nil is returned denoting that the plan is available to platforms of all types.
+// If there are no supported platforms, empty array is returned denoting that the plan is available to platforms of all types.
 func (e *ServicePlan) SupportedPlatformTypes() []string {
 	return e.metadataPropertyAsStringArray("supportedPlatforms")
 }
 
 // SupportedPlatformNames returns the supportedPlatformNames provided in a plan's metadata (if a value is provided at all).
-// If there are no supported platforms names, nil is returned
+// If there are no supported platforms names, empty array is returned
 func (e *ServicePlan) SupportedPlatformNames() []string {
 	return e.metadataPropertyAsStringArray("supportedPlatformNames")
+}
+
+// ExcludedPlatformNames returns the excludedPlatformNames provided in a plan's metadata (if a value is provided at all).
+// If there are no excluded platforms names, empty array is returned
+func (e *ServicePlan) ExcludedPlatformNames() []string {
+	return e.metadataPropertyAsStringArray("excludedPlatformNames")
 }
 
 func (e *ServicePlan) metadataPropertyAsStringArray(propertyKey string) []string {

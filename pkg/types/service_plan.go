@@ -19,8 +19,10 @@ package types
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/util"
+	"math"
 	"reflect"
+
+	"github.com/Peripli/service-manager/pkg/util"
 )
 
 //go:generate smgen api ServicePlan
@@ -104,6 +106,18 @@ func (e *ServicePlan) Validate() error {
 
 	if len(e.SupportedPlatformNames()) != 0 && len(e.SupportedPlatformTypes()) != 0 {
 		return fmt.Errorf("only one of supportedPlatforms and supportedPlatformNames can be defined in plan metadata")
+	}
+
+	return e.validateSupportedPlatformsMetadata()
+}
+
+func (e *ServicePlan) validateSupportedPlatformsMetadata() error {
+	hasSupportedPlatformNames := math.Min(float64(len(e.SupportedPlatformNames())), 1)
+	hasSupportedPlatformTypes := math.Min(float64(len(e.SupportedPlatformTypes())), 1)
+	hasExcludedPlatformNames := math.Min(float64(len(e.ExcludedPlatformNames())), 1)
+
+	if hasExcludedPlatformNames+hasSupportedPlatformNames+hasSupportedPlatformTypes > 1 {
+		return fmt.Errorf("only one of supportedPlatforms, supportedPlatformNames and excludedPlatformNames can be defined in plan metadata")
 	}
 
 	return nil
