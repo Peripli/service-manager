@@ -82,7 +82,7 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 		},
 		{
 			name:     "cleanupFinishedCascadeOperations",
-			execute:  maintainer.cleanupFinishedCascadeOperations,
+			execute:  maintainer.CleanupFinishedCascadeOperations,
 			interval: options.CleanupInterval,
 		},
 		{
@@ -184,7 +184,7 @@ func (om *Maintainer) cleanupExternalOperations() {
 }
 
 // cleanupFinishedCascadeOperations cleans up all successful/failed internal cascade operations which are older than some specified time
-func (om *Maintainer) cleanupFinishedCascadeOperations() {
+func (om *Maintainer) CleanupFinishedCascadeOperations() {
 	currentTime := time.Now()
 	rootsCriteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", SMPlatform),
