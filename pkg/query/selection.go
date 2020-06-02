@@ -81,7 +81,7 @@ var (
 		EqualsOperator, NotEqualsOperator,
 		GreaterThanOperator, LessThanOperator,
 		GreaterThanOrEqualOperator, LessThanOrEqualOperator,
-		InOperator, NotInOperator, EqualsOrNilOperator, NotEqualsAndNotNilOperator,
+		InOperator, NotInOperator, EqualsOrNilOperator,
 	}
 	// CriteriaTypes returns the supported query criteria types
 	CriteriaTypes = []CriterionType{FieldQuery, LabelQuery}
@@ -95,8 +95,6 @@ type Operator interface {
 	Type() OperatorType
 	// IsNullable returns true if the operator allows results with null value in the RHS
 	IsNullable() bool
-	// IsNotNull returns true if the operator not allows results with null value in the RHS
-	IsNotNull() bool
 	// IsNumeric returns true if the operator works only with numbers
 	IsNumeric() bool
 }

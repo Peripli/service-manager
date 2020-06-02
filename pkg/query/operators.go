@@ -35,9 +35,6 @@ const (
 	NotInOperator notInOperator = "notin"
 	// EqualsOrNilOperator takes two operands and tests if the left is equal to the right, or if the left is nil
 	EqualsOrNilOperator enOperator = "en"
-	// NotEqualsAndNotNilOperator takes two operands and tests if the left is not equal to the right and if the left is not nil
-	NotEqualsAndNotNilOperator nenOperator = "nen"
-
 
 	NoOperator noOperator = "nop"
 )
@@ -60,10 +57,6 @@ func (eqOperator) IsNullable() bool {
 	return false
 }
 
-func (eqOperator) IsNotNull() bool {
-	return false
-}
-
 type neOperator string
 
 func (o neOperator) String() string {
@@ -78,34 +71,8 @@ func (neOperator) IsNullable() bool {
 	return false
 }
 
-func (neOperator) IsNotNull() bool {
-	return false
-}
-
 func (neOperator) IsNumeric() bool {
 	return false
-}
-
-type nenOperator string
-
-func (i nenOperator) String() string {
-	return string(i)
-}
-
-func (nenOperator) IsNumeric() bool {
-	return false
-}
-
-func (nenOperator) Type() OperatorType {
-	return UnivariateOperator
-}
-
-func (nenOperator) IsNullable() bool {
-	return false
-}
-
-func (nenOperator) IsNotNull() bool {
-	return true
 }
 
 type gtOperator string
@@ -119,10 +86,6 @@ func (gtOperator) Type() OperatorType {
 }
 
 func (gtOperator) IsNullable() bool {
-	return false
-}
-
-func (gtOperator) IsNotNull() bool {
 	return false
 }
 
@@ -144,10 +107,6 @@ func (ltOperator) IsNullable() bool {
 	return false
 }
 
-func (ltOperator) IsNotNull() bool {
-	return false
-}
-
 func (ltOperator) IsNumeric() bool {
 	return true
 }
@@ -163,10 +122,6 @@ func (inOperator) Type() OperatorType {
 }
 
 func (inOperator) IsNullable() bool {
-	return false
-}
-
-func (inOperator) IsNotNull() bool {
 	return false
 }
 
@@ -188,10 +143,6 @@ func (notInOperator) IsNullable() bool {
 	return false
 }
 
-func (notInOperator) IsNotNull() bool {
-	return false
-}
-
 func (notInOperator) IsNumeric() bool {
 	return false
 }
@@ -210,10 +161,6 @@ func (enOperator) IsNullable() bool {
 	return true
 }
 
-func (enOperator) IsNotNull() bool {
-	return false
-}
-
 func (enOperator) IsNumeric() bool {
 	return false
 }
@@ -229,10 +176,6 @@ func (geOperator) Type() OperatorType {
 }
 
 func (geOperator) IsNullable() bool {
-	return false
-}
-
-func (geOperator) IsNotNull() bool {
 	return false
 }
 
@@ -254,10 +197,6 @@ func (leOperator) IsNullable() bool {
 	return false
 }
 
-func (leOperator) IsNotNull() bool {
-	return false
-}
-
 func (leOperator) IsNumeric() bool {
 	return true
 }
@@ -273,10 +212,6 @@ func (noOperator) Type() OperatorType {
 }
 
 func (noOperator) IsNullable() bool {
-	return false
-}
-
-func (noOperator) IsNotNull() bool {
 	return false
 }
 
