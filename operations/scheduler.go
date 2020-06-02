@@ -560,10 +560,10 @@ func (s *Scheduler) addOperationToContext(ctx context.Context, operation *types.
 }
 
 func (s *Scheduler) validateOperationDoesNotExceedTimeouts(operation *types.Operation) error {
-	if operation.CascadeRootID != "" && operation.InOrphanMitigationState() && time.Now().UTC().After(operation.CreatedAt.Add(s.cascadeOrphanMitigationTimeout)) {
+	if operation.CascadeRootID != "" && !operation.DeletionScheduled.IsZero() && time.Now().UTC().After(operation.CreatedAt.Add(s.cascadeOrphanMitigationTimeout)) {
 		return &util.HTTPError{
 			ErrorType:   "ManualActionRequired",
-			Description: fmt.Sprintf("operations is older than %v and has exceed the maximmum cascade orphan mitigation timeout", s.cascadeOrphanMitigationTimeout),
+			Description: fmt.Sprintf("operations is older than %v and has exceed the maximmum cascade orphan mitigation timeout. Rootcause error: %s", s.cascadeOrphanMitigationTimeout, operation.Errors),
 			StatusCode:  http.StatusUnprocessableEntity,
 		}
 	}
