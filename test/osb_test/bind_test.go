@@ -17,8 +17,11 @@
 package osb_test
 
 import (
+	"context"
+	"fmt"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/storage"
 	"net/http"
 
 	. "github.com/onsi/ginkgo"
@@ -36,6 +39,17 @@ var _ = Describe("Bind", func() {
 	})
 
 	Context("call to working service broker", func() {
+
+		FIt("DELETE ME!!!!", func() {
+			params := map[string]interface{}{
+				"key": "subaccount_id"}
+
+			res, _ := ctx.SMRepository.QueryForList(context.TODO(), types.ServiceInstanceType, storage.QueryByMissingLabel, params)
+
+			fmt.Println(res.Len())
+
+		})
+
 		It("should succeed", func() {
 			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).

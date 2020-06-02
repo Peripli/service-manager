@@ -831,8 +831,7 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 				params := map[string]interface{}{
 					"key": "subaccount_id"}
 
-				_, err := qb.NewQuery(entity).Query(ctx,storage.QueryByMissingLabel,params)
-				Expect(err).To(HaveOccurred())
+				qb.NewQuery(entity).Query(ctx,storage.QueryByMissingLabel,params)
 				Expect(executedQuery).Should(Equal(`
 	SELECT visibilities.*,
 	visibility_labels.id         "visibility_labels.id",
@@ -848,7 +847,7 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 	(SELECT ID FROM visibility_labels 
 				WHERE key=:key
 				AND visibilities.id = visibility_labels.visibility_id)`))
-				//Expect(err.Error()).To(ContainSubstring("query builder requires the entity to have associated label entity"))
+
 			})
 		})
 
@@ -857,9 +856,7 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 				params := map[string]interface{}{
 					"key": "subaccount_id"}
 
-				_, err := qb.NewQuery(entity).Query(ctx,storage.QueryByExistingLabel,params)
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("could not prepare statement"))
+				qb.NewQuery(entity).Query(ctx,storage.QueryByExistingLabel,params)
 				Expect(executedQuery).Should(Equal(`
 	SELECT visibilities.*,
 	visibility_labels.id         "visibility_labels.id",
@@ -875,7 +872,6 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 	(SELECT ID FROM visibility_labels 
 				WHERE key=:key
 				AND visibilities.id = visibility_labels.visibility_id)`))
-				//Expect(err.Error()).To(ContainSubstring("query builder requires the entity to have associated label entity"))
 			})
 		})
 	})
