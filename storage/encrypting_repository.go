@@ -106,6 +106,19 @@ type TransactionalEncryptingRepository struct {
 	repository TransactionalRepository
 }
 
+func (er *encryptingRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (types.ObjectList, error) {
+	objList, err := er.repository.QueryForList(ctx, objectType, queryName, queryParams)
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < objList.Len(); i++ {
+		if err := er.decrypt(ctx, objList.ItemAt(i)); err != nil {
+			return nil, err
+		}
+	}
+	return objList, nil
+}
+
 func (er *encryptingRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
 	if err := er.encrypt(ctx, obj); err != nil {
 		return nil, err

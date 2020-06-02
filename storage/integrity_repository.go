@@ -56,6 +56,20 @@ type TransactionalIntegrityRepository struct {
 	repository TransactionalRepository
 }
 
+func (cr *integrityRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (types.ObjectList, error) {
+	objectList, err := cr.repository.QueryForList(ctx, objectType, queryName, queryParams)
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < objectList.Len(); i++ {
+		item := objectList.ItemAt(i)
+		if err := cr.validateIntegrity(item); err != nil {
+			return nil, err
+		}
+	}
+	return objectList, nil
+}
+
 func (cr *integrityRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
 	if err := cr.setIntegrity(obj); err != nil {
 		return nil, err

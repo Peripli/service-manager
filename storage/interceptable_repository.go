@@ -117,6 +117,10 @@ type queryScopedInterceptableRepository struct {
 	deleteOnTxFuncs map[types.ObjectType]func(InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc
 }
 
+func (ir *queryScopedInterceptableRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (types.ObjectList, error) {
+	return ir.repositoryInTransaction.QueryForList(ctx, objectType, queryName, queryParams)
+}
+
 func (ir *queryScopedInterceptableRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
 	createObjectFunc := func(ctx context.Context, _ Repository, newObject types.Object) (types.Object, error) {
 		createdObj, err := ir.repositoryInTransaction.Create(ctx, newObject)
@@ -392,6 +396,10 @@ func (itr *InterceptableTransactionalRepository) InTransaction(ctx context.Conte
 	}
 
 	return itr.RawRepository.InTransaction(ctx, fWrapper)
+}
+
+func (itr *InterceptableTransactionalRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (types.ObjectList, error) {
+	return itr.RawRepository.QueryForList(ctx, objectType, queryName, queryParams)
 }
 
 func (itr *InterceptableTransactionalRepository) AddCreateAroundTxInterceptorProvider(objectType types.ObjectType, provider CreateAroundTxInterceptorProvider, order InterceptorOrder) {

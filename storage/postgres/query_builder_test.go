@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"github.com/Peripli/service-manager/storage"
+
 	"regexp"
 	"strings"
 
@@ -54,6 +56,11 @@ var _ = Describe("Postgres Storage Query builder", func() {
 	}
 	db.RebindStub = func(s string) string {
 		return s
+	}
+
+	db.PrepareNamedContextStub = func(ctx context.Context, sql string) (stmt *sqlx.NamedStmt, err error) {
+		executedQuery = sql
+		return nil, nil
 	}
 
 	BeforeEach(func() {
@@ -803,6 +810,57 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 				Expect(queryArgs[9]).Should(Equal("right3"))
 				Expect(queryArgs[10]).Should(Equal("left3"))
 				Expect(queryArgs[11]).Should(Equal("right4"))
+			})
+		})
+	})
+
+	Describe("Query", func() {
+		Context("when query by missing label with params ", func() {
+			It("builds a valid query", func() {
+				params := map[string]interface{}{
+					"key": "subaccount_id"}
+
+				qb.NewQuery(entity).Query(ctx, storage.QueryByMissingLabel, params)
+				Expect(executedQuery).Should(Equal(`
+	SELECT visibilities.*,
+	visibility_labels.id         "visibility_labels.id",
+	visibility_labels.key        "visibility_labels.key",
+	visibility_labels.val        "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id" 
+	FROM visibilities
+		LEFT JOIN visibility_labels
+		ON visibilities.id = visibility_labels.visibility_id
+	WHERE NOT EXISTS
+	(SELECT ID FROM visibility_labels 
+				WHERE key=:key
+				AND visibilities.id = visibility_labels.visibility_id)`))
+
+			})
+		})
+
+		Context("when query by existing label with params ", func() {
+			It("builds a valid query", func() {
+				params := map[string]interface{}{
+					"key": "subaccount_id"}
+
+				qb.NewQuery(entity).Query(ctx, storage.QueryByExistingLabel, params)
+				Expect(executedQuery).Should(Equal(`
+	SELECT visibilities.*,
+	visibility_labels.id         "visibility_labels.id",
+	visibility_labels.key        "visibility_labels.key",
+	visibility_labels.val        "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id" 
+	FROM visibilities
+		LEFT JOIN visibility_labels
+		ON visibilities.id = visibility_labels.visibility_id
+	WHERE EXISTS
+	(SELECT ID FROM visibility_labels 
+				WHERE key=:key
+				AND visibilities.id = visibility_labels.visibility_id)`))
 			})
 		})
 	})
