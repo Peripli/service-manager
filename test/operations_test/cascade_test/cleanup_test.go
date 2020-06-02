@@ -107,10 +107,10 @@ var _ = Describe("cascade operations", func() {
 			count, err := ctx.SMRepository.Count(
 				context.Background(),
 				types.OperationType, []query.Criterion{
-				query.ByField(query.InOperator, "resource_id", osbInstanceID),
-				query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""),
-				query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
-				} ...)
+					query.ByField(query.InOperator, "resource_id", osbInstanceID),
+					query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""),
+					query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
+				}...)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(count).To(Equal(1))
 		})

@@ -182,12 +182,13 @@ func makeCascadeOPForChild(object types.Object, operation *types.Operation) (*ty
 		CascadeRootID: operation.CascadeRootID,
 	}, nil
 }
+
 /**
-	returns 3 parameters:
-	OperationState in case there is a duplicate operation that finished(SUCCESS/FAILURE)
-	bool skip in case there is duplicate operation in_progress or in OM in the same tree
-	error
- */
+returns 3 parameters:
+OperationState in case there is a duplicate operation that finished(SUCCESS/FAILURE)
+bool skip in case there is duplicate operation in_progress or in OM in the same tree
+error
+*/
 func handleDuplicateOperations(ctx context.Context, storage storage.Repository, operation *types.Operation) (types.OperationState, bool, error) {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),

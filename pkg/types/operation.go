@@ -145,6 +145,6 @@ func (o *Operation) Validate() error {
 	return nil
 }
 
-func (o *Operation) InOrphanMitigationState() bool{
+func (o *Operation) InOrphanMitigationState() bool {
 	return !o.DeletionScheduled.IsZero()
 }
