@@ -19,16 +19,20 @@ var _ = Describe("cascade operations", func() {
 	Context("cleanup", func() {
 		It("finished tree should be deleted", func() {
 			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
-
-			Eventually(func() int {
-				count, err := ctx.SMRepository.Count(
-					context.Background(),
-					types.OperationType,
-					queryForOperationsInTheSameTree)
-				Expect(err).NotTo(HaveOccurred())
-
-				return count
-			}, actionTimeout*11+pollCascade*11+cleanupInterval).Should(Equal(0))
+			common.VerifyOperationExists(ctx, "", common.OperationExpectations{
+				Category:          types.DELETE,
+				State:             types.SUCCEEDED,
+				ResourceType:      types.TenantType,
+				Reschedulable:     false,
+				DeletionScheduled: false,
+			})
+			ctx.Maintainer.CleanupFinishedCascadeOperations()
+			count, err := ctx.SMRepository.Count(
+				context.Background(),
+				types.OperationType,
+				queryForOperationsInTheSameTree)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(count).To(Equal(0))
 		})
 
 		It("multiple finished trees should be deleted", func() {
@@ -40,11 +44,21 @@ var _ = Describe("cascade operations", func() {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
 					types.OperationType,
-					query.ByField(query.InOperator, "cascade_root_id", rootOpID, "root1", "root2"))
+					query.ByField(query.InOperator, "cascade_root_id", rootOpID, "root1", "root2"),
+					query.ByField(query.EqualsOrNilOperator, "parent_id", ""),
+					querySucceeded)
 				Expect(err).NotTo(HaveOccurred())
-
 				return count
-			}, actionTimeout*20+pollCascade*20+cleanupInterval*2).Should(Equal(0))
+			}, actionTimeout*20+pollCascade*20).Should(Equal(1))
+
+			ctx.Maintainer.CleanupFinishedCascadeOperations()
+			count, err := ctx.SMRepository.Count(
+				context.Background(),
+				types.OperationType,
+				query.ByField(query.InOperator, "cascade_root_id", rootOpID, "root1", "root2"),
+				query.ByField(query.EqualsOrNilOperator, "parent_id", ""))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(count).To(Equal(0))
 		})
 
 		It("in_progress tree should not be deleted", func() {
@@ -66,7 +80,7 @@ var _ = Describe("cascade operations", func() {
 			Expect(count).To(Equal(11))
 		})
 
-		It("not cascade tree tree should not be deleted", func() {
+		It("not cascade tree should not be deleted", func() {
 			op := types.Operation{
 				Base: types.Base{
 					ID:        "opid",

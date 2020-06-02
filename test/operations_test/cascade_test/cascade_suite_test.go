@@ -53,7 +53,7 @@ const (
 	maintainerRetry         = 1 * time.Second
 	lifespan                = 1 * time.Millisecond
 	cascadeOrphanMitigation = 5 * time.Second
-	cleanupInterval         = 2 * time.Second
+	cleanupInterval         = 9999 * time.Hour
 	reconciliation          = 9999 * time.Hour
 	actionTimeout           = 2 * time.Second
 	pollCascade             = 500 * time.Millisecond
