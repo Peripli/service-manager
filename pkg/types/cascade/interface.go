@@ -50,8 +50,12 @@ func GetCascadeObject(ctx context.Context, object types.Object) (Cascade, bool) 
 	case types.ServiceBrokerType:
 		return &ServiceBrokerCascade{object.(*types.ServiceBroker)}, true
 	case types.ServiceInstanceType:
-		containerIDValue := ctx.Value(ContainerKey{})
-		return &ServiceInstanceCascade{object.(*types.ServiceInstance), containerIDValue}, true
+		containerIdKey := ctx.Value(ContainerKey{})
+		var containerIdKeyStr = ""
+		if id, ok := containerIdKey.(string); ok {
+			containerIdKeyStr = id
+		}
+		return &ServiceInstanceCascade{object.(*types.ServiceInstance), containerIdKeyStr}, true
 	}
 	return nil, false
 }

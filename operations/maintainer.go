@@ -59,7 +59,7 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 		smCtx:                   smCtx,
 		repository:              repository,
 		scheduler:               NewScheduler(smCtx, repository, options, options.DefaultPoolSize, wg),
-		cascadePollingScheduler: NewScheduler(smCtx, repository, options, options.DefaultPoolSize, wg),
+		cascadePollingScheduler: NewScheduler(smCtx, repository, options, options.DefaultCascadePollingPoolSize, wg),
 		settings:                options,
 		wg:                      wg,
 	}
@@ -86,8 +86,8 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			interval: options.CleanupInterval,
 		},
 		{
-			name:     "pollCascadedDeleteOperations",
-			execute:  maintainer.pollCascadedDeleteOperations,
+			name:     "pollPendingCascadeOperations",
+			execute:  maintainer.pollPendingCascadeOperations,
 			interval: options.PollCascadeInterval,
 		},
 		{
@@ -204,7 +204,8 @@ func (om *Maintainer) CleanupFinishedCascadeOperations() {
 	}
 	for i := 0; i < roots.Len(); i++ {
 		root := roots.ItemAt(i)
-		if err := om.repository.Delete(om.smCtx, OperationType, query.ByField(query.EqualsOperator, "cascade_root_id", root.GetID())); err != nil && err != util.ErrNotFoundInStorage {
+		byRootID := query.ByField(query.EqualsOperator, "cascade_root_id", root.GetID())
+		if err := om.repository.Delete(om.smCtx, OperationType, byRootID); err != nil && err != util.ErrNotFoundInStorage {
 			log.C(om.smCtx).Errorf("Failed to cleanup cascade operations: %s", err)
 		}
 	}
@@ -323,7 +324,7 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 	}
 }
 
-func (om *Maintainer) pollCascadedDeleteOperations() {
+func (om *Maintainer) pollPendingCascadeOperations() {
 	criteria := []query.Criterion{
 		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
 		query.ByField(query.EqualsOperator, "type", string(DELETE)),
@@ -339,12 +340,13 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 	operations = operations.(*Operations)
 	for i := 0; i < operations.Len(); i++ {
 		operation := operations.ItemAt(i).(*Operation)
-		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
 		if skipSameResourcesForCurrentIteration[operation.ResourceID] {
 			continue
 		}
-		subOperations, err := GetSubOperations(om.smCtx, operation, om.repository)
+		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
 		ctx := log.ContextWithLogger(om.smCtx, logger)
+
+		subOperations, err := GetSubOperations(ctx, operation, om.repository)
 		if err != nil {
 			logger.Warnf("Failed to retrieve children of the operation with ID (%s): %s", operation.ID, err)
 		}
@@ -352,7 +354,7 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 		if subOperations.AllOperationsCount == len(subOperations.SucceededOperations) {
 			if IsVirtualType(operation.ResourceType) {
 				operation.State = SUCCEEDED
-				if _, err := om.repository.Update(om.smCtx, operation, LabelChanges{}); err != nil {
+				if _, err := om.repository.Update(ctx, operation, LabelChanges{}); err != nil {
 					logger.Errorf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
 				}
 			} else {
@@ -367,7 +369,7 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 				}
 				if sameResourceState != "" {
 					operation.State = sameResourceState
-					if _, err := om.repository.Update(om.smCtx, operation, LabelChanges{}); err != nil {
+					if _, err := om.repository.Update(ctx, operation, LabelChanges{}); err != nil {
 						logger.Warnf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
 					}
 				} else {
@@ -390,14 +392,14 @@ func (om *Maintainer) pollCascadedDeleteOperations() {
 				}
 			}
 		} else if len(subOperations.FailedOperations) > 0 && len(subOperations.FailedOperations)+len(subOperations.SucceededOperations) == subOperations.AllOperationsCount {
-			array, err := PrepareAggregatedErrorsArray(subOperations.FailedOperations, operation.ResourceID, operation.ResourceType)
+			errorsJson, err := PrepareAggregatedErrorsArray(subOperations.FailedOperations, operation.ResourceID, operation.ResourceType)
 			if err != nil {
 				logger.Errorf("Couldn't aggregate errors for failed operation with id %s: %s", operation.ResourceID, err)
 			} else {
-				operation.Errors = array
+				operation.Errors = errorsJson
 			}
 			operation.State = FAILED
-			if _, err := om.repository.Update(om.smCtx, operation, LabelChanges{}); err != nil {
+			if _, err := om.repository.Update(ctx, operation, LabelChanges{}); err != nil {
 				logger.Warnf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
 			}
 		}

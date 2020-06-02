@@ -13,13 +13,10 @@ import (
 	"time"
 )
 
-type CascadeUtils struct {
-	TenantIdentifier string
-}
 
-func (u *CascadeUtils) GetAllLevelsCascadeOperations(ctx context.Context, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
+func GetAllLevelsCascadeOperations(ctx context.Context, tenantIdentifier string, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
 	var operations []*types.Operation
-	objectChildren, err := u.GetObjectChildren(ctx, object, storage)
+	objectChildren, err := GetObjectChildren(ctx, tenantIdentifier, object, storage)
 	if err != nil {
 		return nil, err
 	}
@@ -31,7 +28,7 @@ func (u *CascadeUtils) GetAllLevelsCascadeOperations(ctx context.Context, object
 				return nil, err
 			}
 			operations = append(operations, childOP)
-			childrenSubOPs, err := u.GetAllLevelsCascadeOperations(ctx, childOBJ, childOP, storage)
+			childrenSubOPs, err := GetAllLevelsCascadeOperations(ctx, tenantIdentifier, childOBJ, childOP, storage)
 			if err != nil {
 				return nil, err
 			}
@@ -41,7 +38,7 @@ func (u *CascadeUtils) GetAllLevelsCascadeOperations(ctx context.Context, object
 	return operations, nil
 }
 
-func (u *CascadeUtils) GetObjectChildren(ctx context.Context, object types.Object, storage storage.Repository) ([]types.ObjectList, error) {
+func GetObjectChildren(ctx context.Context, tenantIdentifier string, object types.Object, storage storage.Repository) ([]types.ObjectList, error) {
 	var children []types.ObjectList
 	isBroker := object.GetType() == types.ServiceBrokerType
 	if isBroker {
@@ -60,7 +57,7 @@ func (u *CascadeUtils) GetObjectChildren(ctx context.Context, object types.Objec
 		}
 	}
 	if isBroker {
-		err := u.validateNoGlobalInstances(ctx, object, children, storage)
+		err := validateNoGlobalInstances(ctx, tenantIdentifier, object, children, storage)
 		if err != nil {
 			return nil, err
 		}
@@ -68,7 +65,7 @@ func (u *CascadeUtils) GetObjectChildren(ctx context.Context, object types.Objec
 	return children, nil
 }
 
-func (u *CascadeUtils) validateNoGlobalInstances(ctx context.Context, broker types.Object, brokerChildren []types.ObjectList, repository storage.Repository) error {
+func validateNoGlobalInstances(ctx context.Context, tenantIdentifier string, broker types.Object, brokerChildren []types.ObjectList, repository storage.Repository) error {
 	platformIdsMap := make(map[string]bool)
 	for _, children := range brokerChildren {
 		for i := 0; i < children.Len(); i++ {
@@ -87,10 +84,8 @@ func (u *CascadeUtils) validateNoGlobalInstances(ctx context.Context, broker typ
 	}
 
 	platformIds := make([]string, len(platformIdsMap))
-	index := 0
 	for id := range platformIdsMap {
-		platformIds[index] = id
-		index++
+		platformIds = append(platformIds, id)
 	}
 
 	if len(platformIds) == 0 {
@@ -103,7 +98,7 @@ func (u *CascadeUtils) validateNoGlobalInstances(ctx context.Context, broker typ
 	for i := 0; i < platforms.Len(); i++ {
 		platform := platforms.ItemAt(i)
 		labels := platform.GetLabels()
-		if _, found := labels[u.TenantIdentifier]; !found {
+		if _, found := labels[tenantIdentifier]; !found {
 			return fmt.Errorf("broker %s has instances from global platform", broker.GetID())
 		}
 	}
@@ -192,7 +187,7 @@ error
 func handleDuplicateOperations(ctx context.Context, storage storage.Repository, operation *types.Operation) (types.OperationState, bool, error) {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
-		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
+		query.ByField(query.EqualsOperator, "type", string(operation.Type)),
 	}
 	sameResourceOperations, err := storage.List(ctx, types.OperationType, criteria...)
 	if err != nil {

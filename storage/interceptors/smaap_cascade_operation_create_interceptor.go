@@ -30,7 +30,6 @@ const CascadeOperationCreateInterceptorProviderName = "CascadeOperationCreateInt
 
 type cascadeOperationCreateInterceptor struct {
 	TenantIdentifier string
-	utils            *operations.CascadeUtils
 }
 
 type CascadeOperationCreateInterceptorProvider struct {
@@ -40,9 +39,6 @@ type CascadeOperationCreateInterceptorProvider struct {
 func (c *CascadeOperationCreateInterceptorProvider) Provide() storage.CreateOnTxInterceptor {
 	return &cascadeOperationCreateInterceptor{
 		TenantIdentifier: c.TenantIdentifier,
-		utils: &operations.CascadeUtils{
-			TenantIdentifier: c.TenantIdentifier,
-		},
 	}
 }
 
@@ -85,7 +81,7 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 			}
 		}
 
-		ops, err := co.utils.GetAllLevelsCascadeOperations(ctx, cascadeResource, operation, storage)
+		ops, err := operations.GetAllLevelsCascadeOperations(ctx, co.TenantIdentifier, cascadeResource, operation, storage)
 		if err != nil {
 			return nil, err
 		}

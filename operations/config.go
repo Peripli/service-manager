@@ -41,8 +41,9 @@ type Settings struct {
 	ReschedulingInterval time.Duration `mapstructure:"rescheduling_interval" description:"the interval between auto rescheduling of operation actions"`
 	PollingInterval      time.Duration `mapstructure:"polling_interval" description:"the interval between polls for async requests"`
 
-	DefaultPoolSize int            `mapstructure:"default_pool_size" description:"default worker pool size"`
-	Pools           []PoolSettings `mapstructure:"pools" description:"defines the different available worker pools"`
+	DefaultPoolSize               int            `mapstructure:"default_pool_size" description:"default worker pool size"`
+	DefaultCascadePollingPoolSize int            `mapstructure:"default_cascade_polling_pool_size" description:"default worker pool size"`
+	Pools                         []PoolSettings `mapstructure:"pools" description:"defines the different available worker pools"`
 
 	SMSupportedPlatformType string `mapstructure:"sm_supported_platform_type" description:"defines the value of the supported platform for the SM platform"`
 }
@@ -60,6 +61,7 @@ func DefaultSettings() *Settings {
 		PollingInterval:                4 * time.Second,
 		PollCascadeInterval:            4 * time.Second,
 		DefaultPoolSize:                20,
+		DefaultCascadePollingPoolSize:  20,
 		Pools:                          []PoolSettings{},
 		SMSupportedPlatformType:        types.SMPlatform,
 	}
@@ -87,6 +89,9 @@ func (s *Settings) Validate() error {
 	}
 	if s.DefaultPoolSize <= 0 {
 		return fmt.Errorf("validate Settings: DefaultPoolSize must be larger than 0")
+	}
+	if s.DefaultCascadePollingPoolSize <= 0 {
+		return fmt.Errorf("validate Settings: DefaultCascadePollingPoolSize must be larger than 0")
 	}
 	for _, pool := range s.Pools {
 		if err := pool.Validate(); err != nil {
