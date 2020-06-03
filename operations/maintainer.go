@@ -43,25 +43,25 @@ type maintainerFunctor struct {
 // Maintainer ensures that operations old enough are deleted
 // and that no orphan operations are left in the DB due to crashes/restarts of SM
 type Maintainer struct {
-	smCtx      context.Context
-	repository storage.Repository
-	scheduler  *Scheduler
-
-	settings *Settings
-	wg       *sync.WaitGroup
-
-	functors         []maintainerFunctor
-	operationLockers map[string]storage.Locker
+	smCtx                   context.Context
+	repository              storage.TransactionalRepository
+	scheduler               *Scheduler
+	cascadePollingScheduler *Scheduler
+	settings                *Settings
+	wg                      *sync.WaitGroup
+	functors                []maintainerFunctor
+	operationLockers        map[string]storage.Locker
 }
 
 // NewMaintainer constructs a Maintainer
 func NewMaintainer(smCtx context.Context, repository storage.TransactionalRepository, lockerCreatorFunc storage.LockerCreatorFunc, options *Settings, wg *sync.WaitGroup) *Maintainer {
 	maintainer := &Maintainer{
-		smCtx:      smCtx,
-		repository: repository,
-		scheduler:  NewScheduler(smCtx, repository, options, options.DefaultPoolSize, wg),
-		settings:   options,
-		wg:         wg,
+		smCtx:                   smCtx,
+		repository:              repository,
+		scheduler:               NewScheduler(smCtx, repository, options, options.DefaultPoolSize, wg),
+		cascadePollingScheduler: NewScheduler(smCtx, repository, options, options.DefaultCascadePollingPoolSize, wg),
+		settings:                options,
+		wg:                      wg,
 	}
 
 	maintainer.functors = []maintainerFunctor{
@@ -79,6 +79,16 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			name:     "cleanupInternalFailedOperations",
 			execute:  maintainer.cleanupInternalFailedOperations,
 			interval: options.CleanupInterval,
+		},
+		{
+			name:     "cleanupFinishedCascadeOperations",
+			execute:  maintainer.CleanupFinishedCascadeOperations,
+			interval: options.CleanupInterval,
+		},
+		{
+			name:     "pollPendingCascadeOperations",
+			execute:  maintainer.pollPendingCascadeOperations,
+			interval: options.PollCascadeInterval,
 		},
 		{
 			name:     "markStuckOperationsFailed",
@@ -173,12 +183,42 @@ func (om *Maintainer) cleanupExternalOperations() {
 	log.C(om.smCtx).Debug("Finished cleaning up external operations")
 }
 
-// cleanupInternalSuccessfulOperations cleans up all successful internal operations which are older than some specified time
+// cleanupFinishedCascadeOperations cleans up all successful/failed internal cascade operations which are older than some specified time
+func (om *Maintainer) CleanupFinishedCascadeOperations() {
+	currentTime := time.Now()
+	rootsCriteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
+		query.ByField(query.EqualsOrNilOperator, "parent_id", ""),
+		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
+		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
+		query.ByField(query.InOperator, "state", string(types.SUCCEEDED), string(types.FAILED)),
+		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB//
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+	}
+
+	roots, err := om.repository.List(om.smCtx, types.OperationType, rootsCriteria...)
+	if err != nil {
+		log.C(om.smCtx).Debugf("Failed to fetch finished cascade operations: %s", err)
+		return
+	}
+	for i := 0; i < roots.Len(); i++ {
+		root := roots.ItemAt(i)
+		byRootID := query.ByField(query.EqualsOperator, "cascade_root_id", root.GetID())
+		if err := om.repository.Delete(om.smCtx, types.OperationType, byRootID); err != nil && err != util.ErrNotFoundInStorage {
+			log.C(om.smCtx).Errorf("Failed to cleanup cascade operations: %s", err)
+		}
+	}
+	log.C(om.smCtx).Debug("Finished cleaning up successful cascade operations")
+}
+
+// cleanupInternalCascadeOperations cleans up all finished internal cascade operations which are older than some specified time
 func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 	currentTime := time.Now()
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "state", string(types.SUCCEEDED)),
+		// ignore cascade operations
+		query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
 	}
@@ -198,6 +238,8 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 		query.ByField(query.EqualsOperator, "state", string(types.FAILED)),
 		query.ByField(query.EqualsOperator, "reschedule", "false"),
 		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
+		// ignore cascade operations
+		query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
 	}
@@ -219,8 +261,6 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
 		// check if operation hasn't been updated for the operation's maximum allowed time to execute
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ActionTimeout))),
-		// check if operation is still eligible for processing
-		query.ByField(query.GreaterThanOperator, "created_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ReconciliationOperationTimeout))),
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
@@ -283,6 +323,91 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 	}
 }
 
+func (om *Maintainer) pollPendingCascadeOperations() {
+	criteria := []query.Criterion{
+		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
+		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
+		query.ByField(query.EqualsOperator, "state", string(types.PENDING)),
+	}
+	operations, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
+	if err != nil {
+		log.C(om.smCtx).Errorf("Failed to fetch cascaded operations in progress: %s", err)
+		return
+	}
+
+	skipSameResourcesForCurrentIteration := make(map[string]bool)
+	operations = operations.(*types.Operations)
+	for i := 0; i < operations.Len(); i++ {
+		operation := operations.ItemAt(i).(*types.Operation)
+		if skipSameResourcesForCurrentIteration[operation.ResourceID] {
+			continue
+		}
+		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
+		ctx := log.ContextWithLogger(om.smCtx, logger)
+
+		subOperations, err := GetSubOperations(ctx, operation, om.repository)
+		if err != nil {
+			logger.Errorf("Failed to retrieve children of the operation with ID (%s): %s", operation.ID, err)
+			continue
+		}
+
+		if subOperations.AllOperationsCount == len(subOperations.SucceededOperations) {
+			if types.IsVirtualType(operation.ResourceType) {
+				operation.State = types.SUCCEEDED
+				if _, err := om.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+					logger.Errorf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
+				}
+			} else {
+				sameResourceState, skip, err := handleDuplicateOperations(ctx, om.repository, operation)
+				if err != nil {
+					logger.Errorf("Failed to validate if operation with ID (%s) is in polling: %s", operation.ID, err)
+					continue
+				}
+				if skip {
+					skipSameResourcesForCurrentIteration[operation.ResourceID] = true
+					continue
+				}
+				if sameResourceState != "" {
+					operation.State = sameResourceState
+					if _, err := om.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+						logger.Errorf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
+						continue
+					}
+				} else {
+					operation.State = types.IN_PROGRESS
+					action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+						byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
+						err := repository.Delete(ctx, operation.ResourceType, byID)
+						if err != nil {
+							if err == util.ErrNotFoundInStorage {
+								return nil, nil
+							}
+							return nil, util.HandleStorageError(err, operation.ResourceType.String())
+						}
+						return nil, nil
+					}
+					if err := om.cascadePollingScheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
+						logger.Errorf("Failed to reschedule cascaded delete operation with ID (%s): %s ok for concurrent deletion failure", operation.ID, err)
+					} else {
+						skipSameResourcesForCurrentIteration[operation.ResourceID] = true
+					}
+				}
+			}
+		} else if len(subOperations.FailedOperations) > 0 && len(subOperations.FailedOperations)+len(subOperations.SucceededOperations) == subOperations.AllOperationsCount {
+			errorsJson, err := PrepareAggregatedErrorsArray(subOperations.FailedOperations, operation.ResourceID, operation.ResourceType)
+			if err != nil {
+				logger.Errorf("Couldn't aggregate errors for failed operation with id %s: %s", operation.ResourceID, err)
+			} else {
+				operation.Errors = errorsJson
+			}
+			operation.State = types.FAILED
+			if _, err := om.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+				logger.Warnf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
+			}
+		}
+	}
+}
+
 // rescheduleOrphanMitigationOperations reschedules orphan mitigation operations which no goroutine is processing at the moment
 func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 	currentTime := time.Now()
@@ -292,8 +417,6 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 		query.ByField(query.NotEqualsOperator, "type", string(types.UPDATE)),
 		// check if operation hasn't been updated for the operation's maximum allowed time to execute
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ActionTimeout))),
-		// check if operation is still eligible for processing
-		query.ByField(query.GreaterThanOperator, "created_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ReconciliationOperationTimeout))),
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)

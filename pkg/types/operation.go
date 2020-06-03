@@ -43,6 +43,9 @@ const (
 type OperationState string
 
 const (
+	// PENDING represents the state of an operation that waiting to be handled
+	PENDING OperationState = "pending"
+
 	// SUCCEEDED represents the state of an operation after successful execution
 	SUCCEEDED OperationState = "succeeded"
 
@@ -74,6 +77,8 @@ type Operation struct {
 	PlatformID          string            `json:"platform_id"`
 	CorrelationID       string            `json:"correlation_id"`
 	ExternalID          string            `json:"-"`
+	ParentID            string            `json:"parent_id,omitempty"`
+	CascadeRootID       string            `json:"cascade_root_id,omitempty"`
 
 	// Reschedule specifies that the operation has reached a state after which it can be retried (checkpoint)
 	Reschedule bool `json:"reschedule"`
@@ -97,6 +102,8 @@ func (e *Operation) Equals(obj Object) bool {
 		e.State != operation.State ||
 		e.Type != operation.Type ||
 		e.PlatformID != operation.PlatformID ||
+		e.CascadeRootID != operation.CascadeRootID ||
+		e.ParentID != operation.ParentID ||
 		!reflect.DeepEqual(e.Errors, operation.Errors) ||
 		!reflect.DeepEqual(e.TransitiveResources, operation.TransitiveResources) {
 		return false
@@ -127,5 +134,17 @@ func (o *Operation) Validate() error {
 		return fmt.Errorf("missing resource type")
 	}
 
+	if o.State == PENDING && o.CascadeRootID == "" {
+		return fmt.Errorf("PENDING state only allowed for cascade operations")
+	}
+
+	if len(o.CascadeRootID) > 0 && len(o.ParentID) == 0 && o.CascadeRootID != o.ID {
+		return fmt.Errorf("root operation should have the same CascadeRootID and ID")
+	}
+
 	return nil
+}
+
+func (o *Operation) InOrphanMitigationState() bool {
+	return !o.DeletionScheduled.IsZero()
 }
