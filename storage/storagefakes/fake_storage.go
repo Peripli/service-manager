@@ -177,6 +177,22 @@ type FakeStorage struct {
 	pingContextReturnsOnCall map[int]struct {
 		result1 error
 	}
+	QueryForListStub        func(context.Context, types.ObjectType, storage.NamedQuery, map[string]interface{}) (types.ObjectList, error)
+	queryForListMutex       sync.RWMutex
+	queryForListArgsForCall []struct {
+		arg1 context.Context
+		arg2 types.ObjectType
+		arg3 storage.NamedQuery
+		arg4 map[string]interface{}
+	}
+	queryForListReturns struct {
+		result1 types.ObjectList
+		result2 error
+	}
+	queryForListReturnsOnCall map[int]struct {
+		result1 types.ObjectList
+		result2 error
+	}
 	UpdateStub        func(context.Context, types.Object, types.LabelChanges, ...query.Criterion) (types.Object, error)
 	updateMutex       sync.RWMutex
 	updateArgsForCall []struct {
@@ -992,6 +1008,72 @@ func (fake *FakeStorage) PingContextReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
+func (fake *FakeStorage) QueryForList(arg1 context.Context, arg2 types.ObjectType, arg3 storage.NamedQuery, arg4 map[string]interface{}) (types.ObjectList, error) {
+	fake.queryForListMutex.Lock()
+	ret, specificReturn := fake.queryForListReturnsOnCall[len(fake.queryForListArgsForCall)]
+	fake.queryForListArgsForCall = append(fake.queryForListArgsForCall, struct {
+		arg1 context.Context
+		arg2 types.ObjectType
+		arg3 storage.NamedQuery
+		arg4 map[string]interface{}
+	}{arg1, arg2, arg3, arg4})
+	fake.recordInvocation("QueryForList", []interface{}{arg1, arg2, arg3, arg4})
+	fake.queryForListMutex.Unlock()
+	if fake.QueryForListStub != nil {
+		return fake.QueryForListStub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.queryForListReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeStorage) QueryForListCallCount() int {
+	fake.queryForListMutex.RLock()
+	defer fake.queryForListMutex.RUnlock()
+	return len(fake.queryForListArgsForCall)
+}
+
+func (fake *FakeStorage) QueryForListCalls(stub func(context.Context, types.ObjectType, storage.NamedQuery, map[string]interface{}) (types.ObjectList, error)) {
+	fake.queryForListMutex.Lock()
+	defer fake.queryForListMutex.Unlock()
+	fake.QueryForListStub = stub
+}
+
+func (fake *FakeStorage) QueryForListArgsForCall(i int) (context.Context, types.ObjectType, storage.NamedQuery, map[string]interface{}) {
+	fake.queryForListMutex.RLock()
+	defer fake.queryForListMutex.RUnlock()
+	argsForCall := fake.queryForListArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeStorage) QueryForListReturns(result1 types.ObjectList, result2 error) {
+	fake.queryForListMutex.Lock()
+	defer fake.queryForListMutex.Unlock()
+	fake.QueryForListStub = nil
+	fake.queryForListReturns = struct {
+		result1 types.ObjectList
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeStorage) QueryForListReturnsOnCall(i int, result1 types.ObjectList, result2 error) {
+	fake.queryForListMutex.Lock()
+	defer fake.queryForListMutex.Unlock()
+	fake.QueryForListStub = nil
+	if fake.queryForListReturnsOnCall == nil {
+		fake.queryForListReturnsOnCall = make(map[int]struct {
+			result1 types.ObjectList
+			result2 error
+		})
+	}
+	fake.queryForListReturnsOnCall[i] = struct {
+		result1 types.ObjectList
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeStorage) Update(arg1 context.Context, arg2 types.Object, arg3 types.LabelChanges, arg4 ...query.Criterion) (types.Object, error) {
 	fake.updateMutex.Lock()
 	ret, specificReturn := fake.updateReturnsOnCall[len(fake.updateArgsForCall)]
@@ -1151,6 +1233,8 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.openMutex.RUnlock()
 	fake.pingContextMutex.RLock()
 	defer fake.pingContextMutex.RUnlock()
+	fake.queryForListMutex.RLock()
+	defer fake.queryForListMutex.RUnlock()
 	fake.updateMutex.RLock()
 	defer fake.updateMutex.RUnlock()
 	fake.updateLabelsMutex.RLock()
