@@ -10,7 +10,7 @@ import (
 type ChildrenCriterion = map[types.ObjectType][]query.Criterion
 
 // key for configurable hierarchies
-type ContainerKey struct{}
+type ParentInstanceLabelKey struct{}
 
 type Cascade interface {
 	GetChildrenCriterion() ChildrenCriterion
@@ -50,12 +50,12 @@ func GetCascadeObject(ctx context.Context, object types.Object) (Cascade, bool) 
 	case types.ServiceBrokerType:
 		return &ServiceBrokerCascade{object.(*types.ServiceBroker)}, true
 	case types.ServiceInstanceType:
-		containerIdKey := ctx.Value(ContainerKey{})
-		var containerIdKeyStr = ""
-		if id, ok := containerIdKey.(string); ok {
-			containerIdKeyStr = id
+		parentInstanceLabelKey := ctx.Value(ParentInstanceLabelKey{})
+		var parentInstanceLabelKeyStr = ""
+		if id, ok := parentInstanceLabelKey.(string); ok {
+			parentInstanceLabelKeyStr = id
 		}
-		return &ServiceInstanceCascade{object.(*types.ServiceInstance), containerIdKeyStr}, true
+		return &ServiceInstanceCascade{object.(*types.ServiceInstance), parentInstanceLabelKeyStr}, true
 	}
 	return nil, false
 }

@@ -376,7 +376,7 @@ var _ = Describe("cascade operations", func() {
 			registerInstanceLastOPHandlers(brokerServer, http.StatusInternalServerError, "")
 			createContainerWithChildren()
 
-			newCtx := context.WithValue(context.Background(), cascade.ContainerKey{}, "containerID")
+			newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKey{}, "containerID")
 			triggerCascadeOperation(newCtx, types.PlatformType, platformID, rootOpID)
 
 			By("waiting cascading process to finish")
@@ -418,7 +418,7 @@ var _ = Describe("cascade operations", func() {
 		It("should succeed - cascade a container", func() {
 			containerID := createContainerWithChildren()
 
-			newCtx := context.WithValue(context.Background(), cascade.ContainerKey{}, "containerID")
+			newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKey{}, "containerID")
 			triggerCascadeOperation(newCtx, types.ServiceInstanceType, containerID, rootOpID)
 
 			By("waiting cascading process to finish")
