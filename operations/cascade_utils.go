@@ -82,7 +82,7 @@ func validateNoGlobalInstances(ctx context.Context, tenantIdentifier string, bro
 		return nil
 	}
 
-	platformIds := make([]string, len(platformIdsMap))
+	platformIds := make([]string, 0, len(platformIdsMap))
 	for id := range platformIdsMap {
 		platformIds = append(platformIds, id)
 	}

@@ -190,7 +190,6 @@ func (om *Maintainer) CleanupFinishedCascadeOperations() {
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOrNilOperator, "parent_id", ""),
 		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
-		// todo: checking cascaderootIDs null are not collected
 		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
 		query.ByField(query.InOperator, "state", string(types.SUCCEEDED), string(types.FAILED)),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB//
