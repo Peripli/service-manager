@@ -331,7 +331,7 @@ func (om *Maintainer) pollPendingCascadeOperations() {
 	}
 	operations, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
 	if err != nil {
-		log.C(om.smCtx).Debugf("Failed to fetch cascaded operations in progress: %s", err)
+		log.C(om.smCtx).Errorf("Failed to fetch cascaded operations in progress: %s", err)
 		return
 	}
 
@@ -347,7 +347,8 @@ func (om *Maintainer) pollPendingCascadeOperations() {
 
 		subOperations, err := GetSubOperations(ctx, operation, om.repository)
 		if err != nil {
-			logger.Warnf("Failed to retrieve children of the operation with ID (%s): %s", operation.ID, err)
+			logger.Errorf("Failed to retrieve children of the operation with ID (%s): %s", operation.ID, err)
+			continue
 		}
 
 		if subOperations.AllOperationsCount == len(subOperations.SucceededOperations) {
@@ -369,7 +370,8 @@ func (om *Maintainer) pollPendingCascadeOperations() {
 				if sameResourceState != "" {
 					operation.State = sameResourceState
 					if _, err := om.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
-						logger.Warnf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
+						logger.Errorf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
+						continue
 					}
 				} else {
 					operation.State = types.IN_PROGRESS
@@ -385,9 +387,10 @@ func (om *Maintainer) pollPendingCascadeOperations() {
 						return nil, nil
 					}
 					if err := om.cascadePollingScheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-						logger.Warnf("Failed to reschedule cascaded delete operation with ID (%s): %s ok for concurrent deletion failure", operation.ID, err)
+						logger.Errorf("Failed to reschedule cascaded delete operation with ID (%s): %s ok for concurrent deletion failure", operation.ID, err)
+					} else {
+						skipSameResourcesForCurrentIteration[operation.ResourceID] = true
 					}
-					skipSameResourcesForCurrentIteration[operation.ResourceID] = true
 				}
 			}
 		} else if len(subOperations.FailedOperations) > 0 && len(subOperations.FailedOperations)+len(subOperations.SucceededOperations) == subOperations.AllOperationsCount {
