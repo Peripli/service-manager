@@ -82,7 +82,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				_, err := qb.NewQuery(entity).List(ctx)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
-SELECT visibilities.*,
+SELasdasdaECT visibilities.*,
        visibility_labels.id            "visibility_labels.id",
        visibility_labels.key           "visibility_labels.key",
        visibility_labels.val           "visibility_labels.val",
