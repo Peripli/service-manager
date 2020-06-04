@@ -18,6 +18,7 @@ import (
 
 var _ = Describe("cascade operations", func() {
 	Context("tenant tree", func() {
+
 		JustBeforeEach(func() {
 			initTenantResources(true)
 		})
@@ -48,24 +49,24 @@ var _ = Describe("cascade operations", func() {
 				})
 			}
 
-			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
 
-			AssertOperationCount(func(count int) { Expect(count).To(Equal(3 + subtreeCount*3)) }, query.ByField(query.EqualsOperator, "parent_id", rootOpID))
-			AssertOperationCount(func(count int) { Expect(count).To(Equal(tenantOperationsCount + subtreeCount*10)) }, queryForOperationsInTheSameTree)
+			AssertOperationCount(func(count int) { Expect(count).To(Equal(3 + subtreeCount*3)) }, query.ByField(query.EqualsOperator, "parent_id", rootID))
+			AssertOperationCount(func(count int) { Expect(count).To(Equal(tenantOperationsCount + subtreeCount*10)) }, queryForOperationsInTheSameTree(rootID))
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
 					types.OperationType,
-					queryForRoot,
+					queryForRoot(rootID),
 					querySucceeded)
 				Expect(err).NotTo(HaveOccurred())
 
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
-			fullTree, err := fetchFullTree(ctx.SMRepository, rootOpID)
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
@@ -83,14 +84,14 @@ var _ = Describe("cascade operations", func() {
 				}
 			})
 
-			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
 
 			By("validating binding failed and marked as orphan mitigation")
 			Eventually(func() int {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
 					types.OperationType,
-					queryForOperationsInTheSameTree,
+					queryForOperationsInTheSameTree(rootID),
 					queryFailures,
 					queryForOrphanMitigationOperations,
 					queryForBindingsOperations)
@@ -104,7 +105,7 @@ var _ = Describe("cascade operations", func() {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
 					types.OperationType,
-					queryForOperationsInTheSameTree,
+					queryForOperationsInTheSameTree(rootID),
 					querySucceeded,
 					queryForInstanceOperations)
 				Expect(err).NotTo(HaveOccurred())
@@ -117,7 +118,7 @@ var _ = Describe("cascade operations", func() {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
 					types.OperationType,
-					queryForOperationsInTheSameTree,
+					queryForOperationsInTheSameTree(rootID),
 					queryForOrphanMitigationOperations)
 				Expect(err).NotTo(HaveOccurred())
 
@@ -129,14 +130,14 @@ var _ = Describe("cascade operations", func() {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
 					types.OperationType,
-					queryForRoot,
+					queryForRoot(rootID),
 					queryFailures)
 				Expect(err).NotTo(HaveOccurred())
 
 				return count
 			}, actionTimeout*8+maintainerRetry*8).Should(Equal(1))
 
-			fullTree, err := fetchFullTree(ctx.SMRepository, rootOpID)
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
@@ -154,14 +155,14 @@ var _ = Describe("cascade operations", func() {
 				}
 			})
 
-			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
 
 			By("validating binding failed and marked as orphan mitigation")
 			Eventually(func() int {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
 					types.OperationType,
-					queryForOperationsInTheSameTree,
+					queryForOperationsInTheSameTree(rootID),
 					queryFailures,
 					queryForOrphanMitigationOperations,
 					queryForBindingsOperations)
@@ -175,7 +176,7 @@ var _ = Describe("cascade operations", func() {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
 					types.OperationType,
-					queryForOperationsInTheSameTree,
+					queryForOperationsInTheSameTree(rootID),
 					querySucceeded,
 					queryForInstanceOperations)
 				Expect(err).NotTo(HaveOccurred())
@@ -193,7 +194,7 @@ var _ = Describe("cascade operations", func() {
 					context.Background(),
 					types.OperationType,
 					queryForBindingsOperations,
-					queryForOperationsInTheSameTree,
+					queryForOperationsInTheSameTree(rootID),
 					querySucceeded)
 				Expect(err).NotTo(HaveOccurred())
 
@@ -205,14 +206,14 @@ var _ = Describe("cascade operations", func() {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
 					types.OperationType,
-					queryForRoot,
+					queryForRoot(rootID),
 					querySucceeded)
 				Expect(err).NotTo(HaveOccurred())
 
 				return count
 			}, actionTimeout*8+maintainerRetry*8).Should(Equal(1))
 
-			fullTree, err := fetchFullTree(ctx.SMRepository, rootOpID)
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
@@ -225,11 +226,11 @@ var _ = Describe("cascade operations", func() {
 				return http.StatusOK, common.Object{"state": "succeeded"}
 			})
 
-			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
 
 			instanceOPValue, err := ctx.SMRepository.Get(context.Background(), types.OperationType,
 				query.ByField(query.EqualsOperator, "resource_id", "test-instance"),
-				query.ByField(query.EqualsOperator, "cascade_root_id", rootOpID))
+				query.ByField(query.EqualsOperator, "cascade_root_id", rootID))
 
 			Expect(err).NotTo(HaveOccurred())
 
@@ -256,7 +257,7 @@ var _ = Describe("cascade operations", func() {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
 					types.OperationType,
-					queryForRoot,
+					queryForRoot(rootID),
 					querySucceeded)
 				Expect(err).NotTo(HaveOccurred())
 
@@ -271,21 +272,21 @@ var _ = Describe("cascade operations", func() {
 		})
 
 		It("should succeed - cascade a platform", func() {
-			triggerCascadeOperation(context.Background(), types.PlatformType, platformID, rootOpID)
+			rootID := triggerCascadeOperation(context.Background(), types.PlatformType, platformID)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
 					types.OperationType,
-					queryForRoot,
+					queryForRoot(rootID),
 					querySucceeded)
 				Expect(err).NotTo(HaveOccurred())
 
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
-			fullTree, err := fetchFullTree(ctx.SMRepository, rootOpID)
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
@@ -299,21 +300,21 @@ var _ = Describe("cascade operations", func() {
 		})
 
 		It("should succeeded - cascade broker without children", func() {
-			triggerCascadeOperation(context.Background(), types.ServiceBrokerType, brokerID, rootOpID)
+			rootID := triggerCascadeOperation(context.Background(), types.ServiceBrokerType, brokerID)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
 					types.OperationType,
-					queryForRoot,
+					queryForRoot(rootID),
 					querySucceeded)
 				Expect(err).NotTo(HaveOccurred())
 
 				return count
 			}, actionTimeout*5+pollCascade*5).Should(Equal(1))
 
-			fullTree, err := fetchFullTree(ctx.SMRepository, rootOpID)
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
@@ -328,28 +329,28 @@ var _ = Describe("cascade operations", func() {
 
 		It("validate errors aggregated from bottom up", func() {
 			registerBindingLastOPHandlers(brokerServer, http.StatusInternalServerError, types.FAILED)
-			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, rootOpID)
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
 					types.OperationType,
-					queryForRoot,
+					queryForRoot(rootID),
 					queryFailures)
 				Expect(err).NotTo(HaveOccurred())
 
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
-			fullTree, err := fetchFullTree(ctx.SMRepository, rootOpID)
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
 			validateDuplicationsWaited(fullTree)
 
 			By("validating tenant error is a collection of his child errors")
-			tenantOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot)
+			tenantOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot(rootID))
 			Expect(err).NotTo(HaveOccurred())
 
 			errors := cascade.CascadeErrors{}
@@ -377,28 +378,28 @@ var _ = Describe("cascade operations", func() {
 			createContainerWithChildren()
 
 			newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKey{}, "containerID")
-			triggerCascadeOperation(newCtx, types.PlatformType, platformID, rootOpID)
+			rootID := triggerCascadeOperation(newCtx, types.PlatformType, platformID)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
 					types.OperationType,
-					queryForRoot,
+					queryForRoot(rootID),
 					queryFailures)
 				Expect(err).NotTo(HaveOccurred())
 
 				return count
 			}, actionTimeout*11+pollCascade*11).Should(Equal(1))
 
-			fullTree, err := fetchFullTree(ctx.SMRepository, rootOpID)
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
 			validateDuplicationsWaited(fullTree)
 
 			By("validating containerized errors collected")
-			platformOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot)
+			platformOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot(rootID))
 			Expect(err).NotTo(HaveOccurred())
 
 			errors := cascade.CascadeErrors{}
@@ -419,30 +420,30 @@ var _ = Describe("cascade operations", func() {
 			containerID := createContainerWithChildren()
 
 			newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKey{}, "containerID")
-			triggerCascadeOperation(newCtx, types.ServiceInstanceType, containerID, rootOpID)
+			rootID := triggerCascadeOperation(newCtx, types.ServiceInstanceType, containerID)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
 				count, err := ctx.SMRepository.Count(
 					context.Background(),
 					types.OperationType,
-					queryForRoot,
+					queryForRoot(rootID),
 					querySucceeded)
 				Expect(err).NotTo(HaveOccurred())
 
 				return count
 			}, actionTimeout*3+pollCascade*3).Should(Equal(1))
 
-			fullTree, err := fetchFullTree(ctx.SMRepository, rootOpID)
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
 			Expect(err).NotTo(HaveOccurred())
 
-			rootChildren := fullTree.byParentID[rootOpID]
+			rootChildren := fullTree.byParentID[rootID]
 			Expect(len(rootChildren)).To(Equal(1), "expected container has 1 instance")
 			Expect(len(fullTree.byParentID[rootChildren[0].ID])).To(Equal(1), "expected instance has 1 binding")
 
 			validateParentsRanAfterChildren(fullTree)
 			validateDuplicationsWaited(fullTree)
-			AssertOperationCount(func(count int) { Expect(count).To(Equal(3)) }, queryForOperationsInTheSameTree)
+			AssertOperationCount(func(count int) { Expect(count).To(Equal(3)) }, queryForOperationsInTheSameTree(rootID))
 		})
 	})
 })
