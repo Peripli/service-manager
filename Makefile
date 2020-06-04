@@ -157,7 +157,6 @@ test-int: generate ## Runs the integration tests. Use TEST_FLAGS="--storage.uri=
 
 test-report: test-int
 	@$(GO) get github.com/wadey/gocovmerge
-	@gocovmerge $(CURDIR)/*.cov > $(TEST_PROFILE)
 
 test-report2: test-unit
 	@$(GO) get github.com/wadey/gocovmerge
@@ -165,7 +164,6 @@ test-report2: test-unit
 
 coverage: test-report ## Produces an HTML report containing code coverage details
 	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
-	@echo Generated coverage report in $(COVERAGE).
 
 coverage2: test-report2 ## Produces an HTML report containing code coverage details
 	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
