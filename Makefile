@@ -50,8 +50,8 @@ GO_INT_TEST 	= $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./..
 GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
 				$(shell go list ./... | egrep -v "test") -coverprofile=$(UNIT_TEST_PROFILE)
 
-GO_UNIT_TEST3 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
-				$(shell go list ./... | egrep -v "resources_test") -coverprofile=$(UNIT_TEST_PROFILE)
+GO_INT_TEST3 	= $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
+				./resources_test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
 
 COUNTERFEITER   ?= "v6.0.2"
 
@@ -160,7 +160,7 @@ test-int: generate ## Runs the integration tests. Use TEST_FLAGS="--storage.uri=
 
 test-int3: generate ## Runs the integration tests. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
 	@echo Running integration tests:
-	$(GO_UNIT_TEST3)
+	$(GO_INT_TEST3)
 
 test-report: test-int
 	@$(GO) get github.com/wadey/gocovmerge
