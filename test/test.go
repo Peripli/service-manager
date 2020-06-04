@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	common2 "github.com/Peripli/service-manager/test/common"
 	"net/http"
 	"strconv"
 
@@ -46,7 +47,6 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 )
 
@@ -86,15 +86,15 @@ type TestCase struct {
 	StrictlyTenantScoped   bool
 	DisableBasicAuth       bool
 
-	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
-	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
-	PatchResource                          func(ctx *common.TestContext, tenantScoped bool, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*types.LabelChange, async bool)
+	ResourceBlueprint                      func(ctx *common2.TestContext, smClient *common2.SMExpect, async bool) common2.Object
+	ResourceWithoutNullableFieldsBlueprint func(ctx *common2.TestContext, smClient *common2.SMExpect, async bool) common2.Object
+	PatchResource                          func(ctx *common2.TestContext, tenantScoped bool, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*types.LabelChange, async bool)
 
-	AdditionalTests func(ctx *common.TestContext, t *TestCase)
-	ContextBuilder  *common.TestContextBuilder
+	AdditionalTests func(ctx *common2.TestContext, t *TestCase)
+	ContextBuilder  *common2.TestContextBuilder
 }
 
-func stripObject(obj common.Object, properties ...string) {
+func stripObject(obj common2.Object, properties ...string) {
 	delete(obj, "created_at")
 	delete(obj, "updated_at")
 
@@ -103,7 +103,7 @@ func stripObject(obj common.Object, properties ...string) {
 	}
 }
 
-func APIResourcePatch(ctx *common.TestContext, tenantScoped bool, apiPath string, objID string, objType types.ObjectType, patchLabels []*types.LabelChange, async bool) {
+func APIResourcePatch(ctx *common2.TestContext, tenantScoped bool, apiPath string, objID string, objType types.ObjectType, patchLabels []*types.LabelChange, async bool) {
 	patchLabelsBody := make(map[string]interface{})
 	patchLabelsBody["labels"] = patchLabels
 
@@ -122,7 +122,7 @@ func APIResourcePatch(ctx *common.TestContext, tenantScoped bool, apiPath string
 		resp.Status(http.StatusOK)
 	}
 
-	common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
+	common2.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common2.OperationExpectations{
 		Category:          types.UPDATE,
 		State:             types.SUCCEEDED,
 		ResourceType:      objType,
@@ -131,7 +131,7 @@ func APIResourcePatch(ctx *common.TestContext, tenantScoped bool, apiPath string
 	})
 }
 
-func StorageResourcePatch(ctx *common.TestContext, _ bool, _ string, objID string, resourceType types.ObjectType, patchLabels []*types.LabelChange, _ bool) {
+func StorageResourcePatch(ctx *common2.TestContext, _ bool, _ string, objID string, resourceType types.ObjectType, patchLabels []*types.LabelChange, _ bool) {
 	byID := query.ByField(query.EqualsOperator, "id", objID)
 	sb, err := ctx.SMRepository.Get(context.Background(), resourceType, byID)
 	if err != nil {
@@ -204,19 +204,19 @@ func EnsurePlanVisibility(repository storage.Repository, tenantIdentifier, platf
 
 func DescribeTestsFor(t TestCase) bool {
 	return Describe(t.API, func() {
-		var ctx *common.TestContext
+		var ctx *common2.TestContext
 
 		AfterSuite(func() {
 			ctx.Cleanup()
 		})
 
-		ctxBuilder := func() *common.TestContextBuilder {
-			ctxBuilder := common.NewTestContextBuilderWithSecurity()
+		ctxBuilder := func() *common2.TestContextBuilder {
+			ctxBuilder := common2.NewTestContextBuilderWithSecurity()
 
 			if t.MultitenancySettings != nil {
 				ctxBuilder.
 					WithTenantTokenClaims(t.MultitenancySettings.TokenClaims).
-					WithEnvPostExtensions(func(e env.Environment, servers map[string]common.FakeServer) {
+					WithEnvPostExtensions(func(e env.Environment, servers map[string]common2.FakeServer) {
 						e.Set("api.protected_labels", t.MultitenancySettings.LabelKey)
 					}).
 					WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
@@ -299,19 +299,19 @@ func DescribeTestsFor(t TestCase) bool {
 	})
 }
 
-func RegisterBrokerPlatformCredentialsExpect(SMBasicPlatform *common.SMExpect, brokerID string, expectedStatusCode int) (string, string) {
+func RegisterBrokerPlatformCredentialsExpect(SMBasicPlatform *common2.SMExpect, brokerID string, expectedStatusCode int) (string, string) {
 	return RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMBasicPlatform, brokerID, "", expectedStatusCode)
 }
 
-func RegisterBrokerPlatformCredentials(SMBasicPlatform *common.SMExpect, brokerID string) (string, string) {
+func RegisterBrokerPlatformCredentials(SMBasicPlatform *common2.SMExpect, brokerID string) (string, string) {
 	return RegisterBrokerPlatformCredentialsWithNotificationID(SMBasicPlatform, brokerID, "")
 }
 
-func RegisterBrokerPlatformCredentialsWithNotificationID(SMBasicPlatform *common.SMExpect, brokerID, notificationID string) (string, string) {
+func RegisterBrokerPlatformCredentialsWithNotificationID(SMBasicPlatform *common2.SMExpect, brokerID, notificationID string) (string, string) {
 	return RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMBasicPlatform, brokerID, notificationID, http.StatusOK)
 }
 
-func RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMBasicPlatform *common.SMExpect, brokerID, notificationID string, expectedStatusCode int) (string, string) {
+func RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMBasicPlatform *common2.SMExpect, brokerID, notificationID string, expectedStatusCode int) (string, string) {
 	username, err := util.GenerateCredential()
 	Expect(err).ToNot(HaveOccurred())
 	password, err := util.GenerateCredential()

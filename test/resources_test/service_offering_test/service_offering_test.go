@@ -18,6 +18,7 @@ package service_test
 
 import (
 	"context"
+	common2 "github.com/Peripli/service-manager/test/common"
 	"net/http"
 	"net/url"
 	"testing"
@@ -29,8 +30,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/test/common"
-
 	"github.com/Peripli/service-manager/test"
 
 	. "github.com/onsi/ginkgo"
@@ -53,7 +52,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
 	ResourcePropertiesToIgnore:             []string{"last_operation"},
 	PatchResource:                          test.APIResourcePatch,
-	AdditionalTests: func(ctx *common.TestContext, t *test.TestCase) {
+	AdditionalTests: func(ctx *common2.TestContext, t *test.TestCase) {
 		Context("additional non-generic tests", func() {
 			Describe("PATCH", func() {
 				var id string
@@ -105,8 +104,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 			Describe("GET", func() {
 				var k8sPlatform *types.Platform
-				var k8sAgent *common.SMExpect
-				var offering common.Object
+				var k8sAgent *common2.SMExpect
+				var offering common2.Object
 
 				getPlansByOffering := func(offeringID string) *types.ServicePlan {
 					plans, err := ctx.SMRepository.List(context.Background(), types.ServicePlanType, query.ByField(query.EqualsOperator, "service_offering_id", offeringID))
@@ -115,13 +114,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					return (plans.(*types.ServicePlans)).ServicePlans[0]
 				}
 
-				assertOfferingForPlatformByID := func(agent *common.SMExpect, offeringID interface{}, status int) {
+				assertOfferingForPlatformByID := func(agent *common2.SMExpect, offeringID interface{}, status int) {
 					k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offeringID.(string))).
 						Expect().
 						Status(status)
 				}
 
-				assertOfferingsForPlatformWithQuery := func(agent *common.SMExpect, query map[string]interface{}, offerings ...interface{}) {
+				assertOfferingsForPlatformWithQuery := func(agent *common2.SMExpect, query map[string]interface{}, offerings ...interface{}) {
 					q := url.Values{}
 					for k, v := range query {
 						q.Set(k, fmt.Sprint(v))
@@ -134,14 +133,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					}
 				}
 
-				assertOfferingsForPlatform := func(agent *common.SMExpect, offerings ...interface{}) {
+				assertOfferingsForPlatform := func(agent *common2.SMExpect, offerings ...interface{}) {
 					assertOfferingsForPlatformWithQuery(agent, nil, offerings...)
 				}
 
 				BeforeEach(func() {
-					k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
-					k8sPlatform = common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
-					k8sAgent = &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+					k8sPlatformJSON := common2.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+					k8sPlatform = common2.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
+					k8sAgent = &common2.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
 						username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
 						req.WithBasicAuth(username, password)
 					})}
@@ -173,7 +172,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						assertOfferingsForPlatform(k8sAgent, nil...)
 						assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusNotFound)
 
-						common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan.ID, "")
+						common2.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan.ID, "")
 
 						assertOfferingsForPlatform(k8sAgent, offering["id"])
 						assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusOK)
@@ -184,7 +183,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					It("should return the offering", func() {
 						plan := getPlansByOffering(offering["id"].(string))
 
-						common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan.ID, k8sPlatform.ID)
+						common2.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan.ID, k8sPlatform.ID)
 
 						assertOfferingsForPlatform(k8sAgent, offering["id"])
 						assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusOK)
@@ -196,7 +195,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						plan := getPlansByOffering(offering["id"].(string))
 
 						otherPlatform := ctx.RegisterPlatform()
-						common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan.ID, otherPlatform.ID)
+						common2.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan.ID, otherPlatform.ID)
 
 						assertOfferingsForPlatform(k8sAgent, nil...)
 						assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusNotFound)
@@ -204,7 +203,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("with additional offerings", func() {
-					var offering2 common.Object
+					var offering2 common2.Object
 					BeforeEach(func() {
 						offering2 = blueprint(ctx, ctx.SMWithOAuth, false)
 					})
@@ -220,7 +219,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("but visibility for one", func() {
 						It("should return the one with visibility", func() {
 							plan := getPlansByOffering(offering["id"].(string))
-							common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan.ID, "")
+							common2.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan.ID, "")
 
 							assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusOK)
 							assertOfferingForPlatformByID(k8sAgent, offering2["id"], http.StatusNotFound)
@@ -474,9 +473,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
-	cService := common.GenerateTestServiceWithPlans(common.GenerateFreeTestPlan())
-	catalog := common.NewEmptySBCatalog()
+func blueprint(ctx *common2.TestContext, auth *common2.SMExpect, _ bool) common2.Object {
+	cService := common2.GenerateTestServiceWithPlans(common2.GenerateFreeTestPlan())
+	catalog := common2.NewEmptySBCatalog()
 	catalog.AddService(cService)
 	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
 

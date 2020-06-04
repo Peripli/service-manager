@@ -19,6 +19,7 @@ package util_test
 import (
 	"context"
 	"errors"
+	common2 "github.com/Peripli/service-manager/test/common"
 	"net/http"
 	"net/url"
 
@@ -31,7 +32,6 @@ import (
 	"encoding/json"
 
 	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/test/common"
 	"github.com/Peripli/service-manager/test/testutil"
 	. "github.com/onsi/ginkgo"
 	"github.com/sirupsen/logrus"
@@ -113,7 +113,7 @@ var _ = Describe("Errors", func() {
 
 				response := &http.Response{
 					StatusCode: testHTTPError.StatusCode,
-					Body:       common.Closer(string(bytes)),
+					Body:       common2.Closer(string(bytes)),
 				}
 				Expect(err).ShouldNot(HaveOccurred())
 
@@ -127,7 +127,7 @@ var _ = Describe("Errors", func() {
 				e := "test error"
 				response := &http.Response{
 					StatusCode: http.StatusTeapot,
-					Body:       common.Closer(e),
+					Body:       common2.Closer(e),
 				}
 
 				err := util.HandleResponseError(response)
@@ -145,7 +145,7 @@ var _ = Describe("Errors", func() {
 				}
 				response := &http.Response{
 					StatusCode: http.StatusTeapot,
-					Body:       common.Closer(e),
+					Body:       common2.Closer(e),
 					Request:    &r,
 				}
 
@@ -162,7 +162,7 @@ var _ = Describe("Errors", func() {
 				e := `{"key":"value"}`
 				response := &http.Response{
 					StatusCode: http.StatusTeapot,
-					Body:       common.Closer(e),
+					Body:       common2.Closer(e),
 				}
 
 				err := util.HandleResponseError(response)

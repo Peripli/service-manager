@@ -19,11 +19,11 @@ package util_test
 import (
 	"context"
 	"fmt"
+	common2 "github.com/Peripli/service-manager/test/common"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
@@ -32,14 +32,14 @@ import (
 var _ = Describe("Client Utils", func() {
 	var (
 		requestFunc  util.DoRequestFunc
-		reaction     *common.HTTPReaction
-		expectations *common.HTTPExpectations
+		reaction     *common2.HTTPReaction
+		expectations *common2.HTTPExpectations
 	)
 
 	BeforeEach(func() {
-		reaction = &common.HTTPReaction{}
-		expectations = &common.HTTPExpectations{}
-		requestFunc = common.DoHTTP(reaction, expectations)
+		reaction = &common2.HTTPReaction{}
+		expectations = &common2.HTTPExpectations{}
+		requestFunc = common2.DoHTTP(reaction, expectations)
 	})
 
 	Describe("SendRequest", func() {

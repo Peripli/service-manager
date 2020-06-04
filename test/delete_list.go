@@ -19,59 +19,59 @@ package test
 import (
 	"encoding/json"
 	"fmt"
+	common2 "github.com/Peripli/service-manager/test/common"
 	"net/http"
 	"strings"
 
 	"github.com/Peripli/service-manager/pkg/types"
 
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 )
 
 type deleteOpEntry struct {
-	resourcesToExpectBeforeOp func() []common.Object
+	resourcesToExpectBeforeOp func() []common2.Object
 
 	queryTemplate               string
-	queryArgs                   func() common.Object
-	resourcesToExpectAfterOp    func() []common.Object
-	resourcesNotToExpectAfterOp func() []common.Object
+	queryArgs                   func() common2.Object
+	resourcesToExpectAfterOp    func() []common2.Object
+	resourcesNotToExpectAfterOp func() []common2.Object
 	expectedStatusCode          int
 }
 
-func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
-	var r []common.Object
-	var rWithMandatoryFields common.Object
+func DescribeDeleteListFor(ctx *common2.TestContext, t TestCase) bool {
+	var r []common2.Object
+	var rWithMandatoryFields common2.Object
 	commonLabelKey := "labelKey2"
 	commonLabelValue := "str1"
 
 	entriesWithQuery := []TableEntry{
 		Entry("returns 200 for operator =",
 			deleteOpEntry{
-				resourcesToExpectBeforeOp: func() []common.Object {
-					return []common.Object{r[0]}
+				resourcesToExpectBeforeOp: func() []common2.Object {
+					return []common2.Object{r[0]}
 				},
 				queryTemplate: "%s eq '%v'",
-				queryArgs: func() common.Object {
+				queryArgs: func() common2.Object {
 					return r[0]
 				},
-				resourcesNotToExpectAfterOp: func() []common.Object {
-					return []common.Object{r[0]}
+				resourcesNotToExpectAfterOp: func() []common2.Object {
+					return []common2.Object{r[0]}
 				},
 				expectedStatusCode: http.StatusOK,
 			},
 		),
 		Entry("returns 200 for operator !=",
 			deleteOpEntry{
-				resourcesToExpectBeforeOp: func() []common.Object {
-					return []common.Object{r[0], r[1]}
+				resourcesToExpectBeforeOp: func() []common2.Object {
+					return []common2.Object{r[0], r[1]}
 				},
 				queryTemplate: "%s ne '%v'",
-				queryArgs: func() common.Object {
-					return common.RemoveBooleanArgs(r[0])
+				queryArgs: func() common2.Object {
+					return common2.RemoveBooleanArgs(r[0])
 				},
-				resourcesToExpectAfterOp: func() []common.Object {
-					return []common.Object{r[0]}
+				resourcesToExpectAfterOp: func() []common2.Object {
+					return []common2.Object{r[0]}
 				},
 				expectedStatusCode: http.StatusOK,
 			},
@@ -79,15 +79,15 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 		Entry("returns 200 for operator in with multiple right operands",
 			deleteOpEntry{
-				resourcesToExpectBeforeOp: func() []common.Object {
-					return []common.Object{r[0], r[1]}
+				resourcesToExpectBeforeOp: func() []common2.Object {
+					return []common2.Object{r[0], r[1]}
 				},
 				queryTemplate: "%[1]s in ('%[2]v','%[2]v','%[2]v')",
-				queryArgs: func() common.Object {
+				queryArgs: func() common2.Object {
 					return r[0]
 				},
-				resourcesNotToExpectAfterOp: func() []common.Object {
-					return []common.Object{r[0]}
+				resourcesNotToExpectAfterOp: func() []common2.Object {
+					return []common2.Object{r[0]}
 				},
 				expectedStatusCode: http.StatusOK,
 			},
@@ -95,149 +95,149 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 		Entry("returns 200 for operator in with single right operand",
 			deleteOpEntry{
-				resourcesToExpectBeforeOp: func() []common.Object {
-					return []common.Object{r[0], r[1]}
+				resourcesToExpectBeforeOp: func() []common2.Object {
+					return []common2.Object{r[0], r[1]}
 				},
 				queryTemplate: "%s in ('%v')",
-				queryArgs: func() common.Object {
+				queryArgs: func() common2.Object {
 					return r[0]
 				},
-				resourcesNotToExpectAfterOp: func() []common.Object {
-					return []common.Object{r[0]}
+				resourcesNotToExpectAfterOp: func() []common2.Object {
+					return []common2.Object{r[0]}
 				},
 				expectedStatusCode: http.StatusOK,
 			},
 		),
 		Entry("returns 200 for operator notin with multiple right operands",
 			deleteOpEntry{
-				resourcesToExpectBeforeOp: func() []common.Object {
-					return []common.Object{r[0], r[1]}
+				resourcesToExpectBeforeOp: func() []common2.Object {
+					return []common2.Object{r[0], r[1]}
 				},
 				queryTemplate: "%[1]s notin ('%[2]v','%[2]v','%[2]v')",
-				queryArgs: func() common.Object {
-					return common.RemoveBooleanArgs(r[0])
+				queryArgs: func() common2.Object {
+					return common2.RemoveBooleanArgs(r[0])
 				},
-				resourcesToExpectAfterOp: func() []common.Object {
-					return []common.Object{r[0]}
+				resourcesToExpectAfterOp: func() []common2.Object {
+					return []common2.Object{r[0]}
 				},
 				expectedStatusCode: http.StatusOK,
 			},
 		),
 		Entry("returns 200 for operator notin with single right operand",
 			deleteOpEntry{
-				resourcesToExpectBeforeOp: func() []common.Object {
-					return []common.Object{r[0], r[1]}
+				resourcesToExpectBeforeOp: func() []common2.Object {
+					return []common2.Object{r[0], r[1]}
 				},
 				queryTemplate: "%s notin ('%v')",
-				queryArgs: func() common.Object {
-					return common.RemoveBooleanArgs(r[0])
+				queryArgs: func() common2.Object {
+					return common2.RemoveBooleanArgs(r[0])
 				},
-				resourcesToExpectAfterOp: func() []common.Object {
-					return []common.Object{r[0]}
+				resourcesToExpectAfterOp: func() []common2.Object {
+					return []common2.Object{r[0]}
 				},
 				expectedStatusCode: http.StatusOK,
 			},
 		),
 		Entry("returns 200 for operator gt",
 			deleteOpEntry{
-				resourcesToExpectBeforeOp: func() []common.Object {
-					return []common.Object{r[0], r[1]}
+				resourcesToExpectBeforeOp: func() []common2.Object {
+					return []common2.Object{r[0], r[1]}
 				},
 				queryTemplate: "%s gt '%v'",
-				queryArgs: func() common.Object {
-					return common.RemoveNonNumericOrDateArgs(r[0])
+				queryArgs: func() common2.Object {
+					return common2.RemoveNonNumericOrDateArgs(r[0])
 				},
-				resourcesToExpectAfterOp: func() []common.Object {
-					return []common.Object{r[0]}
+				resourcesToExpectAfterOp: func() []common2.Object {
+					return []common2.Object{r[0]}
 				},
 				expectedStatusCode: http.StatusOK,
 			},
 		),
 		Entry("returns 200 for operator lt",
 			deleteOpEntry{
-				resourcesToExpectBeforeOp: func() []common.Object {
-					return []common.Object{r[0], r[1]}
+				resourcesToExpectBeforeOp: func() []common2.Object {
+					return []common2.Object{r[0], r[1]}
 				},
 				queryTemplate: "%s lt '%v'",
-				queryArgs: func() common.Object {
-					return common.RemoveNonNumericOrDateArgs(r[1])
+				queryArgs: func() common2.Object {
+					return common2.RemoveNonNumericOrDateArgs(r[1])
 				},
-				resourcesToExpectAfterOp: func() []common.Object {
-					return []common.Object{r[1]}
+				resourcesToExpectAfterOp: func() []common2.Object {
+					return []common2.Object{r[1]}
 				},
 				expectedStatusCode: http.StatusOK,
 			},
 		),
 		Entry("returns 200 for greater than or equal queries",
 			deleteOpEntry{
-				resourcesToExpectBeforeOp: func() []common.Object {
-					return []common.Object{r[0], r[1]}
+				resourcesToExpectBeforeOp: func() []common2.Object {
+					return []common2.Object{r[0], r[1]}
 				},
 				queryTemplate: "%s ge %v",
-				queryArgs: func() common.Object {
-					return common.RemoveNonNumericOrDateArgs(r[1])
+				queryArgs: func() common2.Object {
+					return common2.RemoveNonNumericOrDateArgs(r[1])
 				},
-				resourcesToExpectAfterOp: func() []common.Object {
-					return []common.Object{r[0]}
+				resourcesToExpectAfterOp: func() []common2.Object {
+					return []common2.Object{r[0]}
 				},
 				expectedStatusCode: http.StatusOK,
 			},
 		),
 		Entry("returns 400 for greater than or equal queries when query args are non numeric",
 			deleteOpEntry{
-				resourcesToExpectBeforeOp: func() []common.Object {
-					return []common.Object{r[0], r[1]}
+				resourcesToExpectBeforeOp: func() []common2.Object {
+					return []common2.Object{r[0], r[1]}
 				},
 				queryTemplate: "%s ge %v",
-				queryArgs: func() common.Object {
-					return common.RemoveNumericAndDateArgs(r[0])
+				queryArgs: func() common2.Object {
+					return common2.RemoveNumericAndDateArgs(r[0])
 				},
-				resourcesToExpectAfterOp: func() []common.Object {
-					return []common.Object{r[0], r[1]}
+				resourcesToExpectAfterOp: func() []common2.Object {
+					return []common2.Object{r[0], r[1]}
 				},
 				expectedStatusCode: http.StatusBadRequest,
 			},
 		),
 		Entry("returns 200 for greater than or equal queries",
 			deleteOpEntry{
-				resourcesToExpectBeforeOp: func() []common.Object {
-					return []common.Object{r[0], r[1]}
+				resourcesToExpectBeforeOp: func() []common2.Object {
+					return []common2.Object{r[0], r[1]}
 				},
 				queryTemplate: "%s le %v",
-				queryArgs: func() common.Object {
-					return common.RemoveNonNumericOrDateArgs(r[1])
+				queryArgs: func() common2.Object {
+					return common2.RemoveNonNumericOrDateArgs(r[1])
 				},
-				resourcesNotToExpectAfterOp: func() []common.Object {
-					return []common.Object{r[0], r[1]}
+				resourcesNotToExpectAfterOp: func() []common2.Object {
+					return []common2.Object{r[0], r[1]}
 				},
 				expectedStatusCode: http.StatusOK,
 			}),
 		Entry("returns 400 for less than or equal queries when query args are non numeric",
 			deleteOpEntry{
-				resourcesToExpectBeforeOp: func() []common.Object {
-					return []common.Object{r[0], r[1]}
+				resourcesToExpectBeforeOp: func() []common2.Object {
+					return []common2.Object{r[0], r[1]}
 				},
 				queryTemplate: "%s le %v",
-				queryArgs: func() common.Object {
-					return common.RemoveNumericAndDateArgs(r[0])
+				queryArgs: func() common2.Object {
+					return common2.RemoveNumericAndDateArgs(r[0])
 				},
-				resourcesToExpectAfterOp: func() []common.Object {
-					return []common.Object{r[0], r[1]}
+				resourcesToExpectAfterOp: func() []common2.Object {
+					return []common2.Object{r[0], r[1]}
 				},
 				expectedStatusCode: http.StatusBadRequest,
 			},
 		),
 		Entry("returns 200 for operator en",
 			deleteOpEntry{
-				resourcesToExpectBeforeOp: func() []common.Object {
-					return []common.Object{r[0], rWithMandatoryFields}
+				resourcesToExpectBeforeOp: func() []common2.Object {
+					return []common2.Object{r[0], rWithMandatoryFields}
 				},
 				queryTemplate: "%s en '%v'",
-				queryArgs: func() common.Object {
-					return common.RemoveNotNullableFieldAndLabels(r[0], rWithMandatoryFields)
+				queryArgs: func() common2.Object {
+					return common2.RemoveNotNullableFieldAndLabels(r[0], rWithMandatoryFields)
 				},
-				resourcesNotToExpectAfterOp: func() []common.Object {
-					return []common.Object{r[0], rWithMandatoryFields}
+				resourcesNotToExpectAfterOp: func() []common2.Object {
+					return []common2.Object{r[0], rWithMandatoryFields}
 				},
 				expectedStatusCode: http.StatusOK,
 			},
@@ -245,9 +245,9 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 400 when label query is duplicated",
 			deleteOpEntry{
 				queryTemplate: "%[1]s eq '%[2]v' and %[1]s eq '%[2]v'",
-				queryArgs: func() common.Object {
-					return common.Object{
-						"labels": common.CopyLabels(r[0]),
+				queryArgs: func() common2.Object {
+					return common2.Object{
+						"labels": common2.CopyLabels(r[0]),
 					}
 				},
 				expectedStatusCode: http.StatusBadRequest,
@@ -256,23 +256,23 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 200 when field query is duplicated",
 			deleteOpEntry{
 				queryTemplate: "%[1]s eq '%[2]v' and %[1]s eq '%[2]v'",
-				queryArgs: func() common.Object {
-					return common.CopyFields(r[0])
+				queryArgs: func() common2.Object {
+					return common2.CopyFields(r[0])
 				},
 				expectedStatusCode: http.StatusOK,
 			},
 		),
 		Entry("returns 200 for JSON fields with stripped new lines",
 			deleteOpEntry{
-				resourcesToExpectBeforeOp: func() []common.Object {
-					return []common.Object{r[0]}
+				resourcesToExpectBeforeOp: func() []common2.Object {
+					return []common2.Object{r[0]}
 				},
 				queryTemplate: "%s eq '%v'",
-				queryArgs: func() common.Object {
-					return common.RemoveNonJSONArgs(r[0])
+				queryArgs: func() common2.Object {
+					return common2.RemoveNonJSONArgs(r[0])
 				},
-				resourcesNotToExpectAfterOp: func() []common.Object {
-					return []common.Object{r[0]}
+				resourcesNotToExpectAfterOp: func() []common2.Object {
+					return []common2.Object{r[0]}
 				},
 				expectedStatusCode: http.StatusOK,
 			},
@@ -280,7 +280,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 400 when query operator is invalid",
 			deleteOpEntry{
 				queryTemplate: "%s @@ '%v'",
-				queryArgs: func() common.Object {
+				queryArgs: func() common2.Object {
 					return r[0]
 				},
 				expectedStatusCode: http.StatusBadRequest,
@@ -289,7 +289,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 400 when query is duplicated",
 			deleteOpEntry{
 				queryTemplate: "%[1]s = '%[2]v' and %[1]s = '%[2]v'",
-				queryArgs: func() common.Object {
+				queryArgs: func() common2.Object {
 					return r[0]
 				},
 				expectedStatusCode: http.StatusBadRequest,
@@ -298,7 +298,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 400 when operator is not properly separated with right space from operands",
 			deleteOpEntry{
 				queryTemplate: "%s ='%v'",
-				queryArgs: func() common.Object {
+				queryArgs: func() common2.Object {
 					return r[0]
 				},
 				expectedStatusCode: http.StatusBadRequest,
@@ -307,7 +307,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 400 when operator is not properly separated with left space from operands",
 			deleteOpEntry{
 				queryTemplate: "%seq '%v'",
-				queryArgs: func() common.Object {
+				queryArgs: func() common2.Object {
 					return r[0]
 				},
 				expectedStatusCode: http.StatusBadRequest,
@@ -317,28 +317,28 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 400 when field query left operands are unknown",
 			deleteOpEntry{
 				queryTemplate: "%[1]s in ('%[2]v','%[2]v')",
-				queryArgs: func() common.Object {
-					return common.Object{"unknownkey": "unknownvalue"}
+				queryArgs: func() common2.Object {
+					return common2.Object{"unknownkey": "unknownvalue"}
 				},
 				expectedStatusCode: http.StatusBadRequest,
 			},
 		),
 		Entry("returns 200 when label query left operands are unknown",
 			deleteOpEntry{
-				resourcesToExpectBeforeOp: func() []common.Object {
-					return []common.Object{r[0], r[1]}
+				resourcesToExpectBeforeOp: func() []common2.Object {
+					return []common2.Object{r[0], r[1]}
 				},
 				queryTemplate: "%[1]s in ('%[2]v','%[2]v')",
-				queryArgs: func() common.Object {
-					return common.Object{
+				queryArgs: func() common2.Object {
+					return common2.Object{
 						"labels": map[string]interface{}{
 							"unknown": []interface{}{
 								"unknown",
 							},
 						}}
 				},
-				resourcesToExpectAfterOp: func() []common.Object {
-					return []common.Object{r[0], r[1]}
+				resourcesToExpectAfterOp: func() []common2.Object {
+					return []common2.Object{r[0], r[1]}
 				},
 				expectedStatusCode: http.StatusNotFound,
 			},
@@ -346,7 +346,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 400 when single value operator is used with multiple right value arguments",
 			deleteOpEntry{
 				queryTemplate: "%[1]s ne ('%[2]v','%[2]v','%[2]v')",
-				queryArgs: func() common.Object {
+				queryArgs: func() common2.Object {
 					return r[0]
 				},
 				expectedStatusCode: http.StatusBadRequest,
@@ -356,15 +356,15 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			deleteOpEntry{
 				queryTemplate: "%s < '%v'",
 
-				queryArgs: func() common.Object {
-					return common.RemoveNumericAndDateArgs(r[0])
+				queryArgs: func() common2.Object {
+					return common2.RemoveNumericAndDateArgs(r[0])
 				},
 				expectedStatusCode: http.StatusBadRequest,
 			},
 		),
 	}
 
-	attachLabel := func(obj common.Object, i int) common.Object {
+	attachLabel := func(obj common2.Object, i int) common2.Object {
 		patchLabelsBody := make(map[string]interface{})
 		patchLabels := []*types.LabelChange{
 			{
@@ -399,7 +399,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 	beforeEachHelper := func() {
 		By(fmt.Sprintf("[BEFOREEACH]: Preparing and creating test resources"))
 
-		r = make([]common.Object, 0, 0)
+		r = make([]common2.Object, 0, 0)
 		rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth, false)
 		for i := 0; i < 2; i++ {
 			gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth, false)
@@ -416,15 +416,15 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		By(fmt.Sprintf("[AFTEREACH]: Sucessfully finished cleaning up test resources"))
 	}
 
-	verifyDeleteListOpHelperWithAuth := func(deleteListOpEntry deleteOpEntry, query string, auth *common.SMExpect) {
+	verifyDeleteListOpHelperWithAuth := func(deleteListOpEntry deleteOpEntry, query string, auth *common2.SMExpect) {
 		expectedAfterOpIDs := make([]string, 0)
 		unexpectedAfterOpIDs := make([]string, 0)
 
 		if deleteListOpEntry.resourcesToExpectAfterOp != nil {
-			expectedAfterOpIDs = common.ExtractResourceIDs(deleteListOpEntry.resourcesToExpectAfterOp())
+			expectedAfterOpIDs = common2.ExtractResourceIDs(deleteListOpEntry.resourcesToExpectAfterOp())
 		}
 		if deleteListOpEntry.resourcesNotToExpectAfterOp != nil {
-			unexpectedAfterOpIDs = common.ExtractResourceIDs(deleteListOpEntry.resourcesNotToExpectAfterOp())
+			unexpectedAfterOpIDs = common2.ExtractResourceIDs(deleteListOpEntry.resourcesNotToExpectAfterOp())
 		}
 
 		By("[TEST]: ======= Expectations Summary =======")
@@ -507,7 +507,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		beforeEachHelper()
 		args := entry.queryArgs()
 		labels := args["labels"]
-		fields := common.CopyObject(args)
+		fields := common2.CopyObject(args)
 		delete(fields, "labels")
 
 		queryKeys := extractQueryKeys(fields)
@@ -521,7 +521,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			// test with each field as separate field query
 			beforeEachHelper()
 			args := entry.queryArgs()
-			fields := common.CopyObject(args)
+			fields := common2.CopyObject(args)
 			delete(fields, "labels")
 			queryValue := expandNextFieldQuery(entry.queryTemplate, fields, queryKey)
 			query := "fieldQuery=" + queryValue
@@ -546,7 +546,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			// test with all fields and all labels as one query
 			beforeEachHelper()
 			// recalculate the multi field query as each beforeEach creates new resources and field values may differ
-			fields := common.CopyObject(entry.queryArgs())
+			fields := common2.CopyObject(entry.queryArgs())
 			delete(fields, "labels")
 			multiFieldQuery := expandMultiFieldQuery(entry.queryTemplate, fields)
 			verifyDeleteListOpHelper(entry, "fieldQuery="+multiFieldQuery+"&"+"labelQuery="+multiLabelQuery)
@@ -571,7 +571,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			Context("with bearer auth", func() {
 				if !t.DisableTenantResources {
 					Context("when authenticating with tenant scoped token", func() {
-						var rForTenant common.Object
+						var rForTenant common2.Object
 
 						BeforeEach(func() {
 							rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant, false)
@@ -591,7 +591,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 						It("deletes only tenant specific resources label query", func() {
 							labelQuery := fmt.Sprintf("labelQuery=%s eq '%s'", commonLabelKey, commonLabelValue)
-							expectResources := func(resourcesToExpect []common.Object) {
+							expectResources := func(resourcesToExpect []common2.Object) {
 								for _, obj := range resourcesToExpect {
 									stripObject(obj, t.ResourcePropertiesToIgnore...)
 								}
@@ -605,36 +605,36 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 								}
 							}
 							// r1 and rForTenant are both labeled
-							resourcesBeforeDeletion := []common.Object{r[1], rForTenant}
+							resourcesBeforeDeletion := []common2.Object{r[1], rForTenant}
 							expectResources(resourcesBeforeDeletion)
 							// delete providing labelQuery matching both r1 and rForTenant, but using tenant auth
 							verifyDeleteListOpHelperWithAuth(deleteOpEntry{
-								resourcesToExpectBeforeOp: func() []common.Object {
-									return []common.Object{rForTenant}
+								resourcesToExpectBeforeOp: func() []common2.Object {
+									return []common2.Object{rForTenant}
 								},
-								resourcesNotToExpectAfterOp: func() []common.Object {
-									return []common.Object{rForTenant}
+								resourcesNotToExpectAfterOp: func() []common2.Object {
+									return []common2.Object{rForTenant}
 								},
-								resourcesToExpectAfterOp: func() []common.Object {
-									return []common.Object{}
+								resourcesToExpectAfterOp: func() []common2.Object {
+									return []common2.Object{}
 								},
 								expectedStatusCode: http.StatusOK,
 							}, labelQuery, ctx.SMWithOAuthForTenant)
 							//only tenant resource matching the label query must be deleted
-							resourcesAfterDeletion := []common.Object{r[1]}
+							resourcesAfterDeletion := []common2.Object{r[1]}
 							expectResources(resourcesAfterDeletion)
 						})
 
 						It("deletes only tenant specific resources without label query", func() {
 							verifyDeleteListOpHelperWithAuth(deleteOpEntry{
-								resourcesToExpectBeforeOp: func() []common.Object {
-									return []common.Object{rForTenant}
+								resourcesToExpectBeforeOp: func() []common2.Object {
+									return []common2.Object{rForTenant}
 								},
-								resourcesNotToExpectAfterOp: func() []common.Object {
-									return []common.Object{rForTenant}
+								resourcesNotToExpectAfterOp: func() []common2.Object {
+									return []common2.Object{rForTenant}
 								},
-								resourcesToExpectAfterOp: func() []common.Object {
-									return []common.Object{}
+								resourcesToExpectAfterOp: func() []common2.Object {
+									return []common2.Object{}
 								},
 								expectedStatusCode: http.StatusOK,
 							}, "", ctx.SMWithOAuthForTenant)
@@ -643,11 +643,11 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 						Context("when authenticating with global token", func() {
 							It("deletes all resources", func() {
 								verifyDeleteListOpHelperWithAuth(deleteOpEntry{
-									resourcesToExpectBeforeOp: func() []common.Object {
-										return []common.Object{r[0], r[1], rForTenant}
+									resourcesToExpectBeforeOp: func() []common2.Object {
+										return []common2.Object{r[0], r[1], rForTenant}
 									},
-									resourcesNotToExpectAfterOp: func() []common.Object {
-										return []common.Object{r[0], r[1], rForTenant}
+									resourcesNotToExpectAfterOp: func() []common2.Object {
+										return []common2.Object{r[0], r[1], rForTenant}
 									},
 									expectedStatusCode: http.StatusOK,
 								}, "", ctx.SMWithOAuth)
@@ -659,11 +659,11 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				Context("with no query", func() {
 					It("deletes all the resources", func() {
 						verifyDeleteListOpHelper(deleteOpEntry{
-							resourcesToExpectBeforeOp: func() []common.Object {
-								return []common.Object{r[0], r[1]}
+							resourcesToExpectBeforeOp: func() []common2.Object {
+								return []common2.Object{r[0], r[1]}
 							},
-							resourcesNotToExpectAfterOp: func() []common.Object {
-								return []common.Object{r[0], r[1]}
+							resourcesNotToExpectAfterOp: func() []common2.Object {
+								return []common2.Object{r[0], r[1]}
 							},
 							expectedStatusCode: http.StatusOK,
 						}, "")
@@ -673,11 +673,11 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				Context("with empty field query", func() {
 					It("returns 200", func() {
 						verifyDeleteListOpHelper(deleteOpEntry{
-							resourcesToExpectBeforeOp: func() []common.Object {
-								return []common.Object{r[0], r[1]}
+							resourcesToExpectBeforeOp: func() []common2.Object {
+								return []common2.Object{r[0], r[1]}
 							},
-							resourcesNotToExpectAfterOp: func() []common.Object {
-								return []common.Object{r[0], r[1]}
+							resourcesNotToExpectAfterOp: func() []common2.Object {
+								return []common2.Object{r[0], r[1]}
 							},
 							expectedStatusCode: http.StatusOK,
 						}, "fieldQuery=")
@@ -687,11 +687,11 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				Context("with empty label query", func() {
 					It("returns 200", func() {
 						verifyDeleteListOpHelper(deleteOpEntry{
-							resourcesToExpectBeforeOp: func() []common.Object {
-								return []common.Object{r[0], r[1]}
+							resourcesToExpectBeforeOp: func() []common2.Object {
+								return []common2.Object{r[0], r[1]}
 							},
-							resourcesNotToExpectAfterOp: func() []common.Object {
-								return []common.Object{r[0], r[1]}
+							resourcesNotToExpectAfterOp: func() []common2.Object {
+								return []common2.Object{r[0], r[1]}
 							},
 							expectedStatusCode: http.StatusOK,
 						}, "labelQuery=")
@@ -701,11 +701,11 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				Context("with empty field and label query", func() {
 					It("returns 200", func() {
 						verifyDeleteListOpHelper(deleteOpEntry{
-							resourcesToExpectBeforeOp: func() []common.Object {
-								return []common.Object{r[0], r[1]}
+							resourcesToExpectBeforeOp: func() []common2.Object {
+								return []common2.Object{r[0], r[1]}
 							},
-							resourcesNotToExpectAfterOp: func() []common.Object {
-								return []common.Object{r[0], r[1]}
+							resourcesNotToExpectAfterOp: func() []common2.Object {
+								return []common2.Object{r[0], r[1]}
 							},
 							expectedStatusCode: http.StatusOK,
 						}, "fieldQuery=&labelQuery=")
@@ -718,7 +718,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 	})
 }
 
-func extractQueryKeys(queryArgsObj common.Object) []string {
+func extractQueryKeys(queryArgsObj common2.Object) []string {
 	queryKeys := make([]string, 0)
 	for key := range queryArgsObj {
 		queryKeys = append(queryKeys, key)
@@ -727,7 +727,7 @@ func extractQueryKeys(queryArgsObj common.Object) []string {
 	return queryKeys
 }
 
-func expandNextFieldQuery(queryTemplate string, queryArgs common.Object, currentArgKey string) string {
+func expandNextFieldQuery(queryTemplate string, queryArgs common2.Object, currentArgKey string) string {
 	currentArgValue, ok := queryArgs[currentArgKey]
 
 	if !ok || currentArgValue == nil {
@@ -753,7 +753,7 @@ func expandNextFieldQuery(queryTemplate string, queryArgs common.Object, current
 	return fmt.Sprintf(queryTemplate, currentArgKey, currentArgValue)
 }
 
-func expandMultiFieldQuery(queryTemplate string, queryArgs common.Object) string {
+func expandMultiFieldQuery(queryTemplate string, queryArgs common2.Object) string {
 	expandedMultiQuerySegments := make([]string, 0)
 	for queryArgKey, queryArgValue := range queryArgs {
 		expandedMultiQuerySegments = append(expandedMultiQuerySegments, fmt.Sprintf(queryTemplate, queryArgKey, queryArgValue))

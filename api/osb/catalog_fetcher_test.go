@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	common2 "github.com/Peripli/service-manager/test/common"
 	"github.com/Peripli/service-manager/test/tls_settings"
 	"net/http"
 
@@ -30,7 +31,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 )
@@ -129,15 +129,15 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 	}
 
 	type testCase struct {
-		expectations     *common.HTTPExpectations
-		reaction         *common.HTTPReaction
+		expectations     *common2.HTTPExpectations
+		reaction         *common2.HTTPReaction
 		broker           types.ServiceBroker
 		expectedErr      error
 		expectedResponse []byte
 	}
 
 	newFetcher := func(t testCase) func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
-		return osb.CatalogFetcher(common.DoHTTPWithClient(t.reaction, t.expectations), version)
+		return osb.CatalogFetcher(common2.DoHTTPWithClient(t.reaction, t.expectations), version)
 	}
 
 	basicAuth := func(username, password string) string {
@@ -154,11 +154,11 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 
 	entries := []TableEntry{
 		Entry("successfully fetches the catalog bytes", testCase{
-			expectations: &common.HTTPExpectations{
+			expectations: &common2.HTTPExpectations{
 				URL:     url,
 				Headers: expectedHeaders,
 			},
-			reaction: &common.HTTPReaction{
+			reaction: &common2.HTTPReaction{
 				Status: http.StatusOK,
 				Body:   simpleCatalog,
 				Err:    nil,
@@ -169,11 +169,11 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 		}),
 		Entry("returns error if response code from broker is not 200", testCase{
 			broker: testBroker,
-			expectations: &common.HTTPExpectations{
+			expectations: &common2.HTTPExpectations{
 				URL:     url,
 				Headers: expectedHeaders,
 			},
-			reaction: &common.HTTPReaction{
+			reaction: &common2.HTTPReaction{
 				Status: http.StatusInternalServerError,
 				Body:   simpleCatalog,
 				Err:    nil,
@@ -183,11 +183,11 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 		}),
 		Entry("returns error if sending request fails with error", testCase{
 			broker: testBroker,
-			expectations: &common.HTTPExpectations{
+			expectations: &common2.HTTPExpectations{
 				URL:     url,
 				Headers: expectedHeaders,
 			},
-			reaction: &common.HTTPReaction{
+			reaction: &common2.HTTPReaction{
 				Status: http.StatusBadGateway,
 				Err:    fmt.Errorf("error sending request"),
 			},
@@ -199,11 +199,11 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 		}),
 		Entry("returns error if invalid tls settings are passed", testCase{
 			broker: testBrokerTLSInvalid,
-			expectations: &common.HTTPExpectations{
+			expectations: &common2.HTTPExpectations{
 				URL:     url,
 				Headers: expectedHeaders,
 			},
-			reaction: &common.HTTPReaction{
+			reaction: &common2.HTTPReaction{
 				Status: http.StatusBadGateway,
 				Err:    fmt.Errorf("error sending request"),
 			},
@@ -215,11 +215,11 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 		}),
 		Entry("returns error if invalid tls settings are passed", testCase{
 			broker: testBrokeTLS,
-			expectations: &common.HTTPExpectations{
+			expectations: &common2.HTTPExpectations{
 				URL:     url,
 				Headers: expectedHeaders,
 			},
-			reaction: &common.HTTPReaction{
+			reaction: &common2.HTTPReaction{
 				Status: http.StatusOK,
 			},
 			expectedErr: nil,

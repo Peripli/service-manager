@@ -19,6 +19,7 @@ package test
 import (
 	"context"
 	"fmt"
+	common2 "github.com/Peripli/service-manager/test/common"
 	"net/http"
 	"time"
 
@@ -32,18 +33,17 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 )
 
-func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode ResponseMode) bool {
+func DescribeGetTestsfor(ctx *common2.TestContext, t TestCase, responseMode ResponseMode) bool {
 	return Describe("GET", func() {
 		Context("Resource", func() {
-			var testResource common.Object
+			var testResource common2.Object
 			var testResourceID string
 
 			Context(fmt.Sprintf("Existing resource of type %s", t.API), func() {
-				createTestResourceWithAuth := func(auth *common.SMExpect) (common.Object, string) {
+				createTestResourceWithAuth := func(auth *common2.SMExpect) (common2.Object, string) {
 					testResource = t.ResourceBlueprint(ctx, auth, bool(responseMode))
 					stripObject(testResource)
 

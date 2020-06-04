@@ -19,10 +19,10 @@ package util_test
 import (
 	"context"
 	"errors"
+	common2 "github.com/Peripli/service-manager/test/common"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -30,20 +30,20 @@ import (
 var _ = Describe("List Utils", func() {
 	var (
 		requestFunc  func(*http.Request) (*http.Response, error)
-		reaction     common.HTTPReaction
-		expectations common.HTTPExpectations
+		reaction     common2.HTTPReaction
+		expectations common2.HTTPExpectations
 		ctx          context.Context
 	)
 	const url = "http://some.host/resource"
 
 	BeforeEach(func() {
 		ctx = context.TODO()
-		reaction = common.HTTPReaction{Status: http.StatusOK}
-		expectations = common.HTTPExpectations{
+		reaction = common2.HTTPReaction{Status: http.StatusOK}
+		expectations = common2.HTTPExpectations{
 			URL:    url,
 			Params: map[string]string{},
 		}
-		requestFunc = common.DoHTTP(&reaction, &expectations)
+		requestFunc = common2.DoHTTP(&reaction, &expectations)
 	})
 
 	Describe("ListIterator", func() {
@@ -199,9 +199,9 @@ var _ = Describe("List Utils", func() {
 
 		When("There are multiple pages", func() {
 			It("Returns all the items", func() {
-				sequence := []common.HTTPCouple{
+				sequence := []common2.HTTPCouple{
 					{
-						Reaction: &common.HTTPReaction{
+						Reaction: &common2.HTTPReaction{
 							Status: http.StatusOK,
 							Body: `{
 								"num_items": 3,
@@ -211,7 +211,7 @@ var _ = Describe("List Utils", func() {
 						},
 					},
 					{
-						Reaction: &common.HTTPReaction{
+						Reaction: &common2.HTTPReaction{
 							Status: http.StatusOK,
 							Body: `{
 								"num_items": 3,
@@ -221,7 +221,7 @@ var _ = Describe("List Utils", func() {
 					},
 				}
 				var items []string
-				err := util.ListAll(ctx, common.DoHTTPSequence(sequence), url, &items)
+				err := util.ListAll(ctx, common2.DoHTTPSequence(sequence), url, &items)
 				Expect(err).To(BeNil())
 				Expect(items).To(Equal([]string{"aaa", "bbb", "ccc"}))
 			})

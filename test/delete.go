@@ -18,22 +18,22 @@ package test
 
 import (
 	"fmt"
+	common2 "github.com/Peripli/service-manager/test/common"
 	"net/http"
 	"strconv"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	. "github.com/onsi/gomega"
 
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 )
 
-func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode ResponseMode) bool {
+func DescribeDeleteTestsfor(ctx *common2.TestContext, t TestCase, responseMode ResponseMode) bool {
 	return Describe(fmt.Sprintf("DELETE %s", t.API), func() {
 		const notFoundMsg = "could not find"
 
 		var (
-			testResource   common.Object
+			testResource   common2.Object
 			testResourceID string
 
 			successfulDeletionRequestResponseCode int
@@ -54,7 +54,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 		})
 
 		Context("Existing resource", func() {
-			createResourceFunc := func(auth *common.SMExpect) {
+			createResourceFunc := func(auth *common2.SMExpect) {
 				By(fmt.Sprintf("[SETUP]: Creating test resource of type %s", t.API))
 				testResource = t.ResourceBlueprint(ctx, auth, bool(responseMode))
 				Expect(testResource).ToNot(BeEmpty())
@@ -65,7 +65,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 				stripObject(testResource, t.ResourcePropertiesToIgnore...)
 			}
 
-			verifyResourceDeletionWithErrorMsg := func(auth *common.SMExpect, deletionRequestResponseCode, resourceCountAfterDeletion int, expectedOpState types.OperationState, expectedErrMsg string) {
+			verifyResourceDeletionWithErrorMsg := func(auth *common2.SMExpect, deletionRequestResponseCode, resourceCountAfterDeletion int, expectedOpState types.OperationState, expectedErrMsg string) {
 				By("[TEST]: Verify resource of type %s exists before delete")
 				ctx.SMWithOAuth.ListWithQuery(t.API, fmt.Sprintf("fieldQuery=id eq '%s'", testResourceID)).First().Object().ContainsMap(testResource)
 
@@ -74,7 +74,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 					Expect().
 					Status(deletionRequestResponseCode)
 
-				common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
+				common2.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common2.OperationExpectations{
 					Category:          types.DELETE,
 					State:             expectedOpState,
 					ResourceType:      types.ObjectType(t.API),
@@ -89,7 +89,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 					Status(http.StatusOK).JSON().Path("$.items[*]").Array().Length().Equal(resourceCountAfterDeletion)
 			}
 
-			verifyResourceDeletion := func(auth *common.SMExpect, deletionRequestResponseCode, resourceCountAfterDeletion int, expectedOpState types.OperationState) {
+			verifyResourceDeletion := func(auth *common2.SMExpect, deletionRequestResponseCode, resourceCountAfterDeletion int, expectedOpState types.OperationState) {
 				verifyResourceDeletionWithErrorMsg(auth, deletionRequestResponseCode, resourceCountAfterDeletion, expectedOpState, "")
 			}
 
@@ -184,7 +184,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 						Expect()
 					statusCode := resp.Raw().StatusCode
 					if statusCode == http.StatusAccepted {
-						common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
+						common2.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common2.OperationExpectations{
 							Category:          types.DELETE,
 							State:             types.FAILED,
 							ResourceType:      types.ObjectType(t.API),

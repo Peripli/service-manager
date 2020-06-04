@@ -18,6 +18,7 @@ package api_test
 
 import (
 	"context"
+	common2 "github.com/Peripli/service-manager/test/common"
 	"testing"
 
 	"github.com/Peripli/service-manager/operations"
@@ -28,7 +29,6 @@ import (
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/storage/storagefakes"
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -41,12 +41,12 @@ func TestAPI(t *testing.T) {
 var _ = Describe("API", func() {
 	var (
 		mockedStorage   *storage.InterceptableTransactionalRepository
-		server          *common.OAuthServer
+		server          *common2.OAuthServer
 		fakeEnvironment *envfakes.FakeEnvironment
 	)
 
 	BeforeSuite(func() {
-		server = common.NewOAuthServer()
+		server = common2.NewOAuthServer()
 	})
 
 	AfterSuite(func() {

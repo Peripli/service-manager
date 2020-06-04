@@ -18,6 +18,7 @@ package service_test
 
 import (
 	"fmt"
+	common2 "github.com/Peripli/service-manager/test/common"
 	"net/http"
 	"net/url"
 	"testing"
@@ -27,7 +28,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test"
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 
 	. "github.com/onsi/gomega"
@@ -48,7 +48,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
 	ResourcePropertiesToIgnore:             []string{"last_operation"},
 	PatchResource:                          test.APIResourcePatch,
-	AdditionalTests: func(ctx *common.TestContext, t *test.TestCase) {
+	AdditionalTests: func(ctx *common2.TestContext, t *test.TestCase) {
 		Context("additional non-generic tests", func() {
 			Describe("PATCH", func() {
 				var id string
@@ -100,15 +100,15 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 			Describe("GET", func() {
 				var k8sPlatform *types.Platform
-				var k8sAgent *common.SMExpect
+				var k8sAgent *common2.SMExpect
 
-				assertPlanForPlatformByID := func(agent *common.SMExpect, planID string, status int) {
+				assertPlanForPlatformByID := func(agent *common2.SMExpect, planID string, status int) {
 					k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServicePlansURL, planID)).
 						Expect().
 						Status(status)
 				}
 
-				assertPlansForPlatformWithQuery := func(agent *common.SMExpect, query map[string]interface{}, plansIDs ...interface{}) {
+				assertPlansForPlatformWithQuery := func(agent *common2.SMExpect, query map[string]interface{}, plansIDs ...interface{}) {
 					q := url.Values{}
 					for k, v := range query {
 						q.Set(k, fmt.Sprint(v))
@@ -122,14 +122,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					}
 				}
 
-				assertPlansForPlatform := func(agent *common.SMExpect, plansIDs ...interface{}) {
+				assertPlansForPlatform := func(agent *common2.SMExpect, plansIDs ...interface{}) {
 					assertPlansForPlatformWithQuery(agent, nil, plansIDs...)
 				}
 
 				BeforeEach(func() {
-					k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
-					k8sPlatform = common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
-					k8sAgent = &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+					k8sPlatformJSON := common2.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+					k8sPlatform = common2.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
+					k8sAgent = &common2.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
 						username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
 						req.WithBasicAuth(username, password)
 					})}
@@ -140,7 +140,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("with k8s platform credentials", func() {
-					var plan common.Object
+					var plan common2.Object
 					var planID string
 					BeforeEach(func() {
 						plan = blueprint(ctx, ctx.SMWithOAuth, false)
@@ -175,7 +175,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							assertPlanForPlatformByID(k8sAgent, planID, http.StatusNotFound)
 							assertPlansForPlatform(k8sAgent, nil...)
 
-							common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, planID, "")
+							common2.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, planID, "")
 
 							assertPlanForPlatformByID(k8sAgent, planID, http.StatusOK)
 							assertPlansForPlatform(k8sAgent, planID)
@@ -183,7 +183,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					Context("with additional plan", func() {
-						var plan2 common.Object
+						var plan2 common2.Object
 						var plan2ID string
 						BeforeEach(func() {
 							plan2 = blueprint(ctx, ctx.SMWithOAuth, false)
@@ -200,7 +200,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						Context("with visibility for one plan", func() {
 							BeforeEach(func() {
-								common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, planID, "")
+								common2.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, planID, "")
 							})
 
 							It("should return only one plan for get operation", func() {
@@ -505,10 +505,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
-	cPaidPlan := common.GeneratePaidTestPlan()
-	cService := common.GenerateTestServiceWithPlans(cPaidPlan)
-	catalog := common.NewEmptySBCatalog()
+func blueprint(ctx *common2.TestContext, auth *common2.SMExpect, _ bool) common2.Object {
+	cPaidPlan := common2.GeneratePaidTestPlan()
+	cService := common2.GenerateTestServiceWithPlans(cPaidPlan)
+	catalog := common2.NewEmptySBCatalog()
 	catalog.AddService(cService)
 	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
 
