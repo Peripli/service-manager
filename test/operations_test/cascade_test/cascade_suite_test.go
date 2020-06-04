@@ -25,7 +25,7 @@ import (
 
 func TestCascade(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Cascade Test Suite")
+	RunSpecs(t, "Cascade Suite Test")
 }
 
 var (
@@ -35,12 +35,11 @@ var (
 	plan                  types.Object
 	platformID            string
 	tenantOperationsCount = 11 //the number of operations that will be created after tenant creation in JustBeforeEach
-	rootOpID              = "op1"
 	tenantID              = "tenant_value"
 	osbInstanceID         = "test-instance"
 
-	queryForOperationsInTheSameTree    query.Criterion
-	queryForRoot                       query.Criterion
+	queryForOperationsInTheSameTree    func(rootID string) query.Criterion
+	queryForRoot                       func(rootID string) query.Criterion
 	queryForInstanceOperations         query.Criterion
 	queryForBindingsOperations         query.Criterion
 	queryForOrphanMitigationOperations query.Criterion
@@ -64,12 +63,12 @@ var _ = AfterEach(func() {
 })
 
 var _ = BeforeSuite(func() {
-	UUID, err := uuid.NewV4()
-	Expect(err).ToNot(HaveOccurred())
-	rootOpID = UUID.String()
-
-	queryForOperationsInTheSameTree = query.ByField(query.EqualsOperator, "cascade_root_id", rootOpID)
-	queryForRoot = query.ByField(query.EqualsOperator, "id", rootOpID)
+	queryForOperationsInTheSameTree = func(rootID string) query.Criterion {
+		return query.ByField(query.EqualsOperator, "cascade_root_id", rootID)
+	}
+	queryForRoot = func(rootID string) query.Criterion {
+		return query.ByField(query.EqualsOperator, "id", rootID)
+	}
 	queryForInstanceOperations = query.ByField(query.EqualsOperator, "resource_type", types.ServiceInstanceType.String())
 	queryForBindingsOperations = query.ByField(query.EqualsOperator, "resource_type", types.ServiceBindingType.String())
 	queryForOrphanMitigationOperations = query.ByField(query.NotEqualsOperator, "deletion_scheduled", operations.ZeroTime)
@@ -316,7 +315,17 @@ type tree struct {
 	byOperationID map[string]*types.Operation
 }
 
-func triggerCascadeOperation(repoCtx context.Context, resourceType types.ObjectType, resourceID string, rootID string) {
+func generateID() string {
+	UUID, err := uuid.NewV4()
+	Expect(err).ToNot(HaveOccurred())
+	return UUID.String()
+}
+
+func triggerCascadeOperation(repoCtx context.Context, resourceType types.ObjectType, resourceID string) string {
+	UUID, err := uuid.NewV4()
+	Expect(err).ToNot(HaveOccurred())
+	rootID := UUID.String()
+
 	op := types.Operation{
 		Base: types.Base{
 			ID:        rootID,
@@ -330,6 +339,7 @@ func triggerCascadeOperation(repoCtx context.Context, resourceType types.ObjectT
 		Type:          types.DELETE,
 		ResourceType:  resourceType,
 	}
-	_, err := ctx.SMRepository.Create(repoCtx, &op)
+	_, err = ctx.SMRepository.Create(repoCtx, &op)
 	Expect(err).NotTo(HaveOccurred())
+	return rootID
 }
