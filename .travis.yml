@@ -14,12 +14,16 @@ services:
 
 jobs:
   include:
-    - script:
+    - stage: "Tests"
+      name: "Unit Tests"
+      script:
         - while sleep 9m; do echo "=====[already running for $SECONDS ...]====="; done &
         - make precommit2
         - goveralls -coverprofile profile.cov -service=travis-ci
         - kill %1
-    - script:
+    -
+      name: "Integration Tests"
+      script:
         - while sleep 9m; do echo "=====[already running for $SECONDS ...]====="; done &
         - make precommit
         - kill %1
