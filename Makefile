@@ -45,7 +45,10 @@ GO_BUILD 		= env CGO_ENABLED=0 GOOS=$(PLATFORM) GOARCH=$(ARCH) \
 
 # TEST_FLAGS - extra "go test" flags to use
 GO_INT_TEST 	= $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
-				./test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
+				./test/integration_test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
+
+GO_RES_TEST 	= $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
+				./test/resources_test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
 
 GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
 				$(shell go list ./... | egrep -v "test") -coverprofile=$(UNIT_TEST_PROFILE)
@@ -147,6 +150,10 @@ generate: prepare-counterfeiter build-gen-binary $(GENERATE_PREREQ_FILES) ## Rec
 	$(GO) list ./... | xargs $(GO) generate
 	@touch $@
 
+test-res: generate
+	@echo Running unit tests:
+	$(GO_RES_TEST)
+
 test-unit: generate ## Runs the unit tests
 	@echo Running unit tests:
 	$(GO_UNIT_TEST)
@@ -155,11 +162,27 @@ test-int: generate ## Runs the integration tests. Use TEST_FLAGS="--storage.uri=
 	@echo Running integration tests:
 	$(GO_INT_TEST)
 
-test-report: test-unit test-int
+unit-test-report: test-unit
 	@$(GO) get github.com/wadey/gocovmerge
 	@gocovmerge $(CURDIR)/*.cov > $(TEST_PROFILE)
 
-coverage: test-report ## Produces an HTML report containing code coverage details
+integration-test-report: test-int
+	@$(GO) get github.com/wadey/gocovmerge
+	@gocovmerge $(CURDIR)/*.cov > $(TEST_PROFILE)
+
+resources-test-report: test-res
+	@$(GO) get github.com/wadey/gocovmerge
+	@gocovmerge $(CURDIR)/*.cov > $(TEST_PROFILE)
+
+unit-test-coverage: unit-test-report ## Produces an HTML report containing code coverage details
+	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
+	@echo Generated coverage report in $(COVERAGE).
+
+integration-test-coverage: integration-test-report ## Produces an HTML report containing code coverage details
+	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
+	@echo Generated coverage report in $(COVERAGE).
+
+resources-test-coverage: resources-test-report ## Produces an HTML report containing code coverage details
 	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
 	@echo Generated coverage report in $(COVERAGE).
 
@@ -186,7 +209,9 @@ clean-coverage: clean-test-report ## Cleans up coverage artifacts
 # Formatting, Linting, Static code checks
 #-----------------------------------------------------------------------------
 
-precommit: build coverage format-check lint-check ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
+unit-test-precommit: build unit-test-coverage format-check lint-check ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
+integration-test-precommit: build integration-test-coverage
+resources-test-precommit: build resources-test-coverage
 
 format: ## Formats the source code files with gofmt
 	@echo The following files were reformated:
