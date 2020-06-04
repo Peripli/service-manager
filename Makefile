@@ -45,13 +45,13 @@ GO_BUILD 		= env CGO_ENABLED=0 GOOS=$(PLATFORM) GOARCH=$(ARCH) \
 
 # TEST_FLAGS - extra "go test" flags to use
 GO_INT_TEST 	= $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
-				./test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
+				$(go list ./test/... | grep -v /resources_test/) $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
 
 GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
 				$(shell go list ./... | egrep -v "test") -coverprofile=$(UNIT_TEST_PROFILE)
 
 GO_INT_TEST3 	= $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
-				./resources_test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
+				./test/resources_test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
 
 COUNTERFEITER   ?= "v6.0.2"
 
