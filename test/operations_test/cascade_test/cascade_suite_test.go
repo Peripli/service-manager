@@ -25,7 +25,7 @@ import (
 
 func TestCascade(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Cascade Test Suite")
+	RunSpecs(t, "Cascade Suite Test")
 }
 
 var (
