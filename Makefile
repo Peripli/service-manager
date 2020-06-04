@@ -155,11 +155,19 @@ test-int: generate ## Runs the integration tests. Use TEST_FLAGS="--storage.uri=
 	@echo Running integration tests:
 	$(GO_INT_TEST)
 
-test-report: test-unit test-int
+test-report: test-int
+	@$(GO) get github.com/wadey/gocovmerge
+	@gocovmerge $(CURDIR)/*.cov > $(TEST_PROFILE)
+
+test-report2: test-unit
 	@$(GO) get github.com/wadey/gocovmerge
 	@gocovmerge $(CURDIR)/*.cov > $(TEST_PROFILE)
 
 coverage: test-report ## Produces an HTML report containing code coverage details
+	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
+	@echo Generated coverage report in $(COVERAGE).
+
+coverage2: test-report2 ## Produces an HTML report containing code coverage details
 	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
 	@echo Generated coverage report in $(COVERAGE).
 
@@ -186,7 +194,8 @@ clean-coverage: clean-test-report ## Cleans up coverage artifacts
 # Formatting, Linting, Static code checks
 #-----------------------------------------------------------------------------
 
-precommit: build coverage format-check lint-check ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
+precommit: build coverage ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
+precommit2: build coverage2 format-check lint-check ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
 
 format: ## Formats the source code files with gofmt
 	@echo The following files were reformated:

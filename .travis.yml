@@ -12,11 +12,22 @@ install:
 services:
   - postgresql
 
-script:
-  - while sleep 9m; do echo "=====[already running for $SECONDS ...]====="; done &
-  - make precommit
-  - goveralls -coverprofile profile.cov -service=travis-ci
-  - kill %1
+jobs:
+  include:
+    - stage: "Tests"                # naming the Tests stage
+      name: "Unit Tests"            # names the first Tests stage job
+      script:
+        - while sleep 9m; do echo "=====[already running for $SECONDS ...]====="; done &
+        - make precommit2
+        - goveralls -coverprofile profile.cov -service=travis-ci
+        - kill %1
+    - stage: "Tests"
+      name: "Integration Tests"
+      script:
+        - while sleep 9m; do echo "=====[already running for $SECONDS ...]====="; done &
+        - make precommit
+        - goveralls -coverprofile profile.cov -service=travis-ci
+        - kill %1
 
 
 notifications:
