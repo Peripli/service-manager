@@ -158,14 +158,14 @@ test-int: generate ## Runs the integration tests. Use TEST_FLAGS="--storage.uri=
 	@echo Running integration tests:
 	$(GO_INT_TEST)
 
-test-int: generate ## Runs the integration tests. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
+test-int3: generate ## Runs the integration tests. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
 	@echo Running integration tests:
 	$(GO_UNIT_TEST3)
 
 test-report: test-int
 	@$(GO) get github.com/wadey/gocovmerge
 
-test-report: test-int3
+test-report3: test-int3
 	@$(GO) get github.com/wadey/gocovmerge
 
 test-report2: test-unit
