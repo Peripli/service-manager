@@ -50,6 +50,9 @@ GO_INT_TEST 	= $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./..
 GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
 				$(shell go list ./... | egrep -v "test") -coverprofile=$(UNIT_TEST_PROFILE)
 
+GO_UNIT_TEST3 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
+				$(shell go list ./... | egrep -v "resources_test") -coverprofile=$(UNIT_TEST_PROFILE)
+
 COUNTERFEITER   ?= "v6.0.2"
 
 #-----------------------------------------------------------------------------
@@ -155,7 +158,14 @@ test-int: generate ## Runs the integration tests. Use TEST_FLAGS="--storage.uri=
 	@echo Running integration tests:
 	$(GO_INT_TEST)
 
+test-int: generate ## Runs the integration tests. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
+	@echo Running integration tests:
+	$(GO_UNIT_TEST3)
+
 test-report: test-int
+	@$(GO) get github.com/wadey/gocovmerge
+
+test-report: test-int3
 	@$(GO) get github.com/wadey/gocovmerge
 
 test-report2: test-unit
@@ -163,6 +173,9 @@ test-report2: test-unit
 	@gocovmerge $(CURDIR)/*.cov > $(TEST_PROFILE)
 
 coverage: test-report ## Produces an HTML report containing code coverage details
+	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
+
+coverage3: test-report3 ## Produces an HTML report containing code coverage details
 	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
 
 coverage2: test-report2 ## Produces an HTML report containing code coverage details
@@ -193,6 +206,7 @@ clean-coverage: clean-test-report ## Cleans up coverage artifacts
 #-----------------------------------------------------------------------------
 
 precommit: build coverage ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
+precommit3: build coverage3 ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
 precommit2: build coverage2 format-check lint-check ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
 
 format: ## Formats the source code files with gofmt
