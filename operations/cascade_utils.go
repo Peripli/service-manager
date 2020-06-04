@@ -116,7 +116,7 @@ func enrichBrokersOfferings(ctx context.Context, brokerObj types.Object, storage
 		if err != nil {
 			return err
 		}
-		for g := 0; g < serviceOfferings.Len(); g++ {
+		for g := 0; g < servicePlans.Len(); g++ {
 			serviceOffering.Plans = append(serviceOffering.Plans, servicePlans.ItemAt(g).(*types.ServicePlan))
 		}
 		broker.Services = append(broker.Services, serviceOffering)
