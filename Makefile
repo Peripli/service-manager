@@ -24,6 +24,7 @@ ARCH     			?= amd64
 
 UNIT_TEST_PROFILE 	?= $(CURDIR)/profile-unit.cov
 INT_TEST_PROFILE 	?= $(CURDIR)/profile-int.cov
+RES_INT_TEST_PROFILE 	?= $(CURDIR)/profile-res_int.cov
 TEST_PROFILE 		?= $(CURDIR)/profile.cov
 COVERAGE 			?= $(CURDIR)/coverage.html
 
@@ -48,7 +49,7 @@ GO_INT_TEST 	= $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./..
 				./test/integration_test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
 
 GO_RES_TEST 	= $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
-				./test/resources_test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
+				./test/resources_test/... $(TEST_FLAGS) -coverprofile=$(RES_INT_TEST_PROFILE)
 
 GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
 				$(shell go list ./... | egrep -v "test") -coverprofile=$(UNIT_TEST_PROFILE)
@@ -196,6 +197,10 @@ clean-test-unit: clean-generate ## Cleans up unit test artifacts
 clean-test-int: clean-generate ## Cleans up integration test artifacts
 	@echo Deleting $(INT_TEST_PROFILE)...
 	@rm -f $(INT_TEST_PROFILE)
+
+clean-test-int: clean-generate ## Cleans up integration test artifacts
+	@echo Deleting $(RES_INT_TEST_PROFILE)...
+	@rm -f $(RES_INT_TEST_PROFILE)
 
 clean-test-report: clean-test-unit clean-test-int
 	@echo Deleting $(TEST_PROFILE)...
