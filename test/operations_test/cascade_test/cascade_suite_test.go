@@ -266,7 +266,7 @@ func SimpleCatalog(serviceID, planID string, planID2 string) SBCatalog {
 			"instances_retrievable": true,
 			"name": "no-tags-no-metadata",
 			"id": "%s",
-			"description": "A fake service.",
+			"description": "A fake service. ",
 			"plans": [
 			{
 				"bindable": true,
