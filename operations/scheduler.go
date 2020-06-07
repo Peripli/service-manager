@@ -190,7 +190,7 @@ func (s *Scheduler) getResourceLastOperation(ctx context.Context, operation *typ
 func (s *Scheduler) checkForConcurrentOperations(ctx context.Context, operation *types.Operation, lastOperation *types.Operation) error {
 	log.C(ctx).Debugf("Checking if another operation is in progress to resource of type %s with id %s", operation.ResourceType.String(), operation.ResourceID)
 
-	isDeletionScheduled := !lastOperation.DeletionScheduled.IsZero()
+	isDeletionScheduled := lastOperation.InOrphanMitigationState()
 
 	// for the outside world job timeout would have expired if the last update happened > job timeout time ago (this is worst case)
 	// an "old" updated_at means that for a while nobody was processing this operation
@@ -459,7 +459,7 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 	}
 
 	// we want to schedule deletion if the operation is marked for deletion and the deletion timeout is not yet reached
-	isDeleteRescheduleRequired := !opAfterJob.DeletionScheduled.IsZero() &&
+	isDeleteRescheduleRequired := opAfterJob.InOrphanMitigationState() &&
 		time.Now().UTC().Before(opAfterJob.DeletionScheduled.Add(s.reconciliationOperationTimeout)) &&
 		opAfterJob.State != types.SUCCEEDED
 
@@ -560,7 +560,7 @@ func (s *Scheduler) addOperationToContext(ctx context.Context, operation *types.
 }
 
 func (s *Scheduler) validateOperationDoesNotExceedTimeouts(operation *types.Operation) error {
-	if operation.CascadeRootID != "" && !operation.DeletionScheduled.IsZero() && time.Now().UTC().After(operation.CreatedAt.Add(s.cascadeOrphanMitigationTimeout)) {
+	if operation.CascadeRootID != "" && operation.InOrphanMitigationState() && time.Now().UTC().After(operation.CreatedAt.Add(s.cascadeOrphanMitigationTimeout)) {
 		return &util.HTTPError{
 			ErrorType:   "ManualActionRequired",
 			Description: fmt.Sprintf("operations is older than %v and has exceed the maximmum cascade orphan mitigation timeout. Rootcause error: %s", s.cascadeOrphanMitigationTimeout, operation.Errors),
@@ -579,7 +579,7 @@ func (s *Scheduler) validateOperationDoesNotExceedTimeouts(operation *types.Oper
 
 func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation *types.Operation) error {
 	if operation.State == types.SUCCEEDED ||
-		(operation.State == types.FAILED && operation.DeletionScheduled.IsZero()) {
+		(operation.State == types.FAILED && !operation.InOrphanMitigationState()) {
 		return fmt.Errorf("scheduling for operations %+v is not allowed due to invalid state", operation)
 	}
 
@@ -621,7 +621,7 @@ func initialLogMessage(ctx context.Context, operation *types.Operation, async bo
 	var logPrefix string
 	if operation.Reschedule {
 		logPrefix = "Rescheduling (reschedule=true)"
-	} else if !operation.DeletionScheduled.IsZero() {
+	} else if operation.InOrphanMitigationState() {
 		logPrefix = "Scheduling orphan mitigation"
 	} else {
 		logPrefix = "Scheduling new"

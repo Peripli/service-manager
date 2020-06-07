@@ -191,7 +191,7 @@ func createOSBBinding(ctx *TestContext, sm *SMExpect, brokerID string, instanceI
 
 func registerSubaccountScopedBroker(ctx *TestContext, serviceNameID string, planID string) (string, *BrokerServer) {
 	// registering a tenant scope broker
-	catalog := SimpleCatalog(serviceNameID, planID)
+	catalog := SimpleCatalog(serviceNameID, planID, generateID())
 	id, _, brokerServer := ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, map[string]interface{}{}, ctx.SMWithOAuthForTenant).GetBrokerAsParams()
 	brokerServer.ShouldRecordRequests(false)
 
@@ -259,22 +259,29 @@ func registerSubaccountScopedPlatform(ctx *TestContext, name string) string {
 	return id
 }
 
-func SimpleCatalog(serviceID, planID string) SBCatalog {
+func SimpleCatalog(serviceID, planID string, planID2 string) SBCatalog {
 	return SBCatalog(fmt.Sprintf(`{
 	  "services": [{
 			"bindings_retrievable": true,
 			"instances_retrievable": true,
 			"name": "no-tags-no-metadata",
 			"id": "%s",
-			"description": "A fake service.",
-			"plans": [{
+			"description": "A fake service. ",
+			"plans": [
+			{
+				"bindable": true,
+				"name": "fake-plan-0",
+				"id": "%s",
+				"description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections."
+			},
+			{
 				"bindable": true,
 				"name": "fake-plan-1",
 				"id": "%s",
 				"description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections."
 			}]
 		}]
-	}`, serviceID, planID))
+	}`, serviceID, planID2, planID))
 }
 
 func fetchFullTree(repository storage.TransactionalRepository, rootID string) (*tree, error) {

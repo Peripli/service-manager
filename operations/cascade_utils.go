@@ -116,7 +116,7 @@ func enrichBrokersOfferings(ctx context.Context, brokerObj types.Object, storage
 		if err != nil {
 			return err
 		}
-		for g := 0; g < serviceOfferings.Len(); g++ {
+		for g := 0; g < servicePlans.Len(); g++ {
 			serviceOffering.Plans = append(serviceOffering.Plans, servicePlans.ItemAt(g).(*types.ServicePlan))
 		}
 		broker.Services = append(broker.Services, serviceOffering)
@@ -187,15 +187,16 @@ func handleDuplicateOperations(ctx context.Context, storage storage.Repository, 
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
 		query.ByField(query.EqualsOperator, "type", string(operation.Type)),
+		query.ByField(query.EqualsOperator, "cascade_root_id", operation.CascadeRootID),
+		query.OrderResultBy("updated_at", query.DescOrder),
 	}
 	sameResourceOperations, err := storage.List(ctx, types.OperationType, criteria...)
 	if err != nil {
 		return "", false, err
 	}
-
-	for i := 0; i < sameResourceOperations.Len(); i++ {
-		same := sameResourceOperations.ItemAt(i).(*types.Operation)
-		if same.CascadeRootID == operation.CascadeRootID && same.InOrphanMitigationState() {
+	if sameResourceOperations.Len() > 0 {
+		same := sameResourceOperations.ItemAt(0).(*types.Operation)
+		if same.InOrphanMitigationState() {
 			return "", true, nil
 		}
 		switch same.State {
@@ -205,10 +206,7 @@ func handleDuplicateOperations(ctx context.Context, storage storage.Repository, 
 		case types.SUCCEEDED:
 			fallthrough
 		case types.FAILED:
-			if same.CascadeRootID == operation.CascadeRootID {
-				return same.State, false, nil
-			}
-			return "", false, nil
+			return same.State, false, nil
 		}
 	}
 	// same operations are pending, proceeding the flow
