@@ -378,7 +378,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 	}
 
 	// if deletion scheduled is true this means that either a delete or create operation failed and orphan mitigation was required
-	if !operation.DeletionScheduled.IsZero() {
+	if operation.InOrphanMitigationState() {
 		log.C(ctx).Infof("Orphan mitigation in progress for instance with id %s and name %s triggered due to failure in operation %s", instance.ID, instance.Name, operation.Type)
 	}
 
