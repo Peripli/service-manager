@@ -44,13 +44,13 @@ GO_BUILD 		= env CGO_ENABLED=0 GOOS=$(PLATFORM) GOARCH=$(ARCH) \
 
 # TEST_FLAGS - extra "go test" flags to use
 GO_INT_TEST 	= $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
-				./test/integration_test/... $(TEST_FLAGS) -coverprofile=$(TEST_PROFILE)
+				./test/integration_test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
 
 GO_RES_TEST 	= $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
-				./test/resources_test/... $(TEST_FLAGS) -coverprofile=$(TEST_PROFILE)
+				./test/resources_test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
 
 GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
-				$(shell go list ./... | egrep -v "test") -coverprofile=$(TEST_PROFILE)
+				$(shell go list ./... | egrep -v "test") -coverprofile=$(INT_TEST_PROFILE)
 
 COUNTERFEITER   ?= "v6.0.2"
 
@@ -188,7 +188,11 @@ resources-test-coverage: resources-test-report ## Produces an HTML report contai
 clean-generate:
 	@rm -f generate
 
-clean-test-report: clean-generate ## Cleans up integration test artifacts
+clean-test-int: clean-generate ## Cleans up integration test artifacts
+	@echo Deleting $(INT_TEST_PROFILE)...
+	@rm -f $(INT_TEST_PROFILE)
+
+clean-test-report: clean-test-int
 	@echo Deleting $(TEST_PROFILE)...
 	@rm -f $(TEST_PROFILE)
 
