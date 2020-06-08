@@ -33,8 +33,8 @@ func Register(ctx context.Context, cfg *config.Settings, smb *sm.ServiceManagerB
 		WithAuthentication(basicPlatformAuthenticator).Required()
 
 	smb.Security().
-		Path(web.BrokerPlatformCredentialsURL + "/**").
-		Method(http.MethodPut).
+		Path(web.BrokerPlatformCredentialsURL+"/**").
+		Method(http.MethodPut, http.MethodPatch).
 		WithAuthentication(basicPlatformAuthenticator).Required()
 
 	basicOSBAuthenticator := &authenticators.Basic{

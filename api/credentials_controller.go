@@ -49,11 +49,17 @@ func (c *credentialsController) Routes() []web.Route {
 			},
 			Handler: c.setCredentials,
 		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodPatch,
+				Path:   fmt.Sprintf("%s/{%s}", web.BrokerPlatformCredentialsURL, web.PathParamResourceID),
+			},
+			Handler: c.revertCredentials,
+		},
 	}
 }
 func (c *credentialsController) setCredentials(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
-
 	platform, err := osb.ExtractPlatformFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -124,6 +130,24 @@ func (c *credentialsController) setCredentials(r *web.Request) (*web.Response, e
 	return c.updateCredentials(ctx, body, credentialsFromDB)
 }
 
+func (c *credentialsController) revertCredentials(r *web.Request) (*web.Response, error) {
+	ctx := r.Context()
+	resourceID := r.PathParams[web.PathParamResourceID]
+	log.C(ctx).Info("Reverting broker platform credentials with id %s", resourceID)
+	object, err := c.repository.Get(ctx, types.BrokerPlatformCredentialType, query.ByField(query.EqualsOperator, "id", resourceID))
+	if err != nil {
+		return util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
+	}
+	creds := object.(*types.BrokerPlatformCredential)
+	creds.PasswordHash = creds.OldPasswordHash
+	creds.Username = creds.OldUsername
+	updatedCreds, err := c.repository.Update(ctx, creds, nil)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
+	}
+	return util.NewJSONResponse(http.StatusOK, updatedCreds)
+}
+
 func (c *credentialsController) registerCredentials(ctx context.Context, credentials *types.BrokerPlatformCredential) (*web.Response, error) {
 	log.C(ctx).Info("Creating new broker platform credentials")
 
@@ -151,7 +175,7 @@ func (c *credentialsController) registerCredentials(ctx context.Context, credent
 }
 
 func (c *credentialsController) updateCredentials(ctx context.Context, body, credentialsFromDB *types.BrokerPlatformCredential) (*web.Response, error) {
-	log.C(ctx).Debugf("Updating broker platform credentials")
+	log.C(ctx).Infof("Updating broker platform credentials")
 
 	credentialsFromDB.OldUsername = credentialsFromDB.Username
 	credentialsFromDB.OldPasswordHash = credentialsFromDB.PasswordHash
