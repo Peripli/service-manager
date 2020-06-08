@@ -136,7 +136,7 @@ func (c *credentialsController) revertCredentials(r *web.Request) (*web.Response
 	log.C(ctx).Info("Reverting broker platform credentials with id %s", resourceID)
 	object, err := c.repository.Get(ctx, types.BrokerPlatformCredentialType, query.ByField(query.EqualsOperator, "id", resourceID))
 	if err != nil {
-		return util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
+		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
 	}
 	creds := object.(*types.BrokerPlatformCredential)
 	creds.PasswordHash = creds.OldPasswordHash
