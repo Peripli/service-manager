@@ -139,13 +139,16 @@ func (c *credentialsController) revertCredentials(r *web.Request) (*web.Response
 		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
 	}
 	creds := object.(*types.BrokerPlatformCredential)
-	creds.PasswordHash = creds.OldPasswordHash
-	creds.Username = creds.OldUsername
-	updatedCreds, err := c.repository.Update(ctx, creds, nil)
-	if err != nil {
-		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
+	if creds.OldUsername != "" {
+		creds.PasswordHash = creds.OldPasswordHash
+		creds.Username = creds.OldUsername
+		updatedCreds, err := c.repository.Update(ctx, creds, nil)
+		if err != nil {
+			return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
+		}
+		return util.NewJSONResponse(http.StatusOK, updatedCreds)
 	}
-	return util.NewJSONResponse(http.StatusOK, updatedCreds)
+	return util.NewJSONResponse(http.StatusOK, object)
 }
 
 func (c *credentialsController) registerCredentials(ctx context.Context, credentials *types.BrokerPlatformCredential) (*web.Response, error) {
