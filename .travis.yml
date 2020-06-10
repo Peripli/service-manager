@@ -33,6 +33,8 @@ jobs:
         - goveralls -coverprofile profile.cov -service=travis-ci
         - kill %1
 
+env:
+  - COVERALLS_PARALLEL=true
 
 notifications:
   slack: openservicebrokerapi:KQo2QAC6LXeEeXPOemOXja48
