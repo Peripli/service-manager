@@ -18,7 +18,7 @@ var _ = Describe("cascade force delete", func() {
 
 	Context("should succeeded", func() {
 		It("delete binding using force", func() {
-			registerBindingLastOPHandlers(brokerServer, http.StatusInternalServerError, types.FAILED)
+			registerBindingLastOPHandlers(subaccountBrokerServer, http.StatusInternalServerError, types.FAILED)
 			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 
 			By("waiting cascading process to finish")
@@ -94,7 +94,7 @@ var _ = Describe("cascade force delete", func() {
 			Expect(len(errors.Errors)).To(Equal(3))
 
 			for _, e := range errors.Errors {
-				Expect(e.ParentID).To(Or(Equal(platformID), Equal(brokerID), Equal(tenantID)))
+				Expect(e.ParentID).To(Or(Equal(platformID), Equal(subaccountBrokerID), Equal(tenantID)))
 				Expect(len(e.Message)).Should(BeNumerically(">", 0))
 				Expect(e.ResourceType).To(Equal(types.ServiceInstanceType))
 				Expect(e.ParentType).To(Or(Equal(types.ServiceBrokerType), Equal(types.PlatformType), Equal(types.TenantType)))

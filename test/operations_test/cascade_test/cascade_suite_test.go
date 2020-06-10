@@ -29,18 +29,17 @@ func TestCascade(t *testing.T) {
 }
 
 var (
-	ctx                   *TestContext
-	brokerServer          *BrokerServer
-	globalBrokerServer    *BrokerServer
-	globalBroker          Object
-	brokerID              string
-	globalBrokerID        string
-	plan                  types.Object
-	globalPlan            types.Object
-	platformID            string
-	tenantOperationsCount = 14 //the number of operations that will be created after tenant creation in JustBeforeEach
-	tenantID              = "tenant_value"
-	osbInstanceID         = "test-instance"
+	ctx                    *TestContext
+	subaccountBrokerServer *BrokerServer
+	globalBrokerServer     *BrokerServer
+	subaccountBrokerID     string
+	globalBrokerID         string
+	plan                   types.Object
+	globalPlan             types.Object
+	platformID             string
+	tenantOperationsCount  = 14 //the number of operations that will be created after tenant creation in JustBeforeEach
+	tenantID               = "tenant_value"
+	osbInstanceID          = "test-instance"
 
 	queryForOperationsInTheSameTree    func(rootID string) query.Criterion
 	queryForRoot                       func(rootID string) query.Criterion
@@ -135,7 +134,7 @@ func registerGlobalBroker(ctx *TestContext, serviceNameID string, planID string)
 
 func initTenantResources(createInstances bool) {
 	globalBrokerID, globalBrokerServer = registerGlobalBroker(ctx, "global-service", "global-plan")
-	brokerID, brokerServer = registerSubaccountScopedBroker(ctx, "test-service", "plan-service")
+	subaccountBrokerID, subaccountBrokerServer = registerSubaccountScopedBroker(ctx, "test-service", "plan-service")
 
 	var subaccountPlatformUser, subaccountPlatformSecret string
 	platformID, subaccountPlatformUser, subaccountPlatformSecret = registerSubaccountScopedPlatform(ctx, "platform1")
@@ -158,7 +157,7 @@ func initTenantResources(createInstances bool) {
 			},
 		})
 		// global platform + tenant scoped broker
-		createOSBInstance(ctx, ctx.SMWithBasic, brokerID, generateID(), map[string]interface{}{
+		createOSBInstance(ctx, ctx.SMWithBasic, subaccountBrokerID, generateID(), map[string]interface{}{
 			"service_id":        "test-service",
 			"plan_id":           "plan-service",
 			"organization_guid": "my-org",
@@ -189,7 +188,7 @@ func initTenantResources(createInstances bool) {
 			},
 		})
 		// tenant scoped platform + tenant scoped broker
-		createOSBInstance(ctx, ctx.SMWithBasic, brokerID, osbInstanceID, map[string]interface{}{
+		createOSBInstance(ctx, ctx.SMWithBasic, subaccountBrokerID, osbInstanceID, map[string]interface{}{
 			"service_id":        "test-service",
 			"plan_id":           "plan-service",
 			"organization_guid": "my-org",
@@ -197,12 +196,12 @@ func initTenantResources(createInstances bool) {
 				"tenant": tenantID,
 			},
 		})
-		createOSBBinding(ctx, ctx.SMWithBasic, brokerID, osbInstanceID, "binding1", map[string]interface{}{
+		createOSBBinding(ctx, ctx.SMWithBasic, subaccountBrokerID, osbInstanceID, "binding1", map[string]interface{}{
 			"service_id":        "test-service",
 			"plan_id":           "plan-service",
 			"organization_guid": "my-org",
 		})
-		createOSBBinding(ctx, ctx.SMWithBasic, brokerID, osbInstanceID, "binding2", map[string]interface{}{
+		createOSBBinding(ctx, ctx.SMWithBasic, subaccountBrokerID, osbInstanceID, "binding2", map[string]interface{}{
 			"service_id":        "test-service",
 			"plan_id":           "plan-service",
 			"organization_guid": "my-org",
@@ -432,4 +431,49 @@ func validateResourcesDeleted(repository storage.TransactionalRepository, byReso
 			Expect(count).To(Equal(0), fmt.Sprintf("resources from type %s failed to be deleted", objectType))
 		}
 	}
+}
+
+func createContainerWithChildren() string {
+	createOSBInstance(ctx, ctx.SMWithBasic, subaccountBrokerID, "container-instance", map[string]interface{}{
+		"service_id":        "test-service",
+		"plan_id":           "plan-service",
+		"organization_guid": "my-org",
+	})
+	instanceInContainerID := createSMAAPInstance(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
+		"name":            "instance-in-container",
+		"service_plan_id": plan.GetID(),
+	})
+	createSMAAPBinding(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
+		"name":                "binding-in-container",
+		"service_instance_id": instanceInContainerID,
+	})
+
+	containerInstance, err := ctx.SMRepository.Get(context.Background(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "name", "container-instance"))
+	Expect(err).NotTo(HaveOccurred())
+	instanceInContainer, err := ctx.SMRepository.Get(context.Background(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "id", instanceInContainerID))
+	Expect(err).NotTo(HaveOccurred())
+
+	change := types.LabelChange{
+		Operation: "add",
+		Key:       "containerID",
+		Values:    []string{containerInstance.GetID()},
+	}
+
+	_, err = ctx.SMScheduler.ScheduleSyncStorageAction(context.TODO(), &types.Operation{
+		Base: types.Base{
+			ID:        "afasfasfasfasf",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Ready:     true,
+		},
+		Type:          types.UPDATE,
+		State:         types.IN_PROGRESS,
+		ResourceID:    instanceInContainer.GetID(),
+		ResourceType:  types.ServiceInstanceType,
+		CorrelationID: "-",
+	}, func(ctx context.Context, repository storage.Repository) (object types.Object, e error) {
+		return repository.Update(ctx, instanceInContainer, []*types.LabelChange{&change}, query.ByField(query.EqualsOperator, "id", instanceInContainer.GetID()))
+	})
+	Expect(err).NotTo(HaveOccurred())
+	return "container-instance"
 }

@@ -144,7 +144,7 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 				Expect(len(tree.byOperationID)).To(Equal(tenantOperationsCount))
 
 				platformOpID := tree.byResourceID[platformID][0].ID
-				brokerOpID := tree.byResourceID[brokerID][0].ID
+				brokerOpID := tree.byResourceID[subaccountBrokerID][0].ID
 				instanceOpID := tree.byResourceID[osbInstanceID][0].ID
 
 				// Tenant[broker, platform , smaap_instance]
@@ -159,7 +159,7 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 			})
 
 			It("non virtual cascade op", func() {
-				rootID := triggerCascadeOperation(context.Background(), types.ServiceBrokerType, brokerID, false)
+				rootID := triggerCascadeOperation(context.Background(), types.ServiceBrokerType, subaccountBrokerID, false)
 				tree, err := fetchFullTree(ctx.SMRepository, rootID)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(len(tree.byOperationID)).To(Equal(6))
