@@ -228,13 +228,13 @@ func createSMAAPInstance(ctx *TestContext, sm *SMExpect, context map[string]inte
 		Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 }
 
-func createSMAAPBinding(ctx *TestContext, sm *SMExpect, context map[string]interface{}) {
+func createSMAAPBinding(ctx *TestContext, sm *SMExpect, context map[string]interface{}) string {
 	smBrokerURL := ctx.Servers[SMServer].URL()
-	sm.POST(smBrokerURL+web.ServiceBindingsURL).
+	return sm.POST(smBrokerURL+web.ServiceBindingsURL).
 		WithQuery("async", false).
 		WithJSON(context).
 		Expect().
-		Status(http.StatusCreated)
+		Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 }
 
 func createOSBBinding(ctx *TestContext, sm *SMExpect, brokerID string, instanceID string, bindingID string, osbContext map[string]interface{}) {
@@ -433,7 +433,13 @@ func validateResourcesDeleted(repository storage.TransactionalRepository, byReso
 	}
 }
 
-func createContainerWithChildren() string {
+type ContainerInstance struct {
+	id                 string
+	instances          []string
+	bindingForInstance map[string][]string
+}
+
+func createContainerWithChildren() ContainerInstance {
 	createOSBInstance(ctx, ctx.SMWithBasic, subaccountBrokerID, "container-instance", map[string]interface{}{
 		"service_id":        "test-service",
 		"plan_id":           "plan-service",
@@ -443,7 +449,7 @@ func createContainerWithChildren() string {
 		"name":            "instance-in-container",
 		"service_plan_id": plan.GetID(),
 	})
-	createSMAAPBinding(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
+	bindingInContainer := createSMAAPBinding(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
 		"name":                "binding-in-container",
 		"service_instance_id": instanceInContainerID,
 	})
@@ -475,5 +481,11 @@ func createContainerWithChildren() string {
 		return repository.Update(ctx, instanceInContainer, []*types.LabelChange{&change}, query.ByField(query.EqualsOperator, "id", instanceInContainer.GetID()))
 	})
 	Expect(err).NotTo(HaveOccurred())
-	return "container-instance"
+
+	return ContainerInstance{
+		id:                 "container-instance",
+		instances:          []string{instanceInContainerID},
+		bindingForInstance: map[string][]string{instanceInContainerID: {bindingInContainer}},
+	}
+
 }
