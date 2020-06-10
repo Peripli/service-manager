@@ -112,7 +112,7 @@ var _ = Describe("cascade operations", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				return count
-			}, actionTimeout*2+pollCascade*2).Should(Equal(2))
+			}, actionTimeout*2+pollCascade*2).Should(Equal(5))
 
 			By("validating bindings not in orphan mitigation")
 			Eventually(func() int {
