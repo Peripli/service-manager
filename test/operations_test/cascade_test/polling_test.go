@@ -72,6 +72,7 @@ var _ = Describe("cascade operations", func() {
 
 			validateParentsRanAfterChildren(fullTree)
 			validateDuplicationsWaited(fullTree)
+			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
 		})
 
 		It("should fail - unsuccessful orphan mitigation", func() {
@@ -219,6 +220,7 @@ var _ = Describe("cascade operations", func() {
 
 			validateParentsRanAfterChildren(fullTree)
 			validateDuplicationsWaited(fullTree)
+			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
 		})
 
 		It("should failed - handle a stuck operation in cascade tree", func() {
@@ -292,6 +294,7 @@ var _ = Describe("cascade operations", func() {
 
 			validateParentsRanAfterChildren(fullTree)
 			validateDuplicationsWaited(fullTree)
+			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
 		})
 	})
 
@@ -320,6 +323,7 @@ var _ = Describe("cascade operations", func() {
 
 			validateParentsRanAfterChildren(fullTree)
 			validateDuplicationsWaited(fullTree)
+			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
 		})
 	})
 

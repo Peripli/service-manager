@@ -417,3 +417,19 @@ func triggerCascadeOperation(repoCtx context.Context, resourceType types.ObjectT
 	Expect(err).NotTo(HaveOccurred())
 	return rootID
 }
+
+func validateResourcesDeleted(repository storage.TransactionalRepository, byResourceType map[types.ObjectType][]*types.Operation) {
+	By("validating resources have deleted")
+	for objectType, operations := range byResourceType {
+		if objectType != types.TenantType {
+			IDs := make([]string, 0, len(operations))
+			for _, operation := range operations {
+				IDs = append(IDs, operation.ResourceID)
+			}
+
+			count, err := repository.Count(context.Background(), objectType, query.ByField(query.InOperator, "id", IDs...))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(count).To(Equal(0), fmt.Sprintf("resources from type %s failed to be deleted", objectType))
+		}
+	}
+}

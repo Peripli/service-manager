@@ -3,11 +3,8 @@ package cascade_test
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/types/cascade"
-	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -108,7 +105,7 @@ var _ = Describe("cascade force delete", func() {
 
 		})
 
-		It("delete with only direct instance children", func() {
+		It("delete tenant with only direct instance children", func() {
 
 		})
 	})
@@ -123,19 +120,3 @@ var _ = Describe("cascade force delete", func() {
 		})
 	})
 })
-
-func validateResourcesDeleted(repository storage.TransactionalRepository, byResourceType map[types.ObjectType][]*types.Operation) {
-	By("validating resources have deleted")
-	for objectType, operations := range byResourceType {
-		if objectType != types.TenantType {
-			IDs := make([]string, 0, len(operations))
-			for _, operation := range operations {
-				IDs = append(IDs, operation.ResourceID)
-			}
-
-			count, err := repository.Count(context.Background(), objectType, query.ByField(query.InOperator, "id", IDs...))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(count).To(Equal(0), fmt.Sprintf("resources from type %s failed to be deleted", objectType))
-		}
-	}
-}
