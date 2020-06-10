@@ -26,33 +26,34 @@ var _ = Describe("cascade operations", func() {
 		It("should succeed - cascade a big tenant tree", func() {
 			subtreeCount := 3
 			for i := 0; i < subtreeCount; i++ {
-				registerSubaccountScopedPlatform(ctx, fmt.Sprintf("platform%s", strconv.Itoa(i*10)))
-				broker2ID, _ := registerSubaccountScopedBroker(ctx, fmt.Sprintf("test-service%s", strconv.Itoa(i*10)), fmt.Sprintf("plan-service%s", strconv.Itoa(i*10)))
+				suffix := strconv.Itoa(i * 10)
+				registerSubaccountScopedPlatform(ctx, fmt.Sprintf("platform%s", suffix))
+				broker2ID, _ := registerSubaccountScopedBroker(ctx, fmt.Sprintf("test-service%s", suffix), fmt.Sprintf("plan-service%s", suffix))
 				createSMAAPInstance(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
-					"name":            fmt.Sprintf("test-instance-smaap%s", strconv.Itoa(i*10)),
+					"name":            fmt.Sprintf("test-instance-smaap%s", suffix),
 					"service_plan_id": plan.GetID(),
 				})
-				createOSBInstance(ctx, ctx.SMWithBasic, broker2ID, fmt.Sprintf("test-instance%s", strconv.Itoa(i*10)), map[string]interface{}{
-					"service_id":        fmt.Sprintf("test-service%s", strconv.Itoa(i*10)),
-					"plan_id":           fmt.Sprintf("plan-service%s", strconv.Itoa(i*10)),
+				createOSBInstance(ctx, ctx.SMWithBasic, broker2ID, fmt.Sprintf("test-instance%s", suffix), map[string]interface{}{
+					"service_id":        fmt.Sprintf("test-service%s", suffix),
+					"plan_id":           fmt.Sprintf("plan-service%s", suffix),
 					"organization_guid": "my-org",
 				})
-				createOSBBinding(ctx, ctx.SMWithBasic, broker2ID, fmt.Sprintf("test-instance%s", strconv.Itoa(i*10)), fmt.Sprintf("binding%s", strconv.Itoa((i+1)*10)), map[string]interface{}{
-					"service_id":        fmt.Sprintf("test-service%s", strconv.Itoa(i*10)),
-					"plan_id":           fmt.Sprintf("plan-service%s", strconv.Itoa(i*10)),
+				createOSBBinding(ctx, ctx.SMWithBasic, broker2ID, fmt.Sprintf("test-instance%s", suffix), fmt.Sprintf("binding%s", strconv.Itoa((i+1)*10)), map[string]interface{}{
+					"service_id":        fmt.Sprintf("test-service%s", suffix),
+					"plan_id":           fmt.Sprintf("plan-service%s", suffix),
 					"organization_guid": "my-org",
 				})
-				createOSBBinding(ctx, ctx.SMWithBasic, broker2ID, fmt.Sprintf("test-instance%s", strconv.Itoa(i*10)), fmt.Sprintf("binding%s", strconv.Itoa((i+1)*10+1)), map[string]interface{}{
-					"service_id":        fmt.Sprintf("test-service%s", strconv.Itoa(i*10)),
-					"plan_id":           fmt.Sprintf("plan-service%s", strconv.Itoa(i*10)),
+				createOSBBinding(ctx, ctx.SMWithBasic, broker2ID, fmt.Sprintf("test-instance%s", suffix), fmt.Sprintf("binding%s", strconv.Itoa((i+1)*10+1)), map[string]interface{}{
+					"service_id":        fmt.Sprintf("test-service%s", suffix),
+					"plan_id":           fmt.Sprintf("plan-service%s", suffix),
 					"organization_guid": "my-org",
 				})
 			}
 
-			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
 
-			AssertOperationCount(func(count int) { Expect(count).To(Equal(3 + subtreeCount*3)) }, query.ByField(query.EqualsOperator, "parent_id", rootID))
-			AssertOperationCount(func(count int) { Expect(count).To(Equal(tenantOperationsCount + subtreeCount*10)) }, queryForOperationsInTheSameTree(rootID))
+			AssertOperationCount(func(count int) { Expect(count).To(Equal(tenantOperationsCount + subtreeCount*9)) }, queryForOperationsInTheSameTree(rootID))
+			AssertOperationCount(func(count int) { Expect(count).To(Equal(4 + subtreeCount*2)) }, query.ByField(query.EqualsOperator, "parent_id", rootID))
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -84,7 +85,7 @@ var _ = Describe("cascade operations", func() {
 				}
 			})
 
-			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
 
 			By("validating binding failed and marked as orphan mitigation")
 			Eventually(func() int {
@@ -155,7 +156,7 @@ var _ = Describe("cascade operations", func() {
 				}
 			})
 
-			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
 
 			By("validating binding failed and marked as orphan mitigation")
 			Eventually(func() int {
@@ -182,7 +183,7 @@ var _ = Describe("cascade operations", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				return count
-			}, actionTimeout*2+pollCascade*2).Should(Equal(2))
+			}, actionTimeout*2+pollCascade*2).Should(Equal(5))
 
 			brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
 				return http.StatusOK, common.Object{"state": "succeeded"}
@@ -226,7 +227,7 @@ var _ = Describe("cascade operations", func() {
 				return http.StatusOK, common.Object{"state": "succeeded"}
 			})
 
-			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
 
 			instanceOPValue, err := ctx.SMRepository.Get(context.Background(), types.OperationType,
 				query.ByField(query.EqualsOperator, "resource_id", "test-instance"),
@@ -272,7 +273,7 @@ var _ = Describe("cascade operations", func() {
 		})
 
 		It("should succeed - cascade a platform", func() {
-			rootID := triggerCascadeOperation(context.Background(), types.PlatformType, platformID)
+			rootID := triggerCascadeOperation(context.Background(), types.PlatformType, platformID, false)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -300,7 +301,7 @@ var _ = Describe("cascade operations", func() {
 		})
 
 		It("should succeeded - cascade broker without children", func() {
-			rootID := triggerCascadeOperation(context.Background(), types.ServiceBrokerType, brokerID)
+			rootID := triggerCascadeOperation(context.Background(), types.ServiceBrokerType, brokerID, false)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -329,7 +330,7 @@ var _ = Describe("cascade operations", func() {
 
 		It("validate errors aggregated from bottom up", func() {
 			registerBindingLastOPHandlers(brokerServer, http.StatusInternalServerError, types.FAILED)
-			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -378,7 +379,7 @@ var _ = Describe("cascade operations", func() {
 			createContainerWithChildren()
 
 			newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKey{}, "containerID")
-			rootID := triggerCascadeOperation(newCtx, types.PlatformType, platformID)
+			rootID := triggerCascadeOperation(newCtx, types.PlatformType, platformID, false)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -420,7 +421,7 @@ var _ = Describe("cascade operations", func() {
 			containerID := createContainerWithChildren()
 
 			newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKey{}, "containerID")
-			rootID := triggerCascadeOperation(newCtx, types.ServiceInstanceType, containerID)
+			rootID := triggerCascadeOperation(newCtx, types.ServiceInstanceType, containerID, false)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {

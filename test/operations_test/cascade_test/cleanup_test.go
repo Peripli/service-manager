@@ -18,7 +18,7 @@ var _ = Describe("cascade operations", func() {
 
 	Context("cleanup", func() {
 		It("finished tree should be deleted", func() {
-			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
 			common.VerifyOperationExists(ctx, "", common.OperationExpectations{
 				Category:          types.DELETE,
 				State:             types.SUCCEEDED,
@@ -36,9 +36,9 @@ var _ = Describe("cascade operations", func() {
 		})
 
 		It("multiple finished trees should be deleted", func() {
-			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
-			triggerCascadeOperation(context.Background(), types.PlatformType, platformID)
-			triggerCascadeOperation(context.Background(), types.ServiceBrokerType, brokerID)
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
+			triggerCascadeOperation(context.Background(), types.PlatformType, platformID, false)
+			triggerCascadeOperation(context.Background(), types.ServiceBrokerType, brokerID, false)
 
 			Eventually(func() int {
 				count, err := ctx.SMRepository.Count(
@@ -63,7 +63,7 @@ var _ = Describe("cascade operations", func() {
 
 		It("in_progress tree should not be deleted", func() {
 			registerBindingLastOPHandlers(brokerServer, http.StatusOK, types.IN_PROGRESS)
-			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID)
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
 			common.VerifyOperationExists(ctx, "", common.OperationExpectations{
 				Category:          types.DELETE,
 				State:             types.PENDING,
@@ -77,7 +77,7 @@ var _ = Describe("cascade operations", func() {
 				types.OperationType,
 				queryForOperationsInTheSameTree(rootID))
 			Expect(err).NotTo(HaveOccurred())
-			Expect(count).To(Equal(11))
+			Expect(count).To(Equal(tenantOperationsCount))
 		})
 
 		It("not cascade tree should not be deleted", func() {

@@ -8,12 +8,17 @@ import (
 )
 
 type ChildrenCriterion = map[types.ObjectType][]query.Criterion
+type Children = map[types.ObjectType]types.ObjectList
 
 // key for configurable hierarchies
 type ParentInstanceLabelKey struct{}
 
 type Cascade interface {
 	GetChildrenCriterion() ChildrenCriterion
+}
+
+type DuplicatesCleaner interface {
+	Clean(children Children)
 }
 
 type CascadedOperations struct {
@@ -26,8 +31,8 @@ type CascadedOperations struct {
 }
 
 type Error struct {
-	ParentType   types.ObjectType `json:"parent_type"`
-	ParentID     string           `json:"parent_id"`
+	ParentType   types.ObjectType `json:"parent_type,omitempty"`
+	ParentID     string           `json:"parent_id,omitempty"`
 	ResourceType types.ObjectType `json:"resource_type"`
 	ResourceID   string           `json:"resource_id"`
 	Message      json.RawMessage  `json:"message"`

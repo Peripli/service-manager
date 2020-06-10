@@ -28,6 +28,8 @@ import (
 
 const CascadeOperationCreateInterceptorProviderName = "CascadeOperationCreateInterceptorProvider"
 
+type IsForceCascadeKey struct{}
+
 type cascadeOperationCreateInterceptor struct {
 	TenantIdentifier string
 }

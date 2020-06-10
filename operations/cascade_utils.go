@@ -7,27 +7,38 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/types/cascade"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 	"time"
 )
 
 func GetAllLevelsCascadeOperations(ctx context.Context, tenantIdentifier string, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
+	if object.GetType() == types.ServiceBrokerType {
+		if err := enrichBrokersOfferings(ctx, object, storage); err != nil {
+			return nil, err
+		}
+	}
+	return recursiveGetAllLevelsCascadeOperations(ctx, tenantIdentifier, object, operation, storage)
+}
+
+func recursiveGetAllLevelsCascadeOperations(ctx context.Context, tenantIdentifier string, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
 	var operations []*types.Operation
-	objectChildren, err := GetObjectChildren(ctx, tenantIdentifier, object, storage)
+	childrenMap, err := GetObjectChildren(ctx, object, storage)
 	if err != nil {
 		return nil, err
 	}
-	for _, children := range objectChildren {
-		for i := 0; i < children.Len(); i++ {
-			childOBJ := children.ItemAt(i)
+	for _, list := range childrenMap {
+		for i := 0; i < list.Len(); i++ {
+			childOBJ := list.ItemAt(i)
 			childOP, err := makeCascadeOPForChild(childOBJ, operation)
 			if err != nil {
 				return nil, err
 			}
 			operations = append(operations, childOP)
-			childrenSubOPs, err := GetAllLevelsCascadeOperations(ctx, tenantIdentifier, childOBJ, childOP, storage)
+			childrenSubOPs, err := recursiveGetAllLevelsCascadeOperations(ctx, tenantIdentifier, childOBJ, childOP, storage)
 			if err != nil {
 				return nil, err
 			}
@@ -37,30 +48,35 @@ func GetAllLevelsCascadeOperations(ctx context.Context, tenantIdentifier string,
 	return operations, nil
 }
 
-func GetObjectChildren(ctx context.Context, tenantIdentifier string, object types.Object, storage storage.Repository) ([]types.ObjectList, error) {
-	var children []types.ObjectList
-	isBroker := object.GetType() == types.ServiceBrokerType
-	if isBroker {
-		if err := enrichBrokersOfferings(ctx, object, storage); err != nil {
-			return nil, err
-		}
-	}
-
-	if cascadeObject, isCascade := cascade.GetCascadeObject(ctx, object); isCascade {
+func GetObjectChildren(ctx context.Context, object types.Object, storage storage.Repository) (map[types.ObjectType]types.ObjectList, error) {
+	children := make(map[types.ObjectType]types.ObjectList)
+	cascadeObject, isCascade := cascade.GetCascadeObject(ctx, object)
+	if isCascade {
 		for childType, childCriteria := range cascadeObject.GetChildrenCriterion() {
 			list, err := storage.List(ctx, childType, childCriteria...)
 			if err != nil {
 				return nil, err
 			}
-			children = append(children, list)
+			children[childType] = list
+		}
+		if brokers, found := children[types.ServiceBrokerType]; found {
+			for i := 0; i < brokers.Len(); i++ {
+				if err := enrichBrokersOfferings(ctx, brokers.ItemAt(i), storage); err != nil {
+					return nil, err
+				}
+			}
+		}
+		cleaner, hasDuplicatesCleaner := cascadeObject.(cascade.DuplicatesCleaner)
+		if hasDuplicatesCleaner {
+			cleaner.Clean(children)
 		}
 	}
-	if isBroker {
-		err := validateNoGlobalInstances(ctx, tenantIdentifier, object, children, storage)
-		if err != nil {
-			return nil, err
-		}
-	}
+	//if force, found := operation.Labels[CascadeForceLabelKey]; isBroker && (!found || len(force) == 0 || force[0] != "true") {
+	//	err := validateNoGlobalInstances(ctx, tenantIdentifier, object, children, storage)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//}
 	return children, nil
 }
 
@@ -140,12 +156,12 @@ func GetSubOperations(ctx context.Context, operation *types.Operation, repositor
 			switch subOperation.State {
 			case types.SUCCEEDED:
 				cascadedOperations.SucceededOperations = append(cascadedOperations.SucceededOperations, subOperation)
-			case types.FAILED:
-				cascadedOperations.FailedOperations = append(cascadedOperations.FailedOperations, subOperation)
 			case types.IN_PROGRESS:
 				cascadedOperations.InProgressOperations = append(cascadedOperations.InProgressOperations, subOperation)
 			case types.PENDING:
 				cascadedOperations.PendingOperations = append(cascadedOperations.PendingOperations, subOperation)
+			case types.FAILED:
+				cascadedOperations.FailedOperations = append(cascadedOperations.FailedOperations, subOperation)
 			}
 		}
 	}
@@ -231,8 +247,7 @@ func SameResourceInCurrentTreeHasFinished(ctx context.Context, storage storage.R
 	return "", nil
 }
 
-func PrepareAggregatedErrorsArray(failedSubOperations []*types.Operation, resourceID string, resourceType types.ObjectType) ([]byte, error) {
-	cascadeErrors := cascade.CascadeErrors{Errors: []*cascade.Error{}}
+func PrepareAggregatedErrorsArray(cascadeErrors cascade.CascadeErrors, failedSubOperations []*types.Operation, resourceID string, resourceType types.ObjectType) ([]byte, error) {
 	for _, failedOP := range failedSubOperations {
 		childErrorsResult := gjson.GetBytes(failedOP.Errors, "cascade_errors")
 		if childErrorsResult.Exists() {
@@ -256,4 +271,22 @@ func PrepareAggregatedErrorsArray(failedSubOperations []*types.Operation, resour
 		}
 	}
 	return json.Marshal(cascadeErrors)
+}
+
+func handleCascadeForceDeletion(ctx context.Context, logger *logrus.Entry, repository *storage.InterceptableTransactionalRepository, failedOperations []*types.Operation) error {
+	subResources := make(map[types.ObjectType][]string)
+
+	for _, subOperation := range failedOperations {
+		subResources[subOperation.ResourceType] = append(subResources[subOperation.ResourceType], subOperation.ResourceID)
+	}
+
+	for resourceType, IDs := range subResources {
+		err := repository.RawRepository.Delete(ctx, resourceType, query.ByField(query.InOperator, "id", IDs...))
+		if err != nil && err != util.ErrNotFoundInStorage {
+			logger.Errorf("Failed to force delete %s resources with IDs %v", resourceType, IDs, err)
+			return err
+		}
+	}
+
+	return nil
 }
