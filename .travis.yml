@@ -38,4 +38,4 @@ env:
 
 notifications:
   slack: openservicebrokerapi:KQo2QAC6LXeEeXPOemOXja48
-  webhooks: https://coveralls.io/webhook?repo_token=FfTx8Ljsb8CrostzsKvP1Y2yK8UWz5YhQ
+  webhooks: https://coveralls.io/webhook
