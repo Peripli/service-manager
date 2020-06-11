@@ -219,6 +219,11 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			return nil, fmt.Errorf("operation missing from context")
 		}
 
+		if operation.InOrphanMitigationState() {
+			i.deleteSingleInstance(ctx,updatedInstance,operation)
+			return f(ctx, updatedInstance, updatedInstance.UpdateValues.LabelChanges...)
+		}
+
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, updatedInstance)
 		if err != nil {
 			return nil, err

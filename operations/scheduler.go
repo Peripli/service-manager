@@ -458,18 +458,27 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 		return err
 	}
 
-	// we want to schedule deletion if the operation is marked for deletion and the deletion timeout is not yet reached
-	isDeleteRescheduleRequired := opAfterJob.InOrphanMitigationState() &&
+	// Needed only for binding or instance resources
+	isOrphandMitgiationRequired := opAfterJob.InOrphanMitigationState() &&
 		time.Now().UTC().Before(opAfterJob.DeletionScheduled.Add(s.reconciliationOperationTimeout)) &&
 		opAfterJob.State != types.SUCCEEDED
 
-	if isDeleteRescheduleRequired {
+	if isOrphandMitgiationRequired {
 		deletionAction := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-			byID := query.ByField(query.EqualsOperator, "id", opAfterJob.ResourceID)
-			err := repository.Delete(ctx, opAfterJob.ResourceType, byID)
-			if err != nil {
+			if err := fetchAndUpdateResource(ctx, repository, opAfterJob.ResourceID, opAfterJob.ResourceType, func(obj types.Object) {
+				switch v:= obj.(type) {
+				case *types.ServiceInstance:
+					v.SetReady(false)
+					v.Usable = false;
+				case *types.ServiceBinding:
+					v.SetReady(false)
+				default:
+					return
+				}
+			});
+			err != nil {
 				if err == util.ErrNotFoundInStorage {
-					log.C(ctx).Debugf("Could not find resource with id %s and type %s during delete action in SMDB. Ignoring missing resource", opAfterJob.ResourceID, opAfterJob.ResourceType)
+					log.C(ctx).Debugf("Could not find resource with id %s and type %s during update action in SMDB. Ignoring missing resource", opAfterJob.ResourceID, opAfterJob.ResourceType)
 					return nil, nil
 				}
 				return nil, util.HandleStorageError(err, opAfterJob.ResourceType.String())
