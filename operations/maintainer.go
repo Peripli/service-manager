@@ -411,7 +411,7 @@ func (om *Maintainer) pollPendingCascadeOperations() {
 							ResourceID:   operation.ResourceID,
 							Message: []byte(`{
 								"error": "Internal error",
-								"description": "Error occurred while force delete"
+								"description": "Force delete failed"
 							}`),
 						})
 					} else {

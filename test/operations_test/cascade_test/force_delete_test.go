@@ -152,9 +152,53 @@ var _ = Describe("cascade force delete", func() {
 				Expect(e.ParentType).To(Equal(types.ServiceInstanceType))
 			}
 		})
+
 		It("should fail: delete binding using force", func() {
 			// need to check that errors include db err
+
+			registerBindingLastOPHandlers(subaccountBrokerServer, http.StatusInternalServerError, types.FAILED)
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
+			createOSBBinding(ctx, ctx.SMWithBasic, subaccountBrokerID, osbInstanceID, "binding3", map[string]interface{}{
+				"service_id":        "test-service",
+				"plan_id":           "plan-service",
+				"organization_guid": "my-org",
+			})
+
+			By("waiting cascading process to finish")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForRoot(rootID),
+					queryFailures)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*5+pollCascade*5).Should(Equal(1))
+
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
+			Expect(err).ToNot(HaveOccurred())
+
+			validateParentsRanAfterChildren(fullTree)
+			validateDuplicationsWaited(fullTree)
+
+			By("validating tenant error is a collection of his child errors")
+			tenantOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot(rootID))
+			Expect(err).NotTo(HaveOccurred())
+
+			errors := cascade.CascadeErrors{}
+			err = json.Unmarshal(tenantOP.(*types.Operation).Errors, &errors)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(errors.Errors)).To(Equal(3))
+
+			for _, e := range errors.Errors {
+				Expect(e.ParentID).To(Or(Equal(osbInstanceID), Equal("")))
+				Expect(e.ResourceID).To(Or(Equal("binding1"), Equal("binding2"), Equal("tenant_value")))
+				Expect(len(e.Message)).Should(BeNumerically(">", 0))
+				Expect(e.ResourceType).To(Or(Equal(types.ServiceBindingType), Equal(types.TenantType)))
+			}
 		})
+
 	})
 
 	Context("force delete with direct instance children only", func() {
