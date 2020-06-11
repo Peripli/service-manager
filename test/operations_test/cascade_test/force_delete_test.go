@@ -41,7 +41,7 @@ var _ = Describe("cascade force delete", func() {
 
 			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsWaited(fullTree)
+			validateDuplicationsCopied(fullTree)
 
 			By("validating tenant error is a collection of his child errors")
 			tenantOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot(rootID))
@@ -53,7 +53,7 @@ var _ = Describe("cascade force delete", func() {
 			Expect(len(errors.Errors)).To(Equal(3))
 
 			for _, e := range errors.Errors {
-				Expect(e.ParentID).To(Or(Equal(platformID), Equal(subaccountBrokerID), Equal(tenantID)))
+				Expect(e.ParentID).To(Or(Equal(platformID), Equal(tenantBrokerID), Equal(tenantID)))
 				Expect(len(e.Message)).Should(BeNumerically(">", 0))
 				Expect(e.ResourceType).To(Equal(types.ServiceInstanceType))
 				Expect(e.ParentType).To(Or(Equal(types.ServiceBrokerType), Equal(types.PlatformType), Equal(types.TenantType)))
@@ -64,8 +64,11 @@ var _ = Describe("cascade force delete", func() {
 			// tree contains this branch: sa(root) -> platform -> instance(container) -> instance(in container) -> binding
 			container := createContainerWithChildren()
 			// binding under container will have failed state in operation, failure will propagate up through the container as well
-			registerBindingLastOPHandlers(subaccountBrokerServer, http.StatusInternalServerError, types.FAILED)
-			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
+			registerBindingLastOPHandlers(tenantBrokerServer, http.StatusInternalServerError, types.FAILED)
+			registerBindingLastOPHandlers(globalBrokerServer, http.StatusInternalServerError, types.FAILED)
+
+			newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKey{}, "containerID")
+			rootID := triggerCascadeOperation(newCtx, types.TenantType, tenantID, true)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -84,7 +87,7 @@ var _ = Describe("cascade force delete", func() {
 
 			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsWaited(fullTree)
+			validateDuplicationsCopied(fullTree)
 
 			By("validating tenant error is a collection of his child errors")
 			tenantOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot(rootID))
@@ -113,7 +116,7 @@ var _ = Describe("cascade force delete", func() {
 			initTenantResources(true)
 		})
 		It("should succeed: delete binding using force", func() {
-			registerBindingLastOPHandlers(subaccountBrokerServer, http.StatusInternalServerError, types.FAILED)
+			registerBindingLastOPHandlers(tenantBrokerServer, http.StatusInternalServerError, types.FAILED)
 			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 
 			By("waiting cascading process to finish")
@@ -133,7 +136,7 @@ var _ = Describe("cascade force delete", func() {
 
 			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsWaited(fullTree)
+			validateDuplicationsCopied(fullTree)
 
 			By("validating tenant error is a collection of his child errors")
 			tenantOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot(rootID))
@@ -156,9 +159,9 @@ var _ = Describe("cascade force delete", func() {
 		It("should fail: delete binding using force", func() {
 			// need to check that errors include db err
 
-			registerBindingLastOPHandlers(subaccountBrokerServer, http.StatusInternalServerError, types.FAILED)
+			registerBindingLastOPHandlers(tenantBrokerServer, http.StatusInternalServerError, types.FAILED)
 			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
-			createOSBBinding(ctx, ctx.SMWithBasic, subaccountBrokerID, osbInstanceID, "binding3", map[string]interface{}{
+			createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, "binding3", map[string]interface{}{
 				"service_id":        "test-service",
 				"plan_id":           "plan-service",
 				"organization_guid": "my-org",
@@ -180,7 +183,7 @@ var _ = Describe("cascade force delete", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsWaited(fullTree)
+			validateDuplicationsCopied(fullTree)
 
 			By("validating tenant error is a collection of his child errors")
 			tenantOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot(rootID))
@@ -242,7 +245,7 @@ var _ = Describe("cascade force delete", func() {
 
 			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsWaited(fullTree)
+			validateDuplicationsCopied(fullTree)
 
 			By("validating tenant error is a collection of his child errors")
 			tenantOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot(rootID))
@@ -261,7 +264,7 @@ var _ = Describe("cascade force delete", func() {
 
 		It("should fail: delete tenant with only direct instance children", func() {
 			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
-			createOSBBinding(ctx, ctx.SMWithBasic, subaccountBrokerID, osbInstanceID, "binding3", map[string]interface{}{
+			createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, "binding3", map[string]interface{}{
 				"service_id":        "global-service",
 				"plan_id":           "global-plan",
 				"organization_guid": "my-org",
@@ -287,7 +290,7 @@ var _ = Describe("cascade force delete", func() {
 			}, queryForInstanceOperations, queryFailures)
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsWaited(fullTree)
+			validateDuplicationsCopied(fullTree)
 
 			By("validating tenant error is a collection of his child errors")
 			tenantOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot(rootID))

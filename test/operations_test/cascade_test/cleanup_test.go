@@ -38,7 +38,7 @@ var _ = Describe("cascade operations", func() {
 		It("multiple finished trees should be deleted", func() {
 			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
 			triggerCascadeOperation(context.Background(), types.PlatformType, platformID, false)
-			triggerCascadeOperation(context.Background(), types.ServiceBrokerType, subaccountBrokerID, false)
+			triggerCascadeOperation(context.Background(), types.ServiceBrokerType, tenantBrokerID, false)
 
 			Eventually(func() int {
 				count, err := ctx.SMRepository.Count(
@@ -62,7 +62,7 @@ var _ = Describe("cascade operations", func() {
 		})
 
 		It("in_progress tree should not be deleted", func() {
-			registerBindingLastOPHandlers(subaccountBrokerServer, http.StatusOK, types.IN_PROGRESS)
+			registerBindingLastOPHandlers(tenantBrokerServer, http.StatusOK, types.IN_PROGRESS)
 			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
 			common.VerifyOperationExists(ctx, "", common.OperationExpectations{
 				Category:          types.DELETE,

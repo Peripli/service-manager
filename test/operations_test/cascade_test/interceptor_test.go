@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/types/cascade"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"time"
 )
+
+type childrenMap = map[string]interface{}
 
 var _ = Describe("Cascade Operation Interceptor", func() {
 
@@ -131,6 +134,47 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 		})
 
 		Context("should succeed", func() {
+			It("validate tree hierarchy", func() {
+				container := createContainerWithChildren()
+				newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKey{}, "containerID")
+				rootID := triggerCascadeOperation(newCtx, types.TenantType, tenantID, false)
+
+				tree, err := fetchFullTree(ctx.SMRepository, rootID)
+				Expect(err).ToNot(HaveOccurred())
+
+				expectedTree := childrenMap{
+					tenantID: childrenMap{
+						platformID: childrenMap{
+							"tenant_platform_global_broker": true,
+							osbInstanceID: childrenMap{
+								"binding1": true,
+								"binding2": true,
+							},
+							container.id: childrenMap{
+								container.instances[0]: childrenMap{
+									container.bindingForInstance[container.instances[0]][0]: true,
+								},
+							},
+						},
+						tenantBrokerID: childrenMap{
+							osbInstanceID: childrenMap{
+								"binding1": true,
+								"binding2": true,
+							},
+							container.instances[0]: childrenMap{
+								container.bindingForInstance[container.instances[0]][0]: true,
+							},
+							"global_platform_tenant_broker": true,
+							smaapInstanceID1:                true,
+						},
+						"global_platform_global_broker": true,
+						smaapInstanceID2:                true,
+					},
+				}
+
+				validateTreeHierarchy(tree, rootID, expectedTree)
+			})
+
 			It("empty virtual operation", func() {
 				triggerCascadeOperation(context.Background(), types.TenantType, "fake-tenant-id", false)
 				AssertOperationCount(func(count int) { Expect(count).To(Equal(1)) }, query.ByField(query.EqualsOperator, "resource_id", "fake-tenant-id"))
@@ -144,7 +188,7 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 				Expect(len(tree.byOperationID)).To(Equal(tenantOperationsCount))
 
 				platformOpID := tree.byResourceID[platformID][0].ID
-				brokerOpID := tree.byResourceID[subaccountBrokerID][0].ID
+				brokerOpID := tree.byResourceID[tenantBrokerID][0].ID
 				instanceOpID := tree.byResourceID[osbInstanceID][0].ID
 
 				// Tenant[broker, platform , smaap_instance]
@@ -159,7 +203,7 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 			})
 
 			It("non virtual cascade op", func() {
-				rootID := triggerCascadeOperation(context.Background(), types.ServiceBrokerType, subaccountBrokerID, false)
+				rootID := triggerCascadeOperation(context.Background(), types.ServiceBrokerType, tenantBrokerID, false)
 				tree, err := fetchFullTree(ctx.SMRepository, rootID)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(len(tree.byOperationID)).To(Equal(6))
@@ -174,3 +218,20 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 
 	})
 })
+
+func validateTreeHierarchy(fullTree *tree, parentID string, expectedTree childrenMap) {
+	resourceID := fullTree.byOperationID[parentID].ResourceID
+	_, found := expectedTree[resourceID]
+	Expect(found).To(Equal(true), fmt.Sprintf("resource %s does not exist", resourceID))
+
+	for _, operation := range fullTree.byParentID[parentID] {
+		if _, isBool := expectedTree[operation.ID].(bool); !isBool {
+			validateTreeHierarchy(fullTree, operation.ID, expectedTree[resourceID].(childrenMap))
+		}
+	}
+
+	if _, isBool := expectedTree[resourceID].(bool); !isBool {
+		Expect(len(expectedTree[resourceID].(childrenMap))).To(Equal(0), fmt.Sprintf("%v not found", expectedTree[resourceID].(childrenMap)))
+	}
+	delete(expectedTree, resourceID)
+}

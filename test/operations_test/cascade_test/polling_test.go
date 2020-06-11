@@ -26,8 +26,8 @@ var _ = Describe("cascade operations", func() {
 			subtreeCount := 3
 			for i := 0; i < subtreeCount; i++ {
 				suffix := strconv.Itoa(i * 10)
-				registerSubaccountScopedPlatform(ctx, fmt.Sprintf("platform%s", suffix))
-				broker2ID, _ := registerSubaccountScopedBroker(ctx, fmt.Sprintf("test-service%s", suffix), fmt.Sprintf("plan-service%s", suffix))
+				registertenantScopedPlatform(ctx, fmt.Sprintf("platform%s", suffix))
+				broker2ID, _ := registertenantScopedBroker(ctx, fmt.Sprintf("test-service%s", suffix), fmt.Sprintf("plan-service%s", suffix))
 				createSMAAPInstance(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
 					"name":            fmt.Sprintf("test-instance-smaap%s", suffix),
 					"service_plan_id": plan.GetID(),
@@ -70,13 +70,13 @@ var _ = Describe("cascade operations", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsWaited(fullTree)
+			validateDuplicationsCopied(fullTree)
 			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
 		})
 
 		It("should fail - unsuccessful orphan mitigation", func() {
 			pollingCount := 0
-			subaccountBrokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
+			tenantBrokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
 				if pollingCount == 0 {
 					pollingCount++
 					return http.StatusOK, common.Object{"state": "in progress"}
@@ -142,12 +142,12 @@ var _ = Describe("cascade operations", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsWaited(fullTree)
+			validateDuplicationsCopied(fullTree)
 		})
 
 		It("should succeed - successful orphan mitigation", func() {
 			pollingCount := 0
-			subaccountBrokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
+			tenantBrokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
 				if pollingCount == 0 {
 					pollingCount++
 					return http.StatusOK, common.Object{"state": "in progress"}
@@ -185,7 +185,7 @@ var _ = Describe("cascade operations", func() {
 				return count
 			}, actionTimeout*2+pollCascade*2).Should(Equal(5))
 
-			subaccountBrokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
+			tenantBrokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
 				return http.StatusOK, common.Object{"state": "succeeded"}
 			})
 
@@ -218,12 +218,12 @@ var _ = Describe("cascade operations", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsWaited(fullTree)
+			validateDuplicationsCopied(fullTree)
 			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
 		})
 
 		It("should failed - handle a stuck operation in cascade tree", func() {
-			subaccountBrokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
+			tenantBrokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
 				time.Sleep(100 * time.Millisecond)
 				return http.StatusOK, common.Object{"state": "succeeded"}
 			})
@@ -292,7 +292,7 @@ var _ = Describe("cascade operations", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsWaited(fullTree)
+			validateDuplicationsCopied(fullTree)
 			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
 		})
 	})
@@ -303,7 +303,7 @@ var _ = Describe("cascade operations", func() {
 		})
 
 		It("should succeeded - cascade broker without children", func() {
-			rootID := triggerCascadeOperation(context.Background(), types.ServiceBrokerType, subaccountBrokerID, false)
+			rootID := triggerCascadeOperation(context.Background(), types.ServiceBrokerType, tenantBrokerID, false)
 
 			By("waiting cascading process to finish")
 			Eventually(func() int {
@@ -321,7 +321,7 @@ var _ = Describe("cascade operations", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsWaited(fullTree)
+			validateDuplicationsCopied(fullTree)
 			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
 		})
 	})
@@ -332,7 +332,7 @@ var _ = Describe("cascade operations", func() {
 		})
 
 		It("validate errors aggregated from bottom up", func() {
-			registerBindingLastOPHandlers(subaccountBrokerServer, http.StatusInternalServerError, types.FAILED)
+			registerBindingLastOPHandlers(tenantBrokerServer, http.StatusInternalServerError, types.FAILED)
 			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
 
 			By("waiting cascading process to finish")
@@ -351,7 +351,7 @@ var _ = Describe("cascade operations", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsWaited(fullTree)
+			validateDuplicationsCopied(fullTree)
 
 			By("validating tenant error is a collection of his child errors")
 			tenantOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot(rootID))
@@ -378,7 +378,7 @@ var _ = Describe("cascade operations", func() {
 		})
 
 		It("should fail - container failed to be deleted when cascade a platform", func() {
-			registerInstanceLastOPHandlers(subaccountBrokerServer, http.StatusInternalServerError, "")
+			registerInstanceLastOPHandlers(tenantBrokerServer, http.StatusInternalServerError, "")
 			createContainerWithChildren()
 
 			newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKey{}, "containerID")
@@ -400,7 +400,7 @@ var _ = Describe("cascade operations", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsWaited(fullTree)
+			validateDuplicationsCopied(fullTree)
 
 			By("validating containerized errors collected")
 			platformOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot(rootID))
@@ -446,44 +446,8 @@ var _ = Describe("cascade operations", func() {
 			Expect(len(fullTree.byParentID[rootChildren[0].ID])).To(Equal(1), "expected instance has 1 binding")
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsWaited(fullTree)
+			validateDuplicationsCopied(fullTree)
 			AssertOperationCount(func(count int) { Expect(count).To(Equal(3)) }, queryForOperationsInTheSameTree(rootID))
 		})
 	})
 })
-
-func validateDuplicationsWaited(fullTree *tree) {
-	By("validating duplications waited and updated like sibling operations")
-	for resourceID, operations := range fullTree.byResourceID {
-		if resourceID == fullTree.root.ResourceID {
-			continue
-		}
-		countOfOperationsThatProgressed := 0
-		for _, operation := range operations {
-			if operation.ExternalID != "" {
-				countOfOperationsThatProgressed++
-			}
-		}
-		Expect(countOfOperationsThatProgressed).
-			To(Or(Equal(1), Equal(0)), fmt.Sprintf("resource: %s %s", operations[0].ResourceType, resourceID))
-	}
-}
-
-func validateParentsRanAfterChildren(fullTree *tree) {
-	By("validating parents ran after their children")
-	for parentID, operations := range fullTree.byParentID {
-		var parent *types.Operation
-		if parentID == "" {
-			parent = fullTree.root
-		} else {
-			parent = fullTree.byOperationID[parentID]
-		}
-		for _, operation := range operations {
-			if !operation.DeletionScheduled.IsZero() {
-				continue
-			}
-			Expect(parent.UpdatedAt.After(operation.UpdatedAt) || parent.UpdatedAt.Equal(operation.UpdatedAt)).
-				To(BeTrue(), fmt.Sprintf("parent %s updateAt: %s is not after operation %s updateAt: %s", parent.ResourceType, parent.UpdatedAt, operation.ResourceType, operation.UpdatedAt))
-		}
-	}
-}

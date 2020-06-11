@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/tidwall/gjson"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
@@ -29,17 +30,20 @@ func TestCascade(t *testing.T) {
 }
 
 var (
-	ctx                    *TestContext
-	subaccountBrokerServer *BrokerServer
-	globalBrokerServer     *BrokerServer
-	subaccountBrokerID     string
-	globalBrokerID         string
-	plan                   types.Object
-	globalPlan             types.Object
-	platformID             string
-	tenantOperationsCount  = 14 //the number of operations that will be created after tenant creation in JustBeforeEach
-	tenantID               = "tenant_value"
-	osbInstanceID          = "test-instance"
+	ctx                   *TestContext
+	tenantBrokerServer    *BrokerServer
+	globalBrokerServer    *BrokerServer
+	tenantBrokerID        string
+	globalBrokerID        string
+	plan                  types.Object
+	globalPlan            types.Object
+	platformID            string
+	tenantOperationsCount = 14 //the number of operations that will be created after tenant creation in JustBeforeEach
+	tenantID              = "tenant_value"
+	osbInstanceID         = "test-instance"
+	smaapInstanceID1      = ""
+	smaapInstanceID2      = ""
+	testFullTree          *tree
 
 	queryForOperationsInTheSameTree    func(rootID string) query.Criterion
 	queryForRoot                       func(rootID string) query.Criterion
@@ -62,6 +66,11 @@ const (
 )
 
 var _ = AfterEach(func() {
+	if CurrentGinkgoTestDescription().Failed && testFullTree != nil {
+		fmt.Println()
+		fmt.Println(fmt.Sprintf("test (%s) tree: ", CurrentGinkgoTestDescription().FullTestText))
+		printFullTree(testFullTree.byParentID, testFullTree.root, 0)
+	}
 	ctx.CleanupAdditionalResources()
 })
 
@@ -134,10 +143,10 @@ func registerGlobalBroker(ctx *TestContext, serviceNameID string, planID string)
 
 func initTenantResources(createInstances bool) {
 	globalBrokerID, globalBrokerServer = registerGlobalBroker(ctx, "global-service", "global-plan")
-	subaccountBrokerID, subaccountBrokerServer = registerSubaccountScopedBroker(ctx, "test-service", "plan-service")
+	tenantBrokerID, tenantBrokerServer = registertenantScopedBroker(ctx, "test-service", "plan-service")
 
-	var subaccountPlatformUser, subaccountPlatformSecret string
-	platformID, subaccountPlatformUser, subaccountPlatformSecret = registerSubaccountScopedPlatform(ctx, "platform1")
+	var tenantPlatformUser, tenantPlatformSecret string
+	platformID, tenantPlatformUser, tenantPlatformSecret = registertenantScopedPlatform(ctx, "platform1")
 
 	var err error
 	plan, err = ctx.SMRepository.Get(context.Background(), types.ServicePlanType, query.ByField(query.EqualsOperator, "catalog_id", "plan-service"))
@@ -147,8 +156,8 @@ func initTenantResources(createInstances bool) {
 
 	if createInstances {
 		ctx.SMWithBasic.SetBasicCredentials(ctx, ctx.TestPlatform.Credentials.Basic.Username, ctx.TestPlatform.Credentials.Basic.Password)
-		// global platform + global broker
-		createOSBInstance(ctx, ctx.SMWithBasic, globalBrokerID, generateID(), map[string]interface{}{
+		// global platform + global broker (tenant child)
+		createOSBInstance(ctx, ctx.SMWithBasic, globalBrokerID, "global_platform_global_broker", map[string]interface{}{
 			"service_id":        "global-service",
 			"plan_id":           "global-plan",
 			"organization_guid": "my-orgafsf",
@@ -156,8 +165,8 @@ func initTenantResources(createInstances bool) {
 				"tenant": tenantID,
 			},
 		})
-		// global platform + tenant scoped broker
-		createOSBInstance(ctx, ctx.SMWithBasic, subaccountBrokerID, generateID(), map[string]interface{}{
+		// global platform + tenant scoped broker (broker child)
+		createOSBInstance(ctx, ctx.SMWithBasic, tenantBrokerID, "global_platform_tenant_broker", map[string]interface{}{
 			"service_id":        "test-service",
 			"plan_id":           "plan-service",
 			"organization_guid": "my-org",
@@ -166,20 +175,20 @@ func initTenantResources(createInstances bool) {
 			},
 		})
 
-		// SMPlatform + tenant scoped broker
-		createSMAAPInstance(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
+		// SMPlatform + tenant scoped broker (broker child)
+		smaapInstanceID1 = createSMAAPInstance(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
 			"name":            "test-instance-smaap",
 			"service_plan_id": plan.GetID(),
 		})
-		// SMPlatform + global broker
-		createSMAAPInstance(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
+		// SMPlatform + global broker (tenant child)
+		smaapInstanceID2 = createSMAAPInstance(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
 			"name":            "global-instance-smaap",
 			"service_plan_id": globalPlan.GetID(),
 		})
 
-		ctx.SMWithBasic.SetBasicCredentials(ctx, subaccountPlatformUser, subaccountPlatformSecret)
-		// tenant scoped platform + global broker
-		createOSBInstance(ctx, ctx.SMWithBasic, globalBrokerID, generateID(), map[string]interface{}{
+		ctx.SMWithBasic.SetBasicCredentials(ctx, tenantPlatformUser, tenantPlatformSecret)
+		// tenant scoped platform + global broker (platform child)
+		createOSBInstance(ctx, ctx.SMWithBasic, globalBrokerID, "tenant_platform_global_broker", map[string]interface{}{
 			"service_id":        "global-service",
 			"plan_id":           "global-plan",
 			"organization_guid": "my-orgafsf",
@@ -187,8 +196,8 @@ func initTenantResources(createInstances bool) {
 				"tenant": tenantID,
 			},
 		})
-		// tenant scoped platform + tenant scoped broker
-		createOSBInstance(ctx, ctx.SMWithBasic, subaccountBrokerID, osbInstanceID, map[string]interface{}{
+		// tenant scoped platform + tenant scoped broker (broker and platform child)
+		createOSBInstance(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, map[string]interface{}{
 			"service_id":        "test-service",
 			"plan_id":           "plan-service",
 			"organization_guid": "my-org",
@@ -196,18 +205,20 @@ func initTenantResources(createInstances bool) {
 				"tenant": tenantID,
 			},
 		})
-		createOSBBinding(ctx, ctx.SMWithBasic, subaccountBrokerID, osbInstanceID, "binding1", map[string]interface{}{
+		// osbInstanceID child
+		createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, "binding1", map[string]interface{}{
 			"service_id":        "test-service",
 			"plan_id":           "plan-service",
 			"organization_guid": "my-org",
 		})
-		createOSBBinding(ctx, ctx.SMWithBasic, subaccountBrokerID, osbInstanceID, "binding2", map[string]interface{}{
+		// osbInstanceID child
+		createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, "binding2", map[string]interface{}{
 			"service_id":        "test-service",
 			"plan_id":           "plan-service",
 			"organization_guid": "my-org",
 		})
 	} else {
-		ctx.SMWithBasic.SetBasicCredentials(ctx, subaccountPlatformUser, subaccountPlatformSecret)
+		ctx.SMWithBasic.SetBasicCredentials(ctx, tenantPlatformUser, tenantPlatformSecret)
 	}
 }
 
@@ -249,7 +260,7 @@ func createOSBBinding(ctx *TestContext, sm *SMExpect, brokerID string, instanceI
 		Status(http.StatusCreated)
 }
 
-func registerSubaccountScopedBroker(ctx *TestContext, serviceNameID string, planID string) (string, *BrokerServer) {
+func registertenantScopedBroker(ctx *TestContext, serviceNameID string, planID string) (string, *BrokerServer) {
 	// registering a tenant scope broker
 	catalog := SimpleCatalog(serviceNameID, planID, generateID())
 	id, _, brokerServer := ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, map[string]interface{}{}, ctx.SMWithOAuthForTenant).GetBrokerAsParams()
@@ -298,7 +309,7 @@ func registerBindingLastOPHandlers(brokerServer *BrokerServer, status int, state
 	})
 }
 
-func registerSubaccountScopedPlatform(ctx *TestContext, name string) (string, string, string) {
+func registertenantScopedPlatform(ctx *TestContext, name string) (string, string, string) {
 	platform := MakePlatform(name, name, "cf", "descr")
 	reply := ctx.SMWithOAuthForTenant.POST(web.PlatformsURL).
 		WithJSON(platform).
@@ -367,7 +378,35 @@ func fetchFullTree(repository storage.TransactionalRepository, rootID string) (*
 		fullTree.byResourceType[operation.ResourceType] = append(fullTree.byResourceType[operation.ResourceType], operation)
 		fullTree.byOperationID[operation.ID] = operation
 	}
+
+	testFullTree = &fullTree
 	return &fullTree, nil
+}
+
+const (
+	SucceededColor = "\033[48;5;193m%s\033[0m"
+	FailedColor    = "\033[48;5;224m%s\033[0m"
+)
+
+func printFullTree(byParentID map[string][]*types.Operation, parent *types.Operation, spaces int) {
+	for i := 0; i < spaces; i++ {
+		fmt.Print("            ")
+	}
+
+	var newType string
+	newType = strings.ReplaceAll(parent.ResourceType.String(), "/v1/", "")
+
+	switch parent.State {
+	case types.FAILED:
+		fmt.Println(fmt.Sprintf(FailedColor, fmt.Sprintf(" - %s: %s ", newType, parent.ResourceID)))
+	case types.SUCCEEDED:
+		fmt.Println(fmt.Sprintf(SucceededColor, fmt.Sprintf(" - %s: %s ", newType, parent.ResourceID)))
+	default:
+		fmt.Println(fmt.Sprintf(" - %s: %s ", newType, parent.ResourceID))
+	}
+	for _, n := range byParentID[parent.ID] {
+		printFullTree(byParentID, n, spaces+1)
+	}
 }
 
 func AssertOperationCount(expect func(count int), criterion ...query.Criterion) {
@@ -442,9 +481,9 @@ type ContainerInstance struct {
 }
 
 func createContainerWithChildren() ContainerInstance {
-	createOSBInstance(ctx, ctx.SMWithBasic, subaccountBrokerID, "container-instance", map[string]interface{}{
-		"service_id":        "test-service",
-		"plan_id":           "plan-service",
+	createOSBInstance(ctx, ctx.SMWithBasic, globalBrokerID, "container-instance", map[string]interface{}{
+		"service_id":        "global-service",
+		"plan_id":           "global-plan",
 		"organization_guid": "my-org",
 	})
 	instanceInContainerID := createSMAAPInstance(ctx, ctx.SMWithOAuthForTenant, map[string]interface{}{
@@ -489,5 +528,45 @@ func createContainerWithChildren() ContainerInstance {
 		instances:          []string{instanceInContainerID},
 		bindingForInstance: map[string][]string{instanceInContainerID: {bindingInContainer}},
 	}
+}
 
+func validateDuplicationsCopied(fullTree *tree) {
+	By("validating duplications waited and updated like sibling operations")
+	for resourceID, operations := range fullTree.byResourceID {
+		if resourceID == fullTree.root.ResourceID {
+			continue
+		}
+		countOfOperationsThatProgressed := 0
+		lastState := ""
+		for _, operation := range operations {
+			if operation.ExternalID != "" {
+				countOfOperationsThatProgressed++
+			}
+			if lastState != "" {
+				Expect(string(operation.State)).To(Equal(lastState))
+			}
+			lastState = string(operation.State)
+		}
+		Expect(countOfOperationsThatProgressed).
+			To(Or(Equal(1), Equal(0)), fmt.Sprintf("resource: %s %s", operations[0].ResourceType, resourceID))
+	}
+}
+
+func validateParentsRanAfterChildren(fullTree *tree) {
+	By("validating parents ran after their children")
+	for parentID, operations := range fullTree.byParentID {
+		var parent *types.Operation
+		if parentID == "" {
+			parent = fullTree.root
+		} else {
+			parent = fullTree.byOperationID[parentID]
+		}
+		for _, operation := range operations {
+			if !operation.DeletionScheduled.IsZero() {
+				continue
+			}
+			Expect(parent.UpdatedAt.After(operation.UpdatedAt) || parent.UpdatedAt.Equal(operation.UpdatedAt)).
+				To(BeTrue(), fmt.Sprintf("parent %s updateAt: %s is not after operation %s updateAt: %s", parent.ResourceType, parent.UpdatedAt, operation.ResourceType, operation.UpdatedAt))
+		}
+	}
 }
