@@ -204,7 +204,7 @@ clean-coverage: clean-test-report ## Cleans up coverage artifacts
 # Formatting, Linting, Static code checks
 #-----------------------------------------------------------------------------
 
-unit-test-precommit: build unit-test-coverage format-check lint-check ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
+unit-test-precommit: build unit-test-coverage ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
 integration-test-precommit: build integration-test-coverage
 resources-test-precommit: build resources-test-coverage
 
