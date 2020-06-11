@@ -128,6 +128,10 @@ type orderRule struct {
 	orderType query.OrderType
 }
 
+type TemplateParam struct {
+	Value  interface{}
+}
+
 // pgQuery is used to construct postgres queries. It should be constructed only via the query builder. It is not safe for concurrent use.
 type pgQuery struct {
 	db              pgDB
@@ -145,7 +149,6 @@ type pgQuery struct {
 
 	fieldsWhereClause *whereClauseTree
 	labelsWhereClause *whereClauseTree
-	inClosure string
 	shouldRebind      bool
 	err               error
 }
@@ -170,7 +173,17 @@ func (pq *pgQuery) ListNoLabels(ctx context.Context) (*sqlx.Rows, error) {
 }
 
 func (pq *pgQuery) Query(ctx context.Context, queryName storage.NamedQuery, queryParams map[string]interface{}) (*sqlx.Rows, error) {
-	sql, err := tsprintf(storage.GetNamedQuery(queryName), pq.getTemplateParams())
+	templateParams := pq.getTemplateParams()
+
+	for key,value := range queryParams{
+		if paramValue, ok := value.(TemplateParam); ok {
+			templateParams[key] = paramValue.Value
+			//Avoid template params with QueryX (Not supported type)
+			delete(queryParams,key)
+		}
+	}
+
+	sql, err := tsprintf(storage.GetNamedQuery(queryName), templateParams)
 	if err != nil {
 		return nil, err
 	}
@@ -265,14 +278,8 @@ func (pq *pgQuery) getTemplateParams() map[string]interface{} {
 		"ORDER_BY_SEQUENCE": pq.orderBySequenceSQL(),
 		"LIMIT":             pq.limitSQL(),
 		"RETURNING":         pq.returningSQL(),
-		"IN_CLOSURE":        pq.inClosure,
 	}
 	return data
-}
-
-func (pq *pgQuery) WithInClosure(elements ...string) *pgQuery {
-	pq.inClosure = 	 strings.Join(elements[:], ",")
-	return pq;
 }
 
 func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {

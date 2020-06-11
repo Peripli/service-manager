@@ -20,8 +20,10 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/Peripli/service-manager/storage/postgres"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Peripli/service-manager/operations"
@@ -523,9 +525,14 @@ func getResourceIds(resources types.ObjectList) []string{
 
 func attachLastOperations(ctx context.Context, resources types.ObjectList,repository storage.Repository) error{
 
+	params := map[string]interface{}{
+		"RESOURCE_IDS": postgres.TemplateParam{
+			Value:strings.Join(getResourceIds(resources)[:], ",") ,
+		}}
+
 	instanceLastOpsMap := make(map[string]*types.Operation)
 	resourceLastOps, err := repository.QueryForList(ctx, types.OperationType, storage.QueryForLastOperationsPerResource,
-		map[string]interface{}{}, getResourceIds(resources)...)
+		params)
 
 	if err != nil {
 		return util.HandleStorageError(err, types.OperationType.String())
@@ -542,7 +549,8 @@ func attachLastOperations(ctx context.Context, resources types.ObjectList,reposi
 			resource.SetLastOperation(LastOp)
 		}
 	}
-	return nil;
+
+	return nil
 }
 
 func attachLastOperation(ctx context.Context, objectID string, object types.Object, repository storage.Repository) error {

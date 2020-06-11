@@ -24,8 +24,7 @@ storage:
   skip_ssl_validation: false
   max_idle_connections: 5
 api:
-  token_issuer_url: http://localhost:8080/uaa
-  client_id: cf
+  token_issuer_url: http://localhost:8080/
 operations:
   cleanup_interval: 30m
   action_timeout: 12m

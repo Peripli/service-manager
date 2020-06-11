@@ -41,7 +41,7 @@ var namedQueries = map[NamedQuery]string{
 				WHERE key=:key
 				AND {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}})`,
 	QueryForLastOperationsPerResource:`
-	SELECT id,resource_id,ops.state,errors
+	SELECT id,resource_id,ops.state,type,errors,external_id,description,updated_at,created_at,deletion_scheduled,reschedule_timestamp
 	FROM operations ops  inner join
 		 (
 			 select max(op.paging_sequence) last_operation_sequence
@@ -49,7 +49,7 @@ var namedQueries = map[NamedQuery]string{
 			 group by resource_id
 		 ) lastOperationPerResource
 		 on lastOperationPerResource.last_operation_sequence= ops.paging_sequence
-	WHERE resource_id in ({{.IN_CLOSURE}})
+	WHERE resource_id in ({{.RESOURCE_IDS}})
 	`,
 }
 

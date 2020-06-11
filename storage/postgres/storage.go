@@ -300,13 +300,13 @@ func (ps *Storage) Get(ctx context.Context, objectType types.ObjectType, criteri
 	return result.ItemAt(0), nil
 }
 
-func (ps *Storage) QueryForList(ctx context.Context, objectType types.ObjectType, queryName storage.NamedQuery, queryParams map[string]interface{}, elements ...string) (types.ObjectList, error) {
+func (ps *Storage) QueryForList(ctx context.Context, objectType types.ObjectType, queryName storage.NamedQuery, queryParams map[string]interface{}) (types.ObjectList, error) {
 	entity, err := ps.scheme.provide(objectType)
 	if err != nil {
 		return nil, err
 	}
 
-	rows, err := ps.queryBuilder.NewQuery(entity).WithInClosure(elements...).Query(ctx, queryName, queryParams)
+	rows, err := ps.queryBuilder.NewQuery(entity).Query(ctx, queryName, queryParams)
 	if err != nil {
 		return nil, err
 	}
