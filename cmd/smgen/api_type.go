@@ -35,7 +35,7 @@ type ApiType struct {
 	TypesPackage        string
 }
 
-func GenerateApiTypeFile(apiTypeDir, packageName, typeName string) error  {
+func GenerateApiTypeFile(apiTypeDir, packageName, typeName string) error {
 	typeNamePlural := fmt.Sprintf("%ss", typeName)
 	if strings.HasSuffix(typeName, "y") {
 		typeNamePlural = fmt.Sprintf("%sies", typeName[:len(typeName)-1])
