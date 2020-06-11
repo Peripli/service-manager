@@ -68,7 +68,7 @@ var _ = Describe("API", func() {
 					ClientID:       "sm",
 				},
 			})
-			Expect(err).ShouldNot(HaveOccurred())
+			Expect(err).Should(HaveOccurred())
 		})
 	})
 })
