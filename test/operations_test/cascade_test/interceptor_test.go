@@ -142,6 +142,8 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 				tree, err := fetchFullTree(ctx.SMRepository, rootID)
 				Expect(err).ToNot(HaveOccurred())
 
+				containerInstance := container.instances[0]
+				containerBinding := container.bindingForInstance[containerInstance][0]
 				expectedTree := childrenMap{
 					tenantID: childrenMap{
 						platformID: childrenMap{
@@ -151,8 +153,8 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 								"binding2": true,
 							},
 							container.id: childrenMap{
-								container.instances[0]: childrenMap{
-									container.bindingForInstance[container.instances[0]][0]: true,
+								containerInstance: childrenMap{
+									containerBinding: true,
 								},
 							},
 						},
@@ -161,8 +163,8 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 								"binding1": true,
 								"binding2": true,
 							},
-							container.instances[0]: childrenMap{
-								container.bindingForInstance[container.instances[0]][0]: true,
+							containerInstance: childrenMap{
+								containerBinding: true,
 							},
 							"global_platform_tenant_broker": true,
 							smaapInstanceID1:                true,
