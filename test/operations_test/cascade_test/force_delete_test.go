@@ -204,12 +204,106 @@ var _ = Describe("cascade force delete", func() {
 	Context("force delete with direct instance children only", func() {
 		JustBeforeEach(func() {
 			initTenantResources(false)
+			ctx.SMWithBasic.SetBasicCredentials(ctx, ctx.TestPlatform.Credentials.Basic.Username, ctx.TestPlatform.Credentials.Basic.Password)
+			createOSBInstance(ctx, ctx.SMWithBasic, globalBrokerID, osbInstanceID, map[string]interface{}{
+				"service_id":        "global-service",
+				"plan_id":           "global-plan",
+				"organization_guid": "my-orgafsf",
+				"context": map[string]string{
+					"tenant": tenantID,
+				},
+			})
 		})
+
 		It("should succeed: delete tenant with only direct instance children", func() {
+			globalBrokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", func(req *http.Request) (int, map[string]interface{}) {
+				return http.StatusBadRequest, common.Object{}
+			})
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 
+			By("waiting cascading process to finish")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForRoot(rootID),
+					querySucceeded)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*5+pollCascade*5).Should(Equal(1))
+
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
+			Expect(err).ToNot(HaveOccurred())
+
+			AssertOperationCount(func(count int) {
+				Expect(count).To(Equal(1))
+			}, queryForInstanceOperations, queryFailures)
+
+			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
+			validateParentsRanAfterChildren(fullTree)
+			validateDuplicationsWaited(fullTree)
+
+			By("validating tenant error is a collection of his child errors")
+			tenantOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot(rootID))
+			Expect(err).NotTo(HaveOccurred())
+
+			errors := cascade.CascadeErrors{}
+			err = json.Unmarshal(tenantOP.(*types.Operation).Errors, &errors)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(errors.Errors)).To(Equal(1))
+			e := errors.Errors[0]
+			Expect(e.ParentID).To(Equal("tenant_value"))
+			Expect(e.ResourceID).To(Equal(osbInstanceID))
+			Expect(len(e.Message)).Should(BeNumerically(">", 0))
+			Expect(e.ResourceType).To(Equal(types.ServiceInstanceType))
 		})
-		It("should fail: delete tenant with only direct instance children", func() {
 
+		It("should fail: delete tenant with only direct instance children", func() {
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
+			createOSBBinding(ctx, ctx.SMWithBasic, subaccountBrokerID, osbInstanceID, "binding3", map[string]interface{}{
+				"service_id":        "global-service",
+				"plan_id":           "global-plan",
+				"organization_guid": "my-org",
+			})
+
+			By("waiting cascading process to finish")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForRoot(rootID),
+					queryFailures)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*5+pollCascade*5).Should(Equal(1))
+
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
+			Expect(err).ToNot(HaveOccurred())
+
+			AssertOperationCount(func(count int) {
+				Expect(count).To(Equal(1))
+			}, queryForInstanceOperations, queryFailures)
+
+			validateParentsRanAfterChildren(fullTree)
+			validateDuplicationsWaited(fullTree)
+
+			By("validating tenant error is a collection of his child errors")
+			tenantOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot(rootID))
+			Expect(err).NotTo(HaveOccurred())
+
+			errors := cascade.CascadeErrors{}
+			err = json.Unmarshal(tenantOP.(*types.Operation).Errors, &errors)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(errors.Errors)).To(Equal(2))
+
+			for _, e := range errors.Errors {
+				Expect(e.ParentID).To(Or(Equal("tenant_value"), Equal("")))
+				Expect(e.ResourceID).To(Or(Equal("tenant_value"), Equal("test-instance")))
+				Expect(len(e.Message)).Should(BeNumerically(">", 0))
+				Expect(e.ResourceType).To(Or(Equal(types.ServiceInstanceType), Equal(types.TenantType)))
+			}
 		})
 	})
 })

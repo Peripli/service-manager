@@ -206,6 +206,8 @@ func initTenantResources(createInstances bool) {
 			"plan_id":           "plan-service",
 			"organization_guid": "my-org",
 		})
+	} else {
+		ctx.SMWithBasic.SetBasicCredentials(ctx, subaccountPlatformUser, subaccountPlatformSecret)
 	}
 }
 
