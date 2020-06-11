@@ -459,32 +459,51 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 	}
 
 	// Needed only for binding or instance resources
-	isOrphandMitgiationRequired := opAfterJob.InOrphanMitigationState() &&
+	isOrphanedMitigationRequired := opAfterJob.InOrphanMitigationState() &&
 		time.Now().UTC().Before(opAfterJob.DeletionScheduled.Add(s.reconciliationOperationTimeout)) &&
 		opAfterJob.State != types.SUCCEEDED
 
-	if isOrphandMitgiationRequired {
-		deletionAction := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-			if err := fetchAndUpdateResource(ctx, repository, opAfterJob.ResourceID, opAfterJob.ResourceType, func(obj types.Object) {
-				switch v:= obj.(type) {
-				case *types.ServiceInstance:
-					v.SetReady(false)
-					v.Usable = false;
-				case *types.ServiceBinding:
-					v.SetReady(false)
-				default:
-					return
+	var followUpAction func(ctx context.Context, repository storage.Repository) (types.Object, error)
+	if isOrphanedMitigationRequired {
+		//Incase of OM for a delete operation, resource should be removed from the resource table
+		if opAfterJob.Type == types.DELETE{
+			followUpAction = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+				byID := query.ByField(query.EqualsOperator, "id", opAfterJob.ResourceID)
+				err := repository.Delete(ctx, opAfterJob.ResourceType, byID)
+				if err != nil {
+					if err == util.ErrNotFoundInStorage {
+						log.C(ctx).Debugf("Could not find resource with id %s and type %s during delete action in SMDB. Ignoring missing resource", opAfterJob.ResourceID, opAfterJob.ResourceType)
+						return nil, nil
+					}
+					return nil, util.HandleStorageError(err, opAfterJob.ResourceType.String())
 				}
-			});
-			err != nil {
-				if err == util.ErrNotFoundInStorage {
-					log.C(ctx).Debugf("Could not find resource with id %s and type %s during update action in SMDB. Ignoring missing resource", opAfterJob.ResourceID, opAfterJob.ResourceType)
-					return nil, nil
-				}
-				return nil, util.HandleStorageError(err, opAfterJob.ResourceType.String())
+				return nil, nil
 			}
-			return nil, nil
+		}else{
+			//In case of a create operation, the resource should be kept in the resource table and yet we should continue with OM to retry OM in the broker
+			followUpAction = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+				if err := fetchAndUpdateResource(ctx, repository, opAfterJob.ResourceID, opAfterJob.ResourceType, func(obj types.Object) {
+					switch v:= obj.(type) {
+					case *types.ServiceInstance:
+						v.SetReady(false)
+						v.Usable = false;
+					case *types.ServiceBinding:
+						v.SetReady(false)
+					default:
+						return
+					}
+				});
+					err != nil {
+					if err == util.ErrNotFoundInStorage {
+						log.C(ctx).Debugf("Could not find resource with id %s and type %s during update action in SMDB. Ignoring missing resource", opAfterJob.ResourceID, opAfterJob.ResourceType)
+						return nil, nil
+					}
+					return nil, util.HandleStorageError(err, opAfterJob.ResourceType.String())
+				}
+				return nil, nil
+			}
 		}
+
 
 		log.C(ctx).Infof("Scheduling of required delete operation after actual operation with id %s failed", opAfterJob.ID)
 		// if deletion timestamp was set on the op, reschedule the same op with delete action and wait for reschedulingDelay time
@@ -494,7 +513,7 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 		case <-s.smCtx.Done():
 			return fmt.Errorf("sm context canceled: %s", s.smCtx.Err())
 		case <-reschedulingDelayTimeout:
-			if orphanMitigationErr := s.ScheduleAsyncStorageAction(ctx, opAfterJob, deletionAction); orphanMitigationErr != nil {
+			if orphanMitigationErr := s.ScheduleAsyncStorageAction(ctx, opAfterJob, followUpAction); orphanMitigationErr != nil {
 				return &util.HTTPError{
 					ErrorType:   "BrokerError",
 					Description: fmt.Sprintf("job failed with %s and orphan mitigation failed with %s", actionError, orphanMitigationErr),
