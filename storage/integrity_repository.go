@@ -56,8 +56,8 @@ type TransactionalIntegrityRepository struct {
 	repository TransactionalRepository
 }
 
-func (cr *integrityRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (types.ObjectList, error) {
-	objectList, err := cr.repository.QueryForList(ctx, objectType, queryName, queryParams)
+func (cr *integrityRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{},elements... string) (types.ObjectList, error) {
+	objectList, err := cr.repository.QueryForList(ctx, objectType, queryName, queryParams,elements...)
 	if err != nil {
 		return nil, err
 	}

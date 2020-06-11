@@ -145,6 +145,7 @@ type pgQuery struct {
 
 	fieldsWhereClause *whereClauseTree
 	labelsWhereClause *whereClauseTree
+	inClosure string
 	shouldRebind      bool
 	err               error
 }
@@ -264,8 +265,14 @@ func (pq *pgQuery) getTemplateParams() map[string]interface{} {
 		"ORDER_BY_SEQUENCE": pq.orderBySequenceSQL(),
 		"LIMIT":             pq.limitSQL(),
 		"RETURNING":         pq.returningSQL(),
+		"IN_CLOSURE":        pq.inClosure,
 	}
 	return data
+}
+
+func (pq *pgQuery) WithInClosure(elements ...string) *pgQuery {
+	pq.inClosure = 	 strings.Join(elements[:], ",")
+	return pq;
 }
 
 func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {

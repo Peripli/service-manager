@@ -106,8 +106,8 @@ type TransactionalEncryptingRepository struct {
 	repository TransactionalRepository
 }
 
-func (er *encryptingRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (types.ObjectList, error) {
-	objList, err := er.repository.QueryForList(ctx, objectType, queryName, queryParams)
+func (er *encryptingRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{},elements... string) (types.ObjectList, error) {
+	objList, err := er.repository.QueryForList(ctx, objectType, queryName, queryParams,elements...)
 	if err != nil {
 		return nil, err
 	}

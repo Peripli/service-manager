@@ -396,6 +396,9 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
+	if err := attachLastOperations(ctx, objectList, c.repository); err != nil {
+		return nil, err
+	}
 	page := pageFromObjectList(ctx, objectList, count, limit)
 	resp, err := util.NewJSONResponse(http.StatusOK, page)
 	if err != nil {
@@ -508,6 +511,38 @@ func cleanObject(object types.Object) {
 	if secured, ok := object.(types.Strip); ok {
 		secured.Sanitize()
 	}
+}
+func getResourceIds(resources types.ObjectList) []string{
+	var resourceIds []string
+	for i:=0;i<resources.Len();i++{
+		resource := resources.ItemAt(i)
+		resourceIds = append(resourceIds, fmt.Sprintf("'%s'",resource.GetID()))
+	}
+	return resourceIds
+}
+
+func attachLastOperations(ctx context.Context, resources types.ObjectList,repository storage.Repository) error{
+
+	instanceLastOpsMap := make(map[string]*types.Operation)
+	resourceLastOps, err := repository.QueryForList(ctx, types.OperationType, storage.QueryForLastOperationsPerResource,
+		map[string]interface{}{}, getResourceIds(resources)...)
+
+	if err != nil {
+		return util.HandleStorageError(err, types.OperationType.String())
+	}
+
+	for i:=0;i<resourceLastOps.Len();i++{
+		lastOp := resourceLastOps.ItemAt(i).(*types.Operation)
+		instanceLastOpsMap[lastOp.ResourceID] = lastOp
+	}
+
+	for i:=0;i<resources.Len();i++{
+		resource := resources.ItemAt(i)
+		if LastOp, ok := instanceLastOpsMap[resource.GetID()]; ok {
+			resource.SetLastOperation(LastOp)
+		}
+	}
+	return nil;
 }
 
 func attachLastOperation(ctx context.Context, objectID string, object types.Object, repository storage.Repository) error {
