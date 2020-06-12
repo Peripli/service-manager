@@ -134,6 +134,13 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			return nil, err
 		}
 
+		if operation.IsAsync {
+			if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
+				return nil, err
+			}
+			return instance, nil
+		}
+
 		var provisionResponse *osbc.ProvisionResponse
 		if !operation.Reschedule {
 			provisionRequest, err := i.prepareProvisionRequest(instance, service.CatalogID, plan.CatalogID)
@@ -175,6 +182,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 				log.C(ctx).Infof("Successful asynchronous provisioning request %s to broker %s returned response %s",
 					logProvisionRequest(provisionRequest), broker.Name, logProvisionResponse(provisionResponse))
 				operation.Reschedule = true
+				operation.IsAsync = true
 				if operation.RescheduleTimestamp.IsZero() {
 					operation.RescheduleTimestamp = time.Now()
 				}
@@ -196,12 +204,6 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 				return nil, err
 			}
 			instance = object.(*types.ServiceInstance)
-		}
-
-		if operation.Reschedule {
-			if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
-				return nil, err
-			}
 		}
 
 		return instance, nil

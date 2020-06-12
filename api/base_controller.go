@@ -196,19 +196,6 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		CorrelationID: log.CorrelationIDFromContext(ctx),
 	}
 
-	if c.shouldExecuteAsync(r) {
-		log.C(ctx).Debugf("Request will be executed asynchronously")
-		if err := c.checkAsyncSupport(); err != nil {
-			return nil, err
-		}
-
-		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-			return nil, err
-		}
-
-		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
-	}
-
 	log.C(ctx).Debugf("Request will be executed synchronously")
 	createdObj, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
 	if err != nil {
@@ -218,6 +205,14 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	if err := attachLastOperation(ctx, createdObj.GetID(), createdObj, c.repository); err != nil {
 		return nil, err
 	}
+
+	if createdObj.GetLastOperation().IsAsync{
+		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
+			return nil, err
+		}
+		return util.NewLocationResponse(createdObj.GetLastOperation().GetID(), result.GetID(), c.resourceBaseURL)
+	}
+
 
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
 }
