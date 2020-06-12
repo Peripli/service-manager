@@ -222,8 +222,16 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 		}
 
 		if operation.InOrphanMitigationState() {
-			i.deleteSingleInstance(ctx,updatedInstance,operation)
-			return f(ctx, updatedInstance, updatedInstance.UpdateValues.LabelChanges...)
+			obj, err := f(ctx, updatedInstance, updatedInstance.UpdateValues.LabelChanges...)
+
+			if err != nil {
+				return obj, err
+			}
+
+			err = i.deleteSingleInstance(ctx, updatedInstance, operation)
+			if err != nil {
+				return obj, err
+			}
 		}
 
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, updatedInstance)
