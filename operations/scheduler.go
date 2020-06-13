@@ -479,20 +479,10 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 				}
 				return nil, nil
 			}
-		}else{
-			//In case of a create operation, the resource should be kept in the resource table and yet we should continue with OM to retry OM in the broker
+		}else if opAfterJob.Type == types.CREATE {
+			//In case of a create operation, the resource should be kept in the resource table and yet OM should be retried until the broker responds with a success
 			followUpAction = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-				if err := fetchAndUpdateResource(ctx, repository, opAfterJob.ResourceID, opAfterJob.ResourceType, func(obj types.Object) {
-					switch v:= obj.(type) {
-					case *types.ServiceInstance:
-						v.SetReady(false)
-						v.Usable = false;
-					case *types.ServiceBinding:
-						v.SetReady(false)
-					default:
-						return
-					}
-				});
+				if err := fetchAndUpdateResource(ctx, repository, opAfterJob.ResourceID, opAfterJob.ResourceType, func(obj types.Object) {});
 					err != nil {
 					if err == util.ErrNotFoundInStorage {
 						log.C(ctx).Debugf("Could not find resource with id %s and type %s during update action in SMDB. Ignoring missing resource", opAfterJob.ResourceID, opAfterJob.ResourceType)
@@ -548,6 +538,10 @@ func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObjec
 		if opAfterJob.Type == types.CREATE && finalState == types.SUCCEEDED {
 			var err error
 			if actionObject, err = updateResource(ctx, storage, actionObject, func(obj types.Object) {
+				switch v:= obj.(type) {
+				case *types.ServiceInstance:
+					v.Usable = true;
+				}
 				obj.SetReady(true)
 			}); err != nil {
 				return err

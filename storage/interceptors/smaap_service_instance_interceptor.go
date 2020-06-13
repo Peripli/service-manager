@@ -118,7 +118,7 @@ type ServiceInstanceInterceptor struct {
 func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		instance := obj.(*types.ServiceInstance)
-		instance.Usable = true
+		instance.Usable = false
 
 		if instance.PlatformID != types.SMPlatform {
 			return f(ctx, obj)
@@ -221,17 +221,11 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			return nil, fmt.Errorf("operation missing from context")
 		}
 
-		if operation.InOrphanMitigationState() {
-			obj, err := f(ctx, updatedInstance, updatedInstance.UpdateValues.LabelChanges...)
-
-			if err != nil {
-				return obj, err
-			}
-
-			err = i.deleteSingleInstance(ctx, updatedInstance, operation)
-			if err != nil {
-				return obj, err
-			}
+		if operation.Type == types.CREATE && operation.InOrphanMitigationState() {
+				err = i.deleteSingleInstance(ctx, updatedInstance, operation)
+				if err != nil {
+					return updatedInstance, err
+				}
 		}
 
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, updatedInstance)
@@ -274,6 +268,7 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			}
 			log.C(ctx).Infof("Sending update instance request %s to broker with name %s", logUpdateInstanceRequest(updateInstanceRequest), broker.Name)
 			updateInstanceResponse, err = osbClient.UpdateInstance(updateInstanceRequest)
+
 			if err != nil {
 				brokerError := &util.HTTPError{
 					ErrorType:   "BrokerError",
