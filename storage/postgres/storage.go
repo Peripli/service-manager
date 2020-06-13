@@ -319,9 +319,6 @@ func (ps *Storage) QueryForList(ctx context.Context, objectType types.ObjectType
 			log.C(ctx).WithError(err).Error("Could not release connection when checking database")
 		}
 	}()
-	if err != nil {
-		return nil, err
-	}
 	return entity.RowsToList(rows)
 }
 
