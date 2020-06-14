@@ -43,18 +43,19 @@ var namedQueries = map[NamedQuery]string{
 				AND {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}})`,
 	QueryForLastOperationsPerResource:`
 	SELECT id,resource_id,ops.state,type,errors,external_id,description,updated_at,created_at,deletion_scheduled,reschedule_timestamp
-	FROM operations ops  inner join
+	FROM operations ops 
+    inner join
 		 (
 			 select max(op.paging_sequence) last_operation_sequence
 			 from operations op
 			 group by resource_id
 		 ) lastOperationPerResource
-		 on lastOperationPerResource.last_operation_sequence= ops.paging_sequence
-	WHERE resource_id in ({{.RESOURCE_IDS}})
-	`,
+		 on lastOperationPerResource.last_operation_sequence = ops.paging_sequence
+	WHERE resource_id in ({{.RESOURCE_IDS}})`,
 	CleanOperations:`
 	SELECT id,resource_id,ops.state,type,errors,external_id,description,updated_at,created_at,deletion_scheduled,reschedule_timestamp
-	FROM operations ops  left join
+	FROM operations ops 
+    left join
 		 (
 			 select max(op.paging_sequence) last_operation_sequence
 			 from operations op
@@ -62,8 +63,7 @@ var namedQueries = map[NamedQuery]string{
 		 ) lastOperationPerResource
 		 on lastOperationPerResource.last_operation_sequence= ops.paging_sequence
 	WHERE resource_id in ({{.RESOURCE_IDS}})
-	and lastOperationPerResource.last_operation_sequence is null
-	`,
+	and lastOperationPerResource.last_operation_sequence is null`,
 }
 
 func GetNamedQuery(query NamedQuery) string {

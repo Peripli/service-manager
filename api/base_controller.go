@@ -529,7 +529,10 @@ func attachLastOperations(ctx context.Context, resources types.ObjectList,reposi
 		}}
 
 	instanceLastOpsMap := make(map[string]*types.Operation)
-	resourceLastOps, err := repository.QueryForList(ctx, types.OperationType, storage.QueryForLastOperationsPerResource,
+	resourceLastOps, err := repository.QueryForList(
+		ctx,
+		types.OperationType,
+		storage.QueryForLastOperationsPerResource,
 		params)
 
 	if err != nil {
