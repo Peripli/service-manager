@@ -393,9 +393,12 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	if err := attachLastOperations(ctx, objectList, c.repository); err != nil {
-		return nil, err
+	if objectList.Len() >0 {
+		if err := attachLastOperations(ctx, objectList, c.repository); err != nil {
+			return nil, err
+		}
 	}
+
 	page := pageFromObjectList(ctx, objectList, count, limit)
 	resp, err := util.NewJSONResponse(http.StatusOK, page)
 	if err != nil {
