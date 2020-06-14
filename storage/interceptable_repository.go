@@ -18,6 +18,7 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/Peripli/service-manager/operations/opcontext"
@@ -119,6 +120,10 @@ type queryScopedInterceptableRepository struct {
 
 func (ir *queryScopedInterceptableRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (types.ObjectList, error) {
 	return ir.repositoryInTransaction.QueryForList(ctx, objectType, queryName, queryParams)
+}
+
+func (ir *queryScopedInterceptableRepository) QueryExec(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (sql.Result, error) {
+	return ir.repositoryInTransaction.QueryExec(ctx, objectType, queryName, queryParams)
 }
 
 func (ir *queryScopedInterceptableRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
@@ -400,6 +405,10 @@ func (itr *InterceptableTransactionalRepository) InTransaction(ctx context.Conte
 
 func (itr *InterceptableTransactionalRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (types.ObjectList, error) {
 	return itr.RawRepository.QueryForList(ctx, objectType, queryName, queryParams)
+}
+
+func (itr *InterceptableTransactionalRepository) QueryExec(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (sql.Result, error) {
+	return itr.RawRepository.QueryExec(ctx, objectType, queryName, queryParams)
 }
 
 func (itr *InterceptableTransactionalRepository) AddCreateAroundTxInterceptorProvider(objectType types.ObjectType, provider CreateAroundTxInterceptorProvider, order InterceptorOrder) {

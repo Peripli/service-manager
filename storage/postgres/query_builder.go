@@ -172,6 +172,33 @@ func (pq *pgQuery) ListNoLabels(ctx context.Context) (*sqlx.Rows, error) {
 	return pq.db.QueryxContext(ctx, q, pq.queryParams...)
 }
 
+func (pq *pgQuery) Exec(ctx context.Context, queryName storage.NamedQuery, queryParams map[string]interface{}) (sql.Result, error){
+	templateParams := pq.getTemplateParams()
+
+	for key,value := range queryParams{
+		if paramValue, ok := value.(TemplateParam); ok {
+			templateParams[key] = paramValue.Value
+			//Avoid template params with QueryX (Not supported type)
+			delete(queryParams,key)
+		}
+	}
+
+	sql, err := tsprintf(storage.GetNamedQuery(queryName), templateParams)
+	if err != nil {
+		return nil, err
+	}
+	stmt, err := pq.db.PrepareNamedContext(ctx, sql)
+	if err != nil {
+		return nil, err
+	}
+
+	if stmt == nil {
+		return nil, fmt.Errorf("could not prepare statement")
+	}
+
+	return stmt.Exec(queryParams)
+}
+
 func (pq *pgQuery) Query(ctx context.Context, queryName storage.NamedQuery, queryParams map[string]interface{}) (*sqlx.Rows, error) {
 	templateParams := pq.getTemplateParams()
 

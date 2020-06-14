@@ -20,6 +20,7 @@ package storage
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"errors"
 	"fmt"
 	"path"
@@ -181,7 +182,11 @@ type Repository interface {
 	// Count retrieves number of objects of particular type in SM DB
 	Count(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error)
 
+	// Query for list using a name query
 	QueryForList(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (types.ObjectList, error)
+
+	// Exec a query by name
+	QueryExec(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (sql.Result, error)
 
 	// DeleteReturning deletes objects from SM DB
 	DeleteReturning(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)

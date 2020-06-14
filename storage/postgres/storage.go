@@ -322,6 +322,16 @@ func (ps *Storage) QueryForList(ctx context.Context, objectType types.ObjectType
 	return entity.RowsToList(rows)
 }
 
+func (ps *Storage) QueryExec(ctx context.Context, objectType types.ObjectType, queryName storage.NamedQuery, queryParams map[string]interface{}) (sql.Result, error) {
+
+	entity, err := ps.scheme.provide(objectType)
+	if err != nil {
+		return nil, err
+	}
+
+	return ps.queryBuilder.NewQuery(entity).Exec(ctx, queryName, queryParams)
+}
+
 func (ps *Storage) GetForUpdate(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
 	result, err := ps.list(ctx, objectType, true, true, criteria...)
 	if err != nil {

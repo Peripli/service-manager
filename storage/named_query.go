@@ -6,6 +6,7 @@ const (
 	QueryByMissingLabel NamedQuery = iota
 	QueryByExistingLabel
 	QueryForLastOperationsPerResource
+	CleanOperations
 )
 
 var namedQueries = map[NamedQuery]string{
@@ -50,6 +51,18 @@ var namedQueries = map[NamedQuery]string{
 		 ) lastOperationPerResource
 		 on lastOperationPerResource.last_operation_sequence= ops.paging_sequence
 	WHERE resource_id in ({{.RESOURCE_IDS}})
+	`,
+	CleanOperations:`
+	SELECT id,resource_id,ops.state,type,errors,external_id,description,updated_at,created_at,deletion_scheduled,reschedule_timestamp
+	FROM operations ops  left join
+		 (
+			 select max(op.paging_sequence) last_operation_sequence
+			 from operations op
+			 group by resource_id
+		 ) lastOperationPerResource
+		 on lastOperationPerResource.last_operation_sequence= ops.paging_sequence
+	WHERE resource_id in ({{.RESOURCE_IDS}})
+	and lastOperationPerResource.last_operation_sequence is null
 	`,
 }
 

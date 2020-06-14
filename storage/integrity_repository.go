@@ -18,6 +18,7 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/security"
@@ -68,6 +69,10 @@ func (cr *integrityRepository) QueryForList(ctx context.Context, objectType type
 		}
 	}
 	return objectList, nil
+}
+
+func (cr *integrityRepository) QueryExec(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (sql.Result, error) {
+	return cr.repository.QueryExec(ctx, objectType, queryName, queryParams)
 }
 
 func (cr *integrityRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
