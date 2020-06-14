@@ -79,7 +79,7 @@ type uniqueInstanceNameInterceptor struct {
 
 func (c *uniqueInstanceNameInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object) (object types.Object, err error) {
-		if err := c.checkUniqueName(ctx, obj.GetLabels(), obj.(*types.ServiceInstance)); err != nil {
+		if err := c.checkUniqueName(ctx, obj.(*types.ServiceInstance)); err != nil {
 			return nil, err
 		}
 		return h(ctx, obj)
@@ -95,7 +95,7 @@ func (c *uniqueInstanceNameInterceptor) AroundTxUpdate(h storage.InterceptUpdate
 		oldInstance := oldObj.(*types.ServiceInstance)
 		newInstance := newObj.(*types.ServiceInstance)
 		if newInstance.Name != oldInstance.Name {
-			if err := c.checkUniqueName(ctx, oldObj.GetLabels(), newInstance); err != nil {
+			if err := c.checkUniqueName(ctx, newInstance); err != nil {
 				return nil, err
 			}
 		}
@@ -103,7 +103,7 @@ func (c *uniqueInstanceNameInterceptor) AroundTxUpdate(h storage.InterceptUpdate
 	}
 }
 
-func (c *uniqueInstanceNameInterceptor) checkUniqueName(ctx context.Context, labels types.Labels, instance *types.ServiceInstance) error {
+func (c *uniqueInstanceNameInterceptor) checkUniqueName(ctx context.Context, instance *types.ServiceInstance) error {
 	operation, operationFound := opcontext.Get(ctx)
 	if !operationFound {
 		log.C(ctx).Debug("operation missing from context")
@@ -120,16 +120,15 @@ func (c *uniqueInstanceNameInterceptor) checkUniqueName(ctx context.Context, lab
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, nameProperty, instance.Name),
 	}
-	if len(c.TenantIdentifier) != 0 {
-		if labels == nil {
-			labels = types.Labels{}
-		}
-		tenantIDLabelValue, ok := labels[c.TenantIdentifier]
-		if ok && len(tenantIDLabelValue) != 0 {
-			tenantID := tenantIDLabelValue[0]
-			countCriteria = append(countCriteria, query.ByLabel(query.EqualsOperator, c.TenantIdentifier, tenantID))
+
+	criteriaForContext := query.CriteriaForContext(ctx)
+	for _, criterion := range criteriaForContext {
+		// use labelQuery criteria from context if exist as they provide the scope for name uniqueness, e.g. tenant scope
+		if criterion.Type == query.LabelQuery {
+			countCriteria = append(countCriteria, criterion)
 		}
 	}
+
 	instanceCount, err := c.Repository.Count(ctx, types.ServiceInstanceType, countCriteria...)
 	if err != nil {
 		return fmt.Errorf("could not get count of service instances %s", err)
