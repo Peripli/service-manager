@@ -3,14 +3,11 @@ package operations
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/types/cascade"
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
-	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 	"time"
 )
@@ -48,8 +45,8 @@ func recursiveGetAllLevelsCascadeOperations(ctx context.Context, tenantIdentifie
 	return operations, nil
 }
 
-func GetObjectChildren(ctx context.Context, object types.Object, storage storage.Repository) (map[types.ObjectType]types.ObjectList, error) {
-	children := make(map[types.ObjectType]types.ObjectList)
+func GetObjectChildren(ctx context.Context, object types.Object, storage storage.Repository) (cascade.CascadeChildren, error) {
+	children := make(cascade.CascadeChildren)
 	cascadeObject, isCascade := cascade.GetCascadeObject(ctx, object)
 	if isCascade {
 		for childType, childCriteria := range cascadeObject.GetChildrenCriterion() {
@@ -68,56 +65,10 @@ func GetObjectChildren(ctx context.Context, object types.Object, storage storage
 		}
 		cleaner, hasDuplicatesCleaner := cascadeObject.(cascade.DuplicatesCleaner)
 		if hasDuplicatesCleaner {
-			cleaner.Clean(children)
+			cleaner.CleanDuplicates(children)
 		}
 	}
-	//if force, found := operation.Labels[CascadeForceLabelKey]; isBroker && (!found || len(force) == 0 || force[0] != "true") {
-	//	err := validateNoGlobalInstances(ctx, tenantIdentifier, object, children, storage)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//}
 	return children, nil
-}
-
-func validateNoGlobalInstances(ctx context.Context, tenantIdentifier string, broker types.Object, brokerChildren []types.ObjectList, repository storage.Repository) error {
-	platformIdsMap := make(map[string]bool)
-	for _, children := range brokerChildren {
-		for i := 0; i < children.Len(); i++ {
-			instance, ok := children.ItemAt(i).(*types.ServiceInstance)
-			if !ok {
-				return fmt.Errorf("broker %s has children not of type %s", broker.GetID(), types.ServiceInstanceType)
-			}
-			if _, ok := platformIdsMap[instance.PlatformID]; !ok {
-				platformIdsMap[instance.PlatformID] = true
-			}
-		}
-	}
-	delete(platformIdsMap, types.SMPlatform)
-	if len(platformIdsMap) == 0 {
-		return nil
-	}
-
-	platformIds := make([]string, 0, len(platformIdsMap))
-	for id := range platformIdsMap {
-		platformIds = append(platformIds, id)
-	}
-
-	if len(platformIds) == 0 {
-		return nil
-	}
-	platforms, err := repository.List(ctx, types.PlatformType, query.ByField(query.InOperator, "id", platformIds...))
-	if err != nil {
-		return err
-	}
-	for i := 0; i < platforms.Len(); i++ {
-		platform := platforms.ItemAt(i)
-		labels := platform.GetLabels()
-		if _, found := labels[tenantIdentifier]; !found {
-			return fmt.Errorf("broker %s has instances from global platform", broker.GetID())
-		}
-	}
-	return nil
 }
 
 func enrichBrokersOfferings(ctx context.Context, brokerObj types.Object, storage storage.Repository) error {
@@ -229,25 +180,8 @@ func handleDuplicateOperations(ctx context.Context, storage storage.Repository, 
 	return "", false, nil
 }
 
-func SameResourceInCurrentTreeHasFinished(ctx context.Context, storage storage.Repository, resourceID string, cascadeRootID string) (types.OperationState, error) {
-	// checking if there is a completed suboperation in same cascade tree with the same resourceID
-	completedCriteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "resource_id", resourceID),
-		query.ByField(query.InOperator, "state", string(types.SUCCEEDED), string(types.FAILED)),
-		query.ByField(query.EqualsOperator, "cascade_root_id", cascadeRootID),
-		query.OrderResultBy("paging_sequence", query.DescOrder),
-	}
-	completed, err := storage.List(ctx, types.OperationType, completedCriteria...)
-	if err != nil {
-		return "", err
-	}
-	if completed.Len() > 0 {
-		return completed.ItemAt(0).(*types.Operation).State, nil
-	}
-	return "", nil
-}
-
-func PrepareAggregatedErrorsArray(cascadeErrors cascade.CascadeErrors, failedSubOperations []*types.Operation, resourceID string, resourceType types.ObjectType) ([]byte, error) {
+func PrepareAggregatedErrorsArray(failedSubOperations []*types.Operation, resourceID string, resourceType types.ObjectType) ([]byte, error) {
+	cascadeErrors := cascade.CascadeErrors{Errors: []*cascade.Error{}}
 	for _, failedOP := range failedSubOperations {
 		childErrorsResult := gjson.GetBytes(failedOP.Errors, "cascade_errors")
 		if childErrorsResult.Exists() {
@@ -271,22 +205,4 @@ func PrepareAggregatedErrorsArray(cascadeErrors cascade.CascadeErrors, failedSub
 		}
 	}
 	return json.Marshal(cascadeErrors)
-}
-
-func handleCascadeForceDeletion(ctx context.Context, logger *logrus.Entry, repository *storage.InterceptableTransactionalRepository, failedOperations []*types.Operation) error {
-	subResources := make(map[types.ObjectType][]string)
-
-	for _, subOperation := range failedOperations {
-		subResources[subOperation.ResourceType] = append(subResources[subOperation.ResourceType], subOperation.ResourceID)
-	}
-
-	for resourceType, IDs := range subResources {
-		err := repository.RawRepository.Delete(ctx, resourceType, query.ByField(query.InOperator, "id", IDs...))
-		if err != nil && err != util.ErrNotFoundInStorage {
-			logger.Errorf("Failed to force delete %s resources with IDs %v", resourceType, IDs, err)
-			return err
-		}
-	}
-
-	return nil
 }

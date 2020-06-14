@@ -18,7 +18,6 @@ package operations
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/pkg/types/cascade"
 	"sync"
 	"time"
 
@@ -32,7 +31,6 @@ import (
 const (
 	initialOperationsLockIndex = 200
 	ZeroTime                   = "0001-01-01 00:00:00+00"
-	CascadeForceLabelKey       = "force"
 )
 
 // maintainerFunctor represents a named maintainer function which runs over a pre-defined period
@@ -46,7 +44,7 @@ type maintainerFunctor struct {
 // and that no orphan operations are left in the DB due to crashes/restarts of SM
 type Maintainer struct {
 	smCtx                   context.Context
-	repository              *storage.InterceptableTransactionalRepository
+	repository              storage.TransactionalRepository
 	scheduler               *Scheduler
 	cascadePollingScheduler *Scheduler
 	settings                *Settings
@@ -56,7 +54,7 @@ type Maintainer struct {
 }
 
 // NewMaintainer constructs a Maintainer
-func NewMaintainer(smCtx context.Context, repository *storage.InterceptableTransactionalRepository, lockerCreatorFunc storage.LockerCreatorFunc, options *Settings, wg *sync.WaitGroup) *Maintainer {
+func NewMaintainer(smCtx context.Context, repository storage.TransactionalRepository, lockerCreatorFunc storage.LockerCreatorFunc, options *Settings, wg *sync.WaitGroup) *Maintainer {
 	maintainer := &Maintainer{
 		smCtx:                   smCtx,
 		repository:              repository,
@@ -396,36 +394,13 @@ func (om *Maintainer) pollPendingCascadeOperations() {
 				}
 			}
 		} else if len(subOperations.FailedOperations) > 0 && len(subOperations.FailedOperations)+len(subOperations.SucceededOperations) == subOperations.AllOperationsCount {
-			operation.State = types.FAILED
-			cascadeErrors := cascade.CascadeErrors{Errors: []*cascade.Error{}}
-
-			// if its force cascade and there are failed children, we are trying to delete them from the db
-			// in case its the root - the operation will be marked as SUCCEEDED
-			forceCascade, found := operation.Labels[CascadeForceLabelKey]
-			if found && len(forceCascade) > 0 && forceCascade[0] == "true" {
-				err := handleCascadeForceDeletion(ctx, logger, om.repository, subOperations.FailedOperations)
-				if operation.CascadeRootID == operation.ID {
-					if err != nil {
-						cascadeErrors.Add(&cascade.Error{
-							ResourceType: types.TenantType,
-							ResourceID:   operation.ResourceID,
-							Message: []byte(`{
-								"error": "Internal error",
-								"description": "Force delete failed"
-							}`),
-						})
-					} else {
-						operation.State = types.SUCCEEDED
-					}
-				}
-			}
-
-			errorsJson, err := PrepareAggregatedErrorsArray(cascadeErrors, subOperations.FailedOperations, operation.ResourceID, operation.ResourceType)
+			errorsJson, err := PrepareAggregatedErrorsArray(subOperations.FailedOperations, operation.ResourceID, operation.ResourceType)
 			if err != nil {
 				logger.Errorf("Couldn't aggregate errors for failed operation with id %s: %s", operation.ResourceID, err)
 			} else {
 				operation.Errors = errorsJson
 			}
+			operation.State = types.FAILED
 			if _, err := om.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 				logger.Warnf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
 			}

@@ -8,7 +8,7 @@ import (
 )
 
 type ChildrenCriterion = map[types.ObjectType][]query.Criterion
-type Children = map[types.ObjectType]types.ObjectList
+type CascadeChildren = map[types.ObjectType]types.ObjectList
 
 // key for configurable hierarchies
 type ParentInstanceLabelKey struct{}
@@ -18,7 +18,7 @@ type Cascade interface {
 }
 
 type DuplicatesCleaner interface {
-	Clean(children Children)
+	CleanDuplicates(children CascadeChildren)
 }
 
 type CascadedOperations struct {
