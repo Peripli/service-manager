@@ -482,35 +482,31 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 		}else if opAfterJob.Type == types.CREATE {
 			//In case of a create operation, the resource should be kept in the resource table and yet OM should be retried until the broker responds with a success
 			followUpAction = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-				if err := fetchAndUpdateResource(ctx, repository, opAfterJob.ResourceID, opAfterJob.ResourceType, func(obj types.Object) {});
-					err != nil {
-					if err == util.ErrNotFoundInStorage {
-						log.C(ctx).Debugf("Could not find resource with id %s and type %s during update action in SMDB. Ignoring missing resource", opAfterJob.ResourceID, opAfterJob.ResourceType)
-						return nil, nil
+					if err := fetchAndUpdateResource(ctx, repository, opAfterJob.ResourceID, opAfterJob.ResourceType, func(obj types.Object) {});
+						err != nil {
+						if err == util.ErrNotFoundInStorage {
+							log.C(ctx).Debugf("Could not find resource with id %s and type %s during update action in SMDB. Ignoring missing resource", opAfterJob.ResourceID, opAfterJob.ResourceType)
+							return nil, nil
+						}
+						return nil, util.HandleStorageError(err, opAfterJob.ResourceType.String())
 					}
-					return nil, util.HandleStorageError(err, opAfterJob.ResourceType.String())
+					return nil, nil
 				}
-				return nil, nil
-			}
 		}
-
-
-		log.C(ctx).Infof("Scheduling of required delete operation after actual operation with id %s failed", opAfterJob.ID)
-		// if deletion timestamp was set on the op, reschedule the same op with delete action and wait for reschedulingDelay time
-		// so that we don't DOS the broker
-		reschedulingDelayTimeout := time.After(s.reschedulingDelay)
-		select {
-		case <-s.smCtx.Done():
-			return fmt.Errorf("sm context canceled: %s", s.smCtx.Err())
-		case <-reschedulingDelayTimeout:
-			if orphanMitigationErr := s.ScheduleAsyncStorageAction(ctx, opAfterJob, followUpAction); orphanMitigationErr != nil {
-				return &util.HTTPError{
-					ErrorType:   "BrokerError",
-					Description: fmt.Sprintf("job failed with %s and orphan mitigation failed with %s", actionError, orphanMitigationErr),
-					StatusCode:  http.StatusBadGateway,
+		//Run async & Don't wait for async storage actions
+			go func() {
+				reschedulingDelayTimeout := time.After(s.reschedulingDelay)
+				select {
+				case <-s.smCtx.Done():
+					log.C(ctx).Debugf("sm context canceled: %s", s.smCtx.Err())
+				case <-reschedulingDelayTimeout:
+					if orphanMitigationErr := s.ScheduleAsyncStorageAction(ctx, opAfterJob, followUpAction); orphanMitigationErr != nil {
+						log.C(ctx).Debugf(fmt.Sprintf("job failed with %s and orphan mitigation failed with %s", actionError, orphanMitigationErr))
+					}
 				}
-			}
-		}
+				log.C(ctx).Infof("Scheduling of required follow up operation after actual operation with id %s failed", opAfterJob.ID)
+			}()
+
 	}
 	return actionError
 }
