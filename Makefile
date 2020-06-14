@@ -47,6 +47,18 @@ GO_BUILD 		= env CGO_ENABLED=0 GOOS=$(PLATFORM) GOARCH=$(ARCH) \
 GO_INT_TEST 	= $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
 				./test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
 
+GO_INT_TEST_OTHER = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
+				$(shell go list ./test/... | egrep -v "broker_test|osb_and_plugin_test|service_instance_and_binding_test") $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
+
+GO_INT_TEST_BROKER = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
+				./test/broker_test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
+
+GO_INT_TEST_OSB_AND_PLUGIN = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
+				./test/osb_and_plugin_test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
+
+GO_INT_TEST_SERVICE_INSTANCE_AND_BINDING = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
+				./test/service_instance_and_binding_test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
+
 GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
 				$(shell go list ./... | egrep -v "test") -coverprofile=$(UNIT_TEST_PROFILE)
 
@@ -155,11 +167,67 @@ test-int: generate ## Runs the integration tests. Use TEST_FLAGS="--storage.uri=
 	@echo Running integration tests:
 	$(GO_INT_TEST)
 
-test-report: test-unit test-int
+test-int-other: generate ## Runs the integration tests that are not broker/osb/plugin/service-instance/service-binding. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
+	@echo Running integration tests:
+	$(GO_INT_TEST_OTHER)
+
+test-int-broker: generate ## Runs the broker integration tests. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
+	@echo Running integration tests:
+	$(GO_INT_TEST_BROKER)
+
+test-int-osb-and-plugin: generate ## Runs the osb and plugin integration tests. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
+	@echo Running integration tests:
+	$(GO_INT_TEST_OSB_AND_PLUGIN)
+
+test-int-service-instance-and-binding: generate ## Runs the service-instance and service-binding integration tests. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
+	@echo Running integration tests:
+	$(GO_INT_TEST_SERVICE_INSTANCE_AND_BINDING)
+
+test-report: test-int test-unit
+	@$(GO) get github.com/wadey/gocovmerge
+	@gocovmerge $(CURDIR)/*.cov > $(TEST_PROFILE)
+
+test-report-integration-other: test-int-other
+	@$(GO) get github.com/wadey/gocovmerge
+	@gocovmerge $(CURDIR)/*.cov > $(TEST_PROFILE)
+
+test-report-integration-broker: test-int-broker
+	@$(GO) get github.com/wadey/gocovmerge
+	@gocovmerge $(CURDIR)/*.cov > $(TEST_PROFILE)
+
+test-report-integration-osb-and-plugin: test-int-osb-and-plugin
+	@$(GO) get github.com/wadey/gocovmerge
+	@gocovmerge $(CURDIR)/*.cov > $(TEST_PROFILE)
+
+test-report-integration-service-instance-and-binding: test-int-service-instance-and-binding
+	@$(GO) get github.com/wadey/gocovmerge
+	@gocovmerge $(CURDIR)/*.cov > $(TEST_PROFILE)
+
+test-report-unit: test-unit
 	@$(GO) get github.com/wadey/gocovmerge
 	@gocovmerge $(CURDIR)/*.cov > $(TEST_PROFILE)
 
 coverage: test-report ## Produces an HTML report containing code coverage details
+	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
+	@echo Generated coverage report in $(COVERAGE).
+
+coverage-unit-tests: test-report-unit ## Produces an HTML report containing code coverage details
+	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
+	@echo Generated coverage report in $(COVERAGE).
+
+coverage-int-tests-broker: test-report-integration-broker ## Produces an HTML report containing code coverage details
+	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
+	@echo Generated coverage report in $(COVERAGE).
+
+coverage-int-tests-osb-and-plugin: test-report-integration-osb-and-plugin ## Produces an HTML report containing code coverage details
+	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
+	@echo Generated coverage report in $(COVERAGE).
+
+coverage-int-tests-service-instance-and-binding: test-report-integration-service-instance-and-binding ## Produces an HTML report containing code coverage details
+	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
+	@echo Generated coverage report in $(COVERAGE).
+
+coverage-int-tests-other: test-report-integration-other ## Produces an HTML report containing code coverage details
 	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
 	@echo Generated coverage report in $(COVERAGE).
 
@@ -185,8 +253,12 @@ clean-coverage: clean-test-report ## Cleans up coverage artifacts
 #-----------------------------------------------------------------------------
 # Formatting, Linting, Static code checks
 #-----------------------------------------------------------------------------
-
 precommit: build coverage format-check lint-check ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
+precommit-integration-tests-broker: build coverage-int-tests-broker ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
+precommit-integration-tests-osb-and-plugin: build coverage-int-tests-osb-and-plugin ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
+precommit-integration-tests-service-instance-and-binding: build coverage-int-tests-service-instance-and-binding ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
+precommit-integration-tests-other: build coverage-int-tests-other ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
+precommit-unit-tests: build coverage-unit-tests format-check lint-check ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
 
 format: ## Formats the source code files with gofmt
 	@echo The following files were reformated:
