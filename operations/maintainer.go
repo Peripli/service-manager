@@ -394,11 +394,13 @@ func (om *Maintainer) pollPendingCascadeOperations() {
 				}
 			}
 		} else if len(subOperations.FailedOperations) > 0 && len(subOperations.FailedOperations)+len(subOperations.SucceededOperations) == subOperations.AllOperationsCount {
-			errorsJson, err := PrepareAggregatedErrorsArray(subOperations.FailedOperations, operation.ResourceID, operation.ResourceType)
-			if err != nil {
-				logger.Errorf("Couldn't aggregate errors for failed operation with id %s: %s", operation.ResourceID, err)
-			} else {
-				operation.Errors = errorsJson
+			if !operation.IsForceDeleteCascadeOperation() {
+				errorsJson, err := PrepareAggregatedErrorsArray(subOperations.FailedOperations, operation.ResourceID, operation.ResourceType)
+				if err != nil {
+					logger.Errorf("Couldn't aggregate errors for failed operation with id %s: %s", operation.ResourceID, err)
+				} else {
+					operation.Errors = errorsJson
+				}
 			}
 			operation.State = types.FAILED
 			if _, err := om.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
