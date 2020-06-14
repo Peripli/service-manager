@@ -9,6 +9,7 @@ type TenantCascade struct {
 	*types.Tenant
 }
 
+// cleaning instances that will be under platforms or brokers
 func (t *TenantCascade) CleanDuplicates(children CascadeChildren) {
 	instances, found := children[types.ServiceInstanceType]
 	if !found || instances.Len() == 0 {

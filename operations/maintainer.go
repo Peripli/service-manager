@@ -395,6 +395,7 @@ func (om *Maintainer) pollPendingCascadeOperations() {
 			}
 		} else if len(subOperations.FailedOperations) > 0 && len(subOperations.FailedOperations)+len(subOperations.SucceededOperations) == subOperations.AllOperationsCount {
 			if !operation.IsForceDeleteCascadeOperation() {
+				// if its not force cascade delete operion -> aggregating errors
 				errorsJson, err := PrepareAggregatedErrorsArray(subOperations.FailedOperations, operation.ResourceID, operation.ResourceType)
 				if err != nil {
 					logger.Errorf("Couldn't aggregate errors for failed operation with id %s: %s", operation.ResourceID, err)
