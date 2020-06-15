@@ -454,7 +454,7 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 		if opAfterJob.IsForceDeleteCascadeOperation() && !opAfterJob.InOrphanMitigationState() {
 			err := storage.Delete(ctx, opAfterJob.ResourceType, query.ByField(query.EqualsOperator, "id", opAfterJob.ResourceID))
 			if err != nil && err != util.ErrNotFoundInStorage {
-				log.C(ctx).Errorf("Failed to force delete %s resource with id %s", opAfterJob.ResourceType, opAfterJob.ResourceID, err)
+				log.C(ctx).Errorf("Failed to force delete %s resource with id %s: %s", opAfterJob.ResourceType, opAfterJob.ResourceID, err)
 			} else {
 				newState = types.SUCCEEDED
 			}
