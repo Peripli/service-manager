@@ -42,7 +42,7 @@ jobs:
       name: "Unit Tests"
       script:
         - make precommit-unit-tests
-        - goveralls -coverprofile profile-unit-test.cov -service=travis-ci
+        - goveralls -coverprofile profile-unit.cov -service=travis-ci
         - kill %1
 
 env:
