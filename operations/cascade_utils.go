@@ -13,6 +13,7 @@ import (
 )
 
 func GetAllLevelsCascadeOperations(ctx context.Context, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
+	// if the root is broker we have to enrich his service offerings and plans
 	if object.GetType() == types.ServiceBrokerType {
 		if err := enrichBrokersOfferings(ctx, object, storage); err != nil {
 			return nil, err
@@ -63,12 +64,16 @@ func GetObjectChildren(ctx context.Context, object types.Object, storage storage
 				}
 			}
 		}
-		cleaner, hasDuplicatesCleaner := cascadeObject.(cascade.DuplicatesCleaner)
-		if hasDuplicatesCleaner {
-			cleaner.CleanDuplicates(children)
-		}
+		removeDuplicateSubOperations(cascadeObject, children)
 	}
 	return children, nil
+}
+
+func removeDuplicateSubOperations(cascadeObject cascade.Cascade, children cascade.CascadeChildren) {
+	cleaner, hasDuplicatesCleaner := cascadeObject.(cascade.DuplicatesCleaner)
+	if hasDuplicatesCleaner {
+		cleaner.CleanDuplicates(children)
+	}
 }
 
 func enrichBrokersOfferings(ctx context.Context, brokerObj types.Object, storage storage.Repository) error {

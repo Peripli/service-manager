@@ -358,7 +358,7 @@ var _ = Describe("cascade force delete", func() {
 			})).To(Equal(1))
 		})
 
-		It("should fail: delete tenant with only direct instance children", func() {
+		FIt("should fail: delete tenant with only direct instance children", func() {
 			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 			createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, "binding3", map[string]interface{}{
 				"service_id":        "global-service",

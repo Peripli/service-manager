@@ -18,6 +18,7 @@ package operations
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -402,10 +403,14 @@ func (om *Maintainer) pollPendingCascadeOperations() {
 				} else {
 					operation.Errors = errorsJson
 				}
+			} else if operation.CascadeRootID == operation.ID {
+				// if operation is force cascade delete and its failed -> database error
+				operation.Errors = []byte(fmt.Sprintf(`{"error": "InternalServerError", "description": "failed to force cascade delete of %s with id %s"}`, operation.ResourceType, operation.ResourceID))
 			}
+
 			operation.State = types.FAILED
 			if _, err := om.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
-				logger.Warnf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
+				logger.Errorf("Failed to update the operation with ID (%s) state to Success: %s", operation.ID, err)
 			}
 		}
 	}
