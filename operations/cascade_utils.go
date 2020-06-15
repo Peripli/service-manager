@@ -12,34 +12,34 @@ import (
 	"time"
 )
 
-func GetAllLevelsCascadeOperations(ctx context.Context, tenantIdentifier string, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
+func GetAllLevelsCascadeOperations(ctx context.Context, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
 	if object.GetType() == types.ServiceBrokerType {
 		if err := enrichBrokersOfferings(ctx, object, storage); err != nil {
 			return nil, err
 		}
 	}
-	return recursiveGetAllLevelsCascadeOperations(ctx, tenantIdentifier, object, operation, storage)
+	return recursiveGetAllLevelsCascadeOperations(ctx, object, operation, storage)
 }
 
-func recursiveGetAllLevelsCascadeOperations(ctx context.Context, tenantIdentifier string, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
+func recursiveGetAllLevelsCascadeOperations(ctx context.Context, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
 	var operations []*types.Operation
-	childrenMap, err := GetObjectChildren(ctx, object, storage)
+	mapOfChildren, err := GetObjectChildren(ctx, object, storage)
 	if err != nil {
 		return nil, err
 	}
-	for _, list := range childrenMap {
+	for _, list := range mapOfChildren {
 		for i := 0; i < list.Len(); i++ {
-			childOBJ := list.ItemAt(i)
-			childOP, err := makeCascadeOPForChild(childOBJ, operation)
+			child := list.ItemAt(i)
+			childOperation, err := makeCascadeOperationForChild(child, operation)
 			if err != nil {
 				return nil, err
 			}
-			operations = append(operations, childOP)
-			childrenSubOPs, err := recursiveGetAllLevelsCascadeOperations(ctx, tenantIdentifier, childOBJ, childOP, storage)
+			operations = append(operations, childOperation)
+			childrenSubOperations, err := recursiveGetAllLevelsCascadeOperations(ctx, child, childOperation, storage)
 			if err != nil {
 				return nil, err
 			}
-			operations = append(operations, childrenSubOPs...)
+			operations = append(operations, childrenSubOperations...)
 		}
 	}
 	return operations, nil
@@ -119,7 +119,7 @@ func GetSubOperations(ctx context.Context, operation *types.Operation, repositor
 	return &cascadedOperations, nil
 }
 
-func makeCascadeOPForChild(object types.Object, operation *types.Operation) (*types.Operation, error) {
+func makeCascadeOperationForChild(object types.Object, operation *types.Operation) (*types.Operation, error) {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		return nil, err

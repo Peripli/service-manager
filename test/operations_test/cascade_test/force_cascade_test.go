@@ -49,7 +49,7 @@ var _ = Describe("cascade force delete", func() {
 			initTenantResources(true)
 		})
 
-		FIt("should succeed - successful orphan mitigation", func() {
+		It("should succeed - successful orphan mitigation", func() {
 			pollingCount := 0
 			tenantBrokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
 				if pollingCount == 0 {
