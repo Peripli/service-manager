@@ -486,9 +486,12 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 				})
 			}
 
-			FContext("when attach_last_operations is truthy", func() {
-				FIt("list api retrieves the resources list when each resource contains the lastt operation it is associated to", func() {
-					resp := ctx.SMWithOAuth.GET(t.API).WithQuery("attach_last_operations", "true").Expect().Status(http.StatusOK).JSON()//.Object()
+			Context("when attach_last_operations is truthy", func() {
+				It("list api retrieves the resources list when each resource contains the last operation it is associated to", func() {
+					resp := ctx.SMWithOAuth.GET(t.API).
+						WithQuery("attach_last_operations", "true").
+						Expect().Status(http.StatusOK).
+						JSON()
 					for _, resource := range resp.Path("$.items[*]").Array().Iter() {
 						currentResourceId := resource.Object().Value("id").String().Raw()
 						currentResourceState := resource.Object().Value("ready").Boolean().Raw()
@@ -500,6 +503,18 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 						Expect(lastOp.Object().Value("resource_type").String().Raw()).ToNot(BeEmpty())
 						Expect(lastOp.Object().Value("type").String().Raw()).ToNot(BeEmpty())
 						Expect(lastOp.Object().Value("deletion_scheduled").String().Raw()).ToNot(BeEmpty())
+					}
+				})
+			})
+
+			FContext("when attach_last_operations is falsy", func() {
+				FIt("list api doesn't retrieve the resources list with the last operations", func() {
+					resp := ctx.SMWithOAuth.GET(t.API).
+						WithQuery("attach_last_operations", "false").
+						Expect().Status(http.StatusOK).
+						JSON()
+					for _, resource := range resp.Path("$.items[*]").Array().Iter() {
+						resource.Object().NotContainsKey("last_operation")
 					}
 				})
 			})
