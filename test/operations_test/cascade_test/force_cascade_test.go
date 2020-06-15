@@ -49,6 +49,83 @@ var _ = Describe("cascade force delete", func() {
 			initTenantResources(true)
 		})
 
+		FIt("should succeed - successful orphan mitigation", func() {
+			pollingCount := 0
+			tenantBrokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
+				if pollingCount == 0 {
+					pollingCount++
+					return http.StatusOK, common.Object{"state": "in progress"}
+				} else {
+					return http.StatusOK, common.Object{"state": "failed"}
+				}
+			})
+
+			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
+
+			By("validating binding failed and marked as orphan mitigation")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForOperationsInTheSameTree(rootID),
+					queryFailures,
+					queryForOrphanMitigationOperations,
+					queryForBindingsOperations)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*4+pollCascade*4).Should(Equal(2))
+
+			By("validating that instances without bindings were deleted")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForOperationsInTheSameTree(rootID),
+					querySucceeded,
+					queryForInstanceOperations)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*2+pollCascade*2).Should(Equal(5))
+
+			tenantBrokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
+				return http.StatusOK, common.Object{"state": "succeeded"}
+			})
+
+			By("validating bindings released from orphan mitigation and mark as succeeded")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForBindingsOperations,
+					queryForOperationsInTheSameTree(rootID),
+					querySucceeded)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*2+maintainerRetry*2+cascadeOrphanMitigation*4).Should(Equal(4))
+
+			By("validating root is succeeded")
+			Eventually(func() int {
+				count, err := ctx.SMRepository.Count(
+					context.Background(),
+					types.OperationType,
+					queryForRoot(rootID),
+					querySucceeded)
+				Expect(err).NotTo(HaveOccurred())
+
+				return count
+			}, actionTimeout*8+maintainerRetry*8).Should(Equal(1))
+
+			fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
+			Expect(err).NotTo(HaveOccurred())
+
+			validateParentsRanAfterChildren(fullTree)
+			validateDuplicationsCopied(fullTree)
+			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
+		})
+
 		It("should succeed: delete instance using force", func() {
 			globalBrokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", func(req *http.Request) (int, map[string]interface{}) {
 				return http.StatusAccepted, common.Object{"async": true}
