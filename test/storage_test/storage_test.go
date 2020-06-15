@@ -39,7 +39,7 @@ var _ = Describe("Test", func() {
 			Name:        "platform_name",
 			Type:        "cloudfoundry",
 		})
-		Expect(err).ShouldNot(HaveOccurred())
+		Expect(err).Should(HaveOccurred())
 	})
 
 	AfterEach(func() {
