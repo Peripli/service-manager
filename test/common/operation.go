@@ -99,6 +99,21 @@ func VerifyOperationExists(ctx *TestContext, operationURL string, expectations O
 	timeoutDuration := 15 * time.Second
 	timeout := time.After(timeoutDuration)
 	ticker := time.Tick(100 * time.Millisecond)
+
+	findLastOperationByList := func(resourceURL,id string) types.Operation {
+		resp := ctx.SMWithOAuth.GET(expectations.ResourceType.String()).WithQuery("attach_last_operations", "true").Expect().Status(http.StatusOK).JSON()
+
+		for  _, resource := range resp.Path("$.items[*]").Array().Iter() {
+			lastOp := resource.Object().Value("last_operation").Object()
+			var resLastOperation types.Operation
+			resLastOperation.ID = lastOp.Value("id").String().Raw()
+			if resLastOperation.ID == id {
+				return resLastOperation
+			}
+		}
+		return types.Operation{}
+	}
+
 	for {
 		select {
 		case <-timeout:
@@ -107,10 +122,10 @@ func VerifyOperationExists(ctx *TestContext, operationURL string, expectations O
 			var operation map[string]interface{}
 			if len(operationURL) != 0 {
 				operation = ctx.SMWithOAuth.GET(operationURL).Expect().Status(http.StatusOK).JSON().Object().Raw()
-
 				category := operation["type"].(string)
 				resourceType := operation["resource_type"].(string)
 				state := operation["state"].(string)
+				id := operation["id"].(string)
 				reschedulable := operation["reschedule"].(bool)
 				deletionScheduledString := operation["deletion_scheduled"].(string)
 				deletionScheduled, err := time.Parse(time.RFC3339Nano, deletionScheduledString)
@@ -118,7 +133,11 @@ func VerifyOperationExists(ctx *TestContext, operationURL string, expectations O
 					Fail(fmt.Sprintf("Could not parse time %s into format %s: %s", deletionScheduledString, time.RFC3339Nano, err))
 				}
 
+				foundOp := findLastOperationByList(expectations.ResourceType.String(), id)
+
 				switch {
+				case foundOp.ID == "":
+					By(fmt.Sprintf("Last operation was not found by list"))
 				case resourceType != string(expectations.ResourceType.String()):
 					By(fmt.Sprintf("Found operation with object type %s but expected %s. Continue waiting...", resourceType, expectations.ResourceType))
 				case category != string(expectations.Category):
@@ -164,6 +183,12 @@ func VerifyOperationExists(ctx *TestContext, operationURL string, expectations O
 				} else {
 					if objectList.Len() != 0 {
 						op := objectList.ItemAt(0).(*types.Operation)
+						foundOp := findLastOperationByList(expectations.ResourceType.String(), op.ID)
+
+						if foundOp.ID == ""{
+							By("Last operation was not found in resource list")
+						}
+
 						if op.DeletionScheduled.IsZero() == expectations.DeletionScheduled {
 							By("operation matching the expectations was not found. Retrying...")
 						} else if expectations.Error != "" && !strings.Contains(string(op.Errors), expectations.Error) {
