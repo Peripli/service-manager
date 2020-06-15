@@ -42,7 +42,7 @@ var namedQueries = map[NamedQuery]string{
 				WHERE key=:key
 				AND {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}})`,
 	QueryForLastOperationsPerResource:`
-	SELECT id,resource_id,ops.state,type,errors,external_id,description,updated_at,created_at,deletion_scheduled,reschedule_timestamp
+	SELECT id,resource_id,ops.state,type,errors,deletion_scheduled,is_async
 	FROM operations ops 
     inner join
 		 (
@@ -51,9 +51,9 @@ var namedQueries = map[NamedQuery]string{
 			 group by resource_id
 		 ) lastOperationPerResource
 		 on lastOperationPerResource.last_operation_sequence = ops.paging_sequence
-	WHERE resource_id in ({{.RESOURCE_IDS}})`,
+	WHERE resource_id in (?)`,
 	CleanOperations:`
-	SELECT id,resource_id,ops.state,type,errors,external_id,description,updated_at,created_at,deletion_scheduled,reschedule_timestamp
+	SELECT ops.state,type,errors,external_id,description,updated_at,created_at,deletion_scheduled,reschedule_timestamp
 	FROM operations ops 
     left join
 		 (
@@ -62,7 +62,7 @@ var namedQueries = map[NamedQuery]string{
 			 group by resource_id
 		 ) lastOperationPerResource
 		 on lastOperationPerResource.last_operation_sequence= ops.paging_sequence
-	WHERE resource_id in ({{.RESOURCE_IDS}})
+	WHERE resource_id ANY(:RESOURCE_IDS)
 	and lastOperationPerResource.last_operation_sequence is null`,
 }
 

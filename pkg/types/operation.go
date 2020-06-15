@@ -68,20 +68,20 @@ type RelatedType struct {
 type Operation struct {
 	Base
 	Description         string            `json:"description,omitempty"`
-	Type                OperationCategory `json:"type"`
-	State               OperationState    `json:"state"`
-	ResourceID          string            `json:"resource_id"`
+	Type                OperationCategory `json:"type,omitempty"`
+	State               OperationState    `json:"state,omitempty"`
+	ResourceID          string            `json:"resource_id,omitempty"`
 	TransitiveResources []*RelatedType    `json:"transitive_resources,omitempty"`
-	ResourceType        ObjectType        `json:"resource_type"`
+	ResourceType        ObjectType        `json:"resource_type,omitempty"`
 	Errors              json.RawMessage   `json:"errors,omitempty"`
-	PlatformID          string            `json:"platform_id"`
-	CorrelationID       string            `json:"correlation_id"`
+	PlatformID          string            `json:"platform_id,omitempty"`
+	CorrelationID       string            `json:"correlation_id,omitempty"`
 	ExternalID          string            `json:"-"`
 	ParentID            string            `json:"parent_id,omitempty"`
 	CascadeRootID       string            `json:"cascade_root_id,omitempty"`
-	IsAsync				bool			  `json:"is_async"`
+	IsAsync				bool			  `json:"is_async,omitempty"`
 	// Reschedule specifies that the operation has reached a state after which it can be retried (checkpoint)
-	Reschedule bool `json:"reschedule"`
+	Reschedule bool `json:"reschedule,omitempty"`
 	// RescheduleTimestamp is the time when an operation became reschedulable=true for the first time
 	RescheduleTimestamp time.Time `json:"reschedule_timestamp,omitempty"`
 	// DeletionScheduled specifies the time when an operation was marked for deletion

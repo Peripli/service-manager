@@ -124,6 +124,10 @@ func (er *encryptingRepository) QueryExec(ctx context.Context, objectType types.
 	return er.repository.QueryExec(ctx, objectType, queryName, queryParams)
 }
 
+func (er *encryptingRepository) QueryForListWithInStatement(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams []interface{}) (types.ObjectList, error) {
+	return er.repository.QueryForListWithInStatement(ctx, objectType, queryName, queryParams)
+}
+
 func (er *encryptingRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
 	if err := er.encrypt(ctx, obj); err != nil {
 		return nil, err

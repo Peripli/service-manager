@@ -20,10 +20,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/Peripli/service-manager/storage/postgres"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/Peripli/service-manager/operations"
@@ -393,7 +391,8 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	if objectList.Len() >0 {
+	attachLastOps := r.URL.Query().Get("attach_last_operations")
+	if objectList.Len() >0 && attachLastOps == "true" {
 		if err := attachLastOperations(ctx, objectList, c.repository); err != nil {
 			return nil, err
 		}
@@ -512,28 +511,22 @@ func cleanObject(object types.Object) {
 		secured.Sanitize()
 	}
 }
-func getResourceIds(resources types.ObjectList) []string{
-	var resourceIds []string
+func getResourceIds(resources types.ObjectList) []interface{}{
+	var resourceIds []interface{}
 	for i:=0;i<resources.Len();i++{
 		resource := resources.ItemAt(i)
-		resourceIds = append(resourceIds, fmt.Sprintf("'%s'",resource.GetID()))
+		resourceIds = append(resourceIds, resource.GetID())
 	}
 	return resourceIds
 }
 
 func attachLastOperations(ctx context.Context, resources types.ObjectList,repository storage.Repository) error{
-
-	params := map[string]interface{}{
-		"RESOURCE_IDS": postgres.TemplateParam{
-			Value:strings.Join(getResourceIds(resources)[:], ",") ,
-		}}
-
 	instanceLastOpsMap := make(map[string]*types.Operation)
-	resourceLastOps, err := repository.QueryForList(
+	resourceLastOps, err := repository.QueryForListWithInStatement(
 		ctx,
 		types.OperationType,
 		storage.QueryForLastOperationsPerResource,
-		params)
+		getResourceIds(resources))
 
 	if err != nil {
 		return util.HandleStorageError(err, types.OperationType.String())

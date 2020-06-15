@@ -185,6 +185,9 @@ type Repository interface {
 	// Query for list using a name query
 	QueryForList(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (types.ObjectList, error)
 
+	// Query for list using a name query
+	QueryForListWithInStatement(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams []interface{}) (types.ObjectList, error)
+
 	// Exec a query by name
 	QueryExec(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (sql.Result, error)
 

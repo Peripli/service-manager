@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/storage"
@@ -128,8 +129,10 @@ type orderRule struct {
 	orderType query.OrderType
 }
 
-type TemplateParam struct {
-	Value  interface{}
+type InArray []string
+
+func (p InArray) Value() (driver.Value, error) {
+	return driver.Value(strings.Join((p)[:], ",")), nil
 }
 
 // pgQuery is used to construct postgres queries. It should be constructed only via the query builder. It is not safe for concurrent use.
@@ -173,9 +176,7 @@ func (pq *pgQuery) ListNoLabels(ctx context.Context) (*sqlx.Rows, error) {
 }
 
 func (pq *pgQuery) Exec(ctx context.Context, queryName storage.NamedQuery, queryParams map[string]interface{}) (sql.Result, error){
-
-
-	sql, err := tsprintf(storage.GetNamedQuery(queryName), getClarifiedTemplateParams(pq, queryParams))
+	sql, err := tsprintf(storage.GetNamedQuery(queryName), pq.getTemplateParams())
 	if err != nil {
 		return nil, err
 	}
@@ -191,10 +192,24 @@ func (pq *pgQuery) Exec(ctx context.Context, queryName storage.NamedQuery, query
 	return stmt.Exec(queryParams)
 }
 
+func (pq *pgQuery) QueryWithInStatement(ctx context.Context, queryName storage.NamedQuery, queryParams []interface{}) (*sqlx.Rows, error) {
+	sql, err := tsprintf(
+		storage.GetNamedQuery(queryName),
+		pq.getTemplateParams())
+
+	if err != nil {
+		return nil, err
+	}
+
+	q,queryArgs,err := sqlx.In(sql,queryParams)
+	queryRebind := pq.db.Rebind(q)
+	return pq.db.QueryxContext(ctx,queryRebind,queryArgs...)
+}
+
 func (pq *pgQuery) Query(ctx context.Context, queryName storage.NamedQuery, queryParams map[string]interface{}) (*sqlx.Rows, error) {
 	sql, err := tsprintf(
 		storage.GetNamedQuery(queryName),
-		getClarifiedTemplateParams(pq, queryParams))
+		pq.getTemplateParams())
 	if err != nil {
 		return nil, err
 	}
@@ -207,19 +222,6 @@ func (pq *pgQuery) Query(ctx context.Context, queryName storage.NamedQuery, quer
 		return nil, fmt.Errorf("could not prepare statement")
 	}
 	return stmt.Queryx(queryParams)
-}
-
-func getClarifiedTemplateParams(pq *pgQuery, queryParams map[string]interface{}) map[string]interface{} {
-	templateParams := pq.getTemplateParams()
-
-	for key, value := range queryParams {
-		if paramValue, ok := value.(TemplateParam); ok {
-			templateParams[key] = paramValue.Value
-			//Avoid template params with QueryX (Not supported type)
-			delete(queryParams, key)
-		}
-	}
-	return templateParams
 }
 
 func (pq *pgQuery) Count(ctx context.Context) (int, error) {
