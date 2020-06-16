@@ -529,7 +529,7 @@ func attachLastOperations(ctx context.Context, resources types.ObjectList, repos
 	lastOperationsMap, err := getLastOperations(ctx, getResourceIds(resources), repository)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
 	for i := 0; i < resources.Len(); i++ {
@@ -578,7 +578,7 @@ func attachLastOperation(ctx context.Context, objectID string, object types.Obje
 	ops, err := getLastOperations(ctx, []string{objectID}, repository)
 
 	if err != nil {
-		return err;
+		return err
 	}
 
 	if lastOperation, ok := ops[objectID]; ok {

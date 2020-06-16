@@ -109,7 +109,7 @@ func VerifyOperationExists(ctx *TestContext, operationURL string, expectations O
 			return false
 		}
 
-		return true;
+		return true
 	}
 
 	findLastOperationByList := func(resourceURL, id string) types.Operation {

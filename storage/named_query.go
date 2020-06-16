@@ -41,7 +41,7 @@ var namedQueries = map[NamedQuery]string{
 	(SELECT ID FROM {{.LABELS_TABLE}} 
 				WHERE key=:key
 				AND {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}})`,
-	QueryForLastOperationsPerResource:`
+	QueryForLastOperationsPerResource: `
 	SELECT ops.*
 	FROM operations ops 
     inner join
