@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -164,6 +165,8 @@ var _ = Describe("force cascade delete", func() {
 						validateDuplicationHasTheSameState(fullTree)
 						validateNumberOfForceDeletions(fullTree, types.ServiceBindingType, types.SUCCEEDED, 2)
 						validateNumberOfForceDeletions(fullTree, types.ServiceInstanceType, types.FAILED, 1)
+
+						Expect(strings.Contains(string(fullTree.root.Errors), "failed to force cascade delete of")).To(Equal(true))
 					})
 				})
 			})
