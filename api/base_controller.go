@@ -551,7 +551,6 @@ func getLastOperations(ctx context.Context, resourceIDs []string, repository sto
 
 	queryParams := map[string]interface{}{
 		"id_list": resourceIDs,
-		"type":    "CREATED",
 	}
 
 	resourceLastOps, err := repository.QueryForList(

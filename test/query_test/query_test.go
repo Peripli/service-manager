@@ -2,6 +2,7 @@ package query_test
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/pkg/web"
 	"testing"
 	"time"
 
@@ -50,6 +51,124 @@ var _ = Describe("Service Manager Query", func() {
 		}
 	})
 
+	FContext ("Service instance and last operations query test",func(){
+		var serviceInstance1,serviceInstance2 *types.ServiceInstance
+		BeforeEach(func(){
+			_, serviceInstance1 = common.CreateInstanceInPlatform(ctx, ctx.TestPlatform.ID)
+			_, serviceInstance2 = common.CreateInstanceInPlatform(ctx, ctx.TestPlatform.ID)
+		})
+
+		AfterEach(func(){
+			ctx.CleanupAdditionalResources()
+		})
+
+		It("Last operation is returned for a newly created instance", func() {
+			queryParams := map[string]interface{}{
+				"id_list": []string{serviceInstance1.ID},
+			}
+
+			list, err := repository.QueryForList(context.Background(), types.OperationType, storage.QueryForLastOperationsPerResource, queryParams)
+			Expect(err).ShouldNot(HaveOccurred())
+			lastOperation := list.ItemAt(0).(*types.Operation)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(list.Len()).To(BeEquivalentTo(1))
+			Expect(lastOperation.State).To(Equal(types.SUCCEEDED))
+		})
+
+		It("After a new operation is added to an instance", func() {
+			queryParams := map[string]interface{}{
+				"id_list": []string{serviceInstance1.ID},
+			}
+
+			operation := &types.Operation{
+				Base: types.Base{
+					ID:        "my_test_op_latest",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+					Labels:    make(map[string][]string),
+					Ready:     true,
+				},
+				Description:       "my_test_op_latest",
+				Type:              types.CREATE,
+				State:             types.IN_PROGRESS,
+				ResourceID:        serviceInstance1.ID,
+				ResourceType:      web.ServiceInstancesURL,
+				CorrelationID:     "test-correlation-id",
+				Reschedule:        false,
+				DeletionScheduled: time.Time{},
+			}
+
+			_, err := repository.Create(context.Background(), operation)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			list, err := repository.QueryForList(context.Background(), types.OperationType, storage.QueryForLastOperationsPerResource, queryParams)
+			Expect(err).ShouldNot(HaveOccurred())
+			lastOperation := list.ItemAt(0).(*types.Operation)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(list.Len()).To(BeEquivalentTo(1))
+			Expect(lastOperation.State).To(Equal(types.IN_PROGRESS))
+			Expect(list.Len()).To(BeEquivalentTo(1))
+			Expect(lastOperation.ID).To(Equal("my_test_op_latest"))
+		})
+
+
+		It("The last operation for every instances in query is returned", func() {
+			queryParams := map[string]interface{}{
+				"id_list": []string{serviceInstance2.ID,serviceInstance1.ID},
+			}
+			list, err := repository.QueryForList(context.Background(), types.OperationType, storage.QueryForLastOperationsPerResource, queryParams)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(list.Len()).To(BeEquivalentTo(2))
+			lastOperation1 := list.ItemAt(0).(*types.Operation)
+			lastOperation2 := list.ItemAt(1).(*types.Operation)
+			Expect(lastOperation1.State).To(Equal(types.SUCCEEDED))
+			Expect(lastOperation2.State).To(Equal(types.SUCCEEDED))
+		})
+
+		It("Correct last operation is returned after old operations are removed", func() {
+			queryParams := map[string]interface{}{
+				"id_list": []string{serviceInstance1.ID},
+			}
+
+
+			operation := &types.Operation{
+				Base: types.Base{
+					ID:        "my_test_op_latest",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+					Labels:    make(map[string][]string),
+					Ready:     true,
+				},
+				Description:       "my_test_op_latest",
+				Type:              types.CREATE,
+				State:             types.IN_PROGRESS,
+				ResourceID:        serviceInstance1.ID,
+				ResourceType:      web.ServiceInstancesURL,
+				CorrelationID:     "test-correlation-id",
+				Reschedule:        false,
+				DeletionScheduled: time.Time{},
+			}
+
+			_, err := repository.Create(context.Background(), operation)
+
+			list, err := repository.QueryForList(context.Background(), types.OperationType, storage.QueryForLastOperationsPerResource, queryParams)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(list.Len()).To(BeEquivalentTo(1))
+			lastOperation := list.ItemAt(0).(*types.Operation)
+			Expect(lastOperation.ID).To(Equal("my_test_op_latest"))
+
+			criteria := query.ByField(query.EqualsOperator, "id", "my_test_op_latest")
+			err = repository.Delete(context.Background(), types.OperationType,criteria)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			list, err = repository.QueryForList(context.Background(), types.OperationType, storage.QueryForLastOperationsPerResource, queryParams)
+			lastOperation = list.ItemAt(0).(*types.Operation)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(list.Len()).To(BeEquivalentTo(1))
+			Expect(lastOperation.ID).To(Not(Equal("my_test_op_latest")));
+		})
+	})
 	Context("with 2 notification created at different times", func() {
 		var now time.Time
 		var id1, id2 string
