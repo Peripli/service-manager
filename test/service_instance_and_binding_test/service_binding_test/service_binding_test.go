@@ -224,6 +224,28 @@ var _ = DescribeTestsFor(TestCase{
 			})
 
 			Describe("GET", func() {
+
+				Context("when attach_last_operations is truthy", func() {
+					It("list api retrieves the resources list when each resource contains the last operation it is associated to", func() {
+						resp := ctx.SMWithOAuth.GET(t.API).
+							WithQuery("attach_last_operations", "true").
+							Expect().Status(http.StatusOK).
+							JSON()
+						for _, resource := range resp.Path("$.items[*]").Array().Iter() {
+							currentResourceId := resource.Object().Value("id").String().Raw()
+							currentResourceState := resource.Object().Value("ready").Boolean().Raw()
+							lastOp := resource.Object().Value("last_operation")
+
+							Expect(lastOp.Object().Value("resource_id").String().Raw()).To(Equal(currentResourceId))
+							Expect(lastOp.Object().Value("ready").Boolean().Raw()).To(Equal(currentResourceState))
+							Expect(lastOp.Object().Value("state").String().Raw()).To(Equal("succeeded"))
+							Expect(lastOp.Object().Value("resource_type").String().Raw()).ToNot(BeEmpty())
+							Expect(lastOp.Object().Value("type").String().Raw()).ToNot(BeEmpty())
+							Expect(lastOp.Object().Value("deletion_scheduled").String().Raw()).ToNot(BeEmpty())
+						}
+					})
+				})
+
 				When("service binding contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
 						createBinding(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
