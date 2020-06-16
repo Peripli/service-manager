@@ -584,3 +584,10 @@ func count(operations []*types.Operation, condition func(operation *types.Operat
 	}
 	return count
 }
+
+func validateAllOperationsHasTheSameState(fullTree *tree, succeeded types.OperationState, operationsCount int) {
+	By("validating all operations were succeeded")
+	Expect(count(fullTree.allOperations, func(operation *types.Operation) bool {
+		return operation.State == succeeded
+	})).To(Equal(operationsCount))
+}
