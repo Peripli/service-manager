@@ -34,12 +34,13 @@ import (
 )
 
 type OperationExpectations struct {
-	Category          types.OperationCategory
-	State             types.OperationState
-	ResourceType      types.ObjectType
-	Reschedulable     bool
-	DeletionScheduled bool
-	Error             string
+	Category             types.OperationCategory
+	State                types.OperationState
+	ResourceType         types.ObjectType
+	Reschedulable        bool
+	DeletionScheduled    bool
+	SkipLookupByResource bool
+	Error                string
 }
 
 type ResourceExpectations struct {
@@ -110,6 +111,10 @@ func VerifyOperationExists(ctx *TestContext, operationURL string, expectations O
 		}
 
 		if expect.ResourceType == "/v1/tenants" {
+			return false
+		}
+
+		if expect.SkipLookupByResource == true {
 			return false
 		}
 
