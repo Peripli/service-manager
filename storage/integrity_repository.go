@@ -70,10 +70,6 @@ func (cr *integrityRepository) QueryForList(ctx context.Context, objectType type
 	return objectList, nil
 }
 
-func (cr *integrityRepository) QueryForListWithInStatement(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams []interface{}) (types.ObjectList, error) {
-	return cr.repository.QueryForListWithInStatement(ctx, objectType, queryName, queryParams)
-}
-
 func (cr *integrityRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
 	if err := cr.setIntegrity(obj); err != nil {
 		return nil, err

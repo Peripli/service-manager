@@ -60,6 +60,16 @@ var _ = Describe("Service Manager Query", func() {
 			id2 = createNotification(repository, now.Add(-30*time.Minute))
 		})
 
+		It("finds objects by ID in", func() {
+			args := map[string]interface{}{
+				"id_list": []string{id1, id2},
+				"type":    "CREATED",
+			}
+			list, err := repository.QueryForList(context.Background(), types.NotificationType, storage.QueryByTypeAndIDIn, args)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(list.Len()).To(BeEquivalentTo(2))
+		})
+
 		It("notifications older than the provided time should not be found", func() {
 			operand := util.ToRFCNanoFormat(now.Add(-time.Hour))
 			criteria := query.ByField(query.LessThanOperator, "created_at", operand)

@@ -516,8 +516,8 @@ func cleanObject(object types.Object) {
 		secured.Sanitize()
 	}
 }
-func getResourceIds(resources types.ObjectList) []interface{} {
-	var resourceIds []interface{}
+func getResourceIds(resources types.ObjectList) []string {
+	var resourceIds []string
 	for i := 0; i < resources.Len(); i++ {
 		resource := resources.ItemAt(i)
 		resourceIds = append(resourceIds, resource.GetID())
@@ -543,17 +543,22 @@ func attachLastOperations(ctx context.Context, resources types.ObjectList, repos
 	return nil
 }
 
-func getLastOperations(ctx context.Context, resourceIDs []interface{}, repository storage.Repository) (map[string]*types.Operation, error) {
+func getLastOperations(ctx context.Context, resourceIDs []string, repository storage.Repository) (map[string]*types.Operation, error) {
 
 	if len(resourceIDs) == 0 {
 		return nil, nil
 	}
 
-	resourceLastOps, err := repository.QueryForListWithInStatement(
+	queryParams := map[string]interface{}{
+		"id_list": resourceIDs,
+		"type":    "CREATED",
+	}
+
+	resourceLastOps, err := repository.QueryForList(
 		ctx,
 		types.OperationType,
 		storage.QueryForLastOperationsPerResource,
-		resourceIDs)
+		queryParams)
 
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.OperationType.String())
@@ -571,9 +576,7 @@ func getLastOperations(ctx context.Context, resourceIDs []interface{}, repositor
 
 func attachLastOperation(ctx context.Context, objectID string, object types.Object, repository storage.Repository) error {
 
-	args := make([]interface{}, 0)
-	args = append(args, objectID)
-	ops, err := getLastOperations(ctx, args, repository)
+	ops, err := getLastOperations(ctx, []string{objectID}, repository)
 
 	if err != nil {
 		return err;

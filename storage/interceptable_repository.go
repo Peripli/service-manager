@@ -406,10 +406,6 @@ func (itr *InterceptableTransactionalRepository) QueryForList(ctx context.Contex
 	return itr.RawRepository.QueryForList(ctx, objectType, queryName, queryParams)
 }
 
-func (itr *InterceptableTransactionalRepository) QueryForListWithInStatement(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams []interface{}) (types.ObjectList, error) {
-	return itr.RawRepository.QueryForListWithInStatement(ctx, objectType, queryName, queryParams)
-}
-
 func (itr *InterceptableTransactionalRepository) AddCreateAroundTxInterceptorProvider(objectType types.ObjectType, provider CreateAroundTxInterceptorProvider, order InterceptorOrder) {
 	itr.validateCreateProviders(objectType, provider.Name(), order)
 	itr.orderedCreateAroundTxProvidersNames[objectType] = insertName(itr.orderedCreateAroundTxProvidersNames[objectType], order.AroundTxPosition, provider.Name())
