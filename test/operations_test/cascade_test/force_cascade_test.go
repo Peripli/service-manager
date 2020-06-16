@@ -21,7 +21,7 @@ var _ = Describe("force cascade delete", func() {
 		initTenantResources(createInstances)
 	})
 
-	waitCascadingProcessToFinish := func(timeout time.Duration, count int, operationQuery ...query.Criterion) {
+	waitCascadingProcessToFinish := func(timeout time.Duration, expectedTaskCyclesCount int, expectedOperationsCount int, operationQuery ...query.Criterion) {
 		By("waiting cascading process to finish")
 		Eventually(func() int {
 			count, err := ctx.SMRepository.Count(
@@ -31,7 +31,7 @@ var _ = Describe("force cascade delete", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			return count
-		}, timeout).Should(Equal(count))
+		}, timeout*time.Duration(expectedTaskCyclesCount)).Should(Equal(expectedOperationsCount))
 	}
 
 	fetchTree := func(rootID string) *tree {
@@ -50,7 +50,7 @@ var _ = Describe("force cascade delete", func() {
 				It("should marked as succeeded", func() {
 					rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 
-					waitCascadingProcessToFinish(actionTimeout*3+pollCascade*3, 1, queryForRoot(rootID), querySucceeded)
+					waitCascadingProcessToFinish(actionTimeout+pollCascade, subaccountResourcesCount(), 1, queryForRoot(rootID), querySucceeded)
 
 					fullTree := fetchTree(rootID)
 					validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
@@ -73,15 +73,21 @@ var _ = Describe("force cascade delete", func() {
 					})
 
 					rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
-					waitCascadingProcessToFinish(actionTimeout*4+pollCascade*4, 2, queryForOperationsInTheSameTree(rootID), queryFailures, queryForOrphanMitigationOperations, queryForBindingsOperations)
-					waitCascadingProcessToFinish(actionTimeout*2+pollCascade*2, 5, queryForOperationsInTheSameTree(rootID), querySucceeded, queryForInstanceOperations)
+
+					queryForBindingsInOrphanMitigation := []query.Criterion{queryForOperationsInTheSameTree(rootID), queryFailures, queryForOrphanMitigationOperations, queryForBindingsOperations}
+					waitCascadingProcessToFinish(2*(actionTimeout+pollCascade), subaccountResources[types.ServiceBindingType], 2, queryForBindingsInOrphanMitigation...)
+
+					queryForSucceededInstances := []query.Criterion{queryForOperationsInTheSameTree(rootID), querySucceeded, queryForInstanceOperations}
+					waitCascadingProcessToFinish(actionTimeout+pollCascade, subaccountResources[types.ServiceInstanceType], 5, queryForSucceededInstances...)
 
 					tenantBrokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
 						return http.StatusOK, common.Object{"state": "succeeded"}
 					})
 
-					waitCascadingProcessToFinish(actionTimeout*2+maintainerRetry*2+cascadeOrphanMitigation*4, 4, queryForBindingsOperations, queryForOperationsInTheSameTree(rootID), querySucceeded)
-					waitCascadingProcessToFinish(actionTimeout*8+maintainerRetry*8, 1, queryForRoot(rootID), querySucceeded)
+					queryForSucceededBindings := []query.Criterion{queryForBindingsOperations, queryForOperationsInTheSameTree(rootID), querySucceeded}
+					waitCascadingProcessToFinish(actionTimeout+maintainerRetry+cascadeOrphanMitigation, subaccountResources[types.ServiceBindingType], 4, queryForSucceededBindings...)
+
+					waitCascadingProcessToFinish(actionTimeout+maintainerRetry, subaccountResourcesCount(), 1, queryForRoot(rootID), querySucceeded)
 
 					fullTree := fetchTree(rootID)
 					validateParentsRanAfterChildren(fullTree)
@@ -101,7 +107,7 @@ var _ = Describe("force cascade delete", func() {
 					newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKey{}, "containerID")
 					rootID := triggerCascadeOperation(newCtx, types.TenantType, tenantID, true)
 
-					waitCascadingProcessToFinish(actionTimeout*3+pollCascade*3, 1, queryForRoot(rootID), querySucceeded)
+					waitCascadingProcessToFinish(actionTimeout+pollCascade, subaccountResourcesCount(), 1, queryForRoot(rootID), querySucceeded)
 
 					fullTree := fetchTree(rootID)
 					validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
@@ -117,7 +123,7 @@ var _ = Describe("force cascade delete", func() {
 					registerBindingLastOPHandlers(tenantBrokerServer, http.StatusInternalServerError, types.FAILED)
 					rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 
-					waitCascadingProcessToFinish(actionTimeout*3+pollCascade*3, 1, queryForOperationsInTheSameTree(rootID), queryForRoot(rootID), querySucceeded)
+					waitCascadingProcessToFinish(actionTimeout+pollCascade, subaccountResourcesCount(), 1, queryForOperationsInTheSameTree(rootID), queryForRoot(rootID), querySucceeded)
 
 					fullTree := fetchTree(rootID)
 					validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
@@ -137,7 +143,7 @@ var _ = Describe("force cascade delete", func() {
 						registerInstanceLastOPHandlers(globalBrokerServer, http.StatusInternalServerError, types.FAILED)
 						rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 
-						waitCascadingProcessToFinish(actionTimeout*7+pollCascade*7, 1, queryForRoot(rootID), querySucceeded)
+						waitCascadingProcessToFinish(actionTimeout+pollCascade, subaccountResourcesCount(), 1, queryForRoot(rootID), querySucceeded)
 
 						fullTree := fetchTree(rootID)
 						validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
@@ -158,7 +164,7 @@ var _ = Describe("force cascade delete", func() {
 							"organization_guid": "my-org",
 						})
 
-						waitCascadingProcessToFinish(actionTimeout*5+pollCascade*5, 1, queryForRoot(rootID), queryFailures)
+						waitCascadingProcessToFinish(actionTimeout+pollCascade, subaccountResourcesCount(), 1, queryForRoot(rootID), queryFailures)
 
 						fullTree := fetchTree(rootID)
 						validateParentsRanAfterChildren(fullTree)
@@ -197,7 +203,7 @@ var _ = Describe("force cascade delete", func() {
 						})
 						rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 
-						waitCascadingProcessToFinish(actionTimeout*5+pollCascade*5, 1, queryForRoot(rootID), querySucceeded)
+						waitCascadingProcessToFinish(actionTimeout+pollCascade, subaccountResourcesCount(), 1, queryForRoot(rootID), querySucceeded)
 
 						fullTree := fetchTree(rootID)
 						validateNumberOfForceDeletions(fullTree, types.ServiceInstanceType, types.SUCCEEDED, 1)
@@ -216,7 +222,7 @@ var _ = Describe("force cascade delete", func() {
 							"organization_guid": "my-org",
 						})
 
-						waitCascadingProcessToFinish(actionTimeout*3+pollCascade*3, 1, queryForRoot(rootID), queryFailures)
+						waitCascadingProcessToFinish(actionTimeout+pollCascade, subaccountResourcesCount(), 1, queryForRoot(rootID), queryFailures)
 
 						fullTree := fetchTree(rootID)
 						validateNumberOfForceDeletions(fullTree, types.ServiceInstanceType, types.FAILED, 1)
@@ -232,7 +238,7 @@ var _ = Describe("force cascade delete", func() {
 
 	It("tenant with no children", func() {
 		rootID := triggerCascadeOperation(context.Background(), types.TenantType, "some-tenant", true)
-		waitCascadingProcessToFinish(actionTimeout*5+pollCascade*5, 1, queryForRoot(rootID), querySucceeded)
+		waitCascadingProcessToFinish(actionTimeout+pollCascade, subaccountResourcesCount(), 1, queryForRoot(rootID), querySucceeded)
 	})
 
 	Context("delete instance", func() {
@@ -264,7 +270,7 @@ var _ = Describe("force cascade delete", func() {
 					"organization_guid": "my-org",
 				})
 
-				waitCascadingProcessToFinish(actionTimeout*2+pollCascade*2, 1, queryForRoot(rootID), queryFailures)
+				waitCascadingProcessToFinish(actionTimeout+pollCascade, subaccountResourcesCount(), 1, queryForRoot(rootID), queryFailures)
 			})
 		})
 
@@ -274,7 +280,7 @@ var _ = Describe("force cascade delete", func() {
 					return http.StatusBadRequest, common.Object{}
 				})
 				rootID := triggerCascadeOperation(context.Background(), types.ServiceInstanceType, osbInstanceID, true)
-				waitCascadingProcessToFinish(actionTimeout*2+pollCascade*2, 1, queryForRoot(rootID), querySucceeded)
+				waitCascadingProcessToFinish(actionTimeout+pollCascade, subaccountResourcesCount(), 1, queryForRoot(rootID), querySucceeded)
 			})
 		})
 	})

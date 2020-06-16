@@ -53,6 +53,8 @@ var (
 	queryForOrphanMitigationOperations query.Criterion
 	querySucceeded                     query.Criterion
 	queryFailures                      query.Criterion
+
+	subaccountResources = make(map[types.ObjectType]int)
 )
 
 const (
@@ -143,9 +145,11 @@ func registerGlobalBroker(ctx *TestContext, serviceNameID string, planID string)
 }
 
 func initTenantResources(createInstances bool) {
+	subaccountResources[types.PlatformType]++
 	globalBrokerID, globalBrokerServer = registerGlobalBroker(ctx, "global-service", "global-plan")
 	tenantBrokerID, tenantBrokerServer = registertenantScopedBroker(ctx, "test-service", "plan-service")
 
+	subaccountResources[types.ServiceBrokerType]++
 	var tenantPlatformUser, tenantPlatformSecret string
 	platformID, tenantPlatformUser, tenantPlatformSecret = registertenantScopedPlatform(ctx, "platform1")
 
@@ -224,6 +228,7 @@ func initTenantResources(createInstances bool) {
 }
 
 func createOSBInstance(ctx *TestContext, sm *SMExpect, brokerID string, instanceID string, osbContext map[string]interface{}) {
+	subaccountResources[types.ServiceInstanceType]++
 	smBrokerURL := ctx.Servers[SMServer].URL() + "/v1/osb/" + brokerID
 	sm.PUT(smBrokerURL+"/v2/service_instances/"+instanceID).
 		WithHeader("X-Broker-API-Version", "2.13").
@@ -234,6 +239,7 @@ func createOSBInstance(ctx *TestContext, sm *SMExpect, brokerID string, instance
 }
 
 func createSMAAPInstance(ctx *TestContext, sm *SMExpect, context map[string]interface{}) string {
+	subaccountResources[types.ServiceInstanceType]++
 	smBrokerURL := ctx.Servers[SMServer].URL()
 	return sm.POST(smBrokerURL+web.ServiceInstancesURL).
 		WithQuery("async", false).
@@ -243,6 +249,7 @@ func createSMAAPInstance(ctx *TestContext, sm *SMExpect, context map[string]inte
 }
 
 func createSMAAPBinding(ctx *TestContext, sm *SMExpect, context map[string]interface{}) string {
+	subaccountResources[types.ServiceBindingType]++
 	smBrokerURL := ctx.Servers[SMServer].URL()
 	return sm.POST(smBrokerURL+web.ServiceBindingsURL).
 		WithQuery("async", false).
@@ -252,6 +259,7 @@ func createSMAAPBinding(ctx *TestContext, sm *SMExpect, context map[string]inter
 }
 
 func createOSBBinding(ctx *TestContext, sm *SMExpect, brokerID string, instanceID string, bindingID string, osbContext map[string]interface{}) {
+	subaccountResources[types.ServiceBindingType]++
 	smBrokerURL := ctx.Servers[SMServer].URL() + "/v1/osb/" + brokerID
 	sm.PUT(smBrokerURL+"/v2/service_instances/"+instanceID+"/service_bindings/"+bindingID).
 		WithHeader("X-Broker-API-Version", "2.13").
@@ -590,4 +598,8 @@ func validateAllOperationsHasTheSameState(fullTree *tree, succeeded types.Operat
 	Expect(count(fullTree.allOperations, func(operation *types.Operation) bool {
 		return operation.State == succeeded
 	})).To(Equal(operationsCount))
+}
+
+func subaccountResourcesCount() int {
+	return 2 * len(subaccountResources)
 }
