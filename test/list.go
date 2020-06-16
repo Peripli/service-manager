@@ -486,24 +486,6 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 				})
 			}
 
-			FContext("when attach_last_operations is truthy", func() {
-				FIt("list api retrieves the resources list when each resource contains the lastt operation it is associated to", func() {
-					resp := ctx.SMWithOAuth.GET(t.API).WithQuery("attach_last_operations", "true").Expect().Status(http.StatusOK).JSON()//.Object()
-					for _, resource := range resp.Path("$.items[*]").Array().Iter() {
-						currentResourceId := resource.Object().Value("id").String().Raw()
-						currentResourceState := resource.Object().Value("ready").Boolean().Raw()
-						lastOp := resource.Object().Value("last_operation")
-
-						Expect(lastOp.Object().Value("resource_id").String().Raw()).To(Equal(currentResourceId))
-						Expect(lastOp.Object().Value("ready").Boolean().Raw()).To(Equal(currentResourceState))
-						Expect(lastOp.Object().Value("state").String().Raw()).To(Equal("succeeded"))
-						Expect(lastOp.Object().Value("resource_type").String().Raw()).ToNot(BeEmpty())
-						Expect(lastOp.Object().Value("type").String().Raw()).ToNot(BeEmpty())
-						Expect(lastOp.Object().Value("deletion_scheduled").String().Raw()).ToNot(BeEmpty())
-					}
-				})
-			})
-
 			Context("Paging", func() {
 				Context("with max items query", func() {
 					It("returns smaller pages token and Link header", func() {
