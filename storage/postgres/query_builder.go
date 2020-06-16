@@ -174,7 +174,13 @@ func (pq *pgQuery) Query(ctx context.Context, queryName storage.NamedQuery, quer
 		return nil, err
 	}
 	sql, args, err := sqlx.Named(sql, queryParams)
+	if err != nil {
+		return nil, err
+	}
 	sql, args, err = sqlx.In(sql, args...)
+	if err != nil {
+		return nil, err
+	}
 	sql = pq.db.Rebind(sql)
 
 	return pq.db.QueryxContext(ctx, sql, args...)
