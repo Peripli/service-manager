@@ -834,7 +834,7 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 		ON visibilities.id = visibility_labels.visibility_id
 	WHERE NOT EXISTS
 	(SELECT ID FROM visibility_labels 
-				WHERE key=:key
+				WHERE key=?
 				AND visibilities.id = visibility_labels.visibility_id)`))
 
 			})
@@ -859,7 +859,7 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 		ON visibilities.id = visibility_labels.visibility_id
 	WHERE EXISTS
 	(SELECT ID FROM visibility_labels 
-				WHERE key=:key
+				WHERE key=?
 				AND visibilities.id = visibility_labels.visibility_id)`))
 			})
 		})
