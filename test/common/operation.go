@@ -109,6 +109,10 @@ func VerifyOperationExists(ctx *TestContext, operationURL string, expectations O
 			return false
 		}
 
+		if expect.ResourceType == "/v1/tenants" {
+			return false
+		}
+
 		return true
 	}
 
