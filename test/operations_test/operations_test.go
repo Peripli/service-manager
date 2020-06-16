@@ -449,12 +449,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect(object).To(Not(BeNil()))
 
 							VerifyOperationExists(ctx, "", OperationExpectations{
-								Category:             operation.Type,
-								State:                types.FAILED,
-								ResourceType:         operation.ResourceType,
-								Reschedulable:        false,
-								DeletionScheduled:    true,
-								SkipLookupByResource: true,
+								Category:          operation.Type,
+								State:             types.FAILED,
+								ResourceType:      operation.ResourceType,
+								Reschedulable:     false,
+								DeletionScheduled: true,
 							})
 						})
 					})
@@ -468,12 +467,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect(object).To(Not(BeNil()))
 
 							VerifyOperationExists(ctx, "", OperationExpectations{
-								Category:             operation.Type,
-								State:                types.FAILED,
-								ResourceType:         operation.ResourceType,
-								Reschedulable:        false,
-								DeletionScheduled:    true,
-								SkipLookupByResource: true,
+								Category:          operation.Type,
+								State:             types.FAILED,
+								ResourceType:      operation.ResourceType,
+								Reschedulable:     false,
+								DeletionScheduled: true,
 							})
 						})
 					})
@@ -487,12 +485,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect(object).To(Not(BeNil()))
 
 							VerifyOperationExists(ctx, "", OperationExpectations{
-								Category:             operation.Type,
-								State:                types.FAILED,
-								ResourceType:         operation.ResourceType,
-								Reschedulable:        false,
-								DeletionScheduled:    false,
-								SkipLookupByResource: true,
+								Category:          operation.Type,
+								State:             types.FAILED,
+								ResourceType:      operation.ResourceType,
+								Reschedulable:     false,
+								DeletionScheduled: false,
 							})
 						})
 					})
