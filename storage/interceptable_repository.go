@@ -121,10 +121,6 @@ func (ir *queryScopedInterceptableRepository) QueryForList(ctx context.Context, 
 	return ir.repositoryInTransaction.QueryForList(ctx, objectType, queryName, queryParams)
 }
 
-func (ir *queryScopedInterceptableRepository) QueryForListWithInStatement(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams []interface{}) (types.ObjectList, error) {
-	return ir.QueryForListWithInStatement(ctx, objectType, queryName, queryParams)
-}
-
 func (ir *queryScopedInterceptableRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
 	createObjectFunc := func(ctx context.Context, _ Repository, newObject types.Object) (types.Object, error) {
 		createdObj, err := ir.repositoryInTransaction.Create(ctx, newObject)
