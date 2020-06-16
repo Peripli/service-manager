@@ -13,18 +13,18 @@ import (
 
 var createInstances = true
 
-var _ = Describe("cascade force delete", func() {
+var _ = Describe("force cascade delete", func() {
 	JustBeforeEach(func() {
 		initTenantResources(createInstances)
 	})
 
-	Context("delete tenant with full tree of resources", func() {
-		When("should succeeded", func() {
-			BeforeEach(func() {
-				createInstances = true
-			})
+	Context("tenant with multilevel subtree", func() {
+		BeforeEach(func() {
+			createInstances = true
+		})
 
-			It("delete all resources without using force", func() {
+		Context("should succeed", func() {
+			It("without errors", func() {
 				rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 
 				By("waiting cascading process to finish")
@@ -48,7 +48,7 @@ var _ = Describe("cascade force delete", func() {
 				validateCountOfOperationsThatDeletedUsingForce(fullTree, types.ServiceInstanceType, 0)
 			})
 
-			It("delete all resources without using force, include instances in orphan mitigation", func() {
+			It("without errors and one of the instances is in orphan mitigation", func() {
 				pollingCount := 0
 				tenantBrokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
 					if pollingCount == 0 {
@@ -125,7 +125,7 @@ var _ = Describe("cascade force delete", func() {
 				validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
 			})
 
-			It("delete tenant instance using force", func() {
+			It("with deprovision errors", func() {
 				globalBrokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", func(req *http.Request) (int, map[string]interface{}) {
 					return http.StatusAccepted, common.Object{"async": true}
 				})
@@ -154,7 +154,7 @@ var _ = Describe("cascade force delete", func() {
 				validateCountOfOperationsThatDeletedUsingForce(fullTree, types.ServiceInstanceType, 3)
 			})
 
-			It("delete tenant container using force", func() {
+			It("with container deprovision errors", func() {
 				// tree contains this branch: sa(root) -> platform -> instance(container) -> instance(in container) -> binding
 				createContainerWithChildren()
 				// binding under container will have failed state in operation, failure will propagate up through the container as well
@@ -186,7 +186,7 @@ var _ = Describe("cascade force delete", func() {
 				validateCountOfOperationsThatDeletedUsingForce(fullTree, types.ServiceBindingType, 3)
 			})
 
-			It("delete tenant binding using force", func() {
+			It("with unbind errors", func() {
 				registerBindingLastOPHandlers(tenantBrokerServer, http.StatusInternalServerError, types.FAILED)
 				rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 
@@ -213,8 +213,8 @@ var _ = Describe("cascade force delete", func() {
 			})
 		})
 
-		When("should failed", func() {
-			It("delete instance using force", func() {
+		Context("should fail", func() {
+			It("with database errors", func() {
 				registerBindingLastOPHandlers(tenantBrokerServer, http.StatusInternalServerError, types.FAILED)
 				rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 				createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, "binding3", map[string]interface{}{
@@ -254,7 +254,7 @@ var _ = Describe("cascade force delete", func() {
 		})
 	})
 
-	Context("tenant without full tree of resources", func() {
+	Context("tenant with one level subtree", func() {
 		BeforeEach(func() {
 			createInstances = false
 		})
@@ -271,8 +271,8 @@ var _ = Describe("cascade force delete", func() {
 			})
 		})
 
-		When("should succeeded", func() {
-			It("delete tenant with one child", func() {
+		When("should succeed", func() {
+			It("with deprovision errors", func() {
 				globalBrokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", func(req *http.Request) (int, map[string]interface{}) {
 					return http.StatusBadRequest, common.Object{}
 				})
@@ -298,26 +298,13 @@ var _ = Describe("cascade force delete", func() {
 					return operation.State == types.SUCCEEDED && operation.ResourceType == types.ServiceInstanceType && len(operation.Errors) > 2
 				})).To(Equal(1))
 			})
-
-			It("delete tenant without children", func() {
-				rootID := triggerCascadeOperation(context.Background(), types.TenantType, "some-tenant", true)
-
-				By("waiting cascading process to finish")
-				Eventually(func() int {
-					count, err := ctx.SMRepository.Count(
-						context.Background(),
-						types.OperationType,
-						queryForRoot(rootID),
-						querySucceeded)
-					Expect(err).NotTo(HaveOccurred())
-
-					return count
-				}, actionTimeout*5+pollCascade*5).Should(Equal(1))
-			})
 		})
 
-		When("should failed", func() {
-			It("delete tenant with one child", func() {
+		When("should fail", func() {
+			It("with database errors", func() {
+				globalBrokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", func(req *http.Request) (int, map[string]interface{}) {
+					return http.StatusBadRequest, common.Object{}
+				})
 				rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 				createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, "binding3", map[string]interface{}{
 					"service_id":        "global-service",
@@ -351,7 +338,23 @@ var _ = Describe("cascade force delete", func() {
 		})
 	})
 
-	Context("delete instance", func() {
+	It("tenant with no children", func() {
+		rootID := triggerCascadeOperation(context.Background(), types.TenantType, "some-tenant", true)
+
+		By("waiting cascading process to finish")
+		Eventually(func() int {
+			count, err := ctx.SMRepository.Count(
+				context.Background(),
+				types.OperationType,
+				queryForRoot(rootID),
+				querySucceeded)
+			Expect(err).NotTo(HaveOccurred())
+
+			return count
+		}, actionTimeout*5+pollCascade*5).Should(Equal(1))
+	})
+
+	Context("instance", func() {
 		BeforeEach(func() {
 			createInstances = false
 		})
@@ -368,8 +371,8 @@ var _ = Describe("cascade force delete", func() {
 			})
 		})
 
-		When("should failed", func() {
-			It("delete instance without children using force", func() {
+		When("should fail", func() {
+			It("with database errors", func() {
 				globalBrokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", func(req *http.Request) (int, map[string]interface{}) {
 					return http.StatusBadRequest, common.Object{}
 				})
@@ -392,8 +395,8 @@ var _ = Describe("cascade force delete", func() {
 			})
 		})
 
-		When("should succeeded", func() {
-			It("delete instance without children using force", func() {
+		When("should succeed", func() {
+			It("with deprovision errors", func() {
 				globalBrokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", func(req *http.Request) (int, map[string]interface{}) {
 					return http.StatusBadRequest, common.Object{}
 				})
