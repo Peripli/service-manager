@@ -13,7 +13,7 @@ import (
 
 var createInstances = true
 
-var _ = FDescribe("force cascade delete", func() {
+var _ = Describe("force cascade delete", func() {
 	JustBeforeEach(func() {
 		initTenantResources(createInstances)
 	})
