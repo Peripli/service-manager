@@ -816,7 +816,7 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 
 	Describe("Query", func() {
 		Context("when query by missing label with params ", func() {
-			FIt("builds a valid query", func() {
+			It("builds a valid query", func() {
 				params := map[string]interface{}{
 					"key": "subaccount_id"}
 
