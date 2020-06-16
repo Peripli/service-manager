@@ -29,7 +29,6 @@ var _ = Describe("force cascade delete", func() {
 				types.OperationType,
 				operationQuery...)
 			Expect(err).NotTo(HaveOccurred())
-
 			return count
 		}, timeout*time.Duration(expectedTaskCyclesCount)).Should(Equal(expectedOperationsCount))
 	}
