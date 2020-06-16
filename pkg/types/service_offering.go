@@ -45,7 +45,7 @@ type ServiceOffering struct {
 	CatalogID   string `json:"catalog_id"`
 	CatalogName string `json:"catalog_name"`
 
-	Plans []*ServicePlan `json:"plans"`
+	Plans []*ServicePlan `json:"plans,omitempty"`
 }
 
 func (e *ServiceOffering) Equals(obj Object) bool {
