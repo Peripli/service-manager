@@ -3,12 +3,14 @@ package cascade_test
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/types/cascade"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"net/http"
+	"time"
 )
 
 var createInstances bool
@@ -17,6 +19,25 @@ var _ = Describe("force cascade delete", func() {
 	JustBeforeEach(func() {
 		initTenantResources(createInstances)
 	})
+
+	waitCascadingProcessToFinish := func(timeout time.Duration, count int, operationQuery ...query.Criterion) {
+		By("waiting cascading process to finish")
+		Eventually(func() int {
+			count, err := ctx.SMRepository.Count(
+				context.Background(),
+				types.OperationType,
+				operationQuery...)
+			Expect(err).NotTo(HaveOccurred())
+
+			return count
+		}, timeout).Should(Equal(count))
+	}
+
+	fetchTree := func(rootID string) *tree {
+		fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
+		Expect(err).ToNot(HaveOccurred())
+		return fullTree
+	}
 
 	Context("delete tenant", func() {
 		Context("tenant with multilevel subtree", func() {
@@ -28,21 +49,9 @@ var _ = Describe("force cascade delete", func() {
 				It("should marked as succeeded", func() {
 					rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 
-					By("waiting cascading process to finish")
-					Eventually(func() int {
-						count, err := ctx.SMRepository.Count(
-							context.Background(),
-							types.OperationType,
-							queryForRoot(rootID),
-							querySucceeded)
-						Expect(err).NotTo(HaveOccurred())
+					waitCascadingProcessToFinish(actionTimeout*3+pollCascade*3, 1, queryForRoot(rootID), querySucceeded)
 
-						return count
-					}, actionTimeout*3+pollCascade*3).Should(Equal(1))
-
-					fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
-					Expect(err).ToNot(HaveOccurred())
-
+					fullTree := fetchTree(rootID)
 					validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
 					validateParentsRanAfterChildren(fullTree)
 					validateDuplicationHasTheSameState(fullTree)
@@ -63,66 +72,17 @@ var _ = Describe("force cascade delete", func() {
 					})
 
 					rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
-
-					By("validating binding failed and marked as orphan mitigation")
-					Eventually(func() int {
-						count, err := ctx.SMRepository.Count(
-							context.Background(),
-							types.OperationType,
-							queryForOperationsInTheSameTree(rootID),
-							queryFailures,
-							queryForOrphanMitigationOperations,
-							queryForBindingsOperations)
-						Expect(err).NotTo(HaveOccurred())
-
-						return count
-					}, actionTimeout*4+pollCascade*4).Should(Equal(2))
-
-					By("validating that instances without bindings were deleted")
-					Eventually(func() int {
-						count, err := ctx.SMRepository.Count(
-							context.Background(),
-							types.OperationType,
-							queryForOperationsInTheSameTree(rootID),
-							querySucceeded,
-							queryForInstanceOperations)
-						Expect(err).NotTo(HaveOccurred())
-
-						return count
-					}, actionTimeout*2+pollCascade*2).Should(Equal(5))
+					waitCascadingProcessToFinish(actionTimeout*4+pollCascade*4, 2, queryForOperationsInTheSameTree(rootID), queryFailures, queryForOrphanMitigationOperations, queryForBindingsOperations)
+					waitCascadingProcessToFinish(actionTimeout*2+pollCascade*2, 5, queryForOperationsInTheSameTree(rootID), querySucceeded, queryForInstanceOperations)
 
 					tenantBrokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", func(req *http.Request) (int, map[string]interface{}) {
 						return http.StatusOK, common.Object{"state": "succeeded"}
 					})
 
-					By("validating bindings released from orphan mitigation and mark as succeeded")
-					Eventually(func() int {
-						count, err := ctx.SMRepository.Count(
-							context.Background(),
-							types.OperationType,
-							queryForBindingsOperations,
-							queryForOperationsInTheSameTree(rootID),
-							querySucceeded)
-						Expect(err).NotTo(HaveOccurred())
+					waitCascadingProcessToFinish(actionTimeout*2+maintainerRetry*2+cascadeOrphanMitigation*4, 4, queryForBindingsOperations, queryForOperationsInTheSameTree(rootID), querySucceeded)
+					waitCascadingProcessToFinish(actionTimeout*8+maintainerRetry*8, 1, queryForRoot(rootID), querySucceeded)
 
-						return count
-					}, actionTimeout*2+maintainerRetry*2+cascadeOrphanMitigation*4).Should(Equal(4))
-
-					By("validating root is succeeded")
-					Eventually(func() int {
-						count, err := ctx.SMRepository.Count(
-							context.Background(),
-							types.OperationType,
-							queryForRoot(rootID),
-							querySucceeded)
-						Expect(err).NotTo(HaveOccurred())
-
-						return count
-					}, actionTimeout*8+maintainerRetry*8).Should(Equal(1))
-
-					fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
-					Expect(err).NotTo(HaveOccurred())
-
+					fullTree := fetchTree(rootID)
 					validateParentsRanAfterChildren(fullTree)
 					validateDuplicationHasTheSameState(fullTree)
 					validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
@@ -140,21 +100,9 @@ var _ = Describe("force cascade delete", func() {
 					newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKey{}, "containerID")
 					rootID := triggerCascadeOperation(newCtx, types.TenantType, tenantID, true)
 
-					By("waiting cascading process to finish")
-					Eventually(func() int {
-						count, err := ctx.SMRepository.Count(
-							context.Background(),
-							types.OperationType,
-							queryForRoot(rootID),
-							querySucceeded)
-						Expect(err).NotTo(HaveOccurred())
+					waitCascadingProcessToFinish(actionTimeout*3+pollCascade*3, 1, queryForRoot(rootID), querySucceeded)
 
-						return count
-					}, actionTimeout*3+pollCascade*3).Should(Equal(1))
-
-					fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
-					Expect(err).ToNot(HaveOccurred())
-
+					fullTree := fetchTree(rootID)
 					validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
 					validateParentsRanAfterChildren(fullTree)
 					validateDuplicationHasTheSameState(fullTree)
@@ -168,21 +116,9 @@ var _ = Describe("force cascade delete", func() {
 					registerBindingLastOPHandlers(tenantBrokerServer, http.StatusInternalServerError, types.FAILED)
 					rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 
-					By("waiting cascading process to finish")
-					Eventually(func() int {
-						count, err := ctx.SMRepository.Count(
-							context.Background(),
-							types.OperationType,
-							queryForRoot(rootID),
-							querySucceeded)
-						Expect(err).NotTo(HaveOccurred())
+					waitCascadingProcessToFinish(actionTimeout*3+pollCascade*3, 1, queryForOperationsInTheSameTree(rootID), queryForRoot(rootID), querySucceeded)
 
-						return count
-					}, actionTimeout*3+pollCascade*3).Should(Equal(1))
-
-					fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
-					Expect(err).ToNot(HaveOccurred())
-
+					fullTree := fetchTree(rootID)
 					validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
 					validateParentsRanAfterChildren(fullTree)
 					validateDuplicationHasTheSameState(fullTree)
@@ -200,21 +136,9 @@ var _ = Describe("force cascade delete", func() {
 						registerInstanceLastOPHandlers(globalBrokerServer, http.StatusInternalServerError, types.FAILED)
 						rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 
-						By("waiting cascading process to finish")
-						Eventually(func() int {
-							count, err := ctx.SMRepository.Count(
-								context.Background(),
-								types.OperationType,
-								queryForRoot(rootID),
-								querySucceeded)
-							Expect(err).NotTo(HaveOccurred())
+						waitCascadingProcessToFinish(actionTimeout*7+pollCascade*7, 1, queryForRoot(rootID), querySucceeded)
 
-							return count
-						}, actionTimeout*7+pollCascade*7).Should(Equal(1))
-
-						fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
-						Expect(err).ToNot(HaveOccurred())
-
+						fullTree := fetchTree(rootID)
 						validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
 						validateParentsRanAfterChildren(fullTree)
 						validateDuplicationHasTheSameState(fullTree)
@@ -233,30 +157,16 @@ var _ = Describe("force cascade delete", func() {
 							"organization_guid": "my-org",
 						})
 
-						By("waiting cascading process to finish")
-						Eventually(func() int {
-							count, err := ctx.SMRepository.Count(
-								context.Background(),
-								types.OperationType,
-								queryForRoot(rootID),
-								queryFailures)
-							Expect(err).NotTo(HaveOccurred())
+						waitCascadingProcessToFinish(actionTimeout*5+pollCascade*5, 1, queryForRoot(rootID), queryFailures)
 
-							return count
-						}, actionTimeout*5+pollCascade*5).Should(Equal(1))
-
-						fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
-						Expect(err).ToNot(HaveOccurred())
-
+						fullTree := fetchTree(rootID)
 						validateParentsRanAfterChildren(fullTree)
 						validateDuplicationHasTheSameState(fullTree)
-
 						validateNumberOfForceDeletions(fullTree, types.ServiceBindingType, types.SUCCEEDED, 2)
 						validateNumberOfForceDeletions(fullTree, types.ServiceInstanceType, types.FAILED, 1)
 					})
 				})
 			})
-
 		})
 
 		Context("tenant with one level subtree", func() {
@@ -284,21 +194,9 @@ var _ = Describe("force cascade delete", func() {
 						})
 						rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 
-						By("waiting cascading process to finish")
-						Eventually(func() int {
-							count, err := ctx.SMRepository.Count(
-								context.Background(),
-								types.OperationType,
-								queryForRoot(rootID),
-								querySucceeded)
-							Expect(err).NotTo(HaveOccurred())
+						waitCascadingProcessToFinish(actionTimeout*5+pollCascade*5, 1, queryForRoot(rootID), querySucceeded)
 
-							return count
-						}, actionTimeout*5+pollCascade*5).Should(Equal(1))
-
-						fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
-						Expect(err).ToNot(HaveOccurred())
-
+						fullTree := fetchTree(rootID)
 						validateNumberOfForceDeletions(fullTree, types.ServiceInstanceType, types.SUCCEEDED, 1)
 					})
 				})
@@ -315,21 +213,9 @@ var _ = Describe("force cascade delete", func() {
 							"organization_guid": "my-org",
 						})
 
-						By("waiting cascading process to finish")
-						Eventually(func() int {
-							count, err := ctx.SMRepository.Count(
-								context.Background(),
-								types.OperationType,
-								queryForRoot(rootID),
-								queryFailures)
-							Expect(err).NotTo(HaveOccurred())
+						waitCascadingProcessToFinish(actionTimeout*3+pollCascade*3, 1, queryForRoot(rootID), queryFailures)
 
-							return count
-						}, actionTimeout*3+pollCascade*3).Should(Equal(1))
-
-						fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
-						Expect(err).ToNot(HaveOccurred())
-
+						fullTree := fetchTree(rootID)
 						validateNumberOfForceDeletions(fullTree, types.ServiceInstanceType, types.FAILED, 1)
 
 						Expect(count(fullTree.allOperations, func(operation *types.Operation) bool {
@@ -343,18 +229,7 @@ var _ = Describe("force cascade delete", func() {
 
 	It("tenant with no children", func() {
 		rootID := triggerCascadeOperation(context.Background(), types.TenantType, "some-tenant", true)
-
-		By("waiting cascading process to finish")
-		Eventually(func() int {
-			count, err := ctx.SMRepository.Count(
-				context.Background(),
-				types.OperationType,
-				queryForRoot(rootID),
-				querySucceeded)
-			Expect(err).NotTo(HaveOccurred())
-
-			return count
-		}, actionTimeout*5+pollCascade*5).Should(Equal(1))
+		waitCascadingProcessToFinish(actionTimeout*5+pollCascade*5, 1, queryForRoot(rootID), querySucceeded)
 	})
 
 	Context("delete instance", func() {
@@ -385,16 +260,8 @@ var _ = Describe("force cascade delete", func() {
 					"plan_id":           "global-plan",
 					"organization_guid": "my-org",
 				})
-				Eventually(func() int {
-					count, err := ctx.SMRepository.Count(
-						context.Background(),
-						types.OperationType,
-						queryForRoot(rootID),
-						queryFailures)
-					Expect(err).NotTo(HaveOccurred())
 
-					return count
-				}, actionTimeout*2+pollCascade*2).Should(Equal(1))
+				waitCascadingProcessToFinish(actionTimeout*2+pollCascade*2, 1, queryForRoot(rootID), queryFailures)
 			})
 		})
 
@@ -404,16 +271,7 @@ var _ = Describe("force cascade delete", func() {
 					return http.StatusBadRequest, common.Object{}
 				})
 				rootID := triggerCascadeOperation(context.Background(), types.ServiceInstanceType, osbInstanceID, true)
-				Eventually(func() int {
-					count, err := ctx.SMRepository.Count(
-						context.Background(),
-						types.OperationType,
-						queryForRoot(rootID),
-						querySucceeded)
-					Expect(err).NotTo(HaveOccurred())
-
-					return count
-				}, actionTimeout*2+pollCascade*2).Should(Equal(1))
+				waitCascadingProcessToFinish(actionTimeout*2+pollCascade*2, 1, queryForRoot(rootID), querySucceeded)
 			})
 		})
 	})
