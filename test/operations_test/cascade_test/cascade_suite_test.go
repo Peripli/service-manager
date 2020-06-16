@@ -462,7 +462,7 @@ func triggerCascadeOperation(repoCtx context.Context, resourceType types.ObjectT
 	return rootID
 }
 
-func validateResourcesDeleted(repository storage.TransactionalRepository, byResourceType map[types.ObjectType][]*types.Operation) {
+func validateAllResourceDeleted(repository storage.TransactionalRepository, byResourceType map[types.ObjectType][]*types.Operation) {
 	By("validating resources have deleted")
 	for objectType, operations := range byResourceType {
 		if objectType != types.TenantType {
@@ -534,7 +534,7 @@ func createContainerWithChildren() ContainerInstance {
 	}
 }
 
-func validateDuplicationsCopied(fullTree *tree) {
+func validateDuplicationHasTheSameState(fullTree *tree) {
 	By("validating duplications waited and updated like sibling operations")
 	for resourceID, operations := range fullTree.byResourceID {
 		if resourceID == fullTree.root.ResourceID {

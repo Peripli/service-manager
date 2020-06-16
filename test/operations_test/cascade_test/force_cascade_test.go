@@ -13,7 +13,7 @@ import (
 
 var createInstances = true
 
-var _ = Describe("force cascade delete", func() {
+var _ = FDescribe("force cascade delete", func() {
 	JustBeforeEach(func() {
 		initTenantResources(createInstances)
 	})
@@ -42,10 +42,10 @@ var _ = Describe("force cascade delete", func() {
 				fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
 				Expect(err).ToNot(HaveOccurred())
 
-				validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
+				validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
 				validateParentsRanAfterChildren(fullTree)
-				validateDuplicationsCopied(fullTree)
-				validateCountOfOperationsThatDeletedUsingForce(fullTree, types.ServiceInstanceType, 0)
+				validateDuplicationHasTheSameState(fullTree)
+				validateNumberOfForceDeletions(fullTree, types.ServiceInstanceType, 0)
 			})
 
 			It("without errors and one of the instances is in orphan mitigation", func() {
@@ -121,8 +121,8 @@ var _ = Describe("force cascade delete", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				validateParentsRanAfterChildren(fullTree)
-				validateDuplicationsCopied(fullTree)
-				validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
+				validateDuplicationHasTheSameState(fullTree)
+				validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
 			})
 
 			It("with deprovision errors", func() {
@@ -147,11 +147,11 @@ var _ = Describe("force cascade delete", func() {
 				fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
 				Expect(err).ToNot(HaveOccurred())
 
-				validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
+				validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
 				validateParentsRanAfterChildren(fullTree)
-				validateDuplicationsCopied(fullTree)
+				validateDuplicationHasTheSameState(fullTree)
 				validateAllOperationsHasTheSameState(fullTree, types.SUCCEEDED, tenantOperationsCount)
-				validateCountOfOperationsThatDeletedUsingForce(fullTree, types.ServiceInstanceType, 3)
+				validateNumberOfForceDeletions(fullTree, types.ServiceInstanceType, 3)
 			})
 
 			It("with container deprovision errors", func() {
@@ -179,11 +179,11 @@ var _ = Describe("force cascade delete", func() {
 				fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
 				Expect(err).ToNot(HaveOccurred())
 
-				validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
+				validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
 				validateParentsRanAfterChildren(fullTree)
-				validateDuplicationsCopied(fullTree)
+				validateDuplicationHasTheSameState(fullTree)
 				validateAllOperationsHasTheSameState(fullTree, types.SUCCEEDED, tenantOperationsCount+5)
-				validateCountOfOperationsThatDeletedUsingForce(fullTree, types.ServiceBindingType, 3)
+				validateNumberOfForceDeletions(fullTree, types.ServiceBindingType, 3)
 			})
 
 			It("with unbind errors", func() {
@@ -205,16 +205,16 @@ var _ = Describe("force cascade delete", func() {
 				fullTree, err := fetchFullTree(ctx.SMRepository, rootID)
 				Expect(err).ToNot(HaveOccurred())
 
-				validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
+				validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
 				validateParentsRanAfterChildren(fullTree)
-				validateDuplicationsCopied(fullTree)
+				validateDuplicationHasTheSameState(fullTree)
 				validateAllOperationsHasTheSameState(fullTree, types.SUCCEEDED, tenantOperationsCount)
-				validateCountOfOperationsThatDeletedUsingForce(fullTree, types.ServiceBindingType, 2)
+				validateNumberOfForceDeletions(fullTree, types.ServiceBindingType, 2)
 			})
 		})
 
 		Context("should fail", func() {
-			It("with database errors", func() {
+			It("because database errors", func() {
 				registerBindingLastOPHandlers(tenantBrokerServer, http.StatusInternalServerError, types.FAILED)
 				rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 				createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, "binding3", map[string]interface{}{
@@ -239,16 +239,16 @@ var _ = Describe("force cascade delete", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				validateParentsRanAfterChildren(fullTree)
-				validateDuplicationsCopied(fullTree)
+				validateDuplicationHasTheSameState(fullTree)
 
 				By("validating bindings were removed using force")
 				Expect(count(fullTree.allOperations, func(operation *types.Operation) bool {
-					return operation.State == types.SUCCEEDED && operation.ResourceType == types.ServiceBindingType && len(operation.Errors) > 2
+					return operation.State == types.SUCCEEDED && operation.ResourceType == types.ServiceBindingType && operationHasErrors(operation)
 				})).To(Equal(2))
 
 				By("validating instance failed to removed using force")
 				Expect(count(fullTree.allOperations, func(operation *types.Operation) bool {
-					return operation.State == types.FAILED && operation.ResourceType == types.ServiceInstanceType && len(operation.Errors) > 2
+					return operation.State == types.FAILED && operation.ResourceType == types.ServiceInstanceType && operationHasErrors(operation)
 				})).To(Equal(1))
 			})
 		})
@@ -295,13 +295,13 @@ var _ = Describe("force cascade delete", func() {
 
 				By("validating instance removed using force")
 				Expect(count(fullTree.allOperations, func(operation *types.Operation) bool {
-					return operation.State == types.SUCCEEDED && operation.ResourceType == types.ServiceInstanceType && len(operation.Errors) > 2
+					return operation.State == types.SUCCEEDED && operation.ResourceType == types.ServiceInstanceType && operationHasErrors(operation)
 				})).To(Equal(1))
 			})
 		})
 
 		When("should fail", func() {
-			It("with database errors", func() {
+			It("because database errors", func() {
 				globalBrokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", func(req *http.Request) (int, map[string]interface{}) {
 					return http.StatusBadRequest, common.Object{}
 				})
@@ -328,11 +328,11 @@ var _ = Describe("force cascade delete", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(count(fullTree.allOperations, func(operation *types.Operation) bool {
-					return operation.State == types.FAILED && operation.ResourceType == types.ServiceInstanceType && len(operation.Errors) > 2
+					return operation.State == types.FAILED && operation.ResourceType == types.ServiceInstanceType && operationHasErrors(operation)
 				})).To(Equal(1))
 
 				Expect(count(fullTree.allOperations, func(operation *types.Operation) bool {
-					return operation.State == types.SUCCEEDED && len(operation.Errors) < 3
+					return operation.State == types.SUCCEEDED && !operationHasErrors(operation)
 				})).To(Equal(2))
 			})
 		})
@@ -372,7 +372,7 @@ var _ = Describe("force cascade delete", func() {
 		})
 
 		When("should fail", func() {
-			It("with database errors", func() {
+			It("because database errors", func() {
 				globalBrokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", func(req *http.Request) (int, map[string]interface{}) {
 					return http.StatusBadRequest, common.Object{}
 				})
@@ -416,7 +416,7 @@ var _ = Describe("force cascade delete", func() {
 	})
 })
 
-func validateCountOfOperationsThatDeletedUsingForce(fullTree *tree, objectType types.ObjectType, countOfForcedOperations int) {
+func validateNumberOfForceDeletions(fullTree *tree, objectType types.ObjectType, countOfForcedOperations int) {
 	By(fmt.Sprintf("validating there are %v instances that removed using force", countOfForcedOperations))
 	Expect(count(fullTree.allOperations, func(operation *types.Operation) bool {
 		return operation.ResourceType == objectType && operationHasErrors(operation)

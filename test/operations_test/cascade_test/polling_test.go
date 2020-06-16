@@ -70,8 +70,8 @@ var _ = Describe("cascade operations", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsCopied(fullTree)
-			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
+			validateDuplicationHasTheSameState(fullTree)
+			validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
 		})
 
 		It("should fail - unsuccessful orphan mitigation", func() {
@@ -142,7 +142,7 @@ var _ = Describe("cascade operations", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsCopied(fullTree)
+			validateDuplicationHasTheSameState(fullTree)
 		})
 
 		It("should succeed - successful orphan mitigation", func() {
@@ -218,8 +218,8 @@ var _ = Describe("cascade operations", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsCopied(fullTree)
-			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
+			validateDuplicationHasTheSameState(fullTree)
+			validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
 		})
 
 		It("should failed - handle a stuck operation in cascade tree", func() {
@@ -292,8 +292,8 @@ var _ = Describe("cascade operations", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsCopied(fullTree)
-			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
+			validateDuplicationHasTheSameState(fullTree)
+			validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
 		})
 	})
 
@@ -321,8 +321,8 @@ var _ = Describe("cascade operations", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsCopied(fullTree)
-			validateResourcesDeleted(ctx.SMRepository, fullTree.byResourceType)
+			validateDuplicationHasTheSameState(fullTree)
+			validateAllResourceDeleted(ctx.SMRepository, fullTree.byResourceType)
 		})
 	})
 
@@ -351,7 +351,7 @@ var _ = Describe("cascade operations", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsCopied(fullTree)
+			validateDuplicationHasTheSameState(fullTree)
 
 			By("validating tenant error is a collection of his child errors")
 			tenantOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot(rootID))
@@ -400,7 +400,7 @@ var _ = Describe("cascade operations", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsCopied(fullTree)
+			validateDuplicationHasTheSameState(fullTree)
 
 			By("validating containerized errors collected")
 			platformOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot(rootID))
@@ -446,7 +446,7 @@ var _ = Describe("cascade operations", func() {
 			Expect(len(fullTree.byParentID[rootChildren[0].ID])).To(Equal(1), "expected instance has 1 binding")
 
 			validateParentsRanAfterChildren(fullTree)
-			validateDuplicationsCopied(fullTree)
+			validateDuplicationHasTheSameState(fullTree)
 			AssertOperationCount(func(count int) { Expect(count).To(Equal(3)) }, queryForOperationsInTheSameTree(rootID))
 		})
 	})
