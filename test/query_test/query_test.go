@@ -73,42 +73,46 @@ var _ = Describe("Service Manager Query", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(list.Len()).To(BeEquivalentTo(1))
 			Expect(lastOperation.State).To(Equal(types.SUCCEEDED))
+			Expect(lastOperation.Type).To(Equal(types.CREATE))
 		})
 
-		It("should return the correct last operation after a new one is added to a resource", func() {
-			queryParams := map[string]interface{}{
-				"id_list": []string{serviceInstance1.ID},
-			}
+		When("new operation is created for the resource", func() {
+			BeforeEach(func() {
+				operation := &types.Operation{
+					Base: types.Base{
+						ID:        "my_test_op_latest",
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+						Labels:    make(map[string][]string),
+						Ready:     true,
+					},
+					Description:       "my_test_op_latest",
+					Type:              types.CREATE,
+					State:             types.SUCCEEDED,
+					ResourceID:        serviceInstance1.ID,
+					ResourceType:      web.ServiceInstancesURL,
+					CorrelationID:     "test-correlation-id",
+					Reschedule:        false,
+					DeletionScheduled: time.Time{},
+				}
 
-			operation := &types.Operation{
-				Base: types.Base{
-					ID:        "my_test_op_latest",
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-					Labels:    make(map[string][]string),
-					Ready:     true,
-				},
-				Description:       "my_test_op_latest",
-				Type:              types.CREATE,
-				State:             types.IN_PROGRESS,
-				ResourceID:        serviceInstance1.ID,
-				ResourceType:      web.ServiceInstancesURL,
-				CorrelationID:     "test-correlation-id",
-				Reschedule:        false,
-				DeletionScheduled: time.Time{},
-			}
+				_, err := repository.Create(context.Background(), operation)
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+			It("should return the new operation as last operation", func() {
+				queryParams := map[string]interface{}{
+					"id_list": []string{serviceInstance1.ID},
+				}
+				list, err := repository.QueryForList(context.Background(), types.OperationType, storage.QueryForLastOperationsPerResource, queryParams)
+				Expect(err).ShouldNot(HaveOccurred())
+				lastOperation := list.ItemAt(0).(*types.Operation)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(list.Len()).To(BeEquivalentTo(1))
+				Expect(lastOperation.State).To(Equal(types.SUCCEEDED))
+				Expect(list.Len()).To(BeEquivalentTo(1))
+				Expect(lastOperation.ID).To(Equal("my_test_op_latest"))
+			})
 
-			_, err := repository.Create(context.Background(), operation)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			list, err := repository.QueryForList(context.Background(), types.OperationType, storage.QueryForLastOperationsPerResource, queryParams)
-			Expect(err).ShouldNot(HaveOccurred())
-			lastOperation := list.ItemAt(0).(*types.Operation)
-			Expect(err).ShouldNot(HaveOccurred())
-			Expect(list.Len()).To(BeEquivalentTo(1))
-			Expect(lastOperation.State).To(Equal(types.IN_PROGRESS))
-			Expect(list.Len()).To(BeEquivalentTo(1))
-			Expect(lastOperation.ID).To(Equal("my_test_op_latest"))
 		})
 
 		It("should return the last operation for every instances in the query", func() {

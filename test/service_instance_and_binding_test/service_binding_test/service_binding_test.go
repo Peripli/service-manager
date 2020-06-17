@@ -224,7 +224,6 @@ var _ = DescribeTestsFor(TestCase{
 			})
 
 			Describe("GET", func() {
-
 				When("service binding contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
 						createBinding(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
