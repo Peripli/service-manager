@@ -52,10 +52,6 @@ var namedQueries = map[NamedQuery]string{
 		 ) lastOperationPerResource
 		 on lastOperationPerResource.last_operation_sequence = ops.paging_sequence
 	WHERE resource_id in (:id_list)`,
-	QueryByTypeAndIDIn: `
-	SELECT {{.ENTITY_TABLE}}.*
-	FROM {{.ENTITY_TABLE}}
-	WHERE type=:type AND id in (:id_list)`,
 }
 
 func GetNamedQuery(query NamedQuery) string {

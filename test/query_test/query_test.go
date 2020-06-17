@@ -62,7 +62,7 @@ var _ = Describe("Service Manager Query", func() {
 			ctx.CleanupAdditionalResources()
 		})
 
-		It("Last operation is returned for a newly created instance", func() {
+		It("should return the last operation for a newly created resource", func() {
 			queryParams := map[string]interface{}{
 				"id_list": []string{serviceInstance1.ID},
 			}
@@ -75,7 +75,7 @@ var _ = Describe("Service Manager Query", func() {
 			Expect(lastOperation.State).To(Equal(types.SUCCEEDED))
 		})
 
-		It("After a new operation is added to an instance", func() {
+		It("should return the correct last operation after a new one is added to a resource", func() {
 			queryParams := map[string]interface{}{
 				"id_list": []string{serviceInstance1.ID},
 			}
@@ -111,7 +111,7 @@ var _ = Describe("Service Manager Query", func() {
 			Expect(lastOperation.ID).To(Equal("my_test_op_latest"))
 		})
 
-		It("The last operation for every instances in query is returned", func() {
+		It("should return the last operation for every instances in the query", func() {
 			queryParams := map[string]interface{}{
 				"id_list": []string{serviceInstance2.ID, serviceInstance1.ID},
 			}
@@ -125,48 +125,17 @@ var _ = Describe("Service Manager Query", func() {
 			Expect(lastOperation2.State).To(Equal(types.SUCCEEDED))
 		})
 
-		It("Correct last operation is returned after old operations are removed", func() {
+		It("Should not return any operations in case a resource does not exist", func() {
 			queryParams := map[string]interface{}{
-				"id_list": []string{serviceInstance1.ID},
+				"id_list": []string{"not-found-id"},
 			}
-
-			operation := &types.Operation{
-				Base: types.Base{
-					ID:        "my_test_op_latest",
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-					Labels:    make(map[string][]string),
-					Ready:     true,
-				},
-				Description:       "my_test_op_latest",
-				Type:              types.CREATE,
-				State:             types.IN_PROGRESS,
-				ResourceID:        serviceInstance1.ID,
-				ResourceType:      web.ServiceInstancesURL,
-				CorrelationID:     "test-correlation-id",
-				Reschedule:        false,
-				DeletionScheduled: time.Time{},
-			}
-
-			_, err := repository.Create(context.Background(), operation)
 
 			list, err := repository.QueryForList(context.Background(), types.OperationType, storage.QueryForLastOperationsPerResource, queryParams)
 			Expect(err).ShouldNot(HaveOccurred())
-			Expect(list.Len()).To(BeEquivalentTo(1))
-			lastOperation := list.ItemAt(0).(*types.Operation)
-			Expect(lastOperation.ID).To(Equal("my_test_op_latest"))
-
-			criteria := query.ByField(query.EqualsOperator, "id", "my_test_op_latest")
-			err = repository.Delete(context.Background(), types.OperationType, criteria)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			list, err = repository.QueryForList(context.Background(), types.OperationType, storage.QueryForLastOperationsPerResource, queryParams)
-			lastOperation = list.ItemAt(0).(*types.Operation)
-			Expect(err).ShouldNot(HaveOccurred())
-			Expect(list.Len()).To(BeEquivalentTo(1))
-			Expect(lastOperation.ID).To(Not(Equal("my_test_op_latest")))
+			Expect(list.Len()).To(BeEquivalentTo(0))
 		})
 	})
+
 	Context("with 2 notification created at different times", func() {
 		var now time.Time
 		var id1, id2 string
@@ -175,16 +144,6 @@ var _ = Describe("Service Manager Query", func() {
 
 			id1 = createNotification(repository, now)
 			id2 = createNotification(repository, now.Add(-30*time.Minute))
-		})
-
-		It("finds objects by ID in", func() {
-			args := map[string]interface{}{
-				"id_list": []string{id1, id2},
-				"type":    "CREATED",
-			}
-			list, err := repository.QueryForList(context.Background(), types.NotificationType, storage.QueryByTypeAndIDIn, args)
-			Expect(err).ShouldNot(HaveOccurred())
-			Expect(list.Len()).To(BeEquivalentTo(2))
 		})
 
 		It("notifications older than the provided time should not be found", func() {
