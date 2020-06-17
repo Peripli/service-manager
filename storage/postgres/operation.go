@@ -45,6 +45,7 @@ type Operation struct {
 	ExternalID          sql.NullString     `db:"external_id"`
 	CascadeRootID       sql.NullString     `db:"cascade_root_id"`
 	Reschedule          bool               `db:"reschedule"`
+	IsAsync	            bool               `db:"is_async"`
 	ParentID            sql.NullString     `db:"parent_id"`
 	RescheduleTimestamp time.Time          `db:"reschedule_timestamp"`
 	DeletionScheduled   time.Time          `db:"deletion_scheduled"`
@@ -77,6 +78,7 @@ func (o *Operation) ToObject() (types.Object, error) {
 		CorrelationID:       o.CorrelationID.String,
 		ExternalID:          o.ExternalID.String,
 		Reschedule:          o.Reschedule,
+		IsAsync:             o.IsAsync,
 		CascadeRootID:       o.CascadeRootID.String,
 		ParentID:            o.ParentID.String,
 		RescheduleTimestamp: o.RescheduleTimestamp,
@@ -117,6 +119,7 @@ func (*Operation) FromObject(object types.Object) (storage.Entity, error) {
 		CorrelationID:       toNullString(operation.CorrelationID),
 		ExternalID:          toNullString(operation.ExternalID),
 		Reschedule:          operation.Reschedule,
+		IsAsync:             operation.IsAsync,
 		CascadeRootID:       toNullString(operation.CascadeRootID),
 		ParentID:            toNullString(operation.ParentID),
 		RescheduleTimestamp: operation.RescheduleTimestamp,

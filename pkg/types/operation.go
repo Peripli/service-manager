@@ -79,7 +79,7 @@ type Operation struct {
 	ExternalID          string            `json:"-"`
 	ParentID            string            `json:"parent_id,omitempty"`
 	CascadeRootID       string            `json:"cascade_root_id,omitempty"`
-
+	IsAsync				bool			  `json:"is_async"`
 	// Reschedule specifies that the operation has reached a state after which it can be retried (checkpoint)
 	Reschedule bool `json:"reschedule"`
 	// RescheduleTimestamp is the time when an operation became reschedulable=true for the first time

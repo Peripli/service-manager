@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/storage"
@@ -128,6 +129,12 @@ type orderRule struct {
 	orderType query.OrderType
 }
 
+type InArray []string
+
+func (p InArray) Value() (driver.Value, error) {
+	return driver.Value(strings.Join((p)[:], ",")), nil
+}
+
 // pgQuery is used to construct postgres queries. It should be constructed only via the query builder. It is not safe for concurrent use.
 type pgQuery struct {
 	db              pgDB
@@ -168,8 +175,41 @@ func (pq *pgQuery) ListNoLabels(ctx context.Context) (*sqlx.Rows, error) {
 	return pq.db.QueryxContext(ctx, q, pq.queryParams...)
 }
 
-func (pq *pgQuery) Query(ctx context.Context, queryName storage.NamedQuery, queryParams map[string]interface{}) (*sqlx.Rows, error) {
+func (pq *pgQuery) Exec(ctx context.Context, queryName storage.NamedQuery, queryParams map[string]interface{}) (sql.Result, error){
 	sql, err := tsprintf(storage.GetNamedQuery(queryName), pq.getTemplateParams())
+	if err != nil {
+		return nil, err
+	}
+	stmt, err := pq.db.PrepareNamedContext(ctx, sql)
+	if err != nil {
+		return nil, err
+	}
+
+	if stmt == nil {
+		return nil, fmt.Errorf("could not prepare statement")
+	}
+
+	return stmt.Exec(queryParams)
+}
+
+func (pq *pgQuery) QueryWithInStatement(ctx context.Context, queryName storage.NamedQuery, queryParams []interface{}) (*sqlx.Rows, error) {
+	sql, err := tsprintf(
+		storage.GetNamedQuery(queryName),
+		pq.getTemplateParams())
+
+	if err != nil {
+		return nil, err
+	}
+
+	q,queryArgs,err := sqlx.In(sql,queryParams)
+	queryRebind := pq.db.Rebind(q)
+	return pq.db.QueryxContext(ctx,queryRebind,queryArgs...)
+}
+
+func (pq *pgQuery) Query(ctx context.Context, queryName storage.NamedQuery, queryParams map[string]interface{}) (*sqlx.Rows, error) {
+	sql, err := tsprintf(
+		storage.GetNamedQuery(queryName),
+		pq.getTemplateParams())
 	if err != nil {
 		return nil, err
 	}

@@ -118,7 +118,7 @@ type ServiceInstanceInterceptor struct {
 func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		instance := obj.(*types.ServiceInstance)
-		instance.Usable = true
+		instance.Usable = false
 
 		if instance.PlatformID != types.SMPlatform {
 			return f(ctx, obj)
@@ -132,6 +132,14 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
 		if err != nil {
 			return nil, err
+		}
+
+		//In case of follow up async operation, start polling for instance creation status + don't re-create the instance in db
+		if operation.IsAsync {
+			if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
+				return nil, err
+			}
+			return instance, nil
 		}
 
 		var provisionResponse *osbc.ProvisionResponse
@@ -175,6 +183,8 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 				log.C(ctx).Infof("Successful asynchronous provisioning request %s to broker %s returned response %s",
 					logProvisionRequest(provisionRequest), broker.Name, logProvisionResponse(provisionResponse))
 				operation.Reschedule = true
+				//set the operation as async, based on the broker response.
+				operation.IsAsync = true
 				if operation.RescheduleTimestamp.IsZero() {
 					operation.RescheduleTimestamp = time.Now()
 				}
@@ -198,12 +208,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			instance = object.(*types.ServiceInstance)
 		}
 
-		if operation.Reschedule {
-			if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
-				return nil, err
-			}
-		}
-
+		//for both async and sync flows (first time) return without polling
 		return instance, nil
 	}
 }
@@ -217,6 +222,11 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 		operation, found := opcontext.Get(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
+		}
+
+		if operation.Type == types.CREATE && operation.InOrphanMitigationState() {
+			err = i.deleteSingleInstance(ctx, updatedInstance, operation)
+			return updatedInstance, err
 		}
 
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, updatedInstance)
@@ -259,6 +269,7 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			}
 			log.C(ctx).Infof("Sending update instance request %s to broker with name %s", logUpdateInstanceRequest(updateInstanceRequest), broker.Name)
 			updateInstanceResponse, err = osbClient.UpdateInstance(updateInstanceRequest)
+
 			if err != nil {
 				brokerError := &util.HTTPError{
 					ErrorType:   "BrokerError",

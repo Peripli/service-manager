@@ -319,10 +319,40 @@ func (ps *Storage) QueryForList(ctx context.Context, objectType types.ObjectType
 			log.C(ctx).WithError(err).Error("Could not release connection when checking database")
 		}
 	}()
+	return entity.RowsToList(rows)
+}
+
+func (ps *Storage) QueryForListWithInStatement(ctx context.Context, objectType types.ObjectType, queryName storage.NamedQuery, queryParams []interface{}) (types.ObjectList, error) {
+	entity, err := ps.scheme.provide(objectType)
 	if err != nil {
 		return nil, err
 	}
+
+	rows, err := ps.queryBuilder.NewQuery(entity).QueryWithInStatement(ctx, queryName, queryParams)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		if rows == nil {
+			return
+		}
+		if err := rows.Close(); err != nil {
+			log.C(ctx).WithError(err).Error("Could not release connection when checking database")
+		}
+	}()
+
 	return entity.RowsToList(rows)
+}
+
+func (ps *Storage) QueryExec(ctx context.Context, objectType types.ObjectType, queryName storage.NamedQuery, queryParams map[string]interface{}) (sql.Result, error) {
+
+	entity, err := ps.scheme.provide(objectType)
+	if err != nil {
+		return nil, err
+	}
+
+	return ps.queryBuilder.NewQuery(entity).Exec(ctx, queryName, queryParams)
 }
 
 func (ps *Storage) GetForUpdate(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {

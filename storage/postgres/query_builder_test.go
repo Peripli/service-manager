@@ -863,5 +863,28 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 				AND visibilities.id = visibility_labels.visibility_id)`))
 			})
 		})
+
+		Context("when Query is called with queryParams that are actually templateParams ", func() {
+			FIt("builds a valid query", func() {
+				resourceIds := "'001','002','003','004'"
+				params := map[string]interface{}{
+					"RESOURCE_IDS": postgres.TemplateParam{
+						Value:resourceIds ,
+					}}
+
+				qb.NewQuery(entity).Query(ctx, storage.QueryForLastOperationsPerResource, params)
+				Expect(executedQuery).Should(Equal(`
+	SELECT id,resource_id,ops.state,type,errors,external_id,description,updated_at,created_at,deletion_scheduled,reschedule_timestamp
+	FROM operations ops 
+    inner join
+		 (
+			 select max(op.paging_sequence) last_operation_sequence
+			 from operations op
+			 group by resource_id
+		 ) lastOperationPerResource
+		 on lastOperationPerResource.last_operation_sequence = ops.paging_sequence
+	WHERE resource_id in ('001','002','003','004')`))
+			})
+		})
 	})
 })

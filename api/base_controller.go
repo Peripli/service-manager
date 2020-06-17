@@ -194,19 +194,6 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		CorrelationID: log.CorrelationIDFromContext(ctx),
 	}
 
-	if c.shouldExecuteAsync(r) {
-		log.C(ctx).Debugf("Request will be executed asynchronously")
-		if err := c.checkAsyncSupport(); err != nil {
-			return nil, err
-		}
-
-		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-			return nil, err
-		}
-
-		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
-	}
-
 	log.C(ctx).Debugf("Request will be executed synchronously")
 	createdObj, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
 	if err != nil {
@@ -216,6 +203,14 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	if err := attachLastOperation(ctx, createdObj.GetID(), createdObj, c.repository); err != nil {
 		return nil, err
 	}
+
+	if createdObj.GetLastOperation().IsAsync{
+		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
+			return nil, err
+		}
+		return util.NewLocationResponse(createdObj.GetLastOperation().GetID(), result.GetID(), c.resourceBaseURL)
+	}
+
 
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
 }
@@ -396,6 +391,13 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
+	attachLastOps := r.URL.Query().Get("attach_last_operations")
+	if objectList.Len() >0 && attachLastOps == "true" {
+		if err := attachLastOperations(ctx, objectList, c.repository); err != nil {
+			return nil, err
+		}
+	}
+
 	page := pageFromObjectList(ctx, objectList, count, limit)
 	resp, err := util.NewJSONResponse(http.StatusOK, page)
 	if err != nil {
@@ -508,6 +510,41 @@ func cleanObject(object types.Object) {
 	if secured, ok := object.(types.Strip); ok {
 		secured.Sanitize()
 	}
+}
+func getResourceIds(resources types.ObjectList) []interface{}{
+	var resourceIds []interface{}
+	for i:=0;i<resources.Len();i++{
+		resource := resources.ItemAt(i)
+		resourceIds = append(resourceIds, resource.GetID())
+	}
+	return resourceIds
+}
+
+func attachLastOperations(ctx context.Context, resources types.ObjectList,repository storage.Repository) error{
+	instanceLastOpsMap := make(map[string]*types.Operation)
+	resourceLastOps, err := repository.QueryForListWithInStatement(
+		ctx,
+		types.OperationType,
+		storage.QueryForLastOperationsPerResource,
+		getResourceIds(resources))
+
+	if err != nil {
+		return util.HandleStorageError(err, types.OperationType.String())
+	}
+
+	for i:=0;i<resourceLastOps.Len();i++{
+		lastOp := resourceLastOps.ItemAt(i).(*types.Operation)
+		instanceLastOpsMap[lastOp.ResourceID] = lastOp
+	}
+
+	for i:=0;i<resources.Len();i++{
+		resource := resources.ItemAt(i)
+		if LastOp, ok := instanceLastOpsMap[resource.GetID()]; ok {
+			resource.SetLastOperation(LastOp)
+		}
+	}
+
+	return nil
 }
 
 func attachLastOperation(ctx context.Context, objectID string, object types.Object, repository storage.Repository) error {

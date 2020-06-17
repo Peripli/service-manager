@@ -215,16 +215,24 @@ func (om *Maintainer) CleanupFinishedCascadeOperations() {
 // cleanupInternalCascadeOperations cleans up all finished internal cascade operations which are older than some specified time
 func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 	currentTime := time.Now()
-	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
-		query.ByField(query.EqualsOperator, "state", string(types.SUCCEEDED)),
-		// ignore cascade operations
-		query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""),
-		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+//	criteria := []query.Criterion{
+//		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
+//		query.ByField(query.EqualsOperator, "state", string(types.SUCCEEDED)),
+//		// ignore cascade operations
+//		query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""),
+//		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
+//		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+////		query.ByField(query.NotInOperator,"updated_at",);
+//	}
+
+	params := map[string]interface{}{
+		"platform_id": types.SMPlatform,
+		"state" : string(types.SUCCEEDED),
+		"cascade_root_id":"",
+		"updated_at": util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan)),
 	}
 
-	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
+	if _,err := om.repository.QueryExec(om.smCtx, types.OperationType,storage.QueryForLastOperationsPerResource,params); err != nil && err != util.ErrNotFoundInStorage {
 		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
 		return
 	}
