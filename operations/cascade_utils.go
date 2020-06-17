@@ -3,7 +3,6 @@ package operations
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/types/cascade"
@@ -13,95 +12,68 @@ import (
 	"time"
 )
 
-func GetAllLevelsCascadeOperations(ctx context.Context, tenantIdentifier string, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
+func GetAllLevelsCascadeOperations(ctx context.Context, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
+	// if the root is broker we have to enrich his service offerings and plans
+	if object.GetType() == types.ServiceBrokerType {
+		if err := enrichBrokersOfferings(ctx, object, storage); err != nil {
+			return nil, err
+		}
+	}
+	return recursiveGetAllLevelsCascadeOperations(ctx, object, operation, storage)
+}
+
+func recursiveGetAllLevelsCascadeOperations(ctx context.Context, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
 	var operations []*types.Operation
-	objectChildren, err := GetObjectChildren(ctx, tenantIdentifier, object, storage)
+	mapOfChildren, err := GetObjectChildren(ctx, object, storage)
 	if err != nil {
 		return nil, err
 	}
-	for _, children := range objectChildren {
-		for i := 0; i < children.Len(); i++ {
-			childOBJ := children.ItemAt(i)
-			childOP, err := makeCascadeOPForChild(childOBJ, operation)
+	for _, list := range mapOfChildren {
+		for i := 0; i < list.Len(); i++ {
+			child := list.ItemAt(i)
+			childOperation, err := makeCascadeOperationForChild(child, operation)
 			if err != nil {
 				return nil, err
 			}
-			operations = append(operations, childOP)
-			childrenSubOPs, err := GetAllLevelsCascadeOperations(ctx, tenantIdentifier, childOBJ, childOP, storage)
+			operations = append(operations, childOperation)
+			childrenSubOperations, err := recursiveGetAllLevelsCascadeOperations(ctx, child, childOperation, storage)
 			if err != nil {
 				return nil, err
 			}
-			operations = append(operations, childrenSubOPs...)
+			operations = append(operations, childrenSubOperations...)
 		}
 	}
 	return operations, nil
 }
 
-func GetObjectChildren(ctx context.Context, tenantIdentifier string, object types.Object, storage storage.Repository) ([]types.ObjectList, error) {
-	var children []types.ObjectList
-	isBroker := object.GetType() == types.ServiceBrokerType
-	if isBroker {
-		if err := enrichBrokersOfferings(ctx, object, storage); err != nil {
-			return nil, err
-		}
-	}
-
-	if cascadeObject, isCascade := cascade.GetCascadeObject(ctx, object); isCascade {
+func GetObjectChildren(ctx context.Context, object types.Object, storage storage.Repository) (cascade.CascadeChildren, error) {
+	children := make(cascade.CascadeChildren)
+	cascadeObject, isCascade := cascade.GetCascadeObject(ctx, object)
+	if isCascade {
 		for childType, childCriteria := range cascadeObject.GetChildrenCriterion() {
 			list, err := storage.List(ctx, childType, childCriteria...)
 			if err != nil {
 				return nil, err
 			}
-			children = append(children, list)
+			children[childType] = list
 		}
-	}
-	if isBroker {
-		err := validateNoGlobalInstances(ctx, tenantIdentifier, object, children, storage)
-		if err != nil {
-			return nil, err
+		if brokers, found := children[types.ServiceBrokerType]; found {
+			for i := 0; i < brokers.Len(); i++ {
+				if err := enrichBrokersOfferings(ctx, brokers.ItemAt(i), storage); err != nil {
+					return nil, err
+				}
+			}
 		}
+		removeDuplicateSubOperations(cascadeObject, children)
 	}
 	return children, nil
 }
 
-func validateNoGlobalInstances(ctx context.Context, tenantIdentifier string, broker types.Object, brokerChildren []types.ObjectList, repository storage.Repository) error {
-	platformIdsMap := make(map[string]bool)
-	for _, children := range brokerChildren {
-		for i := 0; i < children.Len(); i++ {
-			instance, ok := children.ItemAt(i).(*types.ServiceInstance)
-			if !ok {
-				return fmt.Errorf("broker %s has children not of type %s", broker.GetID(), types.ServiceInstanceType)
-			}
-			if _, ok := platformIdsMap[instance.PlatformID]; !ok {
-				platformIdsMap[instance.PlatformID] = true
-			}
-		}
+func removeDuplicateSubOperations(cascadeObject cascade.Cascade, children cascade.CascadeChildren) {
+	cleaner, hasDuplicatesCleaner := cascadeObject.(cascade.DuplicatesCleaner)
+	if hasDuplicatesCleaner {
+		cleaner.CleanDuplicates(children)
 	}
-	delete(platformIdsMap, types.SMPlatform)
-	if len(platformIdsMap) == 0 {
-		return nil
-	}
-
-	platformIds := make([]string, 0, len(platformIdsMap))
-	for id := range platformIdsMap {
-		platformIds = append(platformIds, id)
-	}
-
-	if len(platformIds) == 0 {
-		return nil
-	}
-	platforms, err := repository.List(ctx, types.PlatformType, query.ByField(query.InOperator, "id", platformIds...))
-	if err != nil {
-		return err
-	}
-	for i := 0; i < platforms.Len(); i++ {
-		platform := platforms.ItemAt(i)
-		labels := platform.GetLabels()
-		if _, found := labels[tenantIdentifier]; !found {
-			return fmt.Errorf("broker %s has instances from global platform", broker.GetID())
-		}
-	}
-	return nil
 }
 
 func enrichBrokersOfferings(ctx context.Context, brokerObj types.Object, storage storage.Repository) error {
@@ -140,19 +112,19 @@ func GetSubOperations(ctx context.Context, operation *types.Operation, repositor
 			switch subOperation.State {
 			case types.SUCCEEDED:
 				cascadedOperations.SucceededOperations = append(cascadedOperations.SucceededOperations, subOperation)
-			case types.FAILED:
-				cascadedOperations.FailedOperations = append(cascadedOperations.FailedOperations, subOperation)
 			case types.IN_PROGRESS:
 				cascadedOperations.InProgressOperations = append(cascadedOperations.InProgressOperations, subOperation)
 			case types.PENDING:
 				cascadedOperations.PendingOperations = append(cascadedOperations.PendingOperations, subOperation)
+			case types.FAILED:
+				cascadedOperations.FailedOperations = append(cascadedOperations.FailedOperations, subOperation)
 			}
 		}
 	}
 	return &cascadedOperations, nil
 }
 
-func makeCascadeOPForChild(object types.Object, operation *types.Operation) (*types.Operation, error) {
+func makeCascadeOperationForChild(object types.Object, operation *types.Operation) (*types.Operation, error) {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		return nil, err
@@ -211,24 +183,6 @@ func handleDuplicateOperations(ctx context.Context, storage storage.Repository, 
 	}
 	// same operations are pending, proceeding the flow
 	return "", false, nil
-}
-
-func SameResourceInCurrentTreeHasFinished(ctx context.Context, storage storage.Repository, resourceID string, cascadeRootID string) (types.OperationState, error) {
-	// checking if there is a completed suboperation in same cascade tree with the same resourceID
-	completedCriteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "resource_id", resourceID),
-		query.ByField(query.InOperator, "state", string(types.SUCCEEDED), string(types.FAILED)),
-		query.ByField(query.EqualsOperator, "cascade_root_id", cascadeRootID),
-		query.OrderResultBy("paging_sequence", query.DescOrder),
-	}
-	completed, err := storage.List(ctx, types.OperationType, completedCriteria...)
-	if err != nil {
-		return "", err
-	}
-	if completed.Len() > 0 {
-		return completed.ItemAt(0).(*types.Operation).State, nil
-	}
-	return "", nil
 }
 
 func PrepareAggregatedErrorsArray(failedSubOperations []*types.Operation, resourceID string, resourceType types.ObjectType) ([]byte, error) {

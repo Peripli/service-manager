@@ -148,3 +148,10 @@ func (o *Operation) Validate() error {
 func (o *Operation) InOrphanMitigationState() bool {
 	return !o.DeletionScheduled.IsZero()
 }
+
+func (o *Operation) IsForceDeleteCascadeOperation() bool {
+	forceCascade, found := o.Labels["force"]
+	hasForceLabel := found && len(forceCascade) > 0 && forceCascade[0] == "true"
+
+	return o.Type == DELETE && o.CascadeRootID != "" && hasForceLabel
+}
