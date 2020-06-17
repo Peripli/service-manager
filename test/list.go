@@ -17,9 +17,11 @@
 package test
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/query"
 	"net/url"
 	"strings"
 	"time"
@@ -505,6 +507,40 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 							Expect(lastOp.Object().Value("type").String().Raw()).ToNot(BeEmpty())
 							Expect(lastOp.Object().Value("deletion_scheduled").String().Raw()).ToNot(BeEmpty())
 						}
+					})
+				})
+
+				Context("when the last operation does not exist", func() {
+					It("should return the resource without it", func() {
+						resp := ctx.SMWithOAuth.GET(t.API).
+							WithQuery("attach_last_operations", "true").
+							Expect().Status(http.StatusOK).
+							JSON()
+
+						resource := resp.Path("$.items[0]")
+						lastOp := resource.Object().Value("last_operation")
+						resourceId := lastOp.Object().Value("resource_id").String().Raw()
+						criteria := query.ByField(query.EqualsOperator, "resource_id", resourceId)
+						err := ctx.SMRepository.Delete(context.Background(), types.OperationType, criteria)
+						Expect(err).ShouldNot(HaveOccurred())
+
+						resp = ctx.SMWithOAuth.GET(t.API).
+							WithQuery("attach_last_operations", "true").
+							Expect().Status(http.StatusOK).
+							JSON()
+
+						var foundResource bool
+						for _, resource := range resp.Path("$.items[*]").Array().Iter() {
+							itemResourceId := resource.Object().Value("id").String().Raw()
+							if itemResourceId == resourceId {
+								foundResource = true
+								resource.Object().NotContainsKey("last_operation")
+							} else {
+								resource.Object().ContainsKey("last_operation")
+							}
+						}
+
+						Expect(foundResource).To(Equal(true))
 					})
 				})
 			}
