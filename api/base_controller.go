@@ -544,7 +544,6 @@ func attachLastOperations(ctx context.Context, resources types.ObjectList, repos
 }
 
 func getLastOperations(ctx context.Context, resourceIDs []string, repository storage.Repository) (map[string]*types.Operation, error) {
-
 	if len(resourceIDs) == 0 {
 		return nil, nil
 	}
@@ -574,7 +573,6 @@ func getLastOperations(ctx context.Context, resourceIDs []string, repository sto
 }
 
 func attachLastOperation(ctx context.Context, objectID string, object types.Object, repository storage.Repository) error {
-
 	ops, err := getLastOperations(ctx, []string{objectID}, repository)
 
 	if err != nil {

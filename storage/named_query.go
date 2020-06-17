@@ -41,16 +41,16 @@ var namedQueries = map[NamedQuery]string{
 				WHERE key=:key
 				AND {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}})`,
 	QueryForLastOperationsPerResource: `
-	SELECT ops.*
-	FROM operations ops 
-    inner join
+	SELECT {{.ENTITY_TABLE}}.*
+	FROM {{.ENTITY_TABLE}} 
+    INNER JOIN
 		 (
-			 select max(op.paging_sequence) last_operation_sequence
-			 from operations op
-			 group by resource_id
-		 ) lastOperationPerResource
-		 on lastOperationPerResource.last_operation_sequence = ops.paging_sequence
-	WHERE resource_id in (:id_list)`,
+			 SELECT max({{.ENTITY_TABLE}}.paging_sequence) paging_sequence
+			 FROM {{.ENTITY_TABLE}}
+			 GROUP BY resource_id
+		 ) LAST_OPERATIONS
+		 ON {{.ENTITY_TABLE}}.paging_sequence = LAST_OPERATIONS.paging_sequence
+	WHERE resource_id IN (:id_list)`,
 }
 
 func GetNamedQuery(query NamedQuery) string {

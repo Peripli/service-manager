@@ -495,11 +495,11 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 					var lastOperationForResourceId string
 					var resourceWithOneOperationId, resourceWithFewOperationsId string
 
-					createTestOperation := func(resourceID string, opType types.OperationCategory) (types.Object, string) {
+					createTestOperation := func(resourceID string, opType types.OperationCategory) string {
 						id, err := uuid.NewV4()
 						Expect(err).ToNot(HaveOccurred())
 						labels := make(map[string][]string)
-						testResource, err := ctx.SMRepository.Create(context.TODO(), &types.Operation{
+						_, err = ctx.SMRepository.Create(context.TODO(), &types.Operation{
 							Base: types.Base{
 								ID:        id.String(),
 								CreatedAt: time.Now(),
@@ -515,7 +515,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 							CorrelationID: id.String(),
 						})
 						Expect(err).ShouldNot(HaveOccurred())
-						return testResource, id.String()
+						return id.String()
 					}
 
 					BeforeEach(func() {
@@ -524,7 +524,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 						resourceWithOneOperationId = resourceWithOneOperation["id"].(string)
 						resourceWithFewOperationsId = resourceWithFewOperations["id"].(string)
 						createTestOperation(resourceWithFewOperationsId, types.CREATE)
-						_, lastOperationForResourceId = createTestOperation(resourceWithFewOperationsId, types.DELETE)
+						lastOperationForResourceId = createTestOperation(resourceWithFewOperationsId, types.DELETE)
 					})
 
 					AfterEach(func() {
@@ -546,8 +546,8 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 						for _, resource := range resp.Path("$.items[*]").Array().Iter() {
 							itemResourceId := resource.Object().Value("id").String().Raw()
 							if itemResourceId == resourceWithOneOperationId || itemResourceId == resourceWithFewOperationsId {
-								lastOp := resource.Object().Value("last_operation")
 								resource.Object().ContainsKey("last_operation")
+								lastOp := resource.Object().Value("last_operation")
 								Expect(lastOp.Object().Value("resource_id").String().Raw()).To(Equal(itemResourceId))
 								Expect(lastOp.Object().Value("state").String().Raw()).To(Equal("succeeded"))
 								Expect(lastOp.Object().Value("resource_type").String().Raw()).ToNot(BeEmpty())
