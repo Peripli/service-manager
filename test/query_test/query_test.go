@@ -125,7 +125,7 @@ var _ = Describe("Service Manager Query", func() {
 			Expect(lastOperation2.State).To(Equal(types.SUCCEEDED))
 		})
 
-		It("Should not return any operations in case a resource does not exist", func() {
+		It("Should not return any operations in case it's resource does not exist", func() {
 			queryParams := map[string]interface{}{
 				"id_list": []string{"not-found-id"},
 			}
