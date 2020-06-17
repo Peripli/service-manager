@@ -74,6 +74,7 @@ var _ = Describe("Service Manager Query", func() {
 			Expect(list.Len()).To(BeEquivalentTo(1))
 			Expect(lastOperation.State).To(Equal(types.SUCCEEDED))
 			Expect(lastOperation.Type).To(Equal(types.CREATE))
+			Expect(lastOperation.ResourceID).To(Equal(serviceInstance1.ID))
 		})
 
 		When("new operation is created for the resource", func() {
