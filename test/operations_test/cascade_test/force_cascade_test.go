@@ -85,7 +85,6 @@ var _ = Describe("force cascade delete", func() {
 
 					queryForSucceededBindings := []query.Criterion{queryForBindingsOperations, queryForOperationsInTheSameTree(rootID), querySucceeded}
 					waitCascadingProcessToFinish(actionTimeout+maintainerRetry+cascadeOrphanMitigation, subaccountResources[types.ServiceBindingType], 4, queryForSucceededBindings...)
-
 					waitCascadingProcessToFinish(actionTimeout+maintainerRetry, subaccountResourcesCount(), 1, queryForRoot(rootID), querySucceeded)
 
 					fullTree := fetchTree(rootID)
