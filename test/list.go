@@ -488,7 +488,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 				})
 			}
 
-			if t.SupportsAsyncOperations && responseMode == Async {
+			if t.SupportsAsyncOperations {
 				Context("when attach_last_operations is truthy", func() {
 					It("retrieves the resources list when each resource contains the last operation it is associated to", func() {
 						resp := ctx.SMWithOAuth.GET(t.API).
