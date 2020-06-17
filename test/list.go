@@ -518,8 +518,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 							JSON()
 
 						resource := resp.Path("$.items[0]")
-						lastOp := resource.Object().Value("last_operation")
-						resourceId := lastOp.Object().Value("resource_id").String().Raw()
+						resourceId := resource.Object().Value("id").String().Raw()
 						criteria := query.ByField(query.EqualsOperator, "resource_id", resourceId)
 						err := ctx.SMRepository.Delete(context.Background(), types.OperationType, criteria)
 						Expect(err).ShouldNot(HaveOccurred())

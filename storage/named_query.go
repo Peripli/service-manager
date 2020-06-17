@@ -6,7 +6,6 @@ const (
 	QueryByMissingLabel NamedQuery = iota
 	QueryByExistingLabel
 	QueryForLastOperationsPerResource
-	QueryByTypeAndIDIn
 )
 
 var namedQueries = map[NamedQuery]string{
