@@ -490,7 +490,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 			}
 
 			if t.SupportsAsyncOperations {
-				FContext("when attach_last_operations is truthy", func() {
+				Context("when attach_last_operations is truthy", func() {
 					var resourceWithOneOperation, resourceWithFewOperations common.Object
 					var lastOperationForResourceId string
 					var resourceWithOneOperationId, resourceWithFewOperationsId string
@@ -528,11 +528,12 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 					})
 
 					AfterEach(func() {
-						criteria := query.ByField(query.InOperator, "resource_id", []string{resourceWithOneOperationId, resourceWithOneOperationId}...)
-						err := ctx.SMRepository.Delete(context.Background(), types.OperationType, criteria)
+						err := common.RemoveResourceByCriterion(ctx, query.ByField(query.InOperator, "resource_id", []string{resourceWithOneOperationId, resourceWithOneOperationId}...), types.OperationType)
 						Expect(err).ShouldNot(HaveOccurred())
-						criteria = query.ByField(query.InOperator, "id", []string{resourceWithOneOperationId, resourceWithOneOperationId}...)
-						err = ctx.SMRepository.Delete(context.Background(), t.ResourceType, criteria)
+						err = common.RemoveResourceByCriterion(ctx, query.ByField(query.InOperator, "id", []string{resourceWithOneOperationId, resourceWithOneOperationId}...), t.ResourceType)
+						if err != nil {
+							print(err.Error())
+						}
 						Expect(err).ShouldNot(HaveOccurred())
 					})
 
@@ -571,7 +572,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 
 					AfterEach(func() {
 						criteria := query.ByField(query.EqualsOperator, "id", resource["id"].(string))
-						err := ctx.SMRepository.Delete(context.Background(), t.ResourceType, criteria)
+						err := common.RemoveResourceByCriterion(ctx, criteria, t.ResourceType)
 						Expect(err).ShouldNot(HaveOccurred())
 					})
 

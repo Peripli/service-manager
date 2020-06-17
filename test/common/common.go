@@ -220,6 +220,20 @@ func MapContains(actual Object, expected Object) {
 	}
 }
 
+func RemoveResourceByCriterion(testCtx *TestContext, criterion query.Criterion, resourceType types.ObjectType) error {
+	if err := testCtx.SMRepository.InTransaction(context.TODO(), func(ctx context.Context, storage storage.Repository) error {
+		if err := storage.Delete(ctx, resourceType, criterion); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		if err != util.ErrNotFoundInStorage {
+			return err
+		}
+	}
+	return nil
+}
+
 func RemoveAllOperations(repository storage.TransactionalRepository) {
 	removeAll(repository, types.OperationType)
 }
