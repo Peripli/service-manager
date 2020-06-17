@@ -535,6 +535,7 @@ func attachLastOperations(ctx context.Context, resources types.ObjectList, repos
 	for i := 0; i < resources.Len(); i++ {
 		resource := resources.ItemAt(i)
 		if LastOp, ok := lastOperationsMap[resource.GetID()]; ok {
+			LastOp.TransitiveResources = nil
 			resource.SetLastOperation(LastOp)
 		}
 	}
