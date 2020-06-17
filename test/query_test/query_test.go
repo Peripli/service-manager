@@ -124,16 +124,6 @@ var _ = Describe("Service Manager Query", func() {
 			Expect(lastOperation1.State).To(Equal(types.SUCCEEDED))
 			Expect(lastOperation2.State).To(Equal(types.SUCCEEDED))
 		})
-
-		It("Should not return any operations in case it's resource does not exist", func() {
-			queryParams := map[string]interface{}{
-				"id_list": []string{"not-found-id"},
-			}
-
-			list, err := repository.QueryForList(context.Background(), types.OperationType, storage.QueryForLastOperationsPerResource, queryParams)
-			Expect(err).ShouldNot(HaveOccurred())
-			Expect(list.Len()).To(BeEquivalentTo(0))
-		})
 	})
 
 	Context("with 2 notification created at different times", func() {
