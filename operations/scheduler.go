@@ -449,7 +449,19 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 			}
 		}
 
-		if opErr := updateOperationState(ctx, storage, opAfterJob, types.FAILED, actionError); opErr != nil {
+		newState := types.FAILED
+		// if this is a force cascade action, we are trying to delete it directly from the database
+		// in case we are failing to delete it the operation will be marked as failed
+		if opAfterJob.IsForceDeleteCascadeOperation() && !opAfterJob.InOrphanMitigationState() {
+			err := storage.Delete(ctx, opAfterJob.ResourceType, query.ByField(query.EqualsOperator, "id", opAfterJob.ResourceID))
+			if err != nil && err != util.ErrNotFoundInStorage {
+				log.C(ctx).Errorf("Failed to force delete %s resource with id %s: %s", opAfterJob.ResourceType, opAfterJob.ResourceID, err)
+			} else {
+				newState = types.SUCCEEDED
+			}
+		}
+
+		if opErr := updateOperationState(ctx, storage, opAfterJob, newState, actionError); opErr != nil {
 			return fmt.Errorf("setting new operation state failed: %s", opErr)
 		}
 
