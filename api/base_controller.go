@@ -396,6 +396,13 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
+	attachLastOps := r.URL.Query().Get("attach_last_operations")
+	if attachLastOps == "true" {
+		if err := attachLastOperations(ctx, objectList, c.repository); err != nil {
+			return nil, err
+		}
+	}
+
 	page := pageFromObjectList(ctx, objectList, count, limit)
 	resp, err := util.NewJSONResponse(http.StatusOK, page)
 	if err != nil {
@@ -509,22 +516,74 @@ func cleanObject(object types.Object) {
 		secured.Sanitize()
 	}
 }
+func getResourceIds(resources types.ObjectList) []string {
+	var resourceIds []string
+	for i := 0; i < resources.Len(); i++ {
+		resource := resources.ItemAt(i)
+		resourceIds = append(resourceIds, resource.GetID())
+	}
+	return resourceIds
+}
+
+func attachLastOperations(ctx context.Context, resources types.ObjectList, repository storage.Repository) error {
+	lastOperationsMap, err := getLastOperations(ctx, getResourceIds(resources), repository)
+
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < resources.Len(); i++ {
+		resource := resources.ItemAt(i)
+		if LastOp, ok := lastOperationsMap[resource.GetID()]; ok {
+			LastOp.TransitiveResources = nil
+			resource.SetLastOperation(LastOp)
+		}
+	}
+
+	return nil
+}
+
+func getLastOperations(ctx context.Context, resourceIDs []string, repository storage.Repository) (map[string]*types.Operation, error) {
+	if len(resourceIDs) == 0 {
+		return nil, nil
+	}
+
+	queryParams := map[string]interface{}{
+		"id_list": resourceIDs,
+	}
+
+	resourceLastOps, err := repository.QueryForList(
+		ctx,
+		types.OperationType,
+		storage.QueryForLastOperationsPerResource,
+		queryParams)
+
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.OperationType.String())
+	}
+
+	instanceLastOpsMap := make(map[string]*types.Operation)
+
+	for i := 0; i < resourceLastOps.Len(); i++ {
+		lastOp := resourceLastOps.ItemAt(i).(*types.Operation)
+		instanceLastOpsMap[lastOp.ResourceID] = lastOp
+	}
+
+	return instanceLastOpsMap, nil
+}
 
 func attachLastOperation(ctx context.Context, objectID string, object types.Object, repository storage.Repository) error {
-	orderBy := query.OrderResultBy("paging_sequence", query.DescOrder)
-	byObjectID := query.ByField(query.EqualsOperator, "resource_id", objectID)
-	// Limit cannot be applied, otherwise the query is corrupted and does not return valid result
-	list, err := repository.List(ctx, types.OperationType, byObjectID, orderBy)
+	ops, err := getLastOperations(ctx, []string{objectID}, repository)
+
 	if err != nil {
-		return util.HandleStorageError(err, types.OperationType.String())
+		return err
 	}
-	if list.Len() == 0 {
-		log.C(ctx).Debugf("No last operation found for entity with id %s of type %s", objectID, object.GetType().String())
-		return nil
+
+	if lastOperation, ok := ops[objectID]; ok {
+		lastOperation.TransitiveResources = nil
+		object.SetLastOperation(lastOperation)
 	}
-	lastOperation := list.ItemAt(0).(*types.Operation)
-	lastOperation.TransitiveResources = nil
-	object.SetLastOperation(lastOperation)
+
 	return nil
 }
 

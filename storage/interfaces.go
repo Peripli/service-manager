@@ -181,6 +181,7 @@ type Repository interface {
 	// Count retrieves number of objects of particular type in SM DB
 	Count(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error)
 
+	// Query for list retrieves a list of items using a named query
 	QueryForList(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (types.ObjectList, error)
 
 	// DeleteReturning deletes objects from SM DB

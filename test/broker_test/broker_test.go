@@ -60,6 +60,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
 	},
+	ResourceType: types.ServiceBrokerType,
 	MultitenancySettings: &test.MultitenancySettings{
 		ClientID:           "tenancyClient",
 		ClientIDTokenClaim: "cid",

@@ -173,15 +173,17 @@ func (pq *pgQuery) Query(ctx context.Context, queryName storage.NamedQuery, quer
 	if err != nil {
 		return nil, err
 	}
-	stmt, err := pq.db.PrepareNamedContext(ctx, sql)
+	sql, args, err := sqlx.Named(sql, queryParams)
 	if err != nil {
 		return nil, err
 	}
-
-	if stmt == nil {
-		return nil, fmt.Errorf("could not prepare statement")
+	sql, args, err = sqlx.In(sql, args...)
+	if err != nil {
+		return nil, err
 	}
-	return stmt.Queryx(queryParams)
+	sql = pq.db.Rebind(sql)
+
+	return pq.db.QueryxContext(ctx, sql, args...)
 }
 
 func (pq *pgQuery) Count(ctx context.Context) (int, error) {

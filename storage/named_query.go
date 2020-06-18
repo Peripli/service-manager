@@ -5,6 +5,7 @@ type NamedQuery int
 const (
 	QueryByMissingLabel NamedQuery = iota
 	QueryByExistingLabel
+	QueryForLastOperationsPerResource
 )
 
 var namedQueries = map[NamedQuery]string{
@@ -39,6 +40,17 @@ var namedQueries = map[NamedQuery]string{
 	(SELECT ID FROM {{.LABELS_TABLE}} 
 				WHERE key=:key
 				AND {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}})`,
+	QueryForLastOperationsPerResource: `
+	SELECT {{.ENTITY_TABLE}}.*
+	FROM {{.ENTITY_TABLE}} 
+    INNER JOIN
+		 (
+			 SELECT max({{.ENTITY_TABLE}}.paging_sequence) paging_sequence
+			 FROM {{.ENTITY_TABLE}}
+			 GROUP BY resource_id
+		 ) LAST_OPERATIONS
+		 ON {{.ENTITY_TABLE}}.paging_sequence = LAST_OPERATIONS.paging_sequence
+	WHERE resource_id IN (:id_list)`,
 }
 
 func GetNamedQuery(query NamedQuery) string {

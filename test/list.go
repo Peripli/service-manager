@@ -17,9 +17,12 @@
 package test
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/gofrs/uuid"
 	"net/url"
 	"strings"
 	"time"
@@ -482,6 +485,130 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 								expectedStatusCode:        http.StatusOK,
 							}, "", ctx.SMWithOAuth)
 						})
+					})
+				})
+			}
+
+			if t.SupportsAsyncOperations {
+				Context("when attach_last_operations is truthy", func() {
+					var resourceWithOneOperation, resourceWithFewOperations common.Object
+					var lastOperationForResourceId string
+					var resourceWithOneOperationId, resourceWithFewOperationsId string
+
+					createTestOperation := func(resourceID string, opType types.OperationCategory) string {
+						id, err := uuid.NewV4()
+						Expect(err).ToNot(HaveOccurred())
+						labels := make(map[string][]string)
+						_, err = ctx.SMRepository.Create(context.TODO(), &types.Operation{
+							Base: types.Base{
+								ID:        id.String(),
+								CreatedAt: time.Now(),
+								UpdatedAt: time.Now(),
+								Labels:    labels,
+								Ready:     true,
+							},
+							Description:   "test",
+							Type:          opType,
+							State:         types.SUCCEEDED,
+							ResourceID:    resourceID,
+							ResourceType:  types.ObjectType(t.API),
+							CorrelationID: id.String(),
+						})
+						Expect(err).ShouldNot(HaveOccurred())
+						return id.String()
+					}
+
+					BeforeEach(func() {
+						resourceWithOneOperation = t.ResourceBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
+						resourceWithFewOperations = t.ResourceBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
+						resourceWithOneOperationId = resourceWithOneOperation["id"].(string)
+						resourceWithFewOperationsId = resourceWithFewOperations["id"].(string)
+						createTestOperation(resourceWithFewOperationsId, types.CREATE)
+						lastOperationForResourceId = createTestOperation(resourceWithFewOperationsId, types.DELETE)
+					})
+
+					AfterEach(func() {
+						err := common.RemoveResourceByCriterion(ctx, query.ByField(query.InOperator, "resource_id", []string{resourceWithOneOperationId, resourceWithOneOperationId}...), types.OperationType)
+						Expect(err).ShouldNot(HaveOccurred())
+						err = common.RemoveResourceByCriterion(ctx, query.ByField(query.InOperator, "id", []string{resourceWithOneOperationId, resourceWithOneOperationId}...), t.ResourceType)
+						if err != nil {
+							print(err.Error())
+						}
+						Expect(err).ShouldNot(HaveOccurred())
+					})
+
+					It("retrieves the resources list when each resource contains the last operation it is associated to", func() {
+						resp := ctx.SMWithOAuth.GET(t.API).
+							WithQuery("attach_last_operations", "true").
+							Expect().Status(http.StatusOK).
+							JSON()
+
+						for _, resource := range resp.Path("$.items[*]").Array().Iter() {
+							itemResourceId := resource.Object().Value("id").String().Raw()
+							if itemResourceId == resourceWithOneOperationId || itemResourceId == resourceWithFewOperationsId {
+								resource.Object().ContainsKey("last_operation")
+								lastOp := resource.Object().Value("last_operation")
+								Expect(lastOp.Object().Value("resource_id").String().Raw()).To(Equal(itemResourceId))
+								Expect(lastOp.Object().Value("state").String().Raw()).To(Equal("succeeded"))
+								Expect(lastOp.Object().Value("resource_type").String().Raw()).ToNot(BeEmpty())
+								Expect(lastOp.Object().Value("type").String().Raw()).ToNot(BeEmpty())
+								Expect(lastOp.Object().Value("deletion_scheduled").String().Raw()).ToNot(BeEmpty())
+
+								if itemResourceId == resourceWithFewOperationsId {
+									Expect(lastOp.Object().Value("state").String().Raw()).To(Equal("succeeded"))
+									Expect(lastOp.Object().Value("type").String().Raw()).To(Equal("delete"))
+									Expect(lastOp.Object().Value("id").String().Raw()).To(Equal(lastOperationForResourceId))
+								}
+							}
+						}
+					})
+				})
+
+				Context("when the last operation does not exist", func() {
+					var resource common.Object
+					BeforeEach(func() {
+						resource = t.ResourceBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
+					})
+
+					AfterEach(func() {
+						criteria := query.ByField(query.EqualsOperator, "id", resource["id"].(string))
+						err := common.RemoveResourceByCriterion(ctx, criteria, t.ResourceType)
+						Expect(err).ShouldNot(HaveOccurred())
+					})
+
+					It("should return the resource without it", func() {
+						resourceId := resource["id"].(string)
+						criteria := query.ByField(query.EqualsOperator, "resource_id", resourceId)
+						err := ctx.SMRepository.Delete(context.Background(), types.OperationType, criteria)
+						Expect(err).ShouldNot(HaveOccurred())
+
+						resp := ctx.SMWithOAuth.GET(t.API).
+							WithQuery("attach_last_operations", "true").
+							Expect().Status(http.StatusOK).
+							JSON()
+
+						var foundResource bool
+						for _, resource := range resp.Path("$.items[*]").Array().Iter() {
+							itemResourceId := resource.Object().Value("id").String().Raw()
+							if itemResourceId == resourceId {
+								foundResource = true
+								resource.Object().NotContainsKey("last_operation")
+							}
+						}
+
+						Expect(foundResource).To(Equal(true))
+					})
+				})
+
+				Context("when attach_last_operations is falsy", func() {
+					It("retrieves the resources without their corresponding last operations", func() {
+						resp := ctx.SMWithOAuth.GET(t.API).
+							WithQuery("attach_last_operations", "false").
+							Expect().Status(http.StatusOK).
+							JSON()
+						for _, resource := range resp.Path("$.items[*]").Array().Iter() {
+							resource.Object().NotContainsKey("last_operation")
+						}
 					})
 				})
 			}
