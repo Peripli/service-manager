@@ -158,6 +158,7 @@ error
 func handleDuplicateOperations(ctx context.Context, storage storage.Repository, operation *types.Operation) (types.OperationState, bool, error) {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
+		query.ByField(query.EqualsOperator, "resource_type", string(operation.ResourceType)),
 		query.ByField(query.EqualsOperator, "type", string(operation.Type)),
 		query.ByField(query.EqualsOperator, "cascade_root_id", operation.CascadeRootID),
 		query.OrderResultBy("updated_at", query.DescOrder),
