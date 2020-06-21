@@ -36,6 +36,9 @@ import (
 
 type storageAction func(ctx context.Context, repository storage.Repository) (types.Object, error)
 
+type executableAction func(ctx context.Context, operation types.Operation, repository storage.Repository) (types.Object, error)
+
+
 // Scheduler is responsible for storing Operation entities in the DB
 // and also for spawning goroutines to execute the respective DB transaction asynchronously
 type Scheduler struct {

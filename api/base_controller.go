@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/Peripli/service-manager/operations/actions"
 	"net/http"
 	"strconv"
 	"time"
@@ -58,6 +59,7 @@ type BaseController struct {
 
 	supportsAsync  bool
 	isAsyncDefault bool
+	actionsFactory      actions.Factory
 }
 
 // NewController returns a new base controller
@@ -86,6 +88,7 @@ func NewController(ctx context.Context, options *Options, resourceBaseURL string
 func NewAsyncController(ctx context.Context, options *Options, resourceBaseURL string, objectType types.ObjectType, isAsyncDefault bool, objectBlueprint func() types.Object) *BaseController {
 	controller := NewController(ctx, options, resourceBaseURL, objectType, objectBlueprint)
 	controller.supportsAsync = true
+	controller.actionsFactory = options.ActionsFactory
 	controller.isAsyncDefault = isAsyncDefault
 
 	return controller
@@ -169,8 +172,9 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	result.SetUpdatedAt(currentTime)
 	result.SetReady(false)
 
+
 	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-		object, err := repository.Create(ctx, result)
+		object, err :=  c.actionsFactory.RunAction(ctx, result)
 		return object, util.HandleStorageError(err, c.objectType.String())
 	}
 
@@ -178,6 +182,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
 	}
+
 	operation := &types.Operation{
 		Base: types.Base{
 			ID:        UUID.String(),
@@ -210,6 +215,12 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 
 		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
 	}
+
+	if c.objectType == types.ServiceInstanceType{
+
+	}
+
+	//actions.ServiceInstanceActions{}
 
 	createdObj, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
 	if err != nil {

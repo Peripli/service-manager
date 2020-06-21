@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/operations/actions"
 	"github.com/Peripli/service-manager/services"
 	"math"
 	"net/http"
@@ -134,6 +135,22 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		return nil, fmt.Errorf("could not create notificator: %v", err)
 	}
 
+	osbClientTimeout := math.Min(float64(cfg.HTTPClient.Timeout), float64(cfg.Server.RequestTimeout))
+	osbClientTimeoutDuration := time.Duration(osbClientTimeout)
+	osbClientProvider := osb.NewBrokerClientProvider(cfg.HTTPClient.SkipSSLValidation, int(osbClientTimeoutDuration.Seconds()))
+
+	settings := services.BrokerServiceSettings{
+		OSBClientCreateFunc: osbClientProvider,
+		Repository:          interceptableRepository,
+		TenantKey:           cfg.Multitenancy.LabelKey,
+		PollingInterval:     cfg.Operations.PollingInterval}
+
+
+	factory := actions.Factory{BrokerService: services.NewBrokerService(settings),
+		Repository:interceptableRepository,
+	}
+
+
 	apiOptions := &api.Options{
 		Repository:        interceptableRepository,
 		APISettings:       cfg.API,
@@ -141,6 +158,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		WSSettings:        cfg.WebSocket,
 		Notificator:       pgNotificator,
 		WaitGroup:         waitGroup,
+		ActionsFactory:    factory,
 	}
 	API, err := api.New(ctx, e, apiOptions)
 	if err != nil {
@@ -170,9 +188,6 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, postgresLockerCreatorFunc, cfg.Operations, waitGroup)
-	osbClientTimeout := math.Min(float64(cfg.HTTPClient.Timeout), float64(cfg.Server.RequestTimeout))
-	osbClientTimeoutDuration := time.Duration(osbClientTimeout)
-	osbClientProvider := osb.NewBrokerClientProvider(cfg.HTTPClient.SkipSSLValidation, int(osbClientTimeoutDuration.Seconds()))
 
 	encryptingRepository, err := encryptingDecorator(smStorage)
 	if err != nil {
@@ -217,7 +232,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		WithUpdateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsUpdateInterceptorProvider{}).Before(interceptors.BrokerUpdateCatalogInterceptorName).Register().
 		WithDeleteOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register()
 
-	settings := services.BrokerServiceSettings{
+	settings = services.BrokerServiceSettings{
 		OSBClientCreateFunc: osbClientProvider,
 		Repository:          interceptableRepository,
 		TenantKey:           cfg.Multitenancy.LabelKey,

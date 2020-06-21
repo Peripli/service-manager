@@ -20,6 +20,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/operations/actions"
 	"sync"
 
 	"github.com/Peripli/service-manager/operations"
@@ -88,6 +89,7 @@ type Options struct {
 	WSSettings        *ws.Settings
 	Notificator       storage.Notificator
 	WaitGroup         *sync.WaitGroup
+	ActionsFactory   actions.Factory
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
