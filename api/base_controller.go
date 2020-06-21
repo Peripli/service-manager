@@ -193,17 +193,17 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
 	}
+	asyncParam := r.URL.Query().Get(web.QueryParamAsync)
 
-	if c.shouldExecuteAsync(r) {
+	ctx = context.WithValue(ctx, "async_mode", asyncParam)
+
+	asyncParam = ""
+	if c.shouldExecuteAsync(r)  && asyncParam !="" {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
 		if err := c.checkAsyncSupport(); err != nil {
 			return nil, err
 		}
 
-		_, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
-		if err != nil {
-			return nil, util.HandleStorageError(err, c.objectType.String())
-		}
 		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
 			return nil, err
 		}
@@ -211,8 +211,6 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
 	}
 
-
-	log.C(ctx).Debugf("Request will be executed synchronously")
 	createdObj, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
 	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
@@ -222,12 +220,12 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	if createdObj.GetLastOperation().IsAsync{
+
+	if createdObj.GetLastOperation().IsAsync && asyncParam == "" {
 		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
 			return nil, err
 		}
 
-		asyncParam := r.URL.Query().Get(web.QueryParamAsync)
 		if asyncParam =="" {
 			return util.NewLocationResponse(createdObj.GetLastOperation().GetID(), result.GetID(), c.resourceBaseURL)
 		}

@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/services"
 	"math"
 	"net"
 	"net/http"
@@ -48,6 +49,7 @@ type BaseSMAAPInterceptorProvider struct {
 	Repository          *storage.InterceptableTransactionalRepository
 	TenantKey           string
 	PollingInterval     time.Duration
+	BrokerService       services.BrokerService
 }
 
 // ServiceInstanceCreateInterceptorProvider provides an interceptor that notifies the actual broker about instance creation
@@ -61,6 +63,7 @@ func (p *ServiceInstanceCreateInterceptorProvider) Provide() storage.CreateAroun
 		repository:          p.Repository,
 		tenantKey:           p.TenantKey,
 		pollingInterval:     p.PollingInterval,
+		brokerService:       p.BrokerService,
 	}
 }
 
@@ -113,6 +116,7 @@ type ServiceInstanceInterceptor struct {
 	repository          *storage.InterceptableTransactionalRepository
 	tenantKey           string
 	pollingInterval     time.Duration
+	brokerService       services.BrokerService
 }
 
 func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
@@ -129,75 +133,48 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			return nil, fmt.Errorf("operation missing from context")
 		}
 
-		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
-		if err != nil {
-			return nil, err
-		}
-
-		//In case of follow up async operation, start polling for instance creation status + don't re-create the instance in db
+		//The follow always start as sync, we create an instance and in-case async is required the create flow is re-trigger by the base controller
 		if operation.IsAsync {
-			if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
+ 			if err := i.brokerService.PollServiceInstance(*instance, ctx, operation.ExternalID, true, operation.RescheduleTimestamp, operation.Type); err != nil {
 				return nil, err
 			}
+
+			operation.Reschedule = false
+			operation.RescheduleTimestamp = time.Time{}
+			if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+				return nil,fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
+			}
+
+
 			return instance, nil
 		}
 
-		var provisionResponse *osbc.ProvisionResponse
 		if !operation.Reschedule {
-			provisionRequest, err := i.prepareProvisionRequest(instance, service.CatalogID, plan.CatalogID)
-			if err != nil {
-				return nil, fmt.Errorf("failed to prepare provision request: %s", err)
-			}
-			log.C(ctx).Infof("Sending provision request %s to broker with name %s", logProvisionRequest(provisionRequest), broker.Name)
-			provisionResponse, err = osbClient.ProvisionInstance(provisionRequest)
-			if err != nil {
-				brokerError := &util.HTTPError{
-					ErrorType:   "BrokerError",
-					Description: fmt.Sprintf("Failed provisioning request %s: %s", logProvisionRequest(provisionRequest), err),
-					StatusCode:  http.StatusBadGateway,
-				}
-				if shouldStartOrphanMitigation(err) {
-					// store the instance so that later on we can do orphan mitigation
-					_, err := f(ctx, obj)
-					if err != nil {
-						return nil, fmt.Errorf("broker error %s caused orphan mitigation which required storing the resource which failed with: %s", brokerError, err)
-					}
 
-					// mark the operation as deletion scheduled meaning orphan mitigation is required
-					operation.DeletionScheduled = time.Now().UTC()
-					operation.Reschedule = false
-					operation.RescheduleTimestamp = time.Time{}
-					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
-						return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
-					}
-				}
-				return nil, brokerError
+			provisionResponse, err := i.brokerService.ProvisionServiceInstance(*instance, ctx)
+
+			if err != nil {
+				return nil, err
 			}
 
-			if provisionResponse.DashboardURL != nil {
-				dashboardURL := *provisionResponse.DashboardURL
-				instance.DashboardURL = dashboardURL
-			}
+			instance.DashboardURL = provisionResponse.DashboardURL
 
 			if provisionResponse.Async {
-				log.C(ctx).Infof("Successful asynchronous provisioning request %s to broker %s returned response %s",
-					logProvisionRequest(provisionRequest), broker.Name, logProvisionResponse(provisionResponse))
 				operation.Reschedule = true
 				//set the operation as async, based on the broker response.
 				operation.IsAsync = true
 				if operation.RescheduleTimestamp.IsZero() {
 					operation.RescheduleTimestamp = time.Now()
 				}
-				if provisionResponse.OperationKey != nil {
-					operation.ExternalID = string(*provisionResponse.OperationKey)
-				}
+
+				operation.ExternalID = provisionResponse.OperationKey
 
 				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", instance.ID, err)
 				}
 			} else {
-				log.C(ctx).Infof("Successful synchronous provisioning %s to broker %s returned response %s",
-					logProvisionRequest(provisionRequest), broker.Name, logProvisionResponse(provisionResponse))
+				//	log.C(ctx).Infof("Successful synchronous provisioning %s to broker %s returned response %s",
+				//	logProvisionRequest(provisionRequest), broker.Name, logProvisionResponse(provisionResponse))
 
 			}
 
@@ -208,7 +185,18 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			instance = object.(*types.ServiceInstance)
 		}
 
-		//for both async and sync flows (first time) return without polling
+		if operation.Reschedule && ctx.Value("async_mode") != "" {
+			if err := i.brokerService.PollServiceInstance(*instance, ctx, operation.ExternalID, true, operation.RescheduleTimestamp, operation.Type); err != nil {
+				operation.Reschedule = false
+				operation.RescheduleTimestamp = time.Time{}
+				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+					return nil,fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
+				}
+
+				return nil, err
+			}
+		}
+
 		return instance, nil
 	}
 }

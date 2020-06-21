@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/services"
 	"math"
 	"net/http"
 	"sync"
@@ -216,11 +217,18 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		WithUpdateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsUpdateInterceptorProvider{}).Before(interceptors.BrokerUpdateCatalogInterceptorName).Register().
 		WithDeleteOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register()
 
+	settings := services.BrokerServiceSettings{
+		OSBClientCreateFunc: osbClientProvider,
+		Repository:          interceptableRepository,
+		TenantKey:           cfg.Multitenancy.LabelKey,
+		PollingInterval:     cfg.Operations.PollingInterval}
+
 	baseSMAAPInterceptorProvider := &interceptors.BaseSMAAPInterceptorProvider{
 		OSBClientCreateFunc: osbClientProvider,
 		Repository:          interceptableRepository,
 		TenantKey:           cfg.Multitenancy.LabelKey,
 		PollingInterval:     cfg.Operations.PollingInterval,
+		BrokerService:       services.NewBrokerService(settings),
 	}
 
 	smb.
