@@ -101,7 +101,9 @@ func (s *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *t
 		s.wg.Add(1)
 		stateCtx := util.StateContext{Context: ctx}
 		go func(operation *types.Operation) {
+			childSpan := util.CreateChildSpan(ctx,"Exec action Asynchronously")
 			defer func() {
+				defer childSpan.GetSpan().Finish()
 				if panicErr := recover(); panicErr != nil {
 					errMessage := fmt.Errorf("job panicked while executing: %s", panicErr)
 					op, opErr := s.refetchOperation(stateCtx, operation)

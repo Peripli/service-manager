@@ -29,7 +29,6 @@ func CreateParentSpan (ctx context.Context, name string) {
 	tracer := opentracing.GlobalTracer()
 	span := tracer.StartSpan(name)
 	ctx = context.WithValue(ctx,tracer,span)
-
 }
 
 func CreateChildSpan(ctx context.Context, name string) SMTrace {
