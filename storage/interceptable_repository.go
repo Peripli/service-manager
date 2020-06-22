@@ -569,7 +569,9 @@ func (itr *InterceptableTransactionalRepository) GetForUpdate(ctx context.Contex
 }
 
 func (itr *InterceptableTransactionalRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	util.CreateChildSpan(ctx,"InterceptableTransactionalRepository list")
+	childSpan := util.CreateChildSpan(ctx,"InterceptableTransactionalRepository list")
+	defer childSpan.Finish()
+
 	return itr.list(ctx, objectType, true, criteria...)
 }
 

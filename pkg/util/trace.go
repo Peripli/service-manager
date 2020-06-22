@@ -12,13 +12,14 @@ func CreateParentSpan (ctx context.Context, name string){
 	defer span.Finish()
 }
 
-func CreateChildSpan(ctx context.Context, name string){
+func CreateChildSpan(ctx context.Context, name string) opentracing.Span {
 	if parent, ok := ctx.Value(opentracing.GlobalTracer()).(opentracing.Span); ok {
 		tracer := opentracing.GlobalTracer()
 
-		child := tracer.StartSpan(
+		return tracer.StartSpan(
 			name,
 			opentracing.ChildOf(parent.Context()))
-		defer child.Finish()
 	}
+
+	return nil
 }
