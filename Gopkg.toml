@@ -121,3 +121,7 @@ source = "https://github.com/fsnotify/fsnotify.git"
 [[constraint]]
   name = "github.com/kubernetes-sigs/go-open-service-broker-client"
   version = "=0.0.10"
+
+[[constraint]]
+  name = "github.com/uber/jaeger-client-go"
+  version = "2.17"

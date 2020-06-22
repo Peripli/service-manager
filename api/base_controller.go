@@ -357,7 +357,7 @@ func GetResourceOperation(r *web.Request, repository storage.Repository, objectT
 // ListObjects handles the fetching of all objects
 func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
-
+	util.CreateParentSpan(ctx,fmt.Sprintf("v2 -> Base controller list API for object: %s",c.objectType.String()))
 	criteria := query.CriteriaForContext(ctx)
 	count, err := c.repository.Count(ctx, c.objectType, criteria...)
 	if err != nil {
@@ -416,7 +416,6 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 		nextPageUrl.RawQuery = q.Encode()
 		resp.Header.Add("Link", fmt.Sprintf(`<%s>; rel="next"`, nextPageUrl))
 	}
-
 	return resp, nil
 }
 

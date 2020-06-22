@@ -19,8 +19,8 @@ package storage
 import (
 	"context"
 	"fmt"
-
 	"github.com/Peripli/service-manager/operations/opcontext"
+	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/log"
 
@@ -569,6 +569,7 @@ func (itr *InterceptableTransactionalRepository) GetForUpdate(ctx context.Contex
 }
 
 func (itr *InterceptableTransactionalRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	util.CreateChildSpan(ctx,"InterceptableTransactionalRepository list")
 	return itr.list(ctx, objectType, true, criteria...)
 }
 

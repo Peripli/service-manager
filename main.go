@@ -18,6 +18,12 @@ package main
 
 import (
 	"context"
+	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/uber/jaeger-lib/metrics"
+
+	"github.com/uber/jaeger-client-go"
+	jaegercfg "github.com/uber/jaeger-client-go/config"
+	jaegerlog "github.com/uber/jaeger-client-go/log"
 
 	"github.com/Peripli/service-manager/api/extensions/security"
 
@@ -27,10 +33,38 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/version"
+
 )
 
 func main() {
 	version.Log()
+
+	jagerCfg :=  jaegercfg.Configuration{
+		ServiceName: "service_manager",
+		Sampler:     &jaegercfg.SamplerConfig{
+			Type:  jaeger.SamplerTypeConst,
+			Param: 1,
+		},
+		Reporter:    &jaegercfg.ReporterConfig{
+			LogSpans: true,
+		},
+	}
+
+	// Example logger and metrics factory. Use github.com/uber/jaeger-client-go/log
+	// and github.com/uber/jaeger-lib/metrics respectively to bind to real logging and metrics
+	// frameworks.
+	jLogger := jaegerlog.StdLogger
+	jMetricsFactory := metrics.NullFactory
+
+	// Initialize tracer with a logger and a metrics factory
+	tracer, closer, err := jagerCfg.NewTracer(
+		jaegercfg.Logger(jLogger),
+		jaegercfg.Metrics(jMetricsFactory),
+	)
+	// Set the singleton opentracing.Tracer with the Jaeger tracer.
+	opentracing.SetGlobalTracer(tracer)
+
+	defer closer.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
