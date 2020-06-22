@@ -28,5 +28,6 @@ func (factory Factory) RunAction(ctx context.Context, entity types.Object) (type
 
 		return newAction.RunActionByOperation(ctx, entity, *operation)
 	}
-	return nil, nil
+
+	return factory.Repository.Create(ctx, entity)
 }

@@ -34,6 +34,7 @@ func (si ServiceInstanceActions) RunActionByOperation(ctx context.Context, entit
 				return nil, err
 			}
 
+
 			instanceRes := resAsInstance.(*types.ServiceInstance)
 			if operation.Reschedule && ctx.Value("async_mode") != "" {
 				return si.pollServiceInstance(ctx, *instanceRes, *operation)

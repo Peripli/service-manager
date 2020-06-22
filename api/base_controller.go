@@ -59,7 +59,7 @@ type BaseController struct {
 
 	supportsAsync  bool
 	isAsyncDefault bool
-	actionsFactory      actions.Factory
+	actionsFactory actions.Factory
 }
 
 // NewController returns a new base controller
@@ -172,9 +172,8 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	result.SetUpdatedAt(currentTime)
 	result.SetReady(false)
 
-
 	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-		object, err :=  c.actionsFactory.RunAction(ctx, result)
+		object, err := c.actionsFactory.RunAction(ctx, result)
 		return object, util.HandleStorageError(err, c.objectType.String())
 	}
 
@@ -200,10 +199,9 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	}
 	asyncParam := r.URL.Query().Get(web.QueryParamAsync)
 
-	ctx = context.WithValue(ctx, "async_mode", asyncParam)
-
 	asyncParam = ""
-	if c.shouldExecuteAsync(r)  && asyncParam !="" {
+	ctx = context.WithValue(ctx, "async_mode", asyncParam)
+	if c.shouldExecuteAsync(r) && asyncParam != "" {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
 		if err := c.checkAsyncSupport(); err != nil {
 			return nil, err
@@ -216,12 +214,6 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
 	}
 
-	if c.objectType == types.ServiceInstanceType{
-
-	}
-
-	//actions.ServiceInstanceActions{}
-
 	createdObj, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
 	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
@@ -231,17 +223,15 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-
-	if createdObj.GetLastOperation().IsAsync && asyncParam == "" {
-		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
+	if createdObj.GetLastOperation().Reschedule && asyncParam == "" {
+		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, createdObj.GetLastOperation(), action); err != nil {
 			return nil, err
 		}
 
-		if asyncParam =="" {
+		if asyncParam == "" {
 			return util.NewLocationResponse(createdObj.GetLastOperation().GetID(), result.GetID(), c.resourceBaseURL)
 		}
 	}
-
 
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
 }
@@ -423,7 +413,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	}
 
 	attachLastOps := r.URL.Query().Get("attach_last_operations")
-	if objectList.Len() >0 && attachLastOps == "true" {
+	if objectList.Len() > 0 && attachLastOps == "true" {
 		if err := attachLastOperations(ctx, objectList, c.repository); err != nil {
 			return nil, err
 		}
@@ -542,16 +532,16 @@ func cleanObject(object types.Object) {
 		secured.Sanitize()
 	}
 }
-func getResourceIds(resources types.ObjectList) []interface{}{
+func getResourceIds(resources types.ObjectList) []interface{} {
 	var resourceIds []interface{}
-	for i:=0;i<resources.Len();i++{
+	for i := 0; i < resources.Len(); i++ {
 		resource := resources.ItemAt(i)
 		resourceIds = append(resourceIds, resource.GetID())
 	}
 	return resourceIds
 }
 
-func attachLastOperations(ctx context.Context, resources types.ObjectList,repository storage.Repository) error{
+func attachLastOperations(ctx context.Context, resources types.ObjectList, repository storage.Repository) error {
 	instanceLastOpsMap := make(map[string]*types.Operation)
 	resourceLastOps, err := repository.QueryForListWithInStatement(
 		ctx,
@@ -563,12 +553,12 @@ func attachLastOperations(ctx context.Context, resources types.ObjectList,reposi
 		return util.HandleStorageError(err, types.OperationType.String())
 	}
 
-	for i:=0;i<resourceLastOps.Len();i++{
+	for i := 0; i < resourceLastOps.Len(); i++ {
 		lastOp := resourceLastOps.ItemAt(i).(*types.Operation)
 		instanceLastOpsMap[lastOp.ResourceID] = lastOp
 	}
 
-	for i:=0;i<resources.Len();i++{
+	for i := 0; i < resources.Len(); i++ {
 		resource := resources.ItemAt(i)
 		if LastOp, ok := instanceLastOpsMap[resource.GetID()]; ok {
 			resource.SetLastOperation(LastOp)
