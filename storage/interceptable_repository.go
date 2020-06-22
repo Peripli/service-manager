@@ -514,6 +514,9 @@ func (itr *InterceptableTransactionalRepository) AddDeleteInterceptorProvider(ob
 }
 
 func (itr *InterceptableTransactionalRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
+	childSpan := util.CreateChildSpan(ctx,"InterceptableTransactionalRepository Create resource in db")
+	defer childSpan.FinishSpan()
+
 	providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors := itr.provideInterceptors()
 
 	onTxInterceptorChain := func(ctx context.Context, obj types.Object) (types.Object, error) {
@@ -570,7 +573,7 @@ func (itr *InterceptableTransactionalRepository) GetForUpdate(ctx context.Contex
 
 func (itr *InterceptableTransactionalRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	childSpan := util.CreateChildSpan(ctx,"InterceptableTransactionalRepository list")
-	defer childSpan.Finish()
+	defer childSpan.FinishSpan()
 
 	return itr.list(ctx, objectType, true, criteria...)
 }

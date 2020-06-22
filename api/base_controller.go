@@ -149,6 +149,7 @@ func (c *BaseController) Routes() []web.Route {
 // CreateObject handles the creation of a new object
 func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
+	util.CreateParentSpan(ctx,fmt.Sprintf("v2 -> Base controller Create Object API for object: %s",c.objectType.String()))
 	log.C(ctx).Debugf("Creating new %s", c.objectType)
 
 	result := c.objectBlueprint()
