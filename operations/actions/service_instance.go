@@ -23,8 +23,6 @@ func (si ServiceInstanceActions) RunActionByOperation(ctx context.Context, entit
 
 
 	instance := entity.(*types.ServiceInstance)
-	//Async polling flow (Creation in progress)
-
 	switch operation.Type {
 	case types.CREATE:
 		if operation.Reschedule {
