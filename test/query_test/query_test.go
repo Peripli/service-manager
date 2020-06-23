@@ -40,8 +40,7 @@ var _ = Describe("Service Manager Query", func() {
 
 	AfterEach(func() {
 		if repository != nil {
-			err := repository.Delete(context.Background(), types.NotificationType)
-			Expect(err).ShouldNot(HaveOccurred())
+			repository.Delete(context.Background(), types.NotificationType)
 		}
 	})
 
@@ -167,6 +166,75 @@ var _ = Describe("Service Manager Query", func() {
 		})
 	})
 
+	Context("with multiple operations for each instance", func() {
+		BeforeEach(func() {
+			common.RemoveAllInstances(ctx)
+			common.RemoveAllOperations(ctx.SMRepository)
+
+			serviceInstance1 := &types.ServiceInstance{
+				Base: types.Base{
+					ID:        "instance1",
+				},
+			}
+			serviceInstance2 := &types.ServiceInstance{
+				Base: types.Base{
+					ID:        "instance2",
+				},
+			}
+			oldestOpForInstance1 := &types.Operation{
+				Base: types.Base{
+					ID:        "oldestOpForInstance1",
+				},
+				Type:              types.CREATE,
+				State:             types.SUCCEEDED,
+				ResourceID:        serviceInstance1.ID,
+				ResourceType:      web.ServiceInstancesURL,
+			}
+			latestOpForInstance1 := &types.Operation{
+				Base: types.Base{
+					ID:        "latestOpForInstance1",
+				},
+				Type:              types.CREATE,
+				State:             types.SUCCEEDED,
+				ResourceID:        serviceInstance1.ID,
+				ResourceType:      web.ServiceInstancesURL,
+			}
+			oldestOpForInstance2 := &types.Operation{
+				Base: types.Base{
+					ID:        "oldestOpForInstance2",
+				},
+				Type:              types.CREATE,
+				State:             types.SUCCEEDED,
+				ResourceID:        serviceInstance2.ID,
+				ResourceType:      web.ServiceInstancesURL,
+			}
+			latestOpForInstance2 := &types.Operation{
+				Base: types.Base{
+					ID:        "latestOpForInstance2",
+				},
+				Type:              types.CREATE,
+				State:             types.SUCCEEDED,
+				ResourceID:        serviceInstance2.ID,
+				ResourceType:      web.ServiceInstancesURL,
+			}
+
+			repository.Create(context.Background(), serviceInstance1)
+			repository.Create(context.Background(), serviceInstance2)
+			repository.Create(context.Background(), oldestOpForInstance1)
+			repository.Create(context.Background(), latestOpForInstance1)
+			repository.Create(context.Background(), oldestOpForInstance2)
+			repository.Create(context.Background(), latestOpForInstance2)
+		})
+
+		It("should return only the operations being last operation for their corresponding instances", func() {
+			list, _ := repository.QueryForList(context.Background(), types.OperationType, storage.QueryForAllLastOperations, nil)
+
+			Expect(list.Len()).To(BeEquivalentTo(2))
+			Expect(listContains(list, "latestOpForInstance1"))
+			Expect(listContains(list, "latestOpForInstance2"))
+		})
+	})
+
 	Context("with 2 notification created at different times", func() {
 		var now time.Time
 		var id1, id2 string
@@ -239,6 +307,15 @@ func createNotification(repository storage.Repository, createdAt time.Time) stri
 	Expect(err).ShouldNot(HaveOccurred())
 
 	return notification.ID
+}
+
+func listContains(list types.ObjectList, itemId string) bool  {
+	for i := 0; i < list.Len(); i++ {
+		if list.ItemAt(i).GetID() == itemId {
+			return true
+		}
+	}
+	return false
 }
 
 func queryNotification(repository storage.Repository, criterias ...query.Criterion) types.ObjectList {
