@@ -6,6 +6,7 @@ const (
 	QueryByMissingLabel NamedQuery = iota
 	QueryByExistingLabel
 	QueryForLastOperationsPerResource
+	QueryForAllLastOperations
 )
 
 var namedQueries = map[NamedQuery]string{
@@ -51,6 +52,16 @@ var namedQueries = map[NamedQuery]string{
 		 ) LAST_OPERATIONS
 		 ON {{.ENTITY_TABLE}}.paging_sequence = LAST_OPERATIONS.paging_sequence
 	WHERE resource_id IN (:id_list)`,
+	QueryForAllLastOperations: `
+	SELECT id
+	FROM {{.ENTITY_TABLE}} 
+    INNER JOIN
+		 (
+			 SELECT max({{.ENTITY_TABLE}}.paging_sequence) paging_sequence
+			 FROM {{.ENTITY_TABLE}}
+			 GROUP BY resource_id
+		 ) LAST_OPERATIONS
+		 ON {{.ENTITY_TABLE}}.paging_sequence = LAST_OPERATIONS.paging_sequence`,
 }
 
 func GetNamedQuery(query NamedQuery) string {

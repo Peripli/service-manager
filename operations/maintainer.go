@@ -171,10 +171,16 @@ func (om *Maintainer) processOperations(functor func(), functorName string, inte
 // cleanUpExternalOperations cleans up periodically all external operations which are older than some specified time
 func (om *Maintainer) cleanupExternalOperations() {
 	currentTime := time.Now()
+	lastOpsList, err := om.repository.QueryForList(om.smCtx, types.OperationType, storage.QueryForAllLastOperations, map[string]interface{}{});
+	if err != nil {
+		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
+		return
+	}
 	criteria := []query.Criterion{
 		query.ByField(query.NotEqualsOperator, "platform_id", types.SMPlatform),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+		query.ByField(query.NotInOperator, "id", getObjectListIDs(lastOpsList)...),
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
@@ -187,6 +193,11 @@ func (om *Maintainer) cleanupExternalOperations() {
 // cleanupFinishedCascadeOperations cleans up all successful/failed internal cascade operations which are older than some specified time
 func (om *Maintainer) CleanupFinishedCascadeOperations() {
 	currentTime := time.Now()
+	lastOpsList, err := om.repository.QueryForList(om.smCtx, types.OperationType, storage.QueryForAllLastOperations, map[string]interface{}{});
+	if err != nil {
+		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
+		return
+	}
 	rootsCriteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOrNilOperator, "parent_id", ""),
@@ -195,6 +206,7 @@ func (om *Maintainer) CleanupFinishedCascadeOperations() {
 		query.ByField(query.InOperator, "state", string(types.SUCCEEDED), string(types.FAILED)),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB//
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+		query.ByField(query.NotInOperator, "id", getObjectListIDs(lastOpsList)...),
 	}
 
 	roots, err := om.repository.List(om.smCtx, types.OperationType, rootsCriteria...)
@@ -215,6 +227,13 @@ func (om *Maintainer) CleanupFinishedCascadeOperations() {
 // cleanupInternalCascadeOperations cleans up all finished internal cascade operations which are older than some specified time
 func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 	currentTime := time.Now()
+
+	lastOpsList, err := om.repository.QueryForList(om.smCtx, types.OperationType, storage.QueryForAllLastOperations, map[string]interface{}{});
+	if err != nil {
+		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
+		return
+	}
+
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "state", string(types.SUCCEEDED)),
@@ -222,6 +241,7 @@ func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 		query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+		query.ByField(query.NotInOperator, "id", getObjectListIDs(lastOpsList)...),
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
@@ -234,6 +254,13 @@ func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 // cleanupInternalFailedOperations cleans up all failed internal operations which are older than some specified time
 func (om *Maintainer) cleanupInternalFailedOperations() {
 	currentTime := time.Now()
+
+	lastOpsList, err := om.repository.QueryForList(om.smCtx, types.OperationType, storage.QueryForAllLastOperations, map[string]interface{}{});
+	if err != nil {
+		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
+		return
+	}
+
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "state", string(types.FAILED)),
@@ -243,6 +270,7 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 		query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+		query.ByField(query.NotInOperator, "id", getObjectListIDs(lastOpsList)...),
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
@@ -514,4 +542,13 @@ func (om *Maintainer) markStuckOperationsFailed() {
 	}
 
 	log.C(om.smCtx).Debug("Finished marking stuck operations as failed")
+}
+
+func getObjectListIDs(lastOpsList types.ObjectList) []string {
+	var notInIds []string
+	for i := 0; i < lastOpsList.Len(); i++ {
+		lastOp := lastOpsList.ItemAt(i).(*types.Operation)
+		notInIds = append(notInIds, lastOp.ID)
+	}
+	return notInIds
 }
