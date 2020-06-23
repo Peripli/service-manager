@@ -170,7 +170,7 @@ func (om *Maintainer) processOperations(functor func(), functorName string, inte
 
 // cleanUpExternalOperations cleans up periodically all external operations which are older than some specified time
 func (om *Maintainer) cleanupExternalOperations() {
-	currentTime := time.Now()
+//	currentTime := time.Now()
 	lastOpsList, err := om.repository.QueryForList(om.smCtx, types.OperationType, storage.QueryForAllLastOperations, map[string]interface{}{});
 	if err != nil {
 		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
@@ -179,7 +179,7 @@ func (om *Maintainer) cleanupExternalOperations() {
 	criteria := []query.Criterion{
 		query.ByField(query.NotEqualsOperator, "platform_id", types.SMPlatform),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+	//	query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
 		query.ByField(query.NotInOperator, "id", getObjectListIDs(lastOpsList)...),
 	}
 
@@ -546,9 +546,12 @@ func (om *Maintainer) markStuckOperationsFailed() {
 
 func getObjectListIDs(lastOpsList types.ObjectList) []string {
 	var notInIds []string
-	for i := 0; i < lastOpsList.Len(); i++ {
-		lastOp := lastOpsList.ItemAt(i).(*types.Operation)
-		notInIds = append(notInIds, lastOp.ID)
+
+	if lastOpsList != nil {
+		for i := 0; i < lastOpsList.Len(); i++ {
+			lastOp := lastOpsList.ItemAt(i).(*types.Operation)
+			notInIds = append(notInIds, lastOp.ID)
+		}
 	}
 	return notInIds
 }
