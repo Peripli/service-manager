@@ -54,7 +54,7 @@ func DefaultSettings() *Settings {
 		ActionTimeout:                  15 * time.Minute,
 		ReconciliationOperationTimeout: 7 * 24 * time.Hour,
 		CascadeOrphanMitigationTimeout: 6 * time.Hour,
-		CleanupInterval:                1 * time.Hour,
+		CleanupInterval:                1 * time.Second,
 		MaintainerRetryInterval:        10 * time.Minute,
 		Lifespan:                       7 * 24 * time.Hour,
 		ReschedulingInterval:           10 * time.Second,

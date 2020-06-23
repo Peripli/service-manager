@@ -9,42 +9,38 @@ import (
 	"time"
 )
 
-
-type RunAction interface {
-	RunActionByOperation(ctx context.Context,obj types.Object, op types.Operation, action ServiceInstanceActions) (types.Object, error)
-}
-
 type ServiceInstanceActions struct {
 	brokerService services.BrokerService
 	repository    storage.Repository
 }
 
 func (si ServiceInstanceActions) RunActionByOperation(ctx context.Context, entity types.Object, operation types.Operation) (types.Object, error) {
-
-
-	instance := entity.(*types.ServiceInstance)
 	switch operation.Type {
 	case types.CREATE:
-		if operation.Reschedule {
-			return si.pollServiceInstance(ctx, *instance, operation)
+		return si.createHandler(ctx , entity , operation)
+	}
+	return nil, nil
+}
+
+func (si ServiceInstanceActions) createHandler(ctx context.Context, entity types.Object, operation types.Operation) (types.Object, error){
+	instance := entity.(*types.ServiceInstance)
+
+	if operation.Reschedule {
+		return si.pollServiceInstance(ctx, *instance, operation)
+	} else {
+		resAsInstance, operation , err := si.createServiceInstance(ctx, instance, operation)
+
+		if err != nil {
+			return nil, err
+		}
+
+		instanceRes := resAsInstance.(*types.ServiceInstance)
+		if operation.Reschedule && ctx.Value("async_mode") != "" {
+			return si.pollServiceInstance(ctx, *instanceRes, *operation)
 		} else {
-			resAsInstance, operation , err := si.createServiceInstance(ctx, instance, operation)
-
-			if err != nil {
-				return nil, err
-			}
-
-
-			instanceRes := resAsInstance.(*types.ServiceInstance)
-			if operation.Reschedule && ctx.Value("async_mode") != "" {
-				return si.pollServiceInstance(ctx, *instanceRes, *operation)
-			} else {
-				return instanceRes, err
-			}
+			return instanceRes, err
 		}
 	}
-
-	return nil, nil
 }
 
 func (si ServiceInstanceActions) deleteServiceInstance(ctx context.Context, obj types.Object, operation types.Operation) (types.Object, error) {
@@ -92,8 +88,6 @@ func (si ServiceInstanceActions) createServiceInstance(ctx context.Context, obj 
 			return nil, nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", instance.ID, err)
 		}
 	} else {
-		//	log.C(ctx).Infof("Successful synchronous provisioning %s to broker %s returned response %s",
-		//	logProvisionRequest(provisionRequest), broker.Name, logProvisionResponse(provisionResponse))
 
 	}
 
