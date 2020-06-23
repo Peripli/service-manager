@@ -172,11 +172,12 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	result.SetUpdatedAt(currentTime)
 	result.SetReady(false)
 
-	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-		object, err := c.actionsFactory.RunAction(ctx, result)
+	defaultAction := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+		object, err := repository.Create(ctx, result)
 		return object, util.HandleStorageError(err, c.objectType.String())
 	}
 
+	action := c.actionsFactory.GetAction(ctx, result, defaultAction)
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)

@@ -284,7 +284,7 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
 		ctx := log.ContextWithLogger(om.smCtx, logger)
 
-		var action storageAction
+		var action StorageAction
 
 		switch operation.Type {
 		case types.CREATE:

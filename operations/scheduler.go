@@ -34,7 +34,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-type storageAction func(ctx context.Context, repository storage.Repository) (types.Object, error)
+type StorageAction func(ctx context.Context, repository storage.Repository) (types.Object, error)
 
 type executableAction func(ctx context.Context, operation types.Operation, repository storage.Repository) (types.Object, error)
 
@@ -67,7 +67,7 @@ func NewScheduler(smCtx context.Context, repository storage.TransactionalReposit
 }
 
 // ScheduleSyncStorageAction stores the job's Operation entity in DB and synchronously executes the CREATE/UPDATE/DELETE DB transaction
-func (s *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *types.Operation, action storageAction) (types.Object, error) {
+func (s *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *types.Operation, action StorageAction) (types.Object, error) {
 	initialLogMessage(ctx, operation, false)
 
 	if err := s.executeOperationPreconditions(ctx, operation); err != nil {
@@ -92,7 +92,7 @@ func (s *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *ty
 }
 
 // ScheduleAsyncStorageAction stores the job's Operation entity in DB asynchronously executes the CREATE/UPDATE/DELETE DB transaction in a goroutine
-func (s *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *types.Operation, action storageAction) error {
+func (s *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *types.Operation, action StorageAction) error {
 	select {
 	case s.workers <- struct{}{}:
 		initialLogMessage(ctx, operation, true)
