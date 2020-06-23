@@ -170,17 +170,11 @@ func (om *Maintainer) processOperations(functor func(), functorName string, inte
 
 // cleanUpExternalOperations cleans up periodically all external operations which are older than some specified time
 func (om *Maintainer) cleanupExternalOperations() {
-//	currentTime := time.Now()
-	lastOpsList, err := om.repository.QueryForList(om.smCtx, types.OperationType, storage.QueryForAllLastOperations, map[string]interface{}{});
-	if err != nil {
-		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
-		return
-	}
+	currentTime := time.Now()
 	criteria := []query.Criterion{
 		query.ByField(query.NotEqualsOperator, "platform_id", types.SMPlatform),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
-	//	query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
-		query.ByField(query.NotInOperator, "id", getObjectListIDs(lastOpsList)...),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
@@ -553,5 +547,6 @@ func getObjectListIDs(lastOpsList types.ObjectList) []string {
 			notInIds = append(notInIds, lastOp.ID)
 		}
 	}
+
 	return notInIds
 }
