@@ -1,9 +1,8 @@
-package actions
+package operations
 
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/operations/opcontext"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
@@ -22,8 +21,7 @@ type RunnableAction interface {
 }
 
 
-func (factory Factory) GetAction(ctx context.Context, entity types.Object, action operations.StorageAction) operations.StorageAction {
-
+func (factory Factory) GetAction(ctx context.Context, entity types.Object, action StorageAction) StorageAction {
 	return func(ctx context.Context, repository storage.Repository) (types.Object, error) {
 		if entityActions, ok := factory.SupportedActions[entity.GetType()]; ok {
 			operation, found := opcontext.Get(ctx)

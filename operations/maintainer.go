@@ -52,10 +52,11 @@ type Maintainer struct {
 	wg                      *sync.WaitGroup
 	functors                []maintainerFunctor
 	operationLockers        map[string]storage.Locker
+	actionsFactory          Factory
 }
 
 // NewMaintainer constructs a Maintainer
-func NewMaintainer(smCtx context.Context, repository storage.TransactionalRepository, lockerCreatorFunc storage.LockerCreatorFunc, options *Settings, wg *sync.WaitGroup) *Maintainer {
+func NewMaintainer(smCtx context.Context, repository storage.TransactionalRepository, lockerCreatorFunc storage.LockerCreatorFunc, options *Settings, wg *sync.WaitGroup, factory Factory) *Maintainer {
 	maintainer := &Maintainer{
 		smCtx:                   smCtx,
 		repository:              repository,
@@ -63,6 +64,7 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 		cascadePollingScheduler: NewScheduler(smCtx, repository, options, options.DefaultCascadePollingPoolSize, wg),
 		settings:                options,
 		wg:                      wg,
+		actionsFactory:          factory,
 	}
 
 	maintainer.functors = []maintainerFunctor{
@@ -278,7 +280,7 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 		query.ByField(query.EqualsOperator, "reschedule", "true"),
 		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
 		// check if operation hasn't been updated for the operation's maximum allowed time to execute
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ActionTimeout))),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(om.settings.ActionTimeout))),
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
@@ -303,10 +305,13 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 				break
 			}
 
-			action = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+			defaultAction := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
 				object, err := repository.Create(ctx, object)
 				return object, util.HandleStorageError(err, operation.ResourceType.String())
 			}
+
+			action = om.actionsFactory.GetAction(ctx, object, defaultAction)
+
 		case types.UPDATE:
 			byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
 			object, err := om.repository.Get(ctx, operation.ResourceType, byID)

@@ -1,4 +1,4 @@
-package actions
+package operations
 
 import (
 	"context"
@@ -14,8 +14,8 @@ type ServiceInstanceActions struct {
 	repository    storage.Repository
 }
 
-func NewServiceInstanceActions(brokerService services.BrokerService,repository    storage.Repository) InstanceActions{
-	return  ServiceInstanceActions{
+func NewServiceInstanceActions(brokerService services.BrokerService, repository storage.Repository) InstanceActions {
+	return ServiceInstanceActions{
 		brokerService: brokerService,
 		repository:    repository,
 	}
@@ -23,18 +23,18 @@ func NewServiceInstanceActions(brokerService services.BrokerService,repository  
 func (si ServiceInstanceActions) RunActionByOperation(ctx context.Context, entity types.Object, operation types.Operation) (types.Object, error) {
 	switch operation.Type {
 	case types.CREATE:
-		return si.createHandler(ctx , entity , operation)
+		return si.createHandler(ctx, entity, operation)
 	}
 	return nil, nil
 }
 
-func (si ServiceInstanceActions) createHandler(ctx context.Context, entity types.Object, operation types.Operation) (types.Object, error){
+func (si ServiceInstanceActions) createHandler(ctx context.Context, entity types.Object, operation types.Operation) (types.Object, error) {
 	instance := entity.(*types.ServiceInstance)
 
 	if operation.Reschedule {
 		return si.pollServiceInstance(ctx, *instance, operation)
 	} else {
-		resAsInstance, operation , err := si.createServiceInstance(ctx, instance, operation)
+		resAsInstance, operation, err := si.createServiceInstance(ctx, instance, operation)
 
 		if err != nil {
 			return nil, err
@@ -54,8 +54,13 @@ func (si ServiceInstanceActions) deleteServiceInstance(ctx context.Context, obj 
 }
 
 func (si ServiceInstanceActions) pollServiceInstance(ctx context.Context, serviceInstance types.ServiceInstance, operation types.Operation) (types.Object, error) {
-	if err := si.brokerService.PollServiceInstance(serviceInstance, ctx, operation.ExternalID, true, operation.RescheduleTimestamp, operation.Type); err != nil {
+	hasCompleted, err := si.brokerService.PollServiceInstance(serviceInstance, ctx, operation.ExternalID, true, operation.RescheduleTimestamp, operation.Type,true);
+	if err != nil {
 		return nil, err
+	}
+
+	if !hasCompleted {
+		return nil, nil
 	}
 
 	operation.Reschedule = false
@@ -64,7 +69,7 @@ func (si ServiceInstanceActions) pollServiceInstance(ctx context.Context, servic
 		return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
 	}
 
-	return &serviceInstance,nil
+	return &serviceInstance, nil
 
 }
 

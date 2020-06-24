@@ -224,7 +224,36 @@ func (sb *BrokerService) prepareProvisionRequest(instance *types.ServiceInstance
 	return provisionRequest, nil
 }
 
-func (sb *BrokerService) PollServiceInstance(instance types.ServiceInstance, ctx context.Context, externalID string, enableOrphanMitigation bool, rescheduleTimestamp time.Time, category types.OperationCategory) error {
+func (sb *BrokerService) PollServiceInstance(instance types.ServiceInstance, ctx context.Context, externalID string, enableOrphanMitigation bool, rescheduleTimestamp time.Time, category types.OperationCategory, syncPoll bool) (bool, error) {
+	instanceContext, err := sb.preparePrerequisites(ctx, &instance)
+	if err != nil {
+		return false, fmt.Errorf("failed to prepare polling request: %s", err)
+	}
+
+	planMaxPollingDuration := time.Duration(instanceContext.servicePlan.MaximumPollingDuration) * time.Second
+	leftPollingDuration := time.Duration(math.MaxInt64) // Never tick if plan has not specified max_polling_duration
+
+	if planMaxPollingDuration > 0 {
+		// MaximumPollingDuration can span multiple reschedules
+		leftPollingDuration = planMaxPollingDuration - (time.Since(rescheduleTimestamp))
+		if leftPollingDuration <= 0 { // The Maximum Polling Duration elapsed before this polling start
+			return false, sb.processMaxPollingDurationElapsed()
+		}
+	}
+
+	if syncPoll {
+		err := sb.SyncPollForServiceInstance(instance, ctx, externalID, enableOrphanMitigation, rescheduleTimestamp, category, leftPollingDuration)
+		if err != nil {
+			return true, err
+		} else {
+			return true, nil
+		}
+	}
+
+	return sb.pollServiceInstance(instance, ctx, externalID, enableOrphanMitigation, rescheduleTimestamp, category, leftPollingDuration)
+}
+
+func (sb *BrokerService) pollServiceInstance(instance types.ServiceInstance, ctx context.Context, externalID string, enableOrphanMitigation bool, rescheduleTimestamp time.Time, category types.OperationCategory, leftPollingDuration time.Duration) (bool, error) {
 	var key *osbc.OperationKey
 	if len(externalID) != 0 {
 		opKey := osbc.OperationKey(externalID)
@@ -234,7 +263,7 @@ func (sb *BrokerService) PollServiceInstance(instance types.ServiceInstance, ctx
 	instanceContext, err := sb.preparePrerequisites(ctx, &instance)
 
 	if err != nil {
-		return fmt.Errorf("failed to prepare polling request: %s", err)
+		return false, fmt.Errorf("failed to prepare polling request: %s", err)
 	}
 	pollingRequest := &osbc.LastOperationRequest{
 		InstanceID:   instance.ID,
@@ -245,16 +274,55 @@ func (sb *BrokerService) PollServiceInstance(instance types.ServiceInstance, ctx
 		OriginatingIdentity: nil,
 	}
 
-	planMaxPollingDuration := time.Duration(instanceContext.servicePlan.MaximumPollingDuration) * time.Second
-	leftPollingDuration := time.Duration(math.MaxInt64) // Never tick if plan has not specified max_polling_duration
+	log.C(ctx).Infof("Sending poll last operation request %s for instance with id %s and name %s", logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
 
-	if planMaxPollingDuration > 0 {
-		// MaximumPollingDuration can span multiple reschedules
-		leftPollingDuration = planMaxPollingDuration - (time.Since(rescheduleTimestamp))
-		if leftPollingDuration <= 0 { // The Maximum Polling Duration elapsed before this polling start
-			return sb.processMaxPollingDurationElapsed()
+	pollingResponse, err := instanceContext.osbClient.PollLastOperation(pollingRequest)
+
+	if err != nil {
+		if osbc.IsGoneError(err) && category == types.DELETE {
+			log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
+			return true, nil
+		} else if isUnreachableBroker(err) {
+			log.C(ctx).Errorf("Broker temporarily unreachable. Rescheduling polling last operation request %s to for provisioning of instance with id %s and name %s...",
+				logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
+		} else {
+			return false, &util.HTTPError{
+				ErrorType: "BrokerError",
+				Description: fmt.Sprintf("Failed poll last operation request %s for instance with id %s and name %s: %s",
+					logPollInstanceRequest(pollingRequest), instance.ID, instance.Name, err),
+				StatusCode: http.StatusBadGateway,
+			}
 		}
 	}
+
+	switch pollingResponse.State {
+	case osbc.StateInProgress:
+		log.C(ctx).Infof("Polling of instance still in progress. Rescheduling polling last operation request %s to for provisioning of instance with id %s and name %s...",
+			logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
+	case osbc.StateSucceeded:
+		log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
+		return true, nil
+	case osbc.StateFailed:
+		log.C(ctx).Infof("Failed polling operation for instance with id %s and name %s with response %s", instance.ID, instance.Name, logPollInstanceResponse(pollingResponse))
+		errDescription := ""
+		if pollingResponse.Description != nil {
+			errDescription = *pollingResponse.Description
+		} else {
+			errDescription = "no description provided by broker"
+		}
+		return false, &util.HTTPError{
+			ErrorType:   "BrokerError",
+			Description: fmt.Sprintf("failed polling operation for instance with id %s and name %s due to polling last operation error: %s", instance.ID, instance.Name, errDescription),
+			StatusCode:  http.StatusBadGateway,
+		}
+	default:
+		log.C(ctx).Errorf("invalid state during poll last operation for instance with id %s and name %s: %s. Continuing polling...", instance.ID, instance.Name, pollingResponse.State)
+	}
+
+	return false, nil
+}
+
+func (sb *BrokerService) SyncPollForServiceInstance(instance types.ServiceInstance, ctx context.Context, externalID string, enableOrphanMitigation bool, rescheduleTimestamp time.Time, category types.OperationCategory, leftPollingDuration time.Duration) error {
 
 	maxPollingDurationTicker := time.NewTicker(leftPollingDuration)
 	defer maxPollingDurationTicker.Stop()
@@ -271,47 +339,13 @@ func (sb *BrokerService) PollServiceInstance(instance types.ServiceInstance, ctx
 		case <-maxPollingDurationTicker.C:
 			return sb.processMaxPollingDurationElapsed()
 		case <-ticker.C:
-			log.C(ctx).Infof("Sending poll last operation request %s for instance with id %s and name %s", logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
-			pollingResponse, err := instanceContext.osbClient.PollLastOperation(pollingRequest)
+			done, err := sb.pollServiceInstance(instance, ctx, externalID, enableOrphanMitigation, rescheduleTimestamp, category, leftPollingDuration)
 			if err != nil {
-				if osbc.IsGoneError(err) && category == types.DELETE {
-					log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
-					return nil
-				} else if isUnreachableBroker(err) {
-					log.C(ctx).Errorf("Broker temporarily unreachable. Rescheduling polling last operation request %s to for provisioning of instance with id %s and name %s...",
-						logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
-				} else {
-					return &util.HTTPError{
-						ErrorType: "BrokerError",
-						Description: fmt.Sprintf("Failed poll last operation request %s for instance with id %s and name %s: %s",
-							logPollInstanceRequest(pollingRequest), instance.ID, instance.Name, err),
-						StatusCode: http.StatusBadGateway,
-					}
-				}
-			} else {
-				switch pollingResponse.State {
-				case osbc.StateInProgress:
-					log.C(ctx).Infof("Polling of instance still in progress. Rescheduling polling last operation request %s to for provisioning of instance with id %s and name %s...",
-						logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
-				case osbc.StateSucceeded:
-					log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
-					return nil
-				case osbc.StateFailed:
-					log.C(ctx).Infof("Failed polling operation for instance with id %s and name %s with response %s", instance.ID, instance.Name, logPollInstanceResponse(pollingResponse))
-					errDescription := ""
-					if pollingResponse.Description != nil {
-						errDescription = *pollingResponse.Description
-					} else {
-						errDescription = "no description provided by broker"
-					}
-					return &util.HTTPError{
-						ErrorType:   "BrokerError",
-						Description: fmt.Sprintf("failed polling operation for instance with id %s and name %s due to polling last operation error: %s", instance.ID, instance.Name, errDescription),
-						StatusCode:  http.StatusBadGateway,
-					}
-				default:
-					log.C(ctx).Errorf("invalid state during poll last operation for instance with id %s and name %s: %s. Continuing polling...", instance.ID, instance.Name, pollingResponse.State)
-				}
+				return err
+			}
+
+			if done {
+				return nil
 			}
 		}
 	}

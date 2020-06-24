@@ -21,7 +21,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/Peripli/service-manager/operations/actions"
+	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/services"
 	"math"
 	"net/http"
@@ -29,8 +29,6 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/query"
-
-	"github.com/Peripli/service-manager/operations"
 
 	"github.com/Peripli/service-manager/pkg/env"
 
@@ -146,9 +144,9 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		PollingInterval:     cfg.Operations.PollingInterval}
 
 
-	factory := actions.Factory{
-		SupportedActions: map[types.ObjectType]actions.InstanceActions{
-			types.ServiceInstanceType: actions.NewServiceInstanceActions(services.NewBrokerService(settings),interceptableRepository)},
+	factory := operations.Factory{
+		SupportedActions: map[types.ObjectType]operations.InstanceActions{
+			types.ServiceInstanceType: operations.NewServiceInstanceActions(services.NewBrokerService(settings),interceptableRepository)},
 	}
 
 	apiOptions := &api.Options{
@@ -187,7 +185,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		return &postgres.Locker{Storage: smStorage, AdvisoryIndex: advisoryIndex}
 	}
 
-	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, postgresLockerCreatorFunc, cfg.Operations, waitGroup)
+	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, postgresLockerCreatorFunc, cfg.Operations, waitGroup,  factory)
 
 	encryptingRepository, err := encryptingDecorator(smStorage)
 	if err != nil {

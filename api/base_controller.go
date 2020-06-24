@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/Peripli/service-manager/operations/actions"
 	"net/http"
 	"strconv"
 	"time"
@@ -59,7 +58,7 @@ type BaseController struct {
 
 	supportsAsync  bool
 	isAsyncDefault bool
-	actionsFactory actions.Factory
+	actionsFactory operations.Factory
 }
 
 // NewController returns a new base controller
@@ -200,7 +199,6 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	}
 	asyncParam := r.URL.Query().Get(web.QueryParamAsync)
 
-	asyncParam = ""
 	ctx = context.WithValue(ctx, "async_mode", asyncParam)
 	if c.shouldExecuteAsync(r) && asyncParam != "" {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
