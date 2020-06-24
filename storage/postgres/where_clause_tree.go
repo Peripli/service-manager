@@ -73,7 +73,7 @@ func (t *whereClauseTree) compileSQL() (string, []interface{}) {
 		childSQL, childQueryParams := child.compileSQL()
 		if len(childSQL) != 0 {
 			childrenSQL = append(childrenSQL, childSQL)
-			if child.criterion.Type != query.ExistQuery{
+			if child.criterion.Type != query.ExistQuery {
 				queryParams = append(queryParams, childQueryParams...)
 			}
 		}

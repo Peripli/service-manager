@@ -173,49 +173,49 @@ var _ = Describe("Service Manager Query", func() {
 
 			serviceInstance1 := &types.ServiceInstance{
 				Base: types.Base{
-					ID:        "instance1",
+					ID: "instance1",
 				},
 			}
 			serviceInstance2 := &types.ServiceInstance{
 				Base: types.Base{
-					ID:        "instance2",
+					ID: "instance2",
 				},
 			}
 			oldestOpForInstance1 := &types.Operation{
 				Base: types.Base{
-					ID:        "oldestOpForInstance1",
+					ID: "oldestOpForInstance1",
 				},
-				Type:              types.CREATE,
-				State:             types.SUCCEEDED,
-				ResourceID:        serviceInstance1.ID,
-				ResourceType:      web.ServiceInstancesURL,
+				Type:         types.CREATE,
+				State:        types.SUCCEEDED,
+				ResourceID:   serviceInstance1.ID,
+				ResourceType: web.ServiceInstancesURL,
 			}
 			latestOpForInstance1 := &types.Operation{
 				Base: types.Base{
-					ID:        "latestOpForInstance1",
+					ID: "latestOpForInstance1",
 				},
-				Type:              types.CREATE,
-				State:             types.SUCCEEDED,
-				ResourceID:        serviceInstance1.ID,
-				ResourceType:      web.ServiceInstancesURL,
+				Type:         types.CREATE,
+				State:        types.SUCCEEDED,
+				ResourceID:   serviceInstance1.ID,
+				ResourceType: web.ServiceInstancesURL,
 			}
 			oldestOpForInstance2 := &types.Operation{
 				Base: types.Base{
-					ID:        "oldestOpForInstance2",
+					ID: "oldestOpForInstance2",
 				},
-				Type:              types.CREATE,
-				State:             types.SUCCEEDED,
-				ResourceID:        serviceInstance2.ID,
-				ResourceType:      web.ServiceInstancesURL,
+				Type:         types.CREATE,
+				State:        types.SUCCEEDED,
+				ResourceID:   serviceInstance2.ID,
+				ResourceType: web.ServiceInstancesURL,
 			}
 			latestOpForInstance2 := &types.Operation{
 				Base: types.Base{
-					ID:        "latestOpForInstance2",
+					ID: "latestOpForInstance2",
 				},
-				Type:              types.CREATE,
-				State:             types.SUCCEEDED,
-				ResourceID:        serviceInstance2.ID,
-				ResourceType:      web.ServiceInstancesURL,
+				Type:         types.CREATE,
+				State:        types.SUCCEEDED,
+				ResourceID:   serviceInstance2.ID,
+				ResourceType: web.ServiceInstancesURL,
 			}
 
 			repository.Create(context.Background(), serviceInstance1)
@@ -309,7 +309,7 @@ func createNotification(repository storage.Repository, createdAt time.Time) stri
 	return notification.ID
 }
 
-func listContains(list types.ObjectList, itemId string) bool  {
+func listContains(list types.ObjectList, itemId string) bool {
 	for i := 0; i < list.Len(); i++ {
 		if list.ItemAt(i).GetID() == itemId {
 			return true

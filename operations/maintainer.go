@@ -69,7 +69,7 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 		{
 			name:     "cleanupExternalOperations",
 			execute:  maintainer.cleanupExternalOperations,
-			interval: 10 * time.Second,
+			interval: options.CleanupInterval,
 		},
 		{
 			name:     "cleanupInternalSuccessfulOperations",
