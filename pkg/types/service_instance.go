@@ -68,10 +68,6 @@ func (e *ServiceInstance) Equals(obj Object) bool {
 	return true
 }
 
-func (e *ServiceInstance) Runnable() bool{
-	return true
-}
-
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (e *ServiceInstance) Validate() error {
 	if util.HasRFC3986ReservedSymbols(e.ID) {

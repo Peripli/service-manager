@@ -14,6 +14,12 @@ type ServiceInstanceActions struct {
 	repository    storage.Repository
 }
 
+func NewServiceInstanceActions(brokerService services.BrokerService,repository    storage.Repository) InstanceActions{
+	return  ServiceInstanceActions{
+		brokerService: brokerService,
+		repository:    repository,
+	}
+}
 func (si ServiceInstanceActions) RunActionByOperation(ctx context.Context, entity types.Object, operation types.Operation) (types.Object, error) {
 	switch operation.Type {
 	case types.CREATE:

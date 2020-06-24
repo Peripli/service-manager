@@ -146,10 +146,10 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		PollingInterval:     cfg.Operations.PollingInterval}
 
 
-	factory := actions.Factory{BrokerService: services.NewBrokerService(settings),
-		Repository:interceptableRepository,
+	factory := actions.Factory{
+		SupportedActions: map[types.ObjectType]actions.InstanceActions{
+			types.ServiceInstanceType: actions.NewServiceInstanceActions(services.NewBrokerService(settings),interceptableRepository)},
 	}
-
 
 	apiOptions := &api.Options{
 		Repository:        interceptableRepository,
