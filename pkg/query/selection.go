@@ -46,6 +46,8 @@ const (
 	LabelQuery CriterionType = "labelQuery"
 	// ResultQuery is used to further process result
 	ResultQuery CriterionType = "resultQuery"
+	// ExistQuery denotes that the query should test for the existence of any record in a given sub-query
+	ExistQuery CriterionType = "existQuery"
 )
 
 // OperatorType represents the type of the query operator
@@ -81,10 +83,10 @@ var (
 		EqualsOperator, NotEqualsOperator,
 		GreaterThanOperator, LessThanOperator,
 		GreaterThanOrEqualOperator, LessThanOrEqualOperator,
-		InOperator, NotInOperator, EqualsOrNilOperator,
+		InOperator, NotInOperator, NotExistsOperator, ExistsOperator, EqualsOrNilOperator,
 	}
 	// CriteriaTypes returns the supported query criteria types
-	CriteriaTypes = []CriterionType{FieldQuery, LabelQuery}
+	CriteriaTypes = []CriterionType{FieldQuery, LabelQuery, ExistQuery}
 )
 
 // Operator is a query operator
@@ -114,6 +116,17 @@ type Criterion struct {
 // ByField constructs a new criterion for field querying
 func ByField(operator Operator, leftOp string, rightOp ...string) Criterion {
 	return NewCriterion(leftOp, operator, rightOp, FieldQuery)
+}
+
+func ByExist(shouldExist bool, subQuery string) Criterion {
+	var operator Operator
+	if shouldExist {
+		operator = ExistsOperator
+	} else {
+		operator = NotExistsOperator
+	}
+
+	return NewCriterion("", operator, []string{subQuery}, ExistQuery)
 }
 
 // ByLabel constructs a new criterion for label querying
@@ -162,7 +175,7 @@ func (c Criterion) Validate() error {
 		return nil
 	}
 
-	if len(c.RightOp) > 1 && c.Operator.Type() == UnivariateOperator {
+	if len(c.RightOp) > 1 && (c.Operator.Type() == UnivariateOperator || c.Type == ExistQuery) {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)}
 	}
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
@@ -175,7 +188,7 @@ func (c Criterion) Validate() error {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("separator %s is not allowed in %s with left operand \"%s\".", Separator, c.Type, c.LeftOp)}
 	}
 	for _, op := range c.RightOp {
-		if strings.ContainsRune(op, '\n') {
+		if strings.ContainsRune(op, '\n') && c.Type != ExistQuery {
 			return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s with key \"%s\" has value \"%s\" contaning forbidden new line character", c.Type, c.LeftOp, op)}
 		}
 	}

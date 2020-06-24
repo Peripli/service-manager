@@ -33,6 +33,10 @@ const (
 	InOperator inOperator = "in"
 	// NotInOperator takes two operands and tests if the left is not contained in the right
 	NotInOperator notInOperator = "notin"
+	//
+	NotExistsOperator notExistsOperator = "notexists"
+	//
+	ExistsOperator existsOperator = "exists"
 	// EqualsOrNilOperator takes two operands and tests if the left is equal to the right, or if the left is nil
 	EqualsOrNilOperator enOperator = "en"
 
@@ -144,6 +148,42 @@ func (notInOperator) IsNullable() bool {
 }
 
 func (notInOperator) IsNumeric() bool {
+	return false
+}
+
+type existsOperator string
+
+func (o existsOperator) String() string {
+	return string(o)
+}
+
+func (existsOperator) Type() OperatorType {
+	return UnivariateOperator
+}
+
+func (existsOperator) IsNullable() bool {
+	return false
+}
+
+func (existsOperator) IsNumeric() bool {
+	return false
+}
+
+type notExistsOperator string
+
+func (o notExistsOperator) String() string {
+	return string(o)
+}
+
+func (notExistsOperator) Type() OperatorType {
+	return UnivariateOperator
+}
+
+func (notExistsOperator) IsNullable() bool {
+	return false
+}
+
+func (notExistsOperator) IsNumeric() bool {
 	return false
 }
 
