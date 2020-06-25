@@ -12,12 +12,14 @@ import (
 type ServiceInstanceActions struct {
 	brokerService services.BrokerService
 	repository    storage.Repository
+	eventBus      *SyncEventBus
 }
 
-func NewServiceInstanceActions(brokerService services.BrokerService, repository storage.Repository) InstanceActions {
+func NewServiceInstanceActions(brokerService services.BrokerService, repository storage.Repository, eventBus *SyncEventBus) InstanceActions {
 	return ServiceInstanceActions{
 		brokerService: brokerService,
 		repository:    repository,
+		eventBus:      eventBus,
 	}
 }
 func (si ServiceInstanceActions) RunActionByOperation(ctx context.Context, entity types.Object, operation types.Operation) (types.Object, error) {
@@ -54,13 +56,13 @@ func (si ServiceInstanceActions) deleteServiceInstance(ctx context.Context, obj 
 }
 
 func (si ServiceInstanceActions) pollServiceInstance(ctx context.Context, serviceInstance types.ServiceInstance, operation types.Operation) (types.Object, error) {
-	hasCompleted, err := si.brokerService.PollServiceInstance(serviceInstance, ctx, operation.ExternalID, true, operation.RescheduleTimestamp, operation.Type,true);
+	hasCompleted, err := si.brokerService.PollServiceInstance(serviceInstance, ctx, operation.ExternalID, true, operation.RescheduleTimestamp, operation.Type, true);
 	if err != nil {
 		return nil, err
 	}
 
 	if !hasCompleted {
-		return nil, nil
+		return &serviceInstance, nil
 	}
 
 	operation.Reschedule = false
@@ -68,7 +70,7 @@ func (si ServiceInstanceActions) pollServiceInstance(ctx context.Context, servic
 	if _, err := si.repository.Update(ctx, &operation, types.LabelChanges{}); err != nil {
 		return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
 	}
-
+	
 	return &serviceInstance, nil
 
 }

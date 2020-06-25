@@ -310,6 +310,7 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 				return object, util.HandleStorageError(err, operation.ResourceType.String())
 			}
 
+			ctx = om.actionsFactory.WithSyncActions(ctx)
 			action = om.actionsFactory.GetAction(ctx, object, defaultAction)
 
 		case types.UPDATE:

@@ -241,15 +241,6 @@ func (sb *BrokerService) PollServiceInstance(instance types.ServiceInstance, ctx
 		}
 	}
 
-	if syncPoll {
-		err := sb.SyncPollForServiceInstance(instance, ctx, externalID, enableOrphanMitigation, rescheduleTimestamp, category, leftPollingDuration)
-		if err != nil {
-			return true, err
-		} else {
-			return true, nil
-		}
-	}
-
 	return sb.pollServiceInstance(instance, ctx, externalID, enableOrphanMitigation, rescheduleTimestamp, category, leftPollingDuration)
 }
 
@@ -320,35 +311,6 @@ func (sb *BrokerService) pollServiceInstance(instance types.ServiceInstance, ctx
 	}
 
 	return false, nil
-}
-
-func (sb *BrokerService) SyncPollForServiceInstance(instance types.ServiceInstance, ctx context.Context, externalID string, enableOrphanMitigation bool, rescheduleTimestamp time.Time, category types.OperationCategory, leftPollingDuration time.Duration) error {
-
-	maxPollingDurationTicker := time.NewTicker(leftPollingDuration)
-	defer maxPollingDurationTicker.Stop()
-
-	ticker := time.NewTicker(sb.pollingInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			log.C(ctx).Errorf("Terminating poll last operation for instance with id %s and name %s due to context done event", instance.ID, instance.Name)
-			// The context is done, either because SM crashed/exited or because action timeout elapsed. In this case the operation should be kept in progress.
-			// This way the operation would be rescheduled and the polling will span multiple reschedules, but no more than max_polling_interval if provided in the plan.
-			return nil
-		case <-maxPollingDurationTicker.C:
-			return sb.processMaxPollingDurationElapsed()
-		case <-ticker.C:
-			done, err := sb.pollServiceInstance(instance, ctx, externalID, enableOrphanMitigation, rescheduleTimestamp, category, leftPollingDuration)
-			if err != nil {
-				return err
-			}
-
-			if done {
-				return nil
-			}
-		}
-	}
 }
 
 func logPollInstanceResponse(response *osbc.LastOperationResponse) string {

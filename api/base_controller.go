@@ -176,6 +176,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return object, util.HandleStorageError(err, c.objectType.String())
 	}
 
+	ctx = c.actionsFactory.WithSyncActions(ctx)
 	action := c.actionsFactory.GetAction(ctx, result, defaultAction)
 	UUID, err := uuid.NewV4()
 	if err != nil {
@@ -228,8 +229,15 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		}
 
 		if asyncParam == "" {
-			return util.NewLocationResponse(createdObj.GetLastOperation().GetID(), result.GetID(), c.resourceBaseURL)
+			return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
 		}
+	}
+
+	// In case the operation is reschedule, sync on resource created event
+	if createdObj.GetLastOperation().Reschedule {
+		isReadyChan := make(chan types.Object)
+		c.actionsFactory.EventBus.AddListener(operation.GetID(),isReadyChan)
+		createdObj = <-isReadyChan
 	}
 
 	return util.NewJSONResponse(http.StatusCreated, createdObj)

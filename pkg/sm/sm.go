@@ -143,10 +143,11 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		TenantKey:           cfg.Multitenancy.LabelKey,
 		PollingInterval:     cfg.Operations.PollingInterval}
 
-
+	eventBus := operations.SyncEventBus{}
 	factory := operations.Factory{
 		SupportedActions: map[types.ObjectType]operations.InstanceActions{
-			types.ServiceInstanceType: operations.NewServiceInstanceActions(services.NewBrokerService(settings),interceptableRepository)},
+			types.ServiceInstanceType: operations.NewServiceInstanceActions(services.NewBrokerService(settings), interceptableRepository, &eventBus)},
+		EventBus: &eventBus,
 	}
 
 	apiOptions := &api.Options{
@@ -185,7 +186,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		return &postgres.Locker{Storage: smStorage, AdvisoryIndex: advisoryIndex}
 	}
 
-	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, postgresLockerCreatorFunc, cfg.Operations, waitGroup,  factory)
+	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, postgresLockerCreatorFunc, cfg.Operations, waitGroup, factory)
 
 	encryptingRepository, err := encryptingDecorator(smStorage)
 	if err != nil {

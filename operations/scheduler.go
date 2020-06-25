@@ -527,6 +527,7 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 }
 
 func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObject types.Object, opAfterJob *types.Operation) (types.Object, error) {
+
 	if err := s.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
 		var finalState types.OperationState
 		if opAfterJob.Type != types.DELETE && opAfterJob.InOrphanMitigationState() {
@@ -567,6 +568,14 @@ func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObjec
 
 		if err := updateOperationState(ctx, storage, opAfterJob, finalState, nil); err != nil {
 			return err
+		}
+
+		evenButs:= ctx.Value(SyncBusKey{});
+		if evenButs != nil {
+			if evenButs := evenButs.(*SyncEventBus); evenButs != nil {
+				actionObject.SetLastOperation(opAfterJob)
+				evenButs.NotifyCompleted(opAfterJob.ID,actionObject)
+			}
 		}
 
 		return nil
