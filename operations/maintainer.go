@@ -175,7 +175,7 @@ func (om *Maintainer) cleanupExternalOperations() {
 		query.ByField(query.NotEqualsOperator, "platform_id", types.SMPlatform),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
-		query.ByExist(false, storage.GetNamedQuery(storage.QueryForAllLastOperations2)),
+		query.ByExist(false, storage.GetSubQuery(storage.QueryForAllLastOperationsPerResource)),
 	}
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
 		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
@@ -195,7 +195,7 @@ func (om *Maintainer) CleanupFinishedCascadeOperations() {
 		query.ByField(query.InOperator, "state", string(types.SUCCEEDED), string(types.FAILED)),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB//
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
-		query.ByExist(false, storage.GetNamedQuery(storage.QueryForAllLastOperations2)),
+		query.ByExist(false, storage.GetSubQuery(storage.QueryForAllLastOperationsPerResource)),
 	}
 
 	roots, err := om.repository.List(om.smCtx, types.OperationType, rootsCriteria...)
@@ -223,7 +223,7 @@ func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 		query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
-		query.ByExist(false, storage.GetNamedQuery(storage.QueryForAllLastOperations2)),
+		query.ByExist(false, storage.GetSubQuery(storage.QueryForAllLastOperationsPerResource)),
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
@@ -245,7 +245,7 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 		query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
-		query.ByExist(false, storage.GetNamedQuery(storage.QueryForAllLastOperations2)),
+		query.ByExist(false, storage.GetSubQuery(storage.QueryForAllLastOperationsPerResource)),
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
