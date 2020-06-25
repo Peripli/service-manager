@@ -118,15 +118,12 @@ func ByField(operator Operator, leftOp string, rightOp ...string) Criterion {
 	return NewCriterion(leftOp, operator, rightOp, FieldQuery)
 }
 
-func ByExist(shouldExist bool, subQuery string) Criterion {
-	var operator Operator
-	if shouldExist {
-		operator = ExistsOperator
-	} else {
-		operator = NotExistsOperator
-	}
+func ByIdNotExist(subQuery string) Criterion {
+	return NewCriterion("", NotExistsOperator, []string{subQuery}, ExistQuery)
+}
 
-	return NewCriterion("", operator, []string{subQuery}, ExistQuery)
+func ByIdExist(subQuery string) Criterion {
+	return NewCriterion("", ExistsOperator, []string{subQuery}, ExistQuery)
 }
 
 // ByLabel constructs a new criterion for label querying
