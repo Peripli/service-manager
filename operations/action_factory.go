@@ -2,56 +2,120 @@ package operations
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/operations/opcontext"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
+	"time"
 )
 
 type InstanceActions interface {
 	RunActionByOperation(ctx context.Context, entity types.Object, operation types.Operation) (types.Object, error)
 }
-type SyncBusKey struct {}
-type SyncEventBus struct {
-	scheduledOperations map[string][]chan types.Object
+type SyncBus struct {
+	Entity types.Object
+	Err    error
 }
 
-func (se *SyncEventBus) AddListener(id string, objectsChan chan types.Object) {
+type ChanItem struct {
+	Channel     chan SyncBus
+	Duration    time.Duration
+	ChanContext context.Context
+}
+
+type SyncEventBus struct {
+	scheduledOperations map[string][]ChanItem
+}
+
+
+func (se *SyncEventBus) removeFromEventBus(id string, chanHolder ChanItem) {
+	if _, ok := se.scheduledOperations[id]; ok {
+		for i := range se.scheduledOperations[id] {
+			if se.scheduledOperations[id][i] == chanHolder {
+				se.scheduledOperations[id] = append(se.scheduledOperations[id][:i], se.scheduledOperations[id][i+1:]...)
+				break
+			}
+		}
+	}
+}
+
+func (se *SyncEventBus) AddListener(id string, objectsChan chan SyncBus, ctx context.Context) {
 
 	if se.scheduledOperations == nil {
-		se.scheduledOperations = make(map[string][]chan types.Object)
+		se.scheduledOperations = make(map[string][]ChanItem)
 	}
+
+	chanItem := ChanItem{
+		Channel:     objectsChan,
+		Duration:    30 * time.Second,
+		ChanContext: nil,
+	}
+
+	go se.eventWatch(id, chanItem, ctx)
 
 	if _, ok := se.scheduledOperations[id]; ok {
-		se.scheduledOperations[id] = append(se.scheduledOperations[id], objectsChan)
+		se.scheduledOperations[id] = append(se.scheduledOperations[id], chanItem)
 	} else {
-		se.scheduledOperations[id] = []chan types.Object{objectsChan}
+		se.scheduledOperations[id] = []ChanItem{chanItem}
 	}
 
-	print (se.scheduledOperations[id])
+	print(se.scheduledOperations[id])
 }
 
-func (se *SyncEventBus) NotifyCompleted(id string,object types.Object) {
+func (se *SyncEventBus) handleTimeOut(id string, object SyncBus) {
+
+}
+
+func (se *SyncEventBus) eventWatch(indexId string, chanItem ChanItem, ctx context.Context)  {
+	maxPollingDurationTicker := time.NewTicker(chanItem.Duration)
+	defer maxPollingDurationTicker.Stop()
+
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			se.NotifyCompleted(indexId,SyncBus{
+				Entity: nil,
+				Err:    errors.New("the context is done, either because SM crashed/exited or because action timeout elapsed"),
+			})
+			se.removeFromEventBus(indexId,chanItem)
+			return
+			// The context is done, either because SM crashed/exited or because action timeout elapsed. In this case the operation should be kept in progress.
+		case <-maxPollingDurationTicker.C:
+			se.NotifyCompleted(indexId,SyncBus{
+				Entity: nil,
+				Err:    errors.New("the maximum execution time for this even has been reached"),
+			})
+			se.removeFromEventBus(indexId,chanItem)
+			return
+		}
+	}
+}
+
+func (se *SyncEventBus) NotifyCompleted(id string, object SyncBus) {
 	if _, ok := se.scheduledOperations[id]; ok {
 		for _, handler := range se.scheduledOperations[id] {
-			go func(handler chan types.Object) {
+			go func(handler chan SyncBus) {
 				handler <- object
-			}(handler)
+			}(handler.Channel)
 		}
 	}
 }
 
 type Factory struct {
 	SupportedActions map[types.ObjectType]InstanceActions
-	EventBus *SyncEventBus
+	EventBus         *SyncEventBus
 }
 
 type RunnableAction interface {
 	isRunnable() bool
 }
 
-func (factory Factory) WithSyncActions(ctx context.Context) context.Context{
-	return context.WithValue(ctx, SyncBusKey{}, factory.EventBus)
+func (factory Factory) WithSyncActions(ctx context.Context) context.Context {
+	return context.WithValue(ctx, SyncBus{}, factory.EventBus)
 }
 
 func (factory Factory) GetAction(ctx context.Context, entity types.Object, action StorageAction) StorageAction {

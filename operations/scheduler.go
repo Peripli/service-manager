@@ -570,11 +570,13 @@ func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObjec
 			return err
 		}
 
-		evenButs:= ctx.Value(SyncBusKey{});
+		evenButs:= ctx.Value(SyncBus{});
 		if evenButs != nil {
 			if evenButs := evenButs.(*SyncEventBus); evenButs != nil {
 				actionObject.SetLastOperation(opAfterJob)
-				evenButs.NotifyCompleted(opAfterJob.ID,actionObject)
+				evenButs.NotifyCompleted(opAfterJob.ID,SyncBus{
+					Entity:  actionObject,
+				})
 			}
 		}
 

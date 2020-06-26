@@ -235,9 +235,15 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 
 	// In case the operation is reschedule, sync on resource created event
 	if createdObj.GetLastOperation().Reschedule {
-		isReadyChan := make(chan types.Object)
-		c.actionsFactory.EventBus.AddListener(operation.GetID(),isReadyChan)
-		createdObj = <-isReadyChan
+		syncCreateChan := make(chan operations.SyncBus)
+		c.actionsFactory.EventBus.AddListener(operation.GetID(), syncCreateChan, ctx)
+		syncEntityCreateChan := <-syncCreateChan
+
+		if syncEntityCreateChan.Err != nil {
+			return nil, err
+		}
+
+		createdObj = syncEntityCreateChan.Entity
 	}
 
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
