@@ -51,7 +51,7 @@ func (se *SyncEventBus) AddListener(id string, objectsChan chan SyncBus, ctx con
 		ChanContext: nil,
 	}
 
-	go se.eventWatch(id, chanItem, ctx)
+	go se.withChannelWatch(id, chanItem, ctx)
 
 	if _, ok := se.scheduledOperations[id]; ok {
 		se.scheduledOperations[id] = append(se.scheduledOperations[id], chanItem)
@@ -62,7 +62,7 @@ func (se *SyncEventBus) AddListener(id string, objectsChan chan SyncBus, ctx con
 	print(se.scheduledOperations[id])
 }
 
-func (se *SyncEventBus) eventWatch(indexId string, chanItem ChanItem, ctx context.Context) {
+func (se *SyncEventBus) withChannelWatch(indexId string, chanItem ChanItem, ctx context.Context) {
 	maxExecutionTime := time.NewTicker(chanItem.Duration)
 	defer maxExecutionTime.Stop()
 	ticker := time.NewTicker(1 * time.Minute)

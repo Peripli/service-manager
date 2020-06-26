@@ -70,9 +70,8 @@ func (si ServiceInstanceActions) pollServiceInstance(ctx context.Context, servic
 	if _, err := si.repository.Update(ctx, &operation, types.LabelChanges{}); err != nil {
 		return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
 	}
-	
-	return &serviceInstance, nil
 
+	return &serviceInstance, nil
 }
 
 func (si ServiceInstanceActions) createServiceInstance(ctx context.Context, obj types.Object, operation types.Operation) (types.Object, *types.Operation, error) {

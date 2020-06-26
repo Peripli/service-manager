@@ -182,7 +182,6 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
 	}
-
 	operation := &types.Operation{
 		Base: types.Base{
 			ID:        UUID.String(),
@@ -219,7 +218,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
 	}
 
-	// In case the operation is rescheduled and the client want to wait for the polling results
+	// Waits for an async operation to complete before sending the response to the client
 	if createdObj.GetLastOperation().Reschedule {
 		syncCreateChan := make(chan operations.SyncBus)
 		c.actionsFactory.EventBus.AddListener(operation.GetID(), syncCreateChan, ctx)
