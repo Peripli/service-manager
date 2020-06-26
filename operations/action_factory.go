@@ -28,7 +28,6 @@ type SyncEventBus struct {
 	scheduledOperations map[string][]ChanItem
 }
 
-
 func (se *SyncEventBus) removeFromEventBus(id string, chanHolder ChanItem) {
 	if _, ok := se.scheduledOperations[id]; ok {
 		for i := range se.scheduledOperations[id] {
@@ -48,7 +47,7 @@ func (se *SyncEventBus) AddListener(id string, objectsChan chan SyncBus, ctx con
 
 	chanItem := ChanItem{
 		Channel:     objectsChan,
-		Duration:    30 * time.Second,
+		Duration:    30 * time.Minute,
 		ChanContext: nil,
 	}
 
@@ -63,33 +62,27 @@ func (se *SyncEventBus) AddListener(id string, objectsChan chan SyncBus, ctx con
 	print(se.scheduledOperations[id])
 }
 
-func (se *SyncEventBus) handleTimeOut(id string, object SyncBus) {
-
-}
-
-func (se *SyncEventBus) eventWatch(indexId string, chanItem ChanItem, ctx context.Context)  {
-	maxPollingDurationTicker := time.NewTicker(chanItem.Duration)
-	defer maxPollingDurationTicker.Stop()
-
+func (se *SyncEventBus) eventWatch(indexId string, chanItem ChanItem, ctx context.Context) {
+	maxExecutionTime := time.NewTicker(chanItem.Duration)
+	defer maxExecutionTime.Stop()
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			se.NotifyCompleted(indexId,SyncBus{
+			se.NotifyCompleted(indexId, SyncBus{
 				Entity: nil,
 				Err:    errors.New("the context is done, either because SM crashed/exited or because action timeout elapsed"),
 			})
-			se.removeFromEventBus(indexId,chanItem)
+			se.removeFromEventBus(indexId, chanItem)
 			return
-			// The context is done, either because SM crashed/exited or because action timeout elapsed. In this case the operation should be kept in progress.
-		case <-maxPollingDurationTicker.C:
-			se.NotifyCompleted(indexId,SyncBus{
+		case <-maxExecutionTime.C:
+			se.NotifyCompleted(indexId, SyncBus{
 				Entity: nil,
 				Err:    errors.New("the maximum execution time for this even has been reached"),
 			})
-			se.removeFromEventBus(indexId,chanItem)
+			se.removeFromEventBus(indexId, chanItem)
 			return
 		}
 	}

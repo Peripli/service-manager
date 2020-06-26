@@ -355,7 +355,6 @@ func shouldStartOrphanMitigation(err error) bool {
 	return false
 }
 
-
 func isUnreachableBroker(err error) bool {
 	if timeOutError, ok := err.(net.Error); ok && timeOutError.Timeout() {
 		return true

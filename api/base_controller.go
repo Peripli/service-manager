@@ -198,21 +198,9 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
 	}
+
 	asyncParam := r.URL.Query().Get(web.QueryParamAsync)
-
 	ctx = context.WithValue(ctx, "async_mode", asyncParam)
-	if c.shouldExecuteAsync(r) && asyncParam != "" {
-		log.C(ctx).Debugf("Request will be executed asynchronously")
-		if err := c.checkAsyncSupport(); err != nil {
-			return nil, err
-		}
-
-		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-			return nil, err
-		}
-
-		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
-	}
 
 	createdObj, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
 	if err != nil {
@@ -223,24 +211,26 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	if createdObj.GetLastOperation().Reschedule && asyncParam == "" {
+	if createdObj.GetLastOperation().Reschedule && c.shouldExecuteAsync(r) || c.shouldExecuteAsync(r) {
 		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, createdObj.GetLastOperation(), action); err != nil {
 			return nil, err
 		}
 
-		if asyncParam == "" {
-			return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
-		}
+		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
 	}
 
-	// In case the operation is reschedule, sync on resource created event
+	// In case the operation is rescheduled and the client want to wait for the polling results
 	if createdObj.GetLastOperation().Reschedule {
 		syncCreateChan := make(chan operations.SyncBus)
 		c.actionsFactory.EventBus.AddListener(operation.GetID(), syncCreateChan, ctx)
 		syncEntityCreateChan := <-syncCreateChan
 
 		if syncEntityCreateChan.Err != nil {
-			return nil, err
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: "Sync execution timeout has been reached",
+				StatusCode:  http.StatusBadRequest,
+			}
 		}
 
 		createdObj = syncEntityCreateChan.Entity
