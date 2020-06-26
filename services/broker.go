@@ -28,14 +28,14 @@ type ProvisionResponse struct {
 
 type BrokerServiceSettings struct {
 	OSBClientCreateFunc osbc.CreateFunc
-	Repository          *storage.InterceptableTransactionalRepository
+	Repository          storage.Repository
 	TenantKey           string
 	PollingInterval     time.Duration
 }
 
 type BrokerService struct {
 	osbClientCreateFunc osbc.CreateFunc
-	repository          *storage.InterceptableTransactionalRepository
+	repository          storage.Repository
 	tenantKey           string
 	pollingInterval     time.Duration
 	context             *ProvisionContext
@@ -105,6 +105,69 @@ func (sb *BrokerService) ProvisionServiceInstance(instance types.ServiceInstance
 
 	}
 	return ProvisionServiceInstanceResponse
+}
+
+func (sb *BrokerService) UpdateServiceInstance(instance types.ServiceInstance, ctx context.Context) (ProvisionResponse, error) {
+	var provisionServiceInstanceResponse ProvisionResponse;
+	requestContext, err := sb.preparePrerequisites(ctx, &instance)
+
+	if err != nil {
+		return provisionServiceInstanceResponse, fmt.Errorf("failed to prepare provision request: %s", err)
+	}
+
+	instanceObjBeforeUpdate, err := sb.repository.Get(ctx, types.ServiceInstanceType, query.Criterion{
+		LeftOp:   "id",
+		Operator: query.EqualsOperator,
+		RightOp:  []string{instance.ID},
+		Type:     query.FieldQuery,
+	})
+	if err != nil {
+		log.C(ctx).WithError(err).Errorf("could not get instance with id '%s'", instance.ID)
+		return provisionServiceInstanceResponse, err
+	}
+
+	instanceBeforeUpdate := instanceObjBeforeUpdate.(*types.ServiceInstance)
+
+	oldServicePlanObj, err := sb.repository.Get(ctx, types.ServicePlanType, query.Criterion{
+		LeftOp:   "id",
+		Operator: query.EqualsOperator,
+		RightOp:  []string{instanceBeforeUpdate.ServicePlanID},
+		Type:     query.FieldQuery,
+	})
+	if err != nil {
+		return provisionServiceInstanceResponse, &util.HTTPError{
+			ErrorType:   "NotFound",
+			Description: fmt.Sprintf("current service plan with id %s for instance %s no longer exists and instance updates are not allowed", instance.ServicePlanID, instance.Name),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+	oldServicePlan := oldServicePlanObj.(*types.ServicePlan)
+
+	var updateInstanceResponse *osbc.UpdateInstanceResponse
+	updateInstanceRequest, err := sb.prepareUpdateInstanceRequest(&instance, requestContext.serviceOffering.CatalogID, requestContext.servicePlan.CatalogID, oldServicePlan.CatalogID)
+	if err != nil {
+		return provisionServiceInstanceResponse, fmt.Errorf("faied to prepare update instance request: %s", err)
+	}
+	log.C(ctx).Infof("Sending update instance request %s to broker with name %s", logUpdateInstanceRequest(updateInstanceRequest), requestContext.serviceBroker.Name)
+	updateInstanceResponse, err = requestContext.osbClient.UpdateInstance(updateInstanceRequest)
+	if err != nil {
+		brokerError := &util.HTTPError{
+			ErrorType:   "BrokerError",
+			Description: fmt.Sprintf("Failed update instance request %s: %s", logUpdateInstanceRequest(updateInstanceRequest), err),
+			StatusCode:  http.StatusBadGateway,
+		}
+		return provisionServiceInstanceResponse, brokerError
+	}
+
+	if updateInstanceResponse.Async {
+		provisionServiceInstanceResponse.Async = true
+	}
+
+	if len(*updateInstanceResponse.OperationKey) != 0 {
+		provisionServiceInstanceResponse.OperationKey = string(*updateInstanceResponse.OperationKey)
+	}
+
+	return provisionServiceInstanceResponse, nil
 }
 
 //Operation Create - (Service instance  -Failed + OM [delete time set])
@@ -185,6 +248,46 @@ func (sb *BrokerService) UpdateServiceBroker(instance types.ServiceInstance) (bo
 
 func (sb *BrokerService) DeleteServiceBinding() {
 
+}
+
+func (sb *BrokerService) prepareUpdateInstanceRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID, oldCatalogPlanID string) (*osbc.UpdateInstanceRequest, error) {
+	instanceContext := make(map[string]interface{})
+	if len(instance.Context) != 0 {
+		if err := json.Unmarshal(instance.Context, &instanceContext); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal already present OSB context: %s", err)
+		}
+	} else {
+		instanceContext = map[string]interface{}{
+			"platform":      types.SMPlatform,
+			"instance_name": instance.Name,
+		}
+
+		if len(sb.tenantKey) != 0 {
+			if tenantValue, ok := instance.GetLabels()[sb.tenantKey]; ok {
+				instanceContext[sb.tenantKey] = tenantValue[0]
+			}
+		}
+
+		contextBytes, err := json.Marshal(instanceContext)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal OSB context %+v: %s", instanceContext, err)
+		}
+		instance.Context = contextBytes
+	}
+
+	return &osbc.UpdateInstanceRequest{
+		InstanceID:        instance.GetID(),
+		AcceptsIncomplete: true,
+		ServiceID:         serviceCatalogID,
+		PlanID:            &planCatalogID,
+		Parameters:        instance.Parameters,
+		Context:           instanceContext,
+		PreviousValues: &osbc.PreviousValues{
+			PlanID: oldCatalogPlanID,
+		},
+		//TODO no OI for SM platform yet
+		OriginatingIdentity: nil,
+	}, nil
 }
 
 func (sb *BrokerService) preparePrerequisites(ctx context.Context, instance *types.ServiceInstance) (*ProvisionContext, error) {
@@ -457,4 +560,13 @@ func logDeprovisionRequest(request *osbc.DeprovisionRequest) string {
 
 func logDeprovisionResponse(response *osbc.DeprovisionResponse) string {
 	return fmt.Sprintf("async: %t, operationKey: %s", response.Async, opKeyPtrToStr(response.OperationKey))
+}
+
+func logUpdateInstanceRequest(request *osbc.UpdateInstanceRequest) string {
+	servicePlanString := ""
+	if request.PlanID != nil {
+		servicePlanString = "planID: " + (*request.PlanID)
+	}
+	return fmt.Sprintf("context: %+v, instanceID: %s, %s, serviceID: %s, acceptsIncomplete: %t",
+		request.Context, request.InstanceID, servicePlanString, request.ServiceID, request.AcceptsIncomplete)
 }

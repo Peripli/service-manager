@@ -12,6 +12,7 @@ import (
 
 type InstanceActions interface {
 	RunActionByOperation(ctx context.Context, entity types.Object, operation types.Operation) (types.Object, error)
+	WithRepository(repository storage.Repository) ServiceInstanceActions
 }
 type SyncBus struct {
 	Entity types.Object
@@ -119,7 +120,7 @@ func (factory Factory) GetAction(ctx context.Context, entity types.Object, actio
 				return nil, fmt.Errorf("operation missing from context")
 			}
 
-			return entityActions.RunActionByOperation(ctx, entity, *operation)
+			return entityActions.WithRepository(repository).RunActionByOperation(ctx, entity, *operation)
 		}
 
 		return action(ctx, repository);

@@ -139,14 +139,13 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 	settings := services.BrokerServiceSettings{
 		OSBClientCreateFunc: osbClientProvider,
-		Repository:          interceptableRepository,
 		TenantKey:           cfg.Multitenancy.LabelKey,
 		PollingInterval:     cfg.Operations.PollingInterval}
 
 	eventBus := operations.SyncEventBus{}
 	factory := operations.Factory{
 		SupportedActions: map[types.ObjectType]operations.InstanceActions{
-			types.ServiceInstanceType: operations.NewServiceInstanceActions(services.NewBrokerService(settings), interceptableRepository, &eventBus)},
+			types.ServiceInstanceType: operations.NewServiceInstanceActions( settings, transactionalRepository, &eventBus,)},
 		EventBus: &eventBus,
 	}
 
@@ -242,7 +241,6 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		Repository:          interceptableRepository,
 		TenantKey:           cfg.Multitenancy.LabelKey,
 		PollingInterval:     cfg.Operations.PollingInterval,
-		BrokerService:       services.NewBrokerService(settings),
 	}
 
 	smb.
