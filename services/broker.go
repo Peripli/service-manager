@@ -23,6 +23,7 @@ type ProvisionResponse struct {
 	Async            bool
 	DashboardURL     string
 	OperationKey     string
+	Error            error
 }
 
 type BrokerServiceSettings struct {
@@ -57,12 +58,13 @@ type ProvisionContext struct {
 	servicePlan     *types.ServicePlan
 }
 
-func (sb *BrokerService) ProvisionServiceInstance(instance types.ServiceInstance, ctx context.Context) (ProvisionResponse, error) {
+func (sb *BrokerService) ProvisionServiceInstance(instance types.ServiceInstance, ctx context.Context) (ProvisionResponse) {
 	var ProvisionServiceInstanceResponse ProvisionResponse;
 	instanceContext, err := sb.preparePrerequisites(ctx, &instance)
 
 	if err != nil {
-		return ProvisionServiceInstanceResponse, fmt.Errorf("failed to prepare provision request: %s", err)
+		ProvisionServiceInstanceResponse.Error = fmt.Errorf("failed to prepare provision request: %s", err)
+		return ProvisionServiceInstanceResponse
 	}
 
 	provisionRequest, err := sb.prepareProvisionRequest(&instance, instanceContext.serviceOffering.CatalogID, instanceContext.servicePlan.CatalogID)
@@ -79,7 +81,8 @@ func (sb *BrokerService) ProvisionServiceInstance(instance types.ServiceInstance
 		if shouldStartOrphanMitigation(err) {
 			ProvisionServiceInstanceResponse.OrphanMitigation = true
 		}
-		return ProvisionServiceInstanceResponse, brokerError
+		ProvisionServiceInstanceResponse.Error = brokerError
+		return ProvisionServiceInstanceResponse
 	}
 
 	if provisionResponse.DashboardURL != nil {
@@ -101,7 +104,7 @@ func (sb *BrokerService) ProvisionServiceInstance(instance types.ServiceInstance
 			logProvisionRequest(provisionRequest), instanceContext.serviceBroker.Name, logProvisionResponse(provisionResponse))
 
 	}
-	return ProvisionServiceInstanceResponse, nil
+	return ProvisionServiceInstanceResponse
 }
 
 //Operation Create - (Service instance  -Failed + OM [delete time set])

@@ -33,30 +33,22 @@ func (si ServiceInstanceActions) RunActionByOperation(ctx context.Context, entit
 func (si ServiceInstanceActions) createHandler(ctx context.Context, entity types.Object, operation types.Operation) (types.Object, error) {
 	instance := entity.(*types.ServiceInstance)
 
-
 	isDeleteRescheduleRequired := operation.InOrphanMitigationState() &&
-		time.Now().UTC().Before(operation.DeletionScheduled.Add(time.Hour * 12)) &&
+		time.Now().UTC().Before(operation.DeletionScheduled.Add(time.Hour*12)) &&
 		operation.State != types.SUCCEEDED
 
-	if isDeleteRescheduleRequired{
+	if isDeleteRescheduleRequired {
 		return si.deleteServiceInstance(ctx, *instance, operation)
 	}
 
 	if operation.Reschedule {
 		return si.pollServiceInstance(ctx, *instance, operation)
 	} else {
-		resAsInstance, operation, err := si.createServiceInstance(ctx, instance, operation)
-
+		resAsInstance, _, err := si.createServiceInstance(ctx, instance, operation)
 		if err != nil {
 			return nil, err
 		}
-
-		instanceRes := resAsInstance.(*types.ServiceInstance)
-		if operation.Reschedule && ctx.Value("async_mode") != "" {
-			return si.pollServiceInstance(ctx, *instanceRes, *operation)
-		} else {
-			return instanceRes, err
-		}
+		return resAsInstance, err
 	}
 }
 
@@ -70,7 +62,7 @@ func (si ServiceInstanceActions) deleteServiceInstance(ctx context.Context, serv
 	if _, err := si.repository.Update(ctx, &operation, types.LabelChanges{}); err != nil {
 		return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
 	}
-	return nil,nil
+	return &serviceInstance, nil
 }
 
 func (si ServiceInstanceActions) pollServiceInstance(ctx context.Context, serviceInstance types.ServiceInstance, operation types.Operation) (types.Object, error) {
@@ -95,14 +87,9 @@ func (si ServiceInstanceActions) pollServiceInstance(ctx context.Context, servic
 func (si ServiceInstanceActions) createServiceInstance(ctx context.Context, obj types.Object, operation types.Operation) (types.Object, *types.Operation, error) {
 	instance := obj.(*types.ServiceInstance)
 	instance.Usable = false
+	provisionResponse := si.brokerService.ProvisionServiceInstance(*instance, ctx)
 
-	if _, err := si.repository.Create(ctx, instance); err != nil {
-		return nil, nil, fmt.Errorf("failed to create servie instance")
-	}
-
-	provisionResponse, err := si.brokerService.ProvisionServiceInstance(*instance, ctx)
-
-	if err != nil {
+	if provisionResponse.Error != nil {
 
 		if provisionResponse.OrphanMitigation {
 			operation.DeletionScheduled = time.Now().UTC()
@@ -112,11 +99,14 @@ func (si ServiceInstanceActions) createServiceInstance(ctx context.Context, obj 
 			}
 		}
 
-		return nil, nil, err
+		if _, err := si.repository.Create(ctx, instance); err != nil {
+			return nil, nil, err
+		}
+
+		return nil, nil, provisionResponse.Error
 	}
 
 	instance.DashboardURL = provisionResponse.DashboardURL
-
 
 	if provisionResponse.Async {
 		operation.Reschedule = true
@@ -133,8 +123,9 @@ func (si ServiceInstanceActions) createServiceInstance(ctx context.Context, obj 
 		}
 	}
 
-	if _, err := si.repository.Update(ctx, instance,types.LabelChanges{}); err != nil {
-		return nil, nil, fmt.Errorf("failed to create servie instance")
+
+	if _, err := si.repository.Create(ctx, instance); err != nil {
+		return nil, nil, err
 	}
 
 	return instance, &operation, nil
