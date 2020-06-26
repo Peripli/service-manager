@@ -58,7 +58,6 @@ type ProvisionContext struct {
 }
 
 func (sb *BrokerService) ProvisionServiceInstance(instance types.ServiceInstance, ctx context.Context) (ProvisionResponse, error) {
-
 	var ProvisionServiceInstanceResponse ProvisionResponse;
 	instanceContext, err := sb.preparePrerequisites(ctx, &instance)
 
@@ -106,8 +105,75 @@ func (sb *BrokerService) ProvisionServiceInstance(instance types.ServiceInstance
 }
 
 //Operation Create - (Service instance  -Failed + OM [delete time set])
-func (sb *BrokerService) DeleteServiceInstance(instance types.ServiceInstance) (bool, error) {
-	return true, nil
+func (sb *BrokerService) DeleteServiceInstance(instance types.ServiceInstance, ctx context.Context) (ProvisionResponse, error) {
+
+	var provisionServiceInstanceResponse ProvisionResponse;
+	instanceContext, err := sb.preparePrerequisites(ctx, &instance)
+
+	if err != nil {
+		return provisionServiceInstanceResponse, fmt.Errorf("failed to prepare provision request: %s", err)
+	}
+
+	deprovisionRequest := prepareDeprovisionRequest(&instance, instanceContext.serviceOffering.CatalogID, instanceContext.servicePlan.CatalogID)
+
+	log.C(ctx).Infof("Sending deprovision request %s to broker with name %s", logDeprovisionRequest(deprovisionRequest), instanceContext.serviceBroker.Name)
+	deprovisionResponse, err := instanceContext.osbClient.DeprovisionInstance(deprovisionRequest)
+
+	if err != nil {
+		if osbc.IsGoneError(err) {
+			//log.C(ctx).Infof("Synchronous deprovisioning %s to broker %s returned 410 GONE and is considered success",
+			//	logDeprovisionRequest(deprovisionRequest), broker.Name)
+			return provisionServiceInstanceResponse, nil
+		}
+		brokerError := &util.HTTPError{
+			ErrorType:   "BrokerError",
+			Description: fmt.Sprintf("Failed deprovisioning request %s: %s", logDeprovisionRequest(deprovisionRequest), err),
+			StatusCode:  http.StatusBadGateway,
+		}
+
+		if shouldStartOrphanMitigation(err) {
+			provisionServiceInstanceResponse.OrphanMitigation = true
+
+			//operation.DeletionScheduled = time.Now()
+			//operation.Reschedule = false
+			//operation.RescheduleTimestamp = time.Time{}
+			//if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+			//	return fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
+			//}
+		}
+		return provisionServiceInstanceResponse, brokerError
+	}
+
+	if deprovisionResponse.Async {
+		log.C(ctx).Infof("Successful asynchronous deprovisioning request %s to broker %s returned response %s",
+			logDeprovisionRequest(deprovisionRequest), instanceContext.serviceBroker.Name, logDeprovisionResponse(deprovisionResponse))
+		provisionServiceInstanceResponse.Async = true
+		//operation.Reschedule = true
+		//if operation.RescheduleTimestamp.IsZero() {
+		//	operation.RescheduleTimestamp = time.Now()
+		//}
+
+		if deprovisionResponse.OperationKey != nil {
+			provisionServiceInstanceResponse.OperationKey = string(*deprovisionResponse.OperationKey)
+			//operation.ExternalID = string(*deprovisionResponse.OperationKey)
+		}
+	} else {
+		log.C(ctx).Infof("Successful synchronous deprovisioning %s to broker %s returned response %s",
+			logDeprovisionRequest(deprovisionRequest), instanceContext.serviceBroker.Name, logDeprovisionResponse(deprovisionResponse))
+	}
+
+	return provisionServiceInstanceResponse, nil
+}
+
+func prepareDeprovisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string) *osbc.DeprovisionRequest {
+	return &osbc.DeprovisionRequest{
+		InstanceID:        instance.ID,
+		AcceptsIncomplete: true,
+		ServiceID:         serviceCatalogID,
+		PlanID:            planCatalogID,
+		//TODO no OI for SM platform yet
+		OriginatingIdentity: nil,
+	}
 }
 
 func (sb *BrokerService) UpdateServiceBroker(instance types.ServiceInstance) (bool, error) {
@@ -380,4 +446,12 @@ func logProvisionRequest(request *osbc.ProvisionRequest) string {
 
 func logProvisionResponse(response *osbc.ProvisionResponse) string {
 	return fmt.Sprintf("async: %t, dashboardURL: %s, operationKey: %s", response.Async, strPtrToStr(response.DashboardURL), opKeyPtrToStr(response.OperationKey))
+}
+func logDeprovisionRequest(request *osbc.DeprovisionRequest) string {
+	return fmt.Sprintf("instanceID: %s, planID: %s, serviceID: %s, acceptsIncomplete: %t",
+		request.InstanceID, request.PlanID, request.ServiceID, request.AcceptsIncomplete)
+}
+
+func logDeprovisionResponse(response *osbc.DeprovisionResponse) string {
+	return fmt.Sprintf("async: %t, operationKey: %s", response.Async, opKeyPtrToStr(response.OperationKey))
 }

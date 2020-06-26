@@ -447,7 +447,7 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 		query.ByField(query.NotEqualsOperator, "deletion_scheduled", ZeroTime),
 		query.ByField(query.NotEqualsOperator, "type", string(types.UPDATE)),
 		// check if operation hasn't been updated for the operation's maximum allowed time to execute
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ActionTimeout))),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(om.settings.ActionTimeout))),
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
@@ -464,7 +464,7 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 
 		byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
 
-		action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+		defaultAction :=func(ctx context.Context, repository storage.Repository) (types.Object, error) {
 			err := repository.Delete(ctx, operation.ResourceType, byID)
 			if err != nil {
 				if err == util.ErrNotFoundInStorage {
@@ -474,6 +474,15 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 			}
 			return nil, nil
 		}
+
+		object, err := om.repository.Get(ctx, operation.ResourceType, query.ByField(query.EqualsOperator, "id", operation.ResourceID))
+		if err != nil {
+			logger.Warnf("Failed to fetch resource with ID (%s) for operation with ID (%s): %s", operation.ResourceID, operation.ID, err)
+			break
+		}
+
+		ctx = om.actionsFactory.WithSyncActions(ctx)
+		action := om.actionsFactory.GetAction(ctx, object, defaultAction)
 
 		if err := om.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
 			logger.Warnf("Failed to reschedule unprocessed orphan mitigation operation with ID (%s): %s", operation.ID, err)
