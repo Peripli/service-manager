@@ -210,11 +210,13 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	if createdObj.GetLastOperation().Reschedule && c.shouldExecuteAsync(r) || c.shouldExecuteAsync(r) {
+	if createdObj.GetLastOperation().Reschedule && c.shouldExecuteAsync(r) {
 		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, createdObj.GetLastOperation(), action); err != nil {
 			return nil, err
 		}
 
+		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
+	}else if c.shouldExecuteAsync(r){
 		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
 	}
 
