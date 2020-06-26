@@ -215,6 +215,8 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
+	} else if c.shouldExecuteAsync(r) {
+		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
 	}
 
 	// Waits for an async operation to complete before sending the response to the client

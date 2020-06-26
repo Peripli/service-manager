@@ -682,7 +682,7 @@ var _ = DescribeTestsFor(TestCase{
 									close(doneChannel)
 								})
 
-								It("deletes succeed", func() {
+								FIt("deletes succeed", func() {
 									resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceBindingsURL+"/"+bindingID).WithQuery("async", testCase.async).
 										Expect().StatusRange(httpexpect.Status2xx)
 
