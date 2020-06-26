@@ -32,7 +32,7 @@ func (si ServiceInstanceActions) WithRepository(repository storage.Repository) S
 			Repository:          repository,
 		}),
 		eventBus:   si.eventBus,
-		repository: si.repository,
+		repository: repository,
 	}
 }
 
