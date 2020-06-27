@@ -3,17 +3,10 @@ package operations
 import (
 	"context"
 	"errors"
-	"fmt"
-	"github.com/Peripli/service-manager/operations/opcontext"
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/storage"
 	"time"
 )
 
-type InstanceActions interface {
-	RunActionByOperation(ctx context.Context, entity types.Object, operation types.Operation) (types.Object, error)
-	WithRepository(repository storage.Repository) ServiceInstanceActions
-}
 type SyncBus struct {
 	Entity types.Object
 	Err    error
@@ -48,7 +41,7 @@ func (se *SyncEventBus) AddListener(id string, objectsChan chan SyncBus, ctx con
 
 	chanItem := ChanItem{
 		Channel:     objectsChan,
-		Duration:    30 * time.Minute,
+		Duration:    10 * time.Second,
 		ChanContext: nil,
 	}
 
@@ -96,33 +89,5 @@ func (se *SyncEventBus) NotifyCompleted(id string, object SyncBus) {
 				handler <- object
 			}(handler.Channel)
 		}
-	}
-}
-
-type Factory struct {
-	SupportedActions map[types.ObjectType]InstanceActions
-	EventBus         *SyncEventBus
-}
-
-type RunnableAction interface {
-	isRunnable() bool
-}
-
-func (factory Factory) WithSyncActions(ctx context.Context) context.Context {
-	return context.WithValue(ctx, SyncBus{}, factory.EventBus)
-}
-
-func (factory Factory) GetAction(ctx context.Context, entity types.Object, action StorageAction) StorageAction {
-	return func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-		if entityActions, ok := factory.SupportedActions[entity.GetType()]; ok {
-			operation, found := opcontext.Get(ctx)
-			if !found {
-				return nil, fmt.Errorf("operation missing from context")
-			}
-
-			return entityActions.WithRepository(repository).RunActionByOperation(ctx, entity, *operation)
-		}
-
-		return action(ctx, repository);
 	}
 }

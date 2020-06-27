@@ -16,7 +16,7 @@ type ServiceInstanceActions struct {
 	brokerService  services.BrokerService
 }
 
-func NewServiceInstanceActions(brokerService services.BrokerServiceSettings, repository storage.Repository, eventBus *SyncEventBus) InstanceActions {
+func NewServiceInstanceActions(brokerService services.BrokerServiceSettings, repository storage.Repository, eventBus *SyncEventBus) ScheduledActions {
 	return ServiceInstanceActions{
 		brokerSettings: brokerService,
 		eventBus:       eventBus,
@@ -41,6 +41,7 @@ func (si ServiceInstanceActions) RunActionByOperation(ctx context.Context, entit
 	case types.CREATE:
 		return si.createHandler(ctx, entity, operation)
 	}
+
 	return nil, nil
 }
 

@@ -52,11 +52,11 @@ type Maintainer struct {
 	wg                      *sync.WaitGroup
 	functors                []maintainerFunctor
 	operationLockers        map[string]storage.Locker
-	actionsFactory          Factory
+	actionsFactory          ScheduledActionsProvider
 }
 
 // NewMaintainer constructs a Maintainer
-func NewMaintainer(smCtx context.Context, repository storage.TransactionalRepository, lockerCreatorFunc storage.LockerCreatorFunc, options *Settings, wg *sync.WaitGroup, factory Factory) *Maintainer {
+func NewMaintainer(smCtx context.Context, repository storage.TransactionalRepository, lockerCreatorFunc storage.LockerCreatorFunc, options *Settings, wg *sync.WaitGroup, factory ScheduledActionsProvider) *Maintainer {
 	maintainer := &Maintainer{
 		smCtx:                   smCtx,
 		repository:              repository,
@@ -310,7 +310,7 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 				return object, util.HandleStorageError(err, operation.ResourceType.String())
 			}
 
-			ctx = om.actionsFactory.WithSyncActions(ctx)
+			ctx = om.actionsFactory.GetContextWithEventBus(ctx)
 			action = om.actionsFactory.GetAction(ctx, object, defaultAction)
 
 		case types.UPDATE:
@@ -481,7 +481,7 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 			break
 		}
 
-		ctx = om.actionsFactory.WithSyncActions(ctx)
+		ctx = om.actionsFactory.GetContextWithEventBus(ctx)
 		action := om.actionsFactory.GetAction(ctx, object, defaultAction)
 
 		if err := om.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {

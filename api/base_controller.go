@@ -58,7 +58,7 @@ type BaseController struct {
 
 	supportsAsync  bool
 	isAsyncDefault bool
-	actionsFactory operations.Factory
+	actionsFactory operations.ScheduledActionsProvider
 }
 
 // NewController returns a new base controller
@@ -176,7 +176,8 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return object, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	ctx = c.actionsFactory.WithSyncActions(ctx)
+	// Allows to sync the response if the sync true param is passed by the client
+	ctx = c.actionsFactory.GetContextWithEventBus(ctx)
 	action := c.actionsFactory.GetAction(ctx, result, defaultAction)
 	UUID, err := uuid.NewV4()
 	if err != nil {
@@ -201,6 +202,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	asyncParam := r.URL.Query().Get(web.QueryParamAsync)
 	ctx = context.WithValue(ctx, "async_mode", asyncParam)
 
+	// Start in a sync flow to get the broker response
 	createdObj, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
 	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
@@ -210,12 +212,14 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
+	//in case broker response is async and client did not ask for a sync response.. go async
 	if createdObj.GetLastOperation().Reschedule && c.shouldExecuteAsync(r) {
 		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, createdObj.GetLastOperation(), action); err != nil {
 			return nil, err
 		}
 		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
 	} else if c.shouldExecuteAsync(r) {
+		//client request async response.. respond async
 		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
 	}
 
@@ -236,6 +240,8 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		createdObj = syncEntityCreateChan.Entity
 	}
 
+
+	//return sync response..
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
 }
 

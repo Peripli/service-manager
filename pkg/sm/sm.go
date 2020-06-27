@@ -143,8 +143,8 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		PollingInterval:     cfg.Operations.PollingInterval}
 
 	eventBus := operations.SyncEventBus{}
-	factory := operations.Factory{
-		SupportedActions: map[types.ObjectType]operations.InstanceActions{
+	factory := operations.ScheduledActionsProvider{
+		SupportedActions: map[types.ObjectType]operations.ScheduledActions{
 			types.ServiceInstanceType: operations.NewServiceInstanceActions( settings, transactionalRepository, &eventBus,)},
 		EventBus: &eventBus,
 	}
