@@ -1,4 +1,4 @@
-package operations
+package actions
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 )
+
+type StorageAction func(ctx context.Context, repository storage.Repository) (types.Object, error)
 
 type ScheduledActions interface {
 	RunActionByOperation(ctx context.Context, entity types.Object, operation types.Operation) (types.Object, error)
@@ -28,6 +30,7 @@ func (factory ScheduledActionsProvider) GetContextWithEventBus(ctx context.Conte
 
 func (factory ScheduledActionsProvider) GetAction(ctx context.Context, entity types.Object, action StorageAction) StorageAction {
 	return func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+
 		if entityActions, ok := factory.SupportedActions[entity.GetType()]; ok {
 			operation, found := opcontext.Get(ctx)
 			if !found {

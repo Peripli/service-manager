@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/operations/actions"
 	"net/http"
 	"runtime/debug"
 	"sync"
@@ -33,11 +34,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 )
-
-type StorageAction func(ctx context.Context, repository storage.Repository) (types.Object, error)
-
-type executableAction func(ctx context.Context, operation types.Operation, repository storage.Repository) (types.Object, error)
-
 
 // Scheduler is responsible for storing Operation entities in the DB
 // and also for spawning goroutines to execute the respective DB transaction asynchronously
@@ -67,7 +63,7 @@ func NewScheduler(smCtx context.Context, repository storage.TransactionalReposit
 }
 
 // ScheduleSyncStorageAction stores the job's Operation entity in DB and synchronously executes the CREATE/UPDATE/DELETE DB transaction
-func (s *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *types.Operation, action StorageAction) (types.Object, error) {
+func (s *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *types.Operation, action actions.StorageAction) (types.Object, error) {
 	initialLogMessage(ctx, operation, false)
 
 	if err := s.executeOperationPreconditions(ctx, operation); err != nil {
@@ -92,7 +88,7 @@ func (s *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *ty
 }
 
 // ScheduleAsyncStorageAction stores the job's Operation entity in DB asynchronously executes the CREATE/UPDATE/DELETE DB transaction in a goroutine
-func (s *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *types.Operation, action StorageAction) error {
+func (s *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *types.Operation, action actions.StorageAction) error {
 	select {
 	case s.workers <- struct{}{}:
 		initialLogMessage(ctx, operation, true)
@@ -519,11 +515,11 @@ func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObjec
 			return err
 		}
 
-		evenButs:= ctx.Value(SyncBus{});
+		evenButs:= ctx.Value(actions.SyncBus{});
 		if evenButs != nil {
-			if evenButs := evenButs.(*SyncEventBus); evenButs != nil {
+			if evenButs := evenButs.(*actions.SyncEventBus); evenButs != nil {
 				actionObject.SetLastOperation(opAfterJob)
-				evenButs.NotifyCompleted(opAfterJob.ID,SyncBus{
+				evenButs.NotifyCompleted(opAfterJob.ID,actions.SyncBus{
 					Entity:  actionObject,
 				})
 			}

@@ -19,6 +19,7 @@ package operations
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/operations/actions"
 	"sync"
 	"time"
 
@@ -52,11 +53,11 @@ type Maintainer struct {
 	wg                      *sync.WaitGroup
 	functors                []maintainerFunctor
 	operationLockers        map[string]storage.Locker
-	actionsFactory          ScheduledActionsProvider
+	actionsFactory          actions.ScheduledActionsProvider
 }
 
 // NewMaintainer constructs a Maintainer
-func NewMaintainer(smCtx context.Context, repository storage.TransactionalRepository, lockerCreatorFunc storage.LockerCreatorFunc, options *Settings, wg *sync.WaitGroup, factory ScheduledActionsProvider) *Maintainer {
+func NewMaintainer(smCtx context.Context, repository storage.TransactionalRepository, lockerCreatorFunc storage.LockerCreatorFunc, options *Settings, wg *sync.WaitGroup, factory actions.ScheduledActionsProvider) *Maintainer {
 	maintainer := &Maintainer{
 		smCtx:                   smCtx,
 		repository:              repository,
@@ -295,7 +296,7 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
 		ctx := log.ContextWithLogger(om.smCtx, logger)
 
-		var action StorageAction
+		var action actions.StorageAction
 
 		switch operation.Type {
 		case types.CREATE:

@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/Peripli/service-manager/operations/actions"
 	"net/http"
 	"strconv"
 	"time"
@@ -58,7 +59,7 @@ type BaseController struct {
 
 	supportsAsync  bool
 	isAsyncDefault bool
-	actionsFactory operations.ScheduledActionsProvider
+	actionsFactory actions.ScheduledActionsProvider
 }
 
 // NewController returns a new base controller
@@ -225,7 +226,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 
 	// Waits for an async operation to complete before sending the response to the client
 	if createdObj.GetLastOperation().Reschedule {
-		syncCreateChan := make(chan operations.SyncBus)
+		syncCreateChan := make(chan actions.SyncBus)
 		c.actionsFactory.EventBus.AddListener(operation.GetID(), syncCreateChan, ctx)
 		syncEntityCreateChan := <-syncCreateChan
 

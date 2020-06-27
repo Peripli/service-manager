@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/operations/actions"
 	"github.com/Peripli/service-manager/services"
 	"math"
 	"net/http"
@@ -142,10 +143,10 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		TenantKey:           cfg.Multitenancy.LabelKey,
 		PollingInterval:     cfg.Operations.PollingInterval}
 
-	eventBus := operations.SyncEventBus{}
-	factory := operations.ScheduledActionsProvider{
-		SupportedActions: map[types.ObjectType]operations.ScheduledActions{
-			types.ServiceInstanceType: operations.NewServiceInstanceActions( settings, transactionalRepository, &eventBus,)},
+	eventBus := actions.SyncEventBus{}
+	factory := actions.ScheduledActionsProvider{
+		SupportedActions: map[types.ObjectType]actions.ScheduledActions{
+			types.ServiceInstanceType: actions.NewServiceInstanceActions( settings, transactionalRepository, &eventBus,)},
 		EventBus: &eventBus,
 	}
 

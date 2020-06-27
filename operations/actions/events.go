@@ -1,4 +1,4 @@
-package operations
+package actions
 
 import (
 	"context"
