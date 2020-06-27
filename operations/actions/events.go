@@ -7,13 +7,13 @@ import (
 	"time"
 )
 
-type SyncBus struct {
+type Notification struct {
 	Entity types.Object
 	Err    error
 }
 
 type ChanItem struct {
-	Channel     chan SyncBus
+	Channel     chan Notification
 	Duration    time.Duration
 	ChanContext context.Context
 }
@@ -33,7 +33,7 @@ func (se *SyncEventBus) removeFromEventBus(id string, chanHolder ChanItem) {
 	}
 }
 
-func (se *SyncEventBus) AddListener(id string, objectsChan chan SyncBus, ctx context.Context) {
+func (se *SyncEventBus) AddListener(id string, objectsChan chan Notification, ctx context.Context) {
 
 	if se.scheduledOperations == nil {
 		se.scheduledOperations = make(map[string][]ChanItem)
@@ -65,14 +65,14 @@ func (se *SyncEventBus) withChannelWatch(indexId string, chanItem ChanItem, ctx 
 	for {
 		select {
 		case <-ctx.Done():
-			se.NotifyCompleted(indexId, SyncBus{
+			se.NotifyCompleted(indexId, Notification{
 				Entity: nil,
 				Err:    errors.New("the context is done, either because SM crashed/exited or because action timeout elapsed"),
 			})
 			se.removeFromEventBus(indexId, chanItem)
 			return
 		case <-maxExecutionTime.C:
-			se.NotifyCompleted(indexId, SyncBus{
+			se.NotifyCompleted(indexId, Notification{
 				Entity: nil,
 				Err:    errors.New("the maximum execution time for this even has been reached"),
 			})
@@ -82,10 +82,10 @@ func (se *SyncEventBus) withChannelWatch(indexId string, chanItem ChanItem, ctx 
 	}
 }
 
-func (se *SyncEventBus) NotifyCompleted(id string, object SyncBus) {
+func (se *SyncEventBus) NotifyCompleted(id string, object Notification) {
 	if _, ok := se.scheduledOperations[id]; ok {
 		for _, handler := range se.scheduledOperations[id] {
-			go func(handler chan SyncBus) {
+			go func(handler chan Notification) {
 				handler <- object
 			}(handler.Channel)
 		}

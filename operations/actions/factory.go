@@ -25,7 +25,7 @@ type RunnableAction interface {
 }
 
 func (factory ScheduledActionsProvider) GetContextWithEventBus(ctx context.Context) context.Context {
-	return context.WithValue(ctx, SyncBus{}, factory.EventBus)
+	return context.WithValue(ctx, Notification{}, factory.EventBus)
 }
 
 func (factory ScheduledActionsProvider) GetAction(ctx context.Context, entity types.Object, action StorageAction) StorageAction {

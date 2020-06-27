@@ -226,7 +226,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 
 	// Waits for an async operation to complete before sending the response to the client
 	if createdObj.GetLastOperation().Reschedule {
-		syncCreateChan := make(chan actions.SyncBus)
+		syncCreateChan := make(chan actions.Notification)
 		c.actionsFactory.EventBus.AddListener(operation.GetID(), syncCreateChan, ctx)
 		syncEntityCreateChan := <-syncCreateChan
 
