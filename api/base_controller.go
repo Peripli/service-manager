@@ -153,7 +153,8 @@ func (c *BaseController) Routes() []web.Route {
 func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Creating new %s", c.objectType)
-
+	ctx,parentSpan := util.CreateParentSpan(ctx,fmt.Sprintf("Base controller - creating object of type: %s",c.objectType.String()))
+	defer parentSpan.Finish()
 	result := c.objectBlueprint()
 	if err := util.BytesToObject(r.Body, result); err != nil {
 		return nil, err
@@ -382,6 +383,8 @@ func GetResourceOperation(r *web.Request, repository storage.Repository, objectT
 // ListObjects handles the fetching of all objects
 func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
+	ctx,parentSpan := util.CreateParentSpan(ctx,fmt.Sprintf("v2 -> Base controller list API for object: %s",c.objectType.String()))
+	defer parentSpan.Finish()
 
 	criteria := query.CriteriaForContext(ctx)
 	count, err := c.repository.Count(ctx, c.objectType, criteria...)
@@ -695,6 +698,8 @@ func generateTokenForItem(obj types.Object) string {
 }
 
 func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count, limit int) *types.ObjectPage {
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("v2 -> Page for object list"));
+	defer span.FinishSpan()
 	page := &types.ObjectPage{
 		ItemsCount: count,
 		Items:      make([]types.Object, 0, objectList.Len()),

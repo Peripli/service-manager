@@ -189,6 +189,7 @@ func (om *Maintainer) cleanupExternalOperations() {
 
 // cleanupFinishedCascadeOperations cleans up all successful/failed internal cascade operations which are older than some specified time
 func (om *Maintainer) CleanupFinishedCascadeOperations() {
+
 	currentTime := time.Now()
 	rootsCriteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
@@ -257,6 +258,7 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 
 // rescheduleUnfinishedOperations reschedules IN_PROGRESS operations which are reschedulable, not scheduled for deletion and no goroutine is processing at the moment
 func (om *Maintainer) rescheduleUnfinishedOperations() {
+
 	currentTime := time.Now()
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
@@ -278,6 +280,8 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 		operation := operations.ItemAt(i).(*types.Operation)
 		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
 		ctx := log.ContextWithLogger(om.smCtx, logger)
+		ctx, span := util.CreateParentSpan(ctx,fmt.Sprintf("Executed schaduled job for operartion: %s", operation.GetID()))
+		defer span.Finish()
 
 		var action actions.StorageAction
 

@@ -64,6 +64,12 @@ func NewScheduler(smCtx context.Context, repository storage.TransactionalReposit
 
 // ScheduleSyncStorageAction stores the job's Operation entity in DB and synchronously executes the CREATE/UPDATE/DELETE DB transaction
 func (s *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *types.Operation, action actions.StorageAction) (types.Object, error) {
+
+
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Schedule sync Storage Action for operartion id>-%s",operation.GetID()));
+	defer span.FinishSpan()
+
+
 	initialLogMessage(ctx, operation, false)
 
 	if err := s.executeOperationPreconditions(ctx, operation); err != nil {
@@ -89,6 +95,10 @@ func (s *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *ty
 
 // ScheduleAsyncStorageAction stores the job's Operation entity in DB asynchronously executes the CREATE/UPDATE/DELETE DB transaction in a goroutine
 func (s *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *types.Operation, action actions.StorageAction) error {
+
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Schedule AsyncStorage Action for operartion id>-%s",operation.GetID()));
+	defer span.FinishSpan()
+
 	select {
 	case s.workers <- struct{}{}:
 		initialLogMessage(ctx, operation, true)
@@ -346,6 +356,11 @@ func updateResource(ctx context.Context, repository storage.Repository, objectAf
 }
 
 func fetchAndUpdateResource(ctx context.Context, repository storage.Repository, objectID string, objectType types.ObjectType, updateFunc func(obj types.Object)) error {
+
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Fetvh and update resource>-%s",objectID));
+	defer span.FinishSpan()
+
+
 	byID := query.ByField(query.EqualsOperator, "id", objectID)
 	objectFromDB, err := repository.Get(ctx, objectType, byID)
 	if err != nil {
@@ -361,6 +376,10 @@ func fetchAndUpdateResource(ctx context.Context, repository storage.Repository, 
 }
 
 func updateOperationState(ctx context.Context, repository storage.Repository, operation *types.Operation, state types.OperationState, opErr error) error {
+
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Updating operartion state>-%s",operation.GetID()));
+	defer span.FinishSpan()
+
 	operation.State = state
 
 	if opErr != nil {
@@ -393,6 +412,10 @@ func updateOperationState(ctx context.Context, repository storage.Repository, op
 }
 
 func (s *Scheduler) refetchOperation(ctx context.Context, operation *types.Operation) (*types.Operation, error) {
+
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Refetching operartion->-%s",operation.GetID()));
+	defer span.FinishSpan()
+
 	opObject, opErr := s.repository.Get(ctx, types.OperationType, query.ByField(query.EqualsOperator, "id", operation.ID))
 	if opErr != nil {
 		opErr = fmt.Errorf("failed to re-fetch currently executing operation with id %s from db: %s", operation.ID, opErr)
@@ -406,6 +429,9 @@ func (s *Scheduler) refetchOperation(ctx context.Context, operation *types.Opera
 }
 
 func (s *Scheduler) handleActionResponse(ctx context.Context, actionObject types.Object, actionError error, opBeforeJob *types.Operation) (types.Object, error) {
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Handling response of an action->-%s",actionObject.GetID()));
+	defer span.FinishSpan()
+
 	opAfterJob, err := s.refetchOperation(ctx, opBeforeJob)
 	if err != nil {
 		return nil, err
@@ -473,6 +499,9 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 
 func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObject types.Object, opAfterJob *types.Operation) (types.Object, error) {
 
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Handling action response success:-%s",actionObject.GetID()));
+	defer span.FinishSpan()
+
 	if err := s.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
 		var finalState types.OperationState
 		if opAfterJob.Type != types.DELETE && opAfterJob.InOrphanMitigationState() {
@@ -518,6 +547,9 @@ func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObjec
 		evenButs:= ctx.Value(actions.Notification{});
 		if evenButs != nil {
 			if evenButs := evenButs.(*actions.SyncEventBus); evenButs != nil {
+				span, _ := util.CreateChildSpan(ctx,fmt.Sprintf("Notifying a sync flow is done>-%s",opAfterJob.ID));
+				defer span.FinishSpan()
+
 				actionObject.SetLastOperation(opAfterJob)
 				evenButs.NotifyCompleted(opAfterJob.ID,actions.Notification{
 					Entity:  actionObject,
@@ -549,6 +581,7 @@ func (s *Scheduler) addOperationToContext(ctx context.Context, operation *types.
 }
 
 func (s *Scheduler) validateOperationDoesNotExceedTimeouts(operation *types.Operation) error {
+
 	if operation.CascadeRootID != "" && operation.InOrphanMitigationState() && time.Now().UTC().After(operation.CreatedAt.Add(s.cascadeOrphanMitigationTimeout)) {
 		return &util.HTTPError{
 			ErrorType:   "ManualActionRequired",
@@ -567,6 +600,10 @@ func (s *Scheduler) validateOperationDoesNotExceedTimeouts(operation *types.Oper
 }
 
 func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation *types.Operation) error {
+
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Executing operartion pre-conditions, for operartion id->-%s",operation.GetID()));
+	defer span.FinishSpan()
+
 	if operation.State == types.SUCCEEDED ||
 		(operation.State == types.FAILED && !operation.InOrphanMitigationState()) {
 		return fmt.Errorf("scheduling for operations %+v is not allowed due to invalid state", operation)

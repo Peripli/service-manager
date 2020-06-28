@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/services"
 	"github.com/Peripli/service-manager/storage"
 	"time"
@@ -46,6 +47,9 @@ func (si ServiceInstanceActions) RunActionByOperation(ctx context.Context, entit
 }
 
 func (si ServiceInstanceActions) createHandler(ctx context.Context, entity types.Object, operation types.Operation) (types.Object, error) {
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Create instance handler:-%s",entity.GetID()));
+	defer span.FinishSpan()
+
 	instance := entity.(*types.ServiceInstance)
 
 	//In case OM, update the broker that the instance shell be disposed
@@ -68,6 +72,7 @@ func (si ServiceInstanceActions) createHandler(ctx context.Context, entity types
 }
 
 func (si ServiceInstanceActions) isOMRequired(operation types.Operation) bool {
+
 	isDeleteRescheduleRequired := operation.InOrphanMitigationState() &&
 		time.Now().UTC().Before(operation.DeletionScheduled.Add(time.Hour*12)) &&
 		operation.State != types.SUCCEEDED
@@ -78,6 +83,9 @@ func (si ServiceInstanceActions) isOMRequired(operation types.Operation) bool {
 }
 
 func (si ServiceInstanceActions) deleteServiceInstance(ctx context.Context, serviceInstance types.ServiceInstance, operation types.Operation) (types.Object, error) {
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Deleting serive instance:-%s",serviceInstance.GetID()));
+	defer span.FinishSpan()
+
 	_, err := si.brokerService.DeleteServiceInstance(serviceInstance, ctx);
 	if err != nil {
 		return nil, err
@@ -91,6 +99,9 @@ func (si ServiceInstanceActions) deleteServiceInstance(ctx context.Context, serv
 }
 
 func (si ServiceInstanceActions) pollServiceInstance(ctx context.Context, serviceInstance types.ServiceInstance, operation types.Operation) (types.Object, error) {
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Polling for operartion for service instance id:-%s",serviceInstance.GetID()));
+	defer span.FinishSpan()
+
 	hasCompleted, err := si.brokerService.PollServiceInstance(serviceInstance, ctx, operation.ExternalID, true, operation.RescheduleTimestamp, operation.Type, true);
 	if err != nil {
 		return nil, err
@@ -111,6 +122,9 @@ func (si ServiceInstanceActions) pollServiceInstance(ctx context.Context, servic
 }
 
 func (si ServiceInstanceActions) createServiceInstance(ctx context.Context, obj types.Object, operation types.Operation) (types.Object, *types.Operation, error) {
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Creating serive instance:-%s",obj.GetID()));
+	defer span.FinishSpan()
+
 	instance := obj.(*types.ServiceInstance)
 	instance.Usable = false
 	provisionResponse := si.brokerService.ProvisionServiceInstance(*instance, ctx)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/operations/opcontext"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 )
 
@@ -30,8 +31,11 @@ func (factory ScheduledActionsProvider) GetContextWithEventBus(ctx context.Conte
 
 func (factory ScheduledActionsProvider) GetAction(ctx context.Context, entity types.Object, action StorageAction) StorageAction {
 	return func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-
 		if entityActions, ok := factory.SupportedActions[entity.GetType()]; ok {
+
+			span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Getting action for entity of type-%s",entity.GetType()));
+			defer span.FinishSpan()
+
 			operation, found := opcontext.Get(ctx)
 			if !found {
 				return nil, fmt.Errorf("operation missing from context")
