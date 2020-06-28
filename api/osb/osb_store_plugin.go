@@ -1020,7 +1020,7 @@ func (sp *storePlugin) handlePollCreateResponse(ctx context.Context, storage sto
 	case types.SUCCEEDED:
 		return READY, nil
 	case types.FAILED:
-		return DELETE, nil
+		return NONE, nil
 	default:
 		return NONE, nil
 	}

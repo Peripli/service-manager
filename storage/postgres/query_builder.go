@@ -206,24 +206,24 @@ func (pq *pgQuery) QueryWithInStatement(ctx context.Context, queryName storage.N
 	return pq.db.QueryxContext(ctx,queryRebind,queryArgs...)
 }
 
+
 func (pq *pgQuery) Query(ctx context.Context, queryName storage.NamedQuery, queryParams map[string]interface{}) (*sqlx.Rows, error) {
-	sql, err := tsprintf(
-		storage.GetNamedQuery(queryName),
-		pq.getTemplateParams())
+	sql, err := tsprintf(storage.GetNamedQuery(queryName), pq.getTemplateParams())
 	if err != nil {
 		return nil, err
 	}
-	stmt, err := pq.db.PrepareNamedContext(ctx, sql)
+	sql, args, err := sqlx.Named(sql, queryParams)
 	if err != nil {
 		return nil, err
 	}
+	sql, args, err = sqlx.In(sql, args...)
+	if err != nil {
+		return nil, err
+	}
+	sql = pq.db.Rebind(sql)
 
-	if stmt == nil {
-		return nil, fmt.Errorf("could not prepare statement")
-	}
-	return stmt.Queryx(queryParams)
+	return pq.db.QueryxContext(ctx, sql, args...)
 }
-
 func (pq *pgQuery) Count(ctx context.Context) (int, error) {
 	q, err := pq.resolveQueryTemplate(ctx, CountQueryTemplate)
 	if err != nil {
