@@ -3,15 +3,20 @@ package authz
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	httpsec "github.com/Peripli/service-manager/pkg/security/http"
-	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
 // NewClientIDSuffixAuthorizer returns OAuth authorizer
 func NewClientIDSuffixAuthorizer(trustedClientIDSuffix string, level web.AccessLevel) httpsec.Authorizer {
+	return NewClientIDSuffixesAuthorizer([]string{trustedClientIDSuffix}, level)
+}
+
+// NewClientIDSuffixesAuthorizer returns OAuth authorizer
+func NewClientIDSuffixesAuthorizer(trustedClientIDSuffixes []string, level web.AccessLevel) httpsec.Authorizer {
 	return NewBaseAuthorizer(func(ctx context.Context, userContext *web.UserContext) (httpsec.Decision, web.AccessLevel, error) {
 		var claims struct {
 			ZID string
@@ -23,10 +28,12 @@ func NewClientIDSuffixAuthorizer(trustedClientIDSuffix string, level web.AccessL
 		}
 		logger.Debugf("User token: zid=%s cid=%s", claims.ZID, claims.CID)
 
-		if !slice.StringsAnySuffix([]string{claims.CID}, trustedClientIDSuffix) {
-			return httpsec.Deny, web.NoAccess, fmt.Errorf(`client id "%s" from user token does not have the required suffix`, claims.CID)
+		for _, suffix := range trustedClientIDSuffixes {
+			if strings.HasSuffix(claims.CID, suffix) {
+				return httpsec.Allow, level, nil
+			}
 		}
 
-		return httpsec.Allow, level, nil
+		return httpsec.Deny, web.NoAccess, fmt.Errorf(`client id "%s" from user token does not have the required suffix`, claims.CID)
 	})
 }
