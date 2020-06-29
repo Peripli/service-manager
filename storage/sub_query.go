@@ -20,7 +20,7 @@ var subQueries = map[SubQuery]string{
 	QueryForAllResourcelessOperations: `
     SELECT id
     FROM {{.RESOURCE_TABLE}}
-    WHERE operations.id = {{.RESOURCE_TABLE}}.id`,
+    WHERE operations.resource_id = {{.RESOURCE_TABLE}}.id`,
 }
 
 func GetSubQuery(query SubQuery) string {
