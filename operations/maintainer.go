@@ -264,9 +264,13 @@ func (om *Maintainer) CleanupResourcelessOperations() {
 	currentTime := time.Now()
 	//TODO: consider renaming.
 	entitiesByTableNameMap := om.repository.GetEntitiesByTableNameMap()
-	for key, _ := range entitiesByTableNameMap {
+	for entityTableName, _ := range entitiesByTableNameMap {
+		if entityTableName == "operations" {
+			continue
+		}
+		log.C(om.smCtx).Debug("Starting deletion of resource-less operations for %s", entityTableName)
 		templateParameters := make(map[string]interface{})
-		templateParameters["RESOURCE_TABLE"] = key
+		templateParameters["RESOURCE_TABLE"] = entityTableName
 		byIdNotExistCriterion := query.ByIdNotExist(storage.GetSubQuery(storage.QueryForAllResourcelessOperations))
 		byIdNotExistCriterion.AddTemplateParams(templateParameters)
 		criteria := []query.Criterion{

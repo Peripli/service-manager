@@ -276,7 +276,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect(err).To(BeNil())
 
 								return count
-							}, cleanupInterval*4).Should(Equal(0))
+							}, cleanupInterval*4 ).Should(Equal(0))
 						})
 					})
 
