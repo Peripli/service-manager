@@ -278,7 +278,7 @@ func (om *Maintainer) CleanupResourcelessOperations() {
 			log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
 			return
 		}
-		log.C(om.smCtx).Debug("Finished cleaning up successful internal operations")
+		log.C(om.smCtx).Debug("Finished cleaning up resource-less operations")
 	}
 	fmt.Print(entitiesByTableNameMap)
 
