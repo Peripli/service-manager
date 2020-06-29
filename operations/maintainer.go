@@ -98,7 +98,7 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 		{
 			name:     "rescheduleUnfinishedOperations",
 			execute:  maintainer.rescheduleUnfinishedOperations,
-			interval: options.MaintainerRetryInterval,
+			interval: time.Second * 10,
 		},
 		{
 			name:     "rescheduleOrphanMitigationOperations",
@@ -268,7 +268,7 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 		query.ByField(query.EqualsOperator, "reschedule", "true"),
 		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
 		// check if operation hasn't been updated for the operation's maximum allowed time to execute
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ActionTimeout))),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(om.settings.ActionTimeout))),
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
@@ -292,7 +292,6 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 				logger.Warnf("Failed to fetch resource with ID (%s) for operation with ID (%s): %s", operation.ResourceID, operation.ID, err)
 				break
 			}
-
 			action = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
 				object, err := repository.Create(ctx, object)
 				return object, util.HandleStorageError(err, operation.ResourceType.String())

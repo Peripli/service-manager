@@ -129,12 +129,18 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			return nil, fmt.Errorf("operation missing from context")
 		}
 
+		// In case of OM for create action we trigger the delete instance flow
+		if operation.Type == types.CREATE && operation.InOrphanMitigationState() {
+			err := i.deleteSingleInstance(ctx, instance, operation)
+			return nil, err
+		}
+
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
 		if err != nil {
 			return nil, err
 		}
 
-		if operation.IsAsync {
+		if operation.Reschedule {
 			if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
 				return nil, err
 			}
@@ -182,7 +188,6 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 				log.C(ctx).Infof("Successful asynchronous provisioning request %s to broker %s returned response %s",
 					logProvisionRequest(provisionRequest), broker.Name, logProvisionResponse(provisionResponse))
 				operation.Reschedule = true
-				operation.IsAsync = true
 				if operation.RescheduleTimestamp.IsZero() {
 					operation.RescheduleTimestamp = time.Now()
 				}
@@ -219,11 +224,6 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 		operation, found := opcontext.Get(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
-		}
-
-		if operation.Type == types.CREATE && operation.InOrphanMitigationState() {
-			err = i.deleteSingleInstance(ctx, updatedInstance, operation)
-			return updatedInstance, err
 		}
 
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, updatedInstance)
@@ -475,88 +475,72 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 		}
 	}
 
-	maxPollingDurationTicker := time.NewTicker(leftPollingDuration)
-	defer maxPollingDurationTicker.Stop()
+	log.C(ctx).Infof("Sending poll last operation request %s for instance with id %s and name %s", logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
+	pollingResponse, err := osbClient.PollLastOperation(pollingRequest)
+	if err != nil {
+		if osbc.IsGoneError(err) && operation.Type == types.DELETE {
+			log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
 
-	ticker := time.NewTicker(i.pollingInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			log.C(ctx).Errorf("Terminating poll last operation for instance with id %s and name %s due to context done event", instance.ID, instance.Name)
-			// The context is done, either because SM crashed/exited or because action timeout elapsed. In this case the operation should be kept in progress.
-			// This way the operation would be rescheduled and the polling will span multiple reschedules, but no more than max_polling_interval if provided in the plan.
+			operation.Reschedule = false
+			operation.RescheduleTimestamp = time.Time{}
+			if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+				return fmt.Errorf("failed to update operation with id %s to mark that next execution should not be reschedulable", operation.ID)
+			}
 			return nil
-		case <-maxPollingDurationTicker.C:
-			return i.processMaxPollingDurationElapsed(ctx, instance, plan, operation, enableOrphanMitigation)
-		case <-ticker.C:
-			log.C(ctx).Infof("Sending poll last operation request %s for instance with id %s and name %s", logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
-			pollingResponse, err := osbClient.PollLastOperation(pollingRequest)
-			if err != nil {
-				if osbc.IsGoneError(err) && operation.Type == types.DELETE {
-					log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
-
-					operation.Reschedule = false
-					operation.RescheduleTimestamp = time.Time{}
-					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
-						return fmt.Errorf("failed to update operation with id %s to mark that next execution should not be reschedulable", operation.ID)
-					}
-					return nil
-				} else if isUnreachableBroker(err) {
-					log.C(ctx).Errorf("Broker temporarily unreachable. Rescheduling polling last operation request %s to for provisioning of instance with id %s and name %s...",
-						logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
-				} else {
-					return &util.HTTPError{
-						ErrorType: "BrokerError",
-						Description: fmt.Sprintf("Failed poll last operation request %s for instance with id %s and name %s: %s",
-							logPollInstanceRequest(pollingRequest), instance.ID, instance.Name, err),
-						StatusCode: http.StatusBadGateway,
-					}
-				}
-			} else {
-				switch pollingResponse.State {
-				case osbc.StateInProgress:
-					log.C(ctx).Infof("Polling of instance still in progress. Rescheduling polling last operation request %s to for provisioning of instance with id %s and name %s...",
-						logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
-
-				case osbc.StateSucceeded:
-					log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
-
-					operation.Reschedule = false
-					operation.RescheduleTimestamp = time.Time{}
-					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
-						return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
-					}
-
-					return nil
-				case osbc.StateFailed:
-					log.C(ctx).Infof("Failed polling operation for instance with id %s and name %s with response %s", instance.ID, instance.Name, logPollInstanceResponse(pollingResponse))
-					operation.Reschedule = false
-					operation.RescheduleTimestamp = time.Time{}
-					if enableOrphanMitigation {
-						operation.DeletionScheduled = time.Now()
-					}
-					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
-						return fmt.Errorf("failed to update operation with id %s after failed of last operation for instance with id %s: %s", operation.ID, instance.ID, err)
-					}
-
-					errDescription := ""
-					if pollingResponse.Description != nil {
-						errDescription = *pollingResponse.Description
-					} else {
-						errDescription = "no description provided by broker"
-					}
-					return &util.HTTPError{
-						ErrorType:   "BrokerError",
-						Description: fmt.Sprintf("failed polling operation for instance with id %s and name %s due to polling last operation error: %s", instance.ID, instance.Name, errDescription),
-						StatusCode:  http.StatusBadGateway,
-					}
-				default:
-					log.C(ctx).Errorf("invalid state during poll last operation for instance with id %s and name %s: %s. Continuing polling...", instance.ID, instance.Name, pollingResponse.State)
-				}
+		} else if isUnreachableBroker(err) {
+			log.C(ctx).Errorf("Broker temporarily unreachable. Rescheduling polling last operation request %s to for provisioning of instance with id %s and name %s...",
+				logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
+		} else {
+			return &util.HTTPError{
+				ErrorType: "BrokerError",
+				Description: fmt.Sprintf("Failed poll last operation request %s for instance with id %s and name %s: %s",
+					logPollInstanceRequest(pollingRequest), instance.ID, instance.Name, err),
+				StatusCode: http.StatusBadGateway,
 			}
 		}
+	} else {
+		switch pollingResponse.State {
+		case osbc.StateInProgress:
+			log.C(ctx).Infof("Polling of instance still in progress. Rescheduling polling last operation request %s to for provisioning of instance with id %s and name %s...",
+				logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
+
+		case osbc.StateSucceeded:
+			log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
+
+			operation.Reschedule = false
+			operation.RescheduleTimestamp = time.Time{}
+			if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+				return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
+			}
+
+			return nil
+		case osbc.StateFailed:
+			log.C(ctx).Infof("Failed polling operation for instance with id %s and name %s with response %s", instance.ID, instance.Name, logPollInstanceResponse(pollingResponse))
+			operation.Reschedule = false
+			operation.RescheduleTimestamp = time.Time{}
+			if enableOrphanMitigation {
+				operation.DeletionScheduled = time.Now()
+			}
+			if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+				return fmt.Errorf("failed to update operation with id %s after failed of last operation for instance with id %s: %s", operation.ID, instance.ID, err)
+			}
+
+			errDescription := ""
+			if pollingResponse.Description != nil {
+				errDescription = *pollingResponse.Description
+			} else {
+				errDescription = "no description provided by broker"
+			}
+			return &util.HTTPError{
+				ErrorType:   "BrokerError",
+				Description: fmt.Sprintf("failed polling operation for instance with id %s and name %s due to polling last operation error: %s", instance.ID, instance.Name, errDescription),
+				StatusCode:  http.StatusBadGateway,
+			}
+		default:
+			log.C(ctx).Errorf("invalid state during poll last operation for instance with id %s and name %s: %s. Continuing polling...", instance.ID, instance.Name, pollingResponse.State)
+		}
 	}
+	return nil
 }
 
 func isUnreachableBroker(err error) bool {
@@ -588,6 +572,12 @@ func (i *ServiceInstanceInterceptor) processMaxPollingDurationElapsed(ctx contex
 }
 
 func preparePrerequisites(ctx context.Context, repository storage.Repository, osbClientFunc osbc.CreateFunc, instance *types.ServiceInstance) (osbc.Client, *types.ServiceBroker, *types.ServiceOffering, *types.ServicePlan, error) {
+
+	operation, found := opcontext.Get(ctx)
+	if !found {
+		return nil, nil, nil, nil, fmt.Errorf("operation missing from context")
+	}
+
 	planObject, err := repository.Get(ctx, types.ServicePlanType, query.ByField(query.EqualsOperator, "id", instance.ServicePlanID))
 	if err != nil {
 		return nil, nil, nil, nil, util.HandleStorageError(err, types.ServicePlanType.String())
@@ -633,6 +623,34 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 
 	osbClient, err := osbClientFunc(osbClientConfig)
 	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+
+	LabelChanges := []*types.LabelChange{
+		{
+			Operation: "add",
+			Key:       "service_offering_catalog_id",
+			Values:    []string{plan.ServiceOfferingID},
+		},
+		{
+			Operation: "add",
+			Key:       "service_plan_catalog_id",
+			Values:    []string{instance.ID},
+		},
+		{
+			Operation: "add",
+			Key:       "broker_id",
+			Values:    []string{broker.ID},
+		},
+		{
+			Operation: "add",
+			Key:       "broker_name",
+			Values:    []string{broker.Name},
+		},
+	}
+
+	if _, err := repository.Update(ctx, operation, LabelChanges); err != nil {
 		return nil, nil, nil, nil, err
 	}
 

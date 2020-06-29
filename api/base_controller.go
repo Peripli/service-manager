@@ -204,13 +204,12 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	if createdObj.GetLastOperation().IsAsync{
+	if createdObj.GetLastOperation().Reschedule || c.shouldExecuteAsync(r) {
 		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
 			return nil, err
 		}
 		return util.NewLocationResponse(createdObj.GetLastOperation().GetID(), result.GetID(), c.resourceBaseURL)
 	}
-
 
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
 }
@@ -392,7 +391,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	}
 
 	attachLastOps := r.URL.Query().Get("attach_last_operations")
-	if objectList.Len() >0 && attachLastOps == "true" {
+	if objectList.Len() > 0 && attachLastOps == "true" {
 		if err := attachLastOperations(ctx, objectList, c.repository); err != nil {
 			return nil, err
 		}
@@ -511,16 +510,16 @@ func cleanObject(object types.Object) {
 		secured.Sanitize()
 	}
 }
-func getResourceIds(resources types.ObjectList) []interface{}{
+func getResourceIds(resources types.ObjectList) []interface{} {
 	var resourceIds []interface{}
-	for i:=0;i<resources.Len();i++{
+	for i := 0; i < resources.Len(); i++ {
 		resource := resources.ItemAt(i)
 		resourceIds = append(resourceIds, resource.GetID())
 	}
 	return resourceIds
 }
 
-func attachLastOperations(ctx context.Context, resources types.ObjectList,repository storage.Repository) error{
+func attachLastOperations(ctx context.Context, resources types.ObjectList, repository storage.Repository) error {
 	instanceLastOpsMap := make(map[string]*types.Operation)
 	resourceLastOps, err := repository.QueryForListWithInStatement(
 		ctx,
@@ -532,12 +531,12 @@ func attachLastOperations(ctx context.Context, resources types.ObjectList,reposi
 		return util.HandleStorageError(err, types.OperationType.String())
 	}
 
-	for i:=0;i<resourceLastOps.Len();i++{
+	for i := 0; i < resourceLastOps.Len(); i++ {
 		lastOp := resourceLastOps.ItemAt(i).(*types.Operation)
 		instanceLastOpsMap[lastOp.ResourceID] = lastOp
 	}
 
-	for i:=0;i<resources.Len();i++{
+	for i := 0; i < resources.Len(); i++ {
 		resource := resources.ItemAt(i)
 		if LastOp, ok := instanceLastOpsMap[resource.GetID()]; ok {
 			resource.SetLastOperation(LastOp)
