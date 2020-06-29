@@ -147,7 +147,7 @@ var _ = Describe("Service Manager Security Tests", func() {
 							WithScopes("read_health").Required()
 
 						smb.Security().Path(web.ServiceBrokersURL).Method(http.MethodGet).
-							WithClientIDSuffix("trustedsuffix").Required()
+							WithClientIDSuffixes([]string{"trustedsuffix", "anothertrustedsfx"}).Required()
 						return nil
 					})
 				})
@@ -178,6 +178,18 @@ var _ = Describe("Service Manager Security Tests", func() {
 					BeforeEach(func() {
 						contextBuilder.WithDefaultTokenClaims(map[string]interface{}{
 							"cid": "some_trustedsuffix",
+						})
+					})
+					It("should allow access", func() {
+						ctx.SMWithOAuth.GET(web.ServiceBrokersURL).Expect().
+							Status(http.StatusOK)
+					})
+				})
+
+				Context("with another trusted client id suffix", func() {
+					BeforeEach(func() {
+						contextBuilder.WithDefaultTokenClaims(map[string]interface{}{
+							"cid": "some_anothertrustedsfx",
 						})
 					})
 					It("should allow access", func() {

@@ -175,8 +175,13 @@ func (sb *SecurityBuilder) WithScopes(scopes ...string) *SecurityBuilder {
 
 // WithClientIDSuffix applies authorization mechanism, which checks the JWT client id for the specified suffix
 func (sb *SecurityBuilder) WithClientIDSuffix(suffix string) *SecurityBuilder {
+	return sb.WithClientIDSuffixes([]string{suffix})
+}
+
+// WithClientIDSuffix applies authorization mechanism, which checks the JWT client id for one of the specified suffixes
+func (sb *SecurityBuilder) WithClientIDSuffixes(suffixes []string) *SecurityBuilder {
 	sb.authorization = true
-	sb.authorizers = append(sb.authorizers, authz.NewClientIDSuffixAuthorizer(suffix, web.GlobalAccess))
+	sb.authorizers = append(sb.authorizers, authz.NewClientIDSuffixesAuthorizer(suffixes, web.GlobalAccess))
 	return sb
 }
 
