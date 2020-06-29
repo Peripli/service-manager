@@ -14,7 +14,7 @@ import (
 
 const CheckPlatformIDPluginName = "CheckPlatformIDPlugin"
 
-type instanceKey struct {
+type CurrentInstanceContextKey struct {
 }
 
 type checkPlatformIDPlugin struct {
@@ -104,7 +104,7 @@ func (p *checkPlatformIDPlugin) assertPlatformID(req *web.Request, next web.Hand
 			StatusCode:  http.StatusNotFound,
 		}
 	}
-	newCtx := context.WithValue(req.Context(), instanceKey{}, instance)
+	newCtx := context.WithValue(req.Context(), CurrentInstanceContextKey{}, instance)
 	req.Request = req.WithContext(newCtx)
 
 	if platform.ID != instance.PlatformID {
