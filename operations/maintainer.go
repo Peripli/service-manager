@@ -87,6 +87,11 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			interval: options.CleanupInterval,
 		},
 		{
+			name:     "cleanupResourcelessOperations",
+			execute:  maintainer.CleanupResourcelessOperations,
+			interval: options.CleanupInterval,
+		},
+		{
 			name:     "pollPendingCascadeOperations",
 			execute:  maintainer.pollPendingCascadeOperations,
 			interval: options.PollCascadeInterval,
@@ -253,6 +258,30 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 		return
 	}
 	log.C(om.smCtx).Debug("Finished cleaning up failed internal operations")
+}
+
+func (om *Maintainer) CleanupResourcelessOperations() {
+	currentTime := time.Now()
+	//TODO: consider renaming.
+	entitiesByTableNameMap := om.repository.GetEntitiesByTableNameMap()
+	for key, _ := range entitiesByTableNameMap {
+		templateParameters := make(map[string]interface{})
+		templateParameters["RESOURCE_TABLE"] = key
+		byIdNotExistCriterion := query.ByIdNotExist(storage.GetSubQuery(storage.QueryForAllResourcelessOperations))
+		byIdNotExistCriterion.AddTemplateParams(templateParameters)
+		criteria := []query.Criterion{
+			// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
+			query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+			byIdNotExistCriterion,
+		}
+		if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
+			log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
+			return
+		}
+		log.C(om.smCtx).Debug("Finished cleaning up successful internal operations")
+	}
+	fmt.Print(entitiesByTableNameMap)
+
 }
 
 // rescheduleUnfinishedOperations reschedules IN_PROGRESS operations which are reschedulable, not scheduled for deletion and no goroutine is processing at the moment
@@ -519,15 +548,3 @@ func (om *Maintainer) markStuckOperationsFailed() {
 	log.C(om.smCtx).Debug("Finished marking stuck operations as failed")
 }
 
-func getObjectListIDs(lastOpsList types.ObjectList) []string {
-	var notInIds []string
-
-	if lastOpsList != nil {
-		for i := 0; i < lastOpsList.Len(); i++ {
-			lastOp := lastOpsList.ItemAt(i).(*types.Operation)
-			notInIds = append(notInIds, lastOp.ID)
-		}
-	}
-
-	return notInIds
-}

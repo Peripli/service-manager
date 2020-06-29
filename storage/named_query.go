@@ -7,7 +7,6 @@ const (
 	QueryByExistingLabel
 	QueryForLastOperationsPerResource
 	QueryForAllLastOperations
-	QueryForAllLastOperations2
 )
 
 var namedQueries = map[NamedQuery]string{
@@ -55,23 +54,14 @@ var namedQueries = map[NamedQuery]string{
 	WHERE resource_id IN (:id_list)`,
 	QueryForAllLastOperations: `
 	SELECT id
-	FROM {{.ENTITY_TABLE}}_view
+	FROM {{.ENTITY_TABLE}}
     INNER JOIN
 		 (
 			 SELECT max({{.ENTITY_TABLE}}.paging_sequence) paging_sequence
 			 FROM {{.ENTITY_TABLE}}
 			 GROUP BY resource_id
 		 ) LAST_OPERATIONS
-		 ON {{.ENTITY_TABLE}}.paging_sequence = LAST_OPERATIONS.paging_sequence`,
-	QueryForAllLastOperations2: `
-	SELECT id FROM operations 
-    INNER JOIN
-		 (
-			 SELECT max(operations.paging_sequence) paging_sequence
-			 FROM operations
-			 GROUP BY resource_id
-		 ) LAST_OPERATIONS
-		 ON operations.paging_sequence = LAST_OPERATIONS.paging_sequence`,
+    ON {{.ENTITY_TABLE}}.paging_sequence = LAST_OPERATIONS.paging_sequence`,
 }
 
 func GetNamedQuery(query NamedQuery) string {

@@ -4,6 +4,7 @@ type SubQuery int
 
 const (
 	QueryForAllLastOperationsPerResource SubQuery = iota
+	QueryForAllResourcelessOperations
 )
 
 var subQueries = map[SubQuery]string{
@@ -16,6 +17,10 @@ var subQueries = map[SubQuery]string{
         GROUP BY resource_id ) LAST_OPERATIONS ON 
     op.paging_sequence = LAST_OPERATIONS.paging_sequence
     WHERE operations.id = op.id`,
+	QueryForAllResourcelessOperations: `
+    SELECT id
+    FROM {{.RESOURCE_TABLE}}
+    WHERE operations.id = {{.RESOURCE_TABLE}}.id`,
 }
 
 func GetSubQuery(query SubQuery) string {
