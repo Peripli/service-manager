@@ -153,7 +153,7 @@ func (c *BaseController) Routes() []web.Route {
 func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Creating new %s", c.objectType)
-	ctx,parentSpan := util.CreateParentSpan(ctx,fmt.Sprintf("Base controller - creating object of type: %s",c.objectType.String()))
+	ctx,parentSpan := util.CreateParentSpan(ctx,fmt.Sprintf("Flow start- Base controller - creating object of type: %s",c.objectType.String()))
 	defer parentSpan.Finish()
 	result := c.objectBlueprint()
 	if err := util.BytesToObject(r.Body, result); err != nil {
@@ -216,12 +216,8 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 
 	//in case broker response is async and client did not ask for a sync response.. go async
 	if createdObj.GetLastOperation().Reschedule && c.shouldExecuteAsync(r) {
-		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, createdObj.GetLastOperation(), action); err != nil {
-			return nil, err
-		}
 		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
 	} else if c.shouldExecuteAsync(r) {
-		//client request async response.. respond async
 		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
 	}
 
