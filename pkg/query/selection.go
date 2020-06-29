@@ -83,7 +83,7 @@ var (
 		EqualsOperator, NotEqualsOperator,
 		GreaterThanOperator, LessThanOperator,
 		GreaterThanOrEqualOperator, LessThanOrEqualOperator,
-		InOperator, NotInOperator, NotExistsOperator, ExistsOperator, EqualsOrNilOperator,
+		InOperator, NotInOperator, EqualsOrNilOperator,
 	}
 	// CriteriaTypes returns the supported query criteria types
 	CriteriaTypes = []CriterionType{FieldQuery, LabelQuery, ExistQuery}
@@ -174,7 +174,7 @@ func (c Criterion) Validate() error {
 		return nil
 	}
 
-	if len(c.RightOp) > 1 && (c.Operator.Type() == UnivariateOperator || c.Type == ExistQuery) {
+	if len(c.RightOp) > 1 && c.Operator.Type() == UnivariateOperator {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)}
 	}
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
