@@ -19,6 +19,7 @@ package operations
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"runtime/debug"
@@ -35,6 +36,98 @@ import (
 )
 
 type storageAction func(ctx context.Context, repository storage.Repository) (types.Object, error)
+type Notification struct {
+	Entity types.Object
+	Err    error
+}
+
+type ChanItem struct {
+	Channel     chan Notification
+	Duration    time.Duration
+	ChanContext context.Context
+}
+
+type SyncEventBus struct {
+	scheduledOperations map[string][]ChanItem
+}
+
+func NewEventBus() SyncEventBus{
+	return SyncEventBus{
+		scheduledOperations: make(map[string][]ChanItem),
+	}
+}
+
+func (se *SyncEventBus) removeFromEventBus(id string, chanHolder ChanItem) {
+	if _, ok := se.scheduledOperations[id]; ok {
+		for i := range se.scheduledOperations[id] {
+			if se.scheduledOperations[id][i] == chanHolder {
+				se.scheduledOperations[id] = append(se.scheduledOperations[id][:i], se.scheduledOperations[id][i+1:]...)
+				break
+			}
+		}
+	}
+}
+func (se *SyncEventBus) GetContextWithEventBus(ctx context.Context) context.Context {
+	return context.WithValue(ctx, Notification{}, se)
+}
+func (se *SyncEventBus) AddListener(id string, objectsChan chan Notification, ctx context.Context) {
+
+	chanItem := ChanItem{
+		Channel:     objectsChan,
+		Duration:    10 * time.Minute,
+		ChanContext: nil,
+	}
+
+	go se.withChannelWatch(id, chanItem, ctx)
+
+	if _, ok := se.scheduledOperations[id]; ok {
+		se.scheduledOperations[id] = append(se.scheduledOperations[id], chanItem)
+	} else {
+		se.scheduledOperations[id] = []ChanItem{chanItem}
+	}
+
+	print(se.scheduledOperations[id])
+}
+
+func (se *SyncEventBus) withChannelWatch(indexId string, chanItem ChanItem, ctx context.Context) {
+	maxExecutionTime := time.NewTicker(chanItem.Duration)
+	defer maxExecutionTime.Stop()
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			se.NotifyCompleted(indexId, Notification{
+				Entity: nil,
+				Err:    errors.New("the context is done, either because SM crashed/exited or because action timeout elapsed"),
+			})
+			se.removeFromEventBus(indexId, chanItem)
+			return
+		case <-maxExecutionTime.C:
+			se.NotifyCompleted(indexId, Notification{
+				Entity: nil,
+				Err:    errors.New("the maximum execution time for this even has been reached"),
+			})
+			se.removeFromEventBus(indexId, chanItem)
+			return
+		}
+	}
+}
+
+func (se *SyncEventBus) NotifyCompleted(id string, object Notification) {
+	if _, ok := se.scheduledOperations[id]; ok {
+		for _, handler := range se.scheduledOperations[id] {
+			go func(handler chan Notification) {
+				handler <- object
+			}(handler.Channel)
+		}
+	}
+}
+
+type ScheduledActionsProvider struct {
+	EventBus         *SyncEventBus
+}
 
 // Scheduler is responsible for storing Operation entities in the DB
 // and also for spawning goroutines to execute the respective DB transaction asynchronously
@@ -501,6 +594,16 @@ func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObjec
 
 		if err := updateOperationState(ctx, storage, opAfterJob, finalState, nil); err != nil {
 			return err
+		}
+
+		evenButs:= ctx.Value(Notification{});
+		if evenButs != nil {
+			if evenButs := evenButs.(*SyncEventBus); evenButs != nil {
+				actionObject.SetLastOperation(opAfterJob)
+				evenButs.NotifyCompleted(opAfterJob.ID,Notification{
+					Entity:  actionObject,
+				})
+			}
 		}
 
 		return nil

@@ -88,6 +88,7 @@ type Options struct {
 	WSSettings        *ws.Settings
 	Notificator       storage.Notificator
 	WaitGroup         *sync.WaitGroup
+	EventsBus         *operations.SyncEventBus
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager

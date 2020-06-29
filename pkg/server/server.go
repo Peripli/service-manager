@@ -99,7 +99,7 @@ func registerControllers(API *web.API, router *mux.Router, config *Settings) {
 			handler := web.Filters(API.Filters).ChainMatching(route)
 			apiHandler := api.NewHTTPHandler(handler, config.MaxBodyBytes)
 			if !route.DisableHTTPTimeouts {
-				router.Handle(route.Endpoint.Path, newContentTypeHandler(http.TimeoutHandler(apiHandler, config.RequestTimeout, `{"error":"Timeout", "description": "operation has timed out"}`))).Methods(route.Endpoint.Method)
+				router.Handle(route.Endpoint.Path, apiHandler).Methods(route.Endpoint.Method)
 			} else {
 				router.Handle(route.Endpoint.Path, apiHandler).Methods(route.Endpoint.Method)
 			}
@@ -130,11 +130,6 @@ func (s *Server) Run(ctx context.Context, wg *sync.WaitGroup) {
 	handler := &http.Server{
 		Handler: s.Router,
 		Addr:    s.Config.Host + ":" + strconv.Itoa(s.Config.Port),
-		// WriteTimeout should be with 1 second more, because we want to give a chance to a timeouting handler
-		// to write the timeout response
-		WriteTimeout:   s.Config.RequestTimeout + time.Second,
-		ReadTimeout:    s.Config.RequestTimeout,
-		MaxHeaderBytes: s.Config.MaxHeaderBytes,
 	}
 	startServer(ctx, handler, s.Config.ShutdownTimeout, wg)
 }

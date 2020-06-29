@@ -51,10 +51,11 @@ type Maintainer struct {
 	wg                      *sync.WaitGroup
 	functors                []maintainerFunctor
 	operationLockers        map[string]storage.Locker
+	eventsBus               *SyncEventBus
 }
 
 // NewMaintainer constructs a Maintainer
-func NewMaintainer(smCtx context.Context, repository storage.TransactionalRepository, lockerCreatorFunc storage.LockerCreatorFunc, options *Settings, wg *sync.WaitGroup) *Maintainer {
+func NewMaintainer(smCtx context.Context, repository storage.TransactionalRepository, lockerCreatorFunc storage.LockerCreatorFunc, options *Settings, wg *sync.WaitGroup, bus *SyncEventBus) *Maintainer {
 	maintainer := &Maintainer{
 		smCtx:                   smCtx,
 		repository:              repository,
@@ -62,6 +63,7 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 		cascadePollingScheduler: NewScheduler(smCtx, repository, options, options.DefaultCascadePollingPoolSize, wg),
 		settings:                options,
 		wg:                      wg,
+		eventsBus:               bus,
 	}
 
 	maintainer.functors = []maintainerFunctor{
@@ -214,24 +216,24 @@ func (om *Maintainer) CleanupFinishedCascadeOperations() {
 // cleanupInternalCascadeOperations cleans up all finished internal cascade operations which are older than some specified time
 func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 	currentTime := time.Now()
-//	criteria := []query.Criterion{
-//		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
-//		query.ByField(query.EqualsOperator, "state", string(types.SUCCEEDED)),
-//		// ignore cascade operations
-//		query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""),
-//		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
-//		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
-////		query.ByField(query.NotInOperator,"updated_at",);
-//	}
+	//	criteria := []query.Criterion{
+	//		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
+	//		query.ByField(query.EqualsOperator, "state", string(types.SUCCEEDED)),
+	//		// ignore cascade operations
+	//		query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""),
+	//		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
+	//		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+	////		query.ByField(query.NotInOperator,"updated_at",);
+	//	}
 
 	params := map[string]interface{}{
-		"platform_id": types.SMPlatform,
-		"state" : string(types.SUCCEEDED),
-		"cascade_root_id":"",
-		"updated_at": util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan)),
+		"platform_id":     types.SMPlatform,
+		"state":           string(types.SUCCEEDED),
+		"cascade_root_id": "",
+		"updated_at":      util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan)),
 	}
 
-	if _,err := om.repository.QueryExec(om.smCtx, types.OperationType,storage.QueryForLastOperationsPerResource,params); err != nil && err != util.ErrNotFoundInStorage {
+	if _, err := om.repository.QueryExec(om.smCtx, types.OperationType, storage.QueryForLastOperationsPerResource, params); err != nil && err != util.ErrNotFoundInStorage {
 		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
 		return
 	}
@@ -322,6 +324,7 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 			}
 		}
 
+		ctx = om.eventsBus.GetContextWithEventBus(ctx)
 		if err := om.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
 			logger.Warnf("Failed to reschedule unprocessed operation with ID (%s): %s", operation.ID, err)
 		}

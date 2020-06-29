@@ -58,6 +58,7 @@ type BaseController struct {
 
 	supportsAsync  bool
 	isAsyncDefault bool
+	eventsBus  operations.SyncEventBus
 }
 
 // NewController returns a new base controller
@@ -76,6 +77,7 @@ func NewController(ctx context.Context, options *Options, resourceBaseURL string
 		objectType:      objectType,
 		DefaultPageSize: options.APISettings.DefaultPageSize,
 		MaxPageSize:     options.APISettings.MaxPageSize,
+		eventsBus: 		 *options.EventsBus,
 		scheduler:       operations.NewScheduler(ctx, options.Repository, options.OperationSettings, poolSize, options.WaitGroup),
 	}
 
@@ -149,6 +151,8 @@ func (c *BaseController) Routes() []web.Route {
 // CreateObject handles the creation of a new object
 func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
+	ctx = c.eventsBus.GetContextWithEventBus(ctx)
+	//c.eventsBus.
 	log.C(ctx).Debugf("Creating new %s", c.objectType)
 
 	result := c.objectBlueprint()
@@ -204,11 +208,24 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	if createdObj.GetLastOperation().Reschedule || c.shouldExecuteAsync(r) {
-		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-			return nil, err
-		}
+	if createdObj.GetLastOperation().Reschedule && c.shouldExecuteAsync(r) || c.shouldExecuteAsync(r) {
 		return util.NewLocationResponse(createdObj.GetLastOperation().GetID(), result.GetID(), c.resourceBaseURL)
+	}
+
+	if createdObj.GetLastOperation().Reschedule {
+		syncCreateChan := make(chan operations.Notification)
+		c.eventsBus.AddListener(operation.GetID(), syncCreateChan, ctx)
+		syncEntityCreateChan := <-syncCreateChan
+
+		if syncEntityCreateChan.Err != nil {
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: "Sync execution timeout has been reached",
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+
+		createdObj = syncEntityCreateChan.Entity
 	}
 
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
