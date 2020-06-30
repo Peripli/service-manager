@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/operations/opcontext"
 	"net/http"
 	"time"
 
@@ -432,6 +433,11 @@ func (sp *storePlugin) Deprovision(request *web.Request, next web.Handler) (*web
 	response, err := next.Handle(request)
 	if err != nil {
 		return nil, err
+	}
+	_, operationFound := opcontext.Get(ctx)
+	if operationFound {
+		log.C(ctx).Debug("operation found in context, continue..")
+		return response, nil
 	}
 
 	responsePayload := provisionResponse{
