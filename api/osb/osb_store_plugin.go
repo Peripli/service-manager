@@ -425,7 +425,6 @@ func (sp *storePlugin) Provision(request *web.Request, next web.Handler) (*web.R
 }
 
 func (sp *storePlugin) Deprovision(request *web.Request, next web.Handler) (*web.Response, error) {
-	ctx := request.Context()
 	requestPayload := &deprovisionRequest{}
 	if err := parseRequestForm(request, requestPayload); err != nil {
 		return nil, err
@@ -434,6 +433,7 @@ func (sp *storePlugin) Deprovision(request *web.Request, next web.Handler) (*web
 	if err != nil {
 		return nil, err
 	}
+	ctx := request.Context()
 	_, operationFound := opcontext.Get(ctx)
 	if operationFound {
 		log.C(ctx).Debug("operation found in context, continue..")
