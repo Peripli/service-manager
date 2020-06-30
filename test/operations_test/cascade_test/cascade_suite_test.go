@@ -451,7 +451,7 @@ func triggerCascadeOperation(repoCtx context.Context, resourceType types.ObjectT
 		labels["force"] = []string{"true"}
 	}
 
-	op := types.Operation{
+	cascadeOperation := types.Operation{
 		Base: types.Base{
 			ID:        rootID,
 			CreatedAt: time.Now(),
@@ -465,10 +465,22 @@ func triggerCascadeOperation(repoCtx context.Context, resourceType types.ObjectT
 		Type:          types.DELETE,
 		ResourceType:  resourceType,
 	}
-	_, err = ctx.SMRepository.Create(repoCtx, &op)
+	_, err = ctx.SMRepository.Create(repoCtx, &cascadeOperation)
+	//Last operation is never deleted since we keep the last operation for any resource (see: CleanupResourcelessOperations in maintainer.go).
+	//That's why we create here another operation thus allow us to verify the deletion of the cascade operation in the tests.
+	UUID, err = uuid.NewV4()
+	Expect(err).ToNot(HaveOccurred())
+	lastOperation := types.Operation{
+		Base: types.Base{ID: UUID.String()},
+		ResourceID:    resourceID,
+		Type:          types.CREATE,
+		State:         "succeeded",
+	}
+	_, err = ctx.SMRepository.Create(repoCtx, &lastOperation)
 	Expect(err).NotTo(HaveOccurred())
 	return rootID
 }
+
 
 func validateAllResourceDeleted(repository storage.TransactionalRepository, byResourceType map[types.ObjectType][]*types.Operation) {
 	By("validating resources have deleted")
