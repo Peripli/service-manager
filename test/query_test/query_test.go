@@ -2,6 +2,7 @@ package query_test
 
 import (
 	"context"
+	"fmt"
 	"github.com/Peripli/service-manager/pkg/web"
 	"testing"
 	"time"
@@ -234,6 +235,53 @@ var _ = Describe("Service Manager Query", func() {
 			Expect(list.Len()).To(BeEquivalentTo(2))
 			Expect(listContains(list, "latestOpForInstance1"))
 			Expect(listContains(list, "latestOpForInstance2"))
+		})
+	})
+
+	Context("One operation is associated a resource and another operation that is resource-less", func() {
+		BeforeEach(func() {
+			common.RemoveAllInstances(ctx)
+			common.RemoveAllOperations(ctx.SMRepository)
+
+			resource := &types.Platform{
+				Base:        types.Base{ID: "test-resource"},
+			}
+			opForInstance1 := &types.Operation{
+				Base: types.Base{
+					ID: "opForInstance1",
+				},
+				Type:         types.CREATE,
+				State:        types.SUCCEEDED,
+				ResourceID:   resource.ID,
+				ResourceType: web.ServiceInstancesURL,
+			}
+			resourcelessOperation := &types.Operation{
+				Base: types.Base{
+					ID: "resourcelessOp",
+				},
+				Type:         types.CREATE,
+				State:        types.SUCCEEDED,
+				ResourceID:   "NON_EXISTENT_RESOURCE",
+				ResourceType: web.ServiceInstancesURL,
+			}
+
+			_, err := repository.Create(context.Background(), resource)
+			_, err = repository.Create(context.Background(), opForInstance1)
+			fmt.Print(err)
+			repository.Create(context.Background(), resourcelessOperation)
+		})
+
+		It("should retrieve only the operation that is associated to a resource", func() {
+			templateParameters := make(map[string]interface{})
+			templateParameters["RESOURCE_TABLE"] = "platforms"
+			criterion := query.ByIdExist(storage.GetSubQuery(storage.QueryForAllResourcelessOperations))
+			criterion.AddTemplateParams(templateParameters)
+			criteria := []query.Criterion{criterion}
+
+			list, err := repository.List(context.Background(), types.OperationType, criteria...)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(list.Len()).To(BeEquivalentTo(1))
+			Expect(listContains(list, "opForInstance1"))
 		})
 	})
 
