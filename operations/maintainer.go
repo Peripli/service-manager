@@ -262,29 +262,27 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 
 func (om *Maintainer) CleanupResourcelessOperations() {
 	currentTime := time.Now()
-	//TODO: consider renaming.
-	entitiesByTableNameMap := om.repository.GetEntitiesByTableNameMap()
-	for entityTableName, _ := range entitiesByTableNameMap {
+	criteria := []query.Criterion{
+		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+	}
+	// Build the 'WHERE' clause of the deletion statement with 'byIdNotExist' criterion for each resource table.
+	for entityTableName, _ := range om.repository.GetEntitiesByTableNameMap() {
 		if entityTableName == "operations" {
 			continue
 		}
-		log.C(om.smCtx).Debug("Starting deletion of resource-less operations for %s", entityTableName)
+		log.C(om.smCtx).Debug("Adding 'NOT EXIST' in table: %s in 'WHERE' clause of resource-less cleanup execution statement", entityTableName)
 		templateParameters := make(map[string]interface{})
 		templateParameters["RESOURCE_TABLE"] = entityTableName
-		byIdNotExistCriterion := query.ByIdNotExist(storage.GetSubQuery(storage.QueryForAllResourcelessOperations))
+		byIdNotExistCriterion := query.ByIdNotExist(storage.GetSubQuery(storage.QueryForNonResourcelessOperations))
 		byIdNotExistCriterion.AddTemplateParams(templateParameters)
-		criteria := []query.Criterion{
-			// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
-			query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
-			byIdNotExistCriterion,
-		}
-		if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
-			log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
-			return
-		}
-		log.C(om.smCtx).Debug("Finished cleaning up resource-less operations")
+		criteria = append(criteria, byIdNotExistCriterion)
 	}
-	fmt.Print(entitiesByTableNameMap)
+	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
+		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
+		return
+	}
+	log.C(om.smCtx).Debug("Finished cleaning up resource-less operations")
 
 }
 

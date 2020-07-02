@@ -4,7 +4,7 @@ type SubQuery int
 
 const (
 	QueryForAllLastOperationsPerResource SubQuery = iota
-	QueryForAllResourcelessOperations
+	QueryForNonResourcelessOperations
 )
 
 var subQueries = map[SubQuery]string{
@@ -17,7 +17,7 @@ var subQueries = map[SubQuery]string{
         GROUP BY resource_id ) LAST_OPERATIONS ON 
     op.paging_sequence = LAST_OPERATIONS.paging_sequence
     WHERE operations.id = op.id`,
-	QueryForAllResourcelessOperations: `
+	QueryForNonResourcelessOperations: `
     SELECT id
     FROM {{.RESOURCE_TABLE}}
     WHERE operations.resource_id = {{.RESOURCE_TABLE}}.id`,
