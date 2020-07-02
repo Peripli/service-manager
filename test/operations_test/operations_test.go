@@ -263,6 +263,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					Context("operation platform is service Manager", func() {
+						BeforeEach(func() {
+							createLastOperationForTestPlatform(ctx)
+						})
 						It("Deletes operations older than that interval", func() {
 							ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
 								Expect().
@@ -335,7 +338,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect(err).To(BeNil())
 
 								return count
-							}, cleanupInterval*4).Should(Equal(0))
+
+							// Since we no longer delete "last" operations, the async provision of instance: '12345'
+							//will result with 1 expected operation which shouldn't be deleted.
+							}, cleanupInterval*4).Should(Equal(1))
 						})
 					})
 
@@ -359,6 +365,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							object, err := ctx.SMRepository.Create(context.Background(), operation)
 							Expect(err).To(BeNil())
 							Expect(object).To(Not(BeNil()))
+							createLastOperationForTestPlatform(ctx)
 						})
 
 						It("should cleanup external old ones", func() {
@@ -367,6 +374,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Eventually(func() int {
 								count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
 								Expect(err).To(BeNil())
+
+								//x, err := ctx.SMRepository.List(context.Background(), types.OperationType, byPlatformID)
+
+								//fmt.Print("operation for resource: " + x.ItemAt(0).(*types.Operation).ResourceID)
 
 								return count
 							}, operationExpiration*3).Should(Equal(0))
@@ -498,6 +509,23 @@ var _ = test.DescribeTestsFor(test.TestCase{
 		})
 	},
 })
+
+func createLastOperationForTestPlatform(ctx *TestContext) {
+	//Last operation is never deleted since we keep the last operation for any resource (see: CleanupResourcelessOperations in maintainer.go).
+	//The test framework creates the platform 'basic-auth-default-test-platform' which is associated to a single 'create' operation that will never be deleted
+	//that's why we create here another operation for 'basic-auth-default-test-platform'.
+	//This allows us to verify the deletion of the operations under tests properly.
+	UUID, err := uuid.NewV4()
+	Expect(err).ToNot(HaveOccurred())
+	lastOperation := types.Operation{
+		Base:       types.Base{ID: UUID.String()},
+		ResourceID: "basic-auth-default-test-platform",
+		Type:       types.CREATE,
+		State:      "succeeded",
+	}
+
+	ctx.SMRepository.Create(context.Background(), &lastOperation)
+}
 
 type DeleteBrokerDelayingInterceptorProvider struct{}
 
