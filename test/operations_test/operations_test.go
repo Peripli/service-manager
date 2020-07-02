@@ -257,6 +257,33 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					ctxBuilder = NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook)
 				})
 
+				When("A resource-less operation is created" , func() {
+					BeforeEach(func() {
+						ctx = ctxBuilder.Build()
+						resourcelessOperation := types.Operation{
+							Base:       types.Base{ID: "test-resource-less-operation"},
+							ResourceID: "non-existent-resource",
+							Type:       types.CREATE,
+							State:      "succeeded",
+						}
+						ctx.SMRepository.Create(context.Background(), &resourcelessOperation)
+
+					})
+					It("Should be deleted once cleanup interval has passed", func() {
+						byID := query.ByField(query.EqualsOperator, "id", "test-resource-less-operation")
+						resourcelessOperation, err := ctx.SMRepository.Get(context.Background(), types.OperationType, byID)
+						Expect(err).To(BeNil())
+						Expect(resourcelessOperation).ToNot(BeNil())
+
+						Eventually(func() types.Object {
+							resourcelessOperation, _ := ctx.SMRepository.Get(context.Background(), types.OperationType, byID)
+
+							return resourcelessOperation
+						}, cleanupInterval*4).Should(BeNil())
+
+					})
+				})
+
 				When("Specified cleanup interval passes", func() {
 					BeforeEach(func() {
 						ctx = ctxBuilder.Build()
