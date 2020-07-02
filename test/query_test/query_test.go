@@ -228,7 +228,7 @@ var _ = Describe("Service Manager Query", func() {
 		})
 
 		It("should return only the operations being last operation for their corresponding instances", func() {
-			criteria := []query.Criterion{query.ByIdExist(storage.GetSubQuery(storage.QueryForAllLastOperationsPerResource)),}
+			criteria := []query.Criterion{query.ByIdExist(storage.GetSubQuery(storage.QueryForAllLastOperationsPerResource))}
 
 			list, err := repository.List(context.Background(), types.OperationType, criteria...)
 			Expect(err).ToNot(HaveOccurred())
@@ -244,7 +244,7 @@ var _ = Describe("Service Manager Query", func() {
 			common.RemoveAllOperations(ctx.SMRepository)
 
 			resource := &types.Platform{
-				Base:        types.Base{ID: "test-resource"},
+				Base: types.Base{ID: "test-resource"},
 			}
 			opForInstance1 := &types.Operation{
 				Base: types.Base{

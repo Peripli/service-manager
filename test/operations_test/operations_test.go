@@ -284,10 +284,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					BeforeEach(func() {
 						ctx = ctxBuilder.Build()
 						testResource1 := &types.Platform{
-							Base:        types.Base{ID: "test-resource1"},
+							Base: types.Base{ID: "test-resource1"},
 						}
 						testResource2 := &types.Platform{
-							Base:        types.Base{ID: "test-resource2"},
+							Base: types.Base{ID: "test-resource2"},
 						}
 						lastInternalSuccessfulOperation := &types.Operation{
 							Base:       types.Base{ID: "test-last-op-internal-successful"},
@@ -319,7 +319,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					})
 				})
-
 
 				When("Specified cleanup interval passes", func() {
 					BeforeEach(func() {
@@ -403,8 +402,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 								return count
 
-							// Since we no longer delete "last" operations, the async provision of instance: '12345'
-							//will result with 1 expected operation which shouldn't be deleted.
+								// Since we no longer delete "last" operations, the async provision of instance: '12345'
+								//will result with 1 expected operation which shouldn't be deleted.
 							}, cleanupInterval*4).Should(Equal(1))
 						})
 					})

@@ -111,7 +111,7 @@ type Criterion struct {
 	RightOp []string
 	// Type is the type of the query
 	Type CriterionType
-    // TemplateParametersMap contains the template parameters of Criterion supporting sub-queries
+	// TemplateParametersMap contains the template parameters of Criterion supporting sub-queries
 	TemplateParametersMap map[string]interface{}
 }
 
@@ -198,7 +198,7 @@ func (c *Criterion) GetTemplateParams() map[string]interface{} {
 	return c.TemplateParametersMap
 }
 
-func (c *Criterion) AddTemplateParams(templateParametersMap map[string]interface{})  {
+func (c *Criterion) AddTemplateParams(templateParametersMap map[string]interface{}) {
 	if c.TemplateParametersMap == nil {
 		c.TemplateParametersMap = make(map[string]interface{})
 	}

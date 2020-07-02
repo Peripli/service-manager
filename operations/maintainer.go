@@ -549,4 +549,3 @@ func (om *Maintainer) markStuckOperationsFailed() {
 
 	log.C(om.smCtx).Debug("Finished marking stuck operations as failed")
 }
-

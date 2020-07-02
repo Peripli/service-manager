@@ -742,7 +742,7 @@ func (itr *InterceptableTransactionalRepository) UpdateLabels(ctx context.Contex
 	return nil
 }
 
-func (itr * InterceptableTransactionalRepository) GetEntitiesByTableNameMap() map[string]string {
+func (itr *InterceptableTransactionalRepository) GetEntitiesByTableNameMap() map[string]string {
 	return itr.RawRepository.GetEntitiesByTableNameMap()
 }
 

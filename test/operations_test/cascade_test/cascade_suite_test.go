@@ -471,16 +471,15 @@ func triggerCascadeOperation(repoCtx context.Context, resourceType types.ObjectT
 	UUID, err = uuid.NewV4()
 	Expect(err).ToNot(HaveOccurred())
 	lastOperation := types.Operation{
-		Base: types.Base{ID: UUID.String()},
-		ResourceID:    resourceID,
-		Type:          types.CREATE,
-		State:         "succeeded",
+		Base:       types.Base{ID: UUID.String()},
+		ResourceID: resourceID,
+		Type:       types.CREATE,
+		State:      "succeeded",
 	}
 	_, err = ctx.SMRepository.Create(repoCtx, &lastOperation)
 	Expect(err).NotTo(HaveOccurred())
 	return rootID
 }
-
 
 func validateAllResourceDeleted(repository storage.TransactionalRepository, byResourceType map[types.ObjectType][]*types.Operation) {
 	By("validating resources have deleted")

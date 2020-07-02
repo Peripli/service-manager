@@ -270,7 +270,6 @@ func (er *TransactionalEncryptingRepository) InTransaction(ctx context.Context, 
 	})
 }
 
-func (er * encryptingRepository) GetEntitiesByTableNameMap() map[string]string {
+func (er *encryptingRepository) GetEntitiesByTableNameMap() map[string]string {
 	return er.repository.GetEntitiesByTableNameMap()
 }
-
