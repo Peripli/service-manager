@@ -14,7 +14,7 @@ var subQueries = map[SubQuery]string{
     INNER JOIN (
         SELECT max(operations.paging_sequence) paging_sequence
         FROM operations
-        GROUP BY resource_id ) LAST_OPERATIONS ON 
+        GROUP BY resource_id, resource_type) LAST_OPERATIONS ON 
     op.paging_sequence = LAST_OPERATIONS.paging_sequence
     WHERE operations.id = op.id`,
 	QueryForNonResourcelessOperations: `
