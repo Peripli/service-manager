@@ -271,7 +271,7 @@ func (om *Maintainer) CleanupResourcelessOperations() {
 		if entityTableName == "operations" {
 			continue
 		}
-		log.C(om.smCtx).Debug("Adding 'NOT EXIST' in table: %s in 'WHERE' clause of resource-less cleanup execution statement", entityTableName)
+		log.C(om.smCtx).Debug("Adding NOT EXIST in table: %s in WHERE clause of resource-less cleanup execution statement", entityTableName)
 		templateParameters := make(map[string]interface{})
 		templateParameters["RESOURCE_TABLE"] = entityTableName
 		byIdNotExistCriterion := query.ByIdNotExist(storage.GetSubQuery(storage.QueryForNonResourcelessOperations))
