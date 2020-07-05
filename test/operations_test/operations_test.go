@@ -586,6 +586,7 @@ func createLastOperationForTestPlatform(ctx *TestContext) {
 	lastOperation := types.Operation{
 		Base:       types.Base{ID: UUID.String()},
 		ResourceID: "basic-auth-default-test-platform",
+		ResourceType: "/v1/platforms",
 		Type:       types.CREATE,
 		State:      "succeeded",
 	}
