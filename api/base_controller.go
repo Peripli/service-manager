@@ -58,7 +58,7 @@ type BaseController struct {
 
 	supportsAsync  bool
 	isAsyncDefault bool
-	eventsBus  operations.SyncEventBus
+	eventsBus      operations.SyncEventBus
 }
 
 // NewController returns a new base controller
@@ -77,7 +77,7 @@ func NewController(ctx context.Context, options *Options, resourceBaseURL string
 		objectType:      objectType,
 		DefaultPageSize: options.APISettings.DefaultPageSize,
 		MaxPageSize:     options.APISettings.MaxPageSize,
-		eventsBus: 		 *options.EventsBus,
+		eventsBus:       *options.EventsBus,
 		scheduler:       operations.NewScheduler(ctx, options.Repository, options.OperationSettings, poolSize, options.WaitGroup),
 	}
 
@@ -152,7 +152,7 @@ func (c *BaseController) Routes() []web.Route {
 func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	ctx = c.eventsBus.GetContextWithEventBus(ctx)
-	ctx,parentSpan := util.CreateParentSpan(ctx,fmt.Sprintf("Flow start: Base controller -> creating object of type: %s",c.objectType.String()))
+	ctx, parentSpan := util.CreateParentSpan(ctx, fmt.Sprintf("Flow start: Base controller -> creating object of type: %s", c.objectType.String()))
 	defer parentSpan.Finish()
 	log.C(ctx).Debugf("Creating new %s", c.objectType)
 
@@ -209,7 +209,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	if createdObj.GetLastOperation().Reschedule && c.shouldExecuteAsync(r) || c.shouldExecuteAsync(r) {
+	if (createdObj.GetLastOperation().Reschedule && !c.shouldExecuteAsync(r)) || c.shouldExecuteAsync(r) {
 		return util.NewLocationResponse(createdObj.GetLastOperation().GetID(), result.GetID(), c.resourceBaseURL)
 	}
 
@@ -403,11 +403,6 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 
 	log.C(ctx).Debugf("Getting a page of %ss", c.objectType)
 	objectList, err := c.repository.List(ctx, c.objectType, criteria...)
-
-
-	//objectList.Len()
-
-
 	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
@@ -648,10 +643,6 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 
 func (c *BaseController) shouldExecuteAsync(r *web.Request) bool {
 	async := r.URL.Query().Get(web.QueryParamAsync)
-	if async == "" {
-		return c.isAsyncDefault
-	}
-
 	return async == "true"
 }
 
