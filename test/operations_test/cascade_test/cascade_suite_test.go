@@ -473,6 +473,7 @@ func triggerCascadeOperation(repoCtx context.Context, resourceType types.ObjectT
 	lastOperation := types.Operation{
 		Base:       types.Base{ID: UUID.String()},
 		ResourceID: resourceID,
+		ResourceType: types.TenantType,
 		Type:       types.CREATE,
 		State:      "succeeded",
 	}
