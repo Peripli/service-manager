@@ -19,6 +19,7 @@ package operations
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"runtime/debug"
@@ -35,6 +36,98 @@ import (
 )
 
 type storageAction func(ctx context.Context, repository storage.Repository) (types.Object, error)
+type Notification struct {
+	Entity types.Object
+	Err    error
+}
+
+type ChanItem struct {
+	Channel     chan Notification
+	Duration    time.Duration
+	ChanContext context.Context
+}
+
+type SyncEventBus struct {
+	scheduledOperations map[string][]ChanItem
+}
+
+func NewEventBus() SyncEventBus{
+	return SyncEventBus{
+		scheduledOperations: make(map[string][]ChanItem),
+	}
+}
+
+func (se *SyncEventBus) removeFromEventBus(id string, chanHolder ChanItem) {
+	if _, ok := se.scheduledOperations[id]; ok {
+		for i := range se.scheduledOperations[id] {
+			if se.scheduledOperations[id][i] == chanHolder {
+				se.scheduledOperations[id] = append(se.scheduledOperations[id][:i], se.scheduledOperations[id][i+1:]...)
+				break
+			}
+		}
+	}
+}
+func (se *SyncEventBus) GetContextWithEventBus(ctx context.Context) context.Context {
+	return context.WithValue(ctx, Notification{}, se)
+}
+func (se *SyncEventBus) AddListener(id string, objectsChan chan Notification, ctx context.Context) {
+
+	chanItem := ChanItem{
+		Channel:     objectsChan,
+		Duration:    1 * time.Minute,
+		ChanContext: nil,
+	}
+
+	go se.withChannelWatch(id, chanItem, ctx)
+
+	if _, ok := se.scheduledOperations[id]; ok {
+		se.scheduledOperations[id] = append(se.scheduledOperations[id], chanItem)
+	} else {
+		se.scheduledOperations[id] = []ChanItem{chanItem}
+	}
+
+	print(se.scheduledOperations[id])
+}
+
+func (se *SyncEventBus) withChannelWatch(indexId string, chanItem ChanItem, ctx context.Context) {
+	maxExecutionTime := time.NewTicker(chanItem.Duration)
+	defer maxExecutionTime.Stop()
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			se.NotifyCompleted(indexId, Notification{
+				Entity: nil,
+				Err:    errors.New("the context is done, either because SM crashed/exited or because action timeout elapsed"),
+			})
+			se.removeFromEventBus(indexId, chanItem)
+			return
+		case <-maxExecutionTime.C:
+			se.NotifyCompleted(indexId, Notification{
+				Entity: nil,
+				Err:    errors.New("the maximum execution time for this even has been reached"),
+			})
+			se.removeFromEventBus(indexId, chanItem)
+			return
+		}
+	}
+}
+
+func (se *SyncEventBus) NotifyCompleted(id string, object Notification) {
+	if _, ok := se.scheduledOperations[id]; ok {
+		for _, handler := range se.scheduledOperations[id] {
+			go func(handler chan Notification) {
+				handler <- object
+			}(handler.Channel)
+		}
+	}
+}
+
+type ScheduledActionsProvider struct {
+	EventBus         *SyncEventBus
+}
 
 // Scheduler is responsible for storing Operation entities in the DB
 // and also for spawning goroutines to execute the respective DB transaction asynchronously
@@ -65,6 +158,9 @@ func NewScheduler(smCtx context.Context, repository storage.TransactionalReposit
 
 // ScheduleSyncStorageAction stores the job's Operation entity in DB and synchronously executes the CREATE/UPDATE/DELETE DB transaction
 func (s *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *types.Operation, action storageAction) (types.Object, error) {
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Schedule Sync StorageAction"));
+	defer span.FinishSpan()
+
 	initialLogMessage(ctx, operation, false)
 
 	if err := s.executeOperationPreconditions(ctx, operation); err != nil {
@@ -90,6 +186,10 @@ func (s *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *ty
 
 // ScheduleAsyncStorageAction stores the job's Operation entity in DB asynchronously executes the CREATE/UPDATE/DELETE DB transaction in a goroutine
 func (s *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *types.Operation, action storageAction) error {
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Schedule Async StorageAction"));
+	defer span.FinishSpan()
+
+
 	select {
 	case s.workers <- struct{}{}:
 		initialLogMessage(ctx, operation, true)
@@ -407,6 +507,9 @@ func (s *Scheduler) refetchOperation(ctx context.Context, operation *types.Opera
 }
 
 func (s *Scheduler) handleActionResponse(ctx context.Context, actionObject types.Object, actionError error, opBeforeJob *types.Operation) (types.Object, error) {
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Handling action Response"));
+	defer span.FinishSpan()
+
 	opAfterJob, err := s.refetchOperation(ctx, opBeforeJob)
 	if err != nil {
 		return nil, err
@@ -424,6 +527,8 @@ func (s *Scheduler) handleActionResponse(ctx context.Context, actionObject types
 		return nil, s.handleActionResponseFailure(ctx, actionError, opAfterJob)
 		// if no error occurred and op is not reschedulable (has finished), mark it as success
 	} else if !opAfterJob.Reschedule {
+		span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Operartion has completed - handling succesfull execution"));
+		defer span.FinishSpan()
 		return s.handleActionResponseSuccess(ctx, actionObject, opAfterJob)
 	}
 
@@ -434,6 +539,9 @@ func (s *Scheduler) handleActionResponse(ctx context.Context, actionObject types
 
 func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError error, opAfterJob *types.Operation) error {
 	if err := s.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
+
+		span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("handleActionResponseFailure ready=false"));
+		defer span.FinishSpan()
 		// after a failed FAILED CREATE operation, update the ready field to false
 		if opAfterJob.Type == types.CREATE && opAfterJob.State == types.FAILED {
 			if err := fetchAndUpdateResource(ctx, storage, opAfterJob.ResourceID, opAfterJob.ResourceType, func(obj types.Object) {
@@ -465,46 +573,20 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 			return fmt.Errorf("setting new operation state failed: %s", opErr)
 		}
 
+		evenButs:= ctx.Value(Notification{});
+		if evenButs != nil {
+			if evenButs := evenButs.(*SyncEventBus); evenButs != nil {
+				span, ctx = util.CreateChildSpan(ctx,fmt.Sprintf("notitfying an operartin has completed"));
+				defer span.FinishSpan()
+				evenButs.NotifyCompleted(opAfterJob.ID,Notification{
+					Err:actionError,
+				})
+			}
+		}
+
 		return nil
 	}); err != nil {
 		return err
-	}
-
-	// we want to schedule deletion if the operation is marked for deletion and the deletion timeout is not yet reached
-	isDeleteRescheduleRequired := opAfterJob.InOrphanMitigationState() &&
-		time.Now().UTC().Before(opAfterJob.DeletionScheduled.Add(s.reconciliationOperationTimeout)) &&
-		opAfterJob.State != types.SUCCEEDED
-
-	if isDeleteRescheduleRequired {
-		deletionAction := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-			byID := query.ByField(query.EqualsOperator, "id", opAfterJob.ResourceID)
-			err := repository.Delete(ctx, opAfterJob.ResourceType, byID)
-			if err != nil {
-				if err == util.ErrNotFoundInStorage {
-					log.C(ctx).Debugf("Could not find resource with id %s and type %s during delete action in SMDB. Ignoring missing resource", opAfterJob.ResourceID, opAfterJob.ResourceType)
-					return nil, nil
-				}
-				return nil, util.HandleStorageError(err, opAfterJob.ResourceType.String())
-			}
-			return nil, nil
-		}
-
-		log.C(ctx).Infof("Scheduling of required delete operation after actual operation with id %s failed", opAfterJob.ID)
-		// if deletion timestamp was set on the op, reschedule the same op with delete action and wait for reschedulingDelay time
-		// so that we don't DOS the broker
-		reschedulingDelayTimeout := time.After(s.reschedulingDelay)
-		select {
-		case <-s.smCtx.Done():
-			return fmt.Errorf("sm context canceled: %s", s.smCtx.Err())
-		case <-reschedulingDelayTimeout:
-			if orphanMitigationErr := s.ScheduleAsyncStorageAction(ctx, opAfterJob, deletionAction); orphanMitigationErr != nil {
-				return &util.HTTPError{
-					ErrorType:   "BrokerError",
-					Description: fmt.Sprintf("job failed with %s and orphan mitigation failed with %s", actionError, orphanMitigationErr),
-					StatusCode:  http.StatusBadGateway,
-				}
-			}
-		}
 	}
 	return actionError
 }
@@ -521,6 +603,9 @@ func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObjec
 			opAfterJob.Errors = json.RawMessage{}
 		}
 
+		span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Updating operartion final state to: %a",finalState));
+		defer span.FinishSpan()
+
 		// a non reschedulable operation has finished with no errors:
 		// this can either be an actual operation or an orphan mitigation triggered by an actual operation error
 		// in either case orphan mitigation needn't be scheduled any longer because being here means either an
@@ -532,6 +617,10 @@ func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObjec
 		if opAfterJob.Type == types.CREATE && finalState == types.SUCCEEDED {
 			var err error
 			if actionObject, err = updateResource(ctx, storage, actionObject, func(obj types.Object) {
+				switch v:= obj.(type) {
+				case *types.ServiceInstance:
+					v.Usable = true;
+				}
 				obj.SetReady(true)
 			}); err != nil {
 				return err
@@ -546,6 +635,21 @@ func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObjec
 
 		if err := updateOperationState(ctx, storage, opAfterJob, finalState, nil); err != nil {
 			return err
+		}
+
+		if  actionObject != nil {
+			evenButs := ctx.Value(Notification{});
+			if evenButs != nil {
+				if evenButs := evenButs.(*SyncEventBus); evenButs != nil {
+					span, ctx = util.CreateChildSpan(ctx, fmt.Sprintf("notify an async flow is done"));
+					defer span.FinishSpan()
+
+					actionObject.SetLastOperation(opAfterJob)
+					evenButs.NotifyCompleted(opAfterJob.ID, Notification{
+						Entity: actionObject,
+					})
+				}
+			}
 		}
 
 		return nil

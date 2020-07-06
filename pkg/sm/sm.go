@@ -133,6 +133,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		return nil, fmt.Errorf("could not create notificator: %v", err)
 	}
 
+	eventBus := operations.NewEventBus()
 	apiOptions := &api.Options{
 		Repository:        interceptableRepository,
 		APISettings:       cfg.API,
@@ -140,6 +141,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		WSSettings:        cfg.WebSocket,
 		Notificator:       pgNotificator,
 		WaitGroup:         waitGroup,
+		EventsBus:         &eventBus,
 	}
 	API, err := api.New(ctx, e, apiOptions)
 	if err != nil {
@@ -168,7 +170,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		return &postgres.Locker{Storage: smStorage, AdvisoryIndex: advisoryIndex}
 	}
 
-	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, postgresLockerCreatorFunc, cfg.Operations, waitGroup)
+	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, postgresLockerCreatorFunc, cfg.Operations, waitGroup, &eventBus)
 	osbClientTimeout := math.Min(float64(cfg.HTTPClient.Timeout), float64(cfg.Server.RequestTimeout))
 	osbClientTimeoutDuration := time.Duration(osbClientTimeout)
 	osbClientProvider := osb.NewBrokerClientProvider(cfg.HTTPClient.SkipSSLValidation, int(osbClientTimeoutDuration.Seconds()))
