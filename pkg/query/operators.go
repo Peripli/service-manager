@@ -33,7 +33,8 @@ const (
 	InOperator inOperator = "in"
 	// NotInOperator takes two operands and tests if the left is not contained in the right
 	NotInOperator notInOperator = "notin"
-	// NotExistsOperator receives a sub-query as single left-operand and checks the sub-query for rows existence, and if there NotExistsOperator receives a sub-query as single left-operand and checks the sub-query for rows existence, and if there are no rows then it are no rows then it will return TRUE, otherwise FALSE.
+	// NotExistsOperator receives a sub-query as single left-operand and checks the sub-query for rows existence, and if there NotExistsOperator receives a sub-query as single left-operand and checks the sub-query for rows existence,
+	// and if there are no rows then it are no rows then it will return TRUE, otherwise FALSE.
 	NotExistsOperator notExistsOperator = "notexists"
 	// ExistsOperator receives a sub-query as single left-operand and check the sub-query for rows existence, and if there are any then it will return TRUE otherwise FALSE
 	ExistsOperator existsOperator = "exists"
