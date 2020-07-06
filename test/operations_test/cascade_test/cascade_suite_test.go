@@ -471,11 +471,11 @@ func triggerCascadeOperation(repoCtx context.Context, resourceType types.ObjectT
 	UUID, err = uuid.NewV4()
 	Expect(err).ToNot(HaveOccurred())
 	lastOperation := types.Operation{
-		Base:       types.Base{ID: UUID.String()},
-		ResourceID: resourceID,
+		Base:         types.Base{ID: UUID.String()},
+		ResourceID:   resourceID,
 		ResourceType: types.TenantType,
-		Type:       types.CREATE,
-		State:      "succeeded",
+		Type:         types.CREATE,
+		State:        "succeeded",
 	}
 	_, err = ctx.SMRepository.Create(repoCtx, &lastOperation)
 	Expect(err).NotTo(HaveOccurred())

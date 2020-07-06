@@ -584,11 +584,11 @@ func createLastOperationForTestPlatform(ctx *TestContext) {
 	UUID, err := uuid.NewV4()
 	Expect(err).ToNot(HaveOccurred())
 	lastOperation := types.Operation{
-		Base:       types.Base{ID: UUID.String()},
-		ResourceID: "basic-auth-default-test-platform",
+		Base:         types.Base{ID: UUID.String()},
+		ResourceID:   "basic-auth-default-test-platform",
 		ResourceType: "/v1/platforms",
-		Type:       types.CREATE,
-		State:      "succeeded",
+		Type:         types.CREATE,
+		State:        "succeeded",
 	}
 
 	ctx.SMRepository.Create(context.Background(), &lastOperation)
