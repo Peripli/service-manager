@@ -3375,7 +3375,7 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										})
 
-										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 											ID:   instanceID,
 											Type: types.ServiceInstanceType,
 										})

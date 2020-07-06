@@ -735,7 +735,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 
-							When("broker responds with asynchronous success", func() {
+							FWhen("broker responds with asynchronous success", func() {
 								BeforeEach(func() {
 									brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
 									brokerServer.BindingLastOpHandlerFunc(http.MethodPut+"1", MultiplePollsRequiredHandler("in progress", "succeeded"))
@@ -792,7 +792,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											})
 
-											VerifyResourceDoesNotExist(newCtx.SMWithOAuthForTenant, ResourceExpectations{
+											VerifyResourceExists(newCtx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:   bindingID,
 												Type: types.ServiceBindingType,
 											})
@@ -1083,7 +1083,7 @@ var _ = DescribeTestsFor(TestCase{
 										brokerServer.BindingLastOpHandlerFunc(http.MethodPut+"3", ParameterizedHandler(http.StatusInternalServerError, Object{"error": "error"}))
 									})
 
-									It("stores the binding as ready false and marks the operation as reschedulable", func() {
+									FIt("stores the binding as ready false and marks the operation as reschedulable", func() {
 										resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{

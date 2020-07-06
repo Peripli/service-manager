@@ -74,7 +74,7 @@ func (se *SyncEventBus) AddListener(id string, objectsChan chan Notification, ct
 
 	chanItem := ChanItem{
 		Channel:     objectsChan,
-		Duration:    10 * time.Minute,
+		Duration:    1 * time.Minute,
 		ChanContext: nil,
 	}
 
@@ -158,6 +158,9 @@ func NewScheduler(smCtx context.Context, repository storage.TransactionalReposit
 
 // ScheduleSyncStorageAction stores the job's Operation entity in DB and synchronously executes the CREATE/UPDATE/DELETE DB transaction
 func (s *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *types.Operation, action storageAction) (types.Object, error) {
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Schedule Sync StorageAction"));
+	defer span.FinishSpan()
+
 	initialLogMessage(ctx, operation, false)
 
 	if err := s.executeOperationPreconditions(ctx, operation); err != nil {
@@ -183,6 +186,10 @@ func (s *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *ty
 
 // ScheduleAsyncStorageAction stores the job's Operation entity in DB asynchronously executes the CREATE/UPDATE/DELETE DB transaction in a goroutine
 func (s *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *types.Operation, action storageAction) error {
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Schedule Async StorageAction"));
+	defer span.FinishSpan()
+
+
 	select {
 	case s.workers <- struct{}{}:
 		initialLogMessage(ctx, operation, true)
@@ -500,6 +507,9 @@ func (s *Scheduler) refetchOperation(ctx context.Context, operation *types.Opera
 }
 
 func (s *Scheduler) handleActionResponse(ctx context.Context, actionObject types.Object, actionError error, opBeforeJob *types.Operation) (types.Object, error) {
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Handling action Response"));
+	defer span.FinishSpan()
+
 	opAfterJob, err := s.refetchOperation(ctx, opBeforeJob)
 	if err != nil {
 		return nil, err
@@ -517,6 +527,8 @@ func (s *Scheduler) handleActionResponse(ctx context.Context, actionObject types
 		return nil, s.handleActionResponseFailure(ctx, actionError, opAfterJob)
 		// if no error occurred and op is not reschedulable (has finished), mark it as success
 	} else if !opAfterJob.Reschedule {
+		span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Operartion has completed - handling succesfull execution"));
+		defer span.FinishSpan()
 		return s.handleActionResponseSuccess(ctx, actionObject, opAfterJob)
 	}
 
@@ -527,6 +539,9 @@ func (s *Scheduler) handleActionResponse(ctx context.Context, actionObject types
 
 func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError error, opAfterJob *types.Operation) error {
 	if err := s.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
+
+		span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("handleActionResponseFailure ready=false"));
+		defer span.FinishSpan()
 		// after a failed FAILED CREATE operation, update the ready field to false
 		if opAfterJob.Type == types.CREATE && opAfterJob.State == types.FAILED {
 			if err := fetchAndUpdateResource(ctx, storage, opAfterJob.ResourceID, opAfterJob.ResourceType, func(obj types.Object) {
@@ -544,6 +559,17 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 
 		if opErr := updateOperationState(ctx, storage, opAfterJob, types.FAILED, actionError); opErr != nil {
 			return fmt.Errorf("setting new operation state failed: %s", opErr)
+		}
+
+		evenButs:= ctx.Value(Notification{});
+		if evenButs != nil {
+			if evenButs := evenButs.(*SyncEventBus); evenButs != nil {
+				span, ctx = util.CreateChildSpan(ctx,fmt.Sprintf("notitfying an operartin has completed"));
+				defer span.FinishSpan()
+				evenButs.NotifyCompleted(opAfterJob.ID,Notification{
+					Err:actionError,
+				})
+			}
 		}
 
 		return nil
@@ -564,6 +590,9 @@ func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObjec
 			finalState = types.SUCCEEDED
 			opAfterJob.Errors = json.RawMessage{}
 		}
+
+		span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Updating operartion final state to: %a",finalState));
+		defer span.FinishSpan()
 
 		// a non reschedulable operation has finished with no errors:
 		// this can either be an actual operation or an orphan mitigation triggered by an actual operation error
@@ -596,13 +625,18 @@ func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObjec
 			return err
 		}
 
-		evenButs:= ctx.Value(Notification{});
-		if evenButs != nil {
-			if evenButs := evenButs.(*SyncEventBus); evenButs != nil {
-				actionObject.SetLastOperation(opAfterJob)
-				evenButs.NotifyCompleted(opAfterJob.ID,Notification{
-					Entity:  actionObject,
-				})
+		if  actionObject != nil {
+			evenButs := ctx.Value(Notification{});
+			if evenButs != nil {
+				if evenButs := evenButs.(*SyncEventBus); evenButs != nil {
+					span, ctx = util.CreateChildSpan(ctx, fmt.Sprintf("notify an async flow is done"));
+					defer span.FinishSpan()
+
+					actionObject.SetLastOperation(opAfterJob)
+					evenButs.NotifyCompleted(opAfterJob.ID, Notification{
+						Entity: actionObject,
+					})
+				}
 			}
 		}
 

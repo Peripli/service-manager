@@ -249,6 +249,11 @@ func (i *ServiceBindingInterceptor) AroundTxDelete(f storage.InterceptDeleteArou
 			if err := i.deleteSingleBinding(ctx, binding, operation); err != nil {
 				return err
 			}
+
+			//Don't delete the service binding after the orphan mitigation is completed - for async flows
+			if  operation.InOrphanMitigationState() {
+				return nil
+			}
 		}
 
 		if err := f(ctx, deletionCriteria...); err != nil {
@@ -472,98 +477,86 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 		}
 	}
 
-	maxPollingDurationTicker := time.NewTicker(leftPollingDuration)
-	defer maxPollingDurationTicker.Stop()
+	//log.C(ctx).Errorf("Terminating poll last operation for binding with id %s and name %s due to context done event", binding.ID, binding.Name)
+	// The context is done, either because SM crashed/exited or because action timeout elapsed. In this case the operation should be kept in progress.
+	// This way the operation would be rescheduled and the polling will span multiple reschedules, but no more than max_polling_interval if provided in the plan.
 
-	ticker := time.NewTicker(i.pollingInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			log.C(ctx).Errorf("Terminating poll last operation for binding with id %s and name %s due to context done event", binding.ID, binding.Name)
-			// The context is done, either because SM crashed/exited or because action timeout elapsed. In this case the operation should be kept in progress.
-			// This way the operation would be rescheduled and the polling will span multiple reschedules, but no more than max_polling_interval if provided in the plan.
+	log.C(ctx).Infof("Sending poll last operation request %s for binding with id %s and name %s",
+		logPollBindingRequest(pollingRequest), binding.ID, binding.Name)
+	pollingResponse, err := osbClient.PollBindingLastOperation(pollingRequest)
+	if err != nil {
+		if osbc.IsGoneError(err) && operation.Type == types.DELETE {
+			log.C(ctx).Infof("Successfully finished polling operation for binding with id %s and name %s", binding.ID, binding.Name)
+
+			operation.Reschedule = false
+			operation.RescheduleTimestamp = time.Time{}
+			if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+				return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
+			}
 			return nil
-		case <-maxPollingDurationTicker.C:
-			return i.processMaxPollingDurationElapsed(ctx, binding, instance, plan, operation, enableOrphanMitigation)
-		case <-ticker.C:
-			log.C(ctx).Infof("Sending poll last operation request %s for binding with id %s and name %s",
-				logPollBindingRequest(pollingRequest), binding.ID, binding.Name)
-			pollingResponse, err := osbClient.PollBindingLastOperation(pollingRequest)
-			if err != nil {
-				if osbc.IsGoneError(err) && operation.Type == types.DELETE {
-					log.C(ctx).Infof("Successfully finished polling operation for binding with id %s and name %s", binding.ID, binding.Name)
+		}
 
-					operation.Reschedule = false
-					operation.RescheduleTimestamp = time.Time{}
-					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
-						return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
-					}
-					return nil
-				}
-
-				return &util.HTTPError{
-					ErrorType: "BrokerError",
-					Description: fmt.Sprintf("Failed poll last operation request %s for binding with id %s and name %s: %s",
-						logPollBindingRequest(pollingRequest), binding.ID, binding.Name, err),
-					StatusCode: http.StatusBadGateway,
-				}
-			}
-
-			switch pollingResponse.State {
-			case osbc.StateInProgress:
-				log.C(ctx).Infof("Polling of binding still in progress. Rescheduling polling last operation request %s for binding of instance with id %s and name %s...",
-					logPollBindingRequest(pollingRequest), binding.ID, binding.Name)
-
-			case osbc.StateSucceeded:
-				log.C(ctx).Infof("Successfully finished polling operation for binding with id %s and name %s", binding.ID, binding.Name)
-
-				operation.Reschedule = false
-				operation.RescheduleTimestamp = time.Time{}
-				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
-					return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
-				}
-
-				// for async creation of bindings, an extra fetching of the binding is required to get the credentials
-				if operation.Type == types.CREATE {
-					bindingDetails, err := i.getBindingDetailsFromBroker(ctx, binding, operation, brokerID, osbClient)
-					if err != nil {
-						return err
-					}
-					if err := i.enrichBindingWithBindingResponse(binding, bindingDetails); err != nil {
-						return fmt.Errorf("could not enrich binding details with binding response details: %s", err)
-					}
-				}
-
-				return nil
-			case osbc.StateFailed:
-				log.C(ctx).Infof("Failed polling operation for binding with id %s and name %s with response %s",
-					binding.ID, binding.Name, logPollBindingResponse(pollingResponse))
-				operation.Reschedule = false
-				operation.RescheduleTimestamp = time.Time{}
-				if enableOrphanMitigation {
-					operation.DeletionScheduled = time.Now()
-				}
-				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
-					return fmt.Errorf("failed to update operation with id %s after failed of last operation for binding with id %s: %s", operation.ID, binding.ID, err)
-				}
-
-				errDescription := ""
-				if pollingResponse.Description != nil {
-					errDescription = *pollingResponse.Description
-				} else {
-					errDescription = "no description provided by broker"
-				}
-				return &util.HTTPError{
-					ErrorType:   "BrokerError",
-					Description: fmt.Sprintf("failed polling operation for binding with id %s and name %s due to polling last operation error: %s", binding.ID, binding.Name, errDescription),
-					StatusCode:  http.StatusBadGateway,
-				}
-			default:
-				log.C(ctx).Errorf("invalid state during poll last operation for binding with id %s and name %s: %s", binding.ID, binding.Name, pollingResponse.State)
-			}
+		return &util.HTTPError{
+			ErrorType: "BrokerError",
+			Description: fmt.Sprintf("Failed poll last operation request %s for binding with id %s and name %s: %s",
+				logPollBindingRequest(pollingRequest), binding.ID, binding.Name, err),
+			StatusCode: http.StatusBadGateway,
 		}
 	}
+
+	switch pollingResponse.State {
+	case osbc.StateInProgress:
+		log.C(ctx).Infof("Polling of binding still in progress. Rescheduling polling last operation request %s for binding of instance with id %s and name %s...",
+			logPollBindingRequest(pollingRequest), binding.ID, binding.Name)
+
+	case osbc.StateSucceeded:
+		log.C(ctx).Infof("Successfully finished polling operation for binding with id %s and name %s", binding.ID, binding.Name)
+
+		operation.Reschedule = false
+		operation.RescheduleTimestamp = time.Time{}
+		if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+			return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
+		}
+
+		// for async creation of bindings, an extra fetching of the binding is required to get the credentials
+		if operation.Type == types.CREATE {
+			bindingDetails, err := i.getBindingDetailsFromBroker(ctx, binding, operation, brokerID, osbClient)
+			if err != nil {
+				return err
+			}
+			if err := i.enrichBindingWithBindingResponse(binding, bindingDetails); err != nil {
+				return fmt.Errorf("could not enrich binding details with binding response details: %s", err)
+			}
+		}
+
+		return nil
+	case osbc.StateFailed:
+		log.C(ctx).Infof("Failed polling operation for binding with id %s and name %s with response %s",
+			binding.ID, binding.Name, logPollBindingResponse(pollingResponse))
+		operation.Reschedule = false
+		operation.RescheduleTimestamp = time.Time{}
+		if enableOrphanMitigation {
+			operation.DeletionScheduled = time.Now()
+		}
+		if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+			return fmt.Errorf("failed to update operation with id %s after failed of last operation for binding with id %s: %s", operation.ID, binding.ID, err)
+		}
+
+		errDescription := ""
+		if pollingResponse.Description != nil {
+			errDescription = *pollingResponse.Description
+		} else {
+			errDescription = "no description provided by broker"
+		}
+		return &util.HTTPError{
+			ErrorType:   "BrokerError",
+			Description: fmt.Sprintf("failed polling operation for binding with id %s and name %s due to polling last operation error: %s", binding.ID, binding.Name, errDescription),
+			StatusCode:  http.StatusBadGateway,
+		}
+	default:
+		log.C(ctx).Errorf("invalid state during poll last operation for binding with id %s and name %s: %s", binding.ID, binding.Name, pollingResponse.State)
+	}
+	return nil
 }
 
 func (i *ServiceBindingInterceptor) processMaxPollingDurationElapsed(ctx context.Context, binding *types.ServiceBinding, instance *types.ServiceInstance, plan *types.ServicePlan, operation *types.Operation, enableOrphanMitigation bool) error {

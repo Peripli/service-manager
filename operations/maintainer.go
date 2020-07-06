@@ -18,6 +18,7 @@ package operations
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -100,12 +101,12 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 		{
 			name:     "rescheduleUnfinishedOperations",
 			execute:  maintainer.rescheduleUnfinishedOperations,
-			interval: time.Second * 10,
+			interval: time.Second * 1,
 		},
 		{
 			name:     "rescheduleOrphanMitigationOperations",
 			execute:  maintainer.rescheduleOrphanMitigationOperations,
-			interval: options.MaintainerRetryInterval,
+			interval: time.Second * 1,
 		},
 	}
 
@@ -263,6 +264,8 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 
 // rescheduleUnfinishedOperations reschedules IN_PROGRESS operations which are reschedulable, not scheduled for deletion and no goroutine is processing at the moment
 func (om *Maintainer) rescheduleUnfinishedOperations() {
+
+
 	currentTime := time.Now()
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
@@ -284,6 +287,9 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 		operation := operations.ItemAt(i).(*types.Operation)
 		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
 		ctx := log.ContextWithLogger(om.smCtx, logger)
+
+		ctx,parentSpan := util.CreateParentSpan(ctx,fmt.Sprintf("Flow start: RescheduleUnfinishedOperations"))
+		defer parentSpan.Finish()
 
 		var action storageAction
 
@@ -323,6 +329,10 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 				return nil, nil
 			}
 		}
+
+		span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Reschedule operartion type:%s, state:%s,id:%s",operation.Type,operation.State,operation.ID));
+		defer span.FinishSpan()
+
 
 		ctx = om.eventsBus.GetContextWithEventBus(ctx)
 		if err := om.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
@@ -426,8 +436,9 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 		query.ByField(query.NotEqualsOperator, "deletion_scheduled", ZeroTime),
 		query.ByField(query.NotEqualsOperator, "type", string(types.UPDATE)),
 		// check if operation hasn't been updated for the operation's maximum allowed time to execute
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ActionTimeout))),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(om.settings.ActionTimeout))),
 	}
+
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
 	if err != nil {
@@ -440,6 +451,8 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 		operation := operations.ItemAt(i).(*types.Operation)
 		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
 		ctx := log.ContextWithLogger(om.smCtx, logger)
+		ctx,parentSpan := util.CreateParentSpan(ctx,fmt.Sprintf("Flow start: rescheduleOrphanMitigationOperations"))
+		defer parentSpan.Finish()
 
 		byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
 
@@ -454,6 +467,8 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 			return nil, nil
 		}
 
+
+		ctx = om.eventsBus.GetContextWithEventBus(ctx)
 		if err := om.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
 			logger.Warnf("Failed to reschedule unprocessed orphan mitigation operation with ID (%s): %s", operation.ID, err)
 		}

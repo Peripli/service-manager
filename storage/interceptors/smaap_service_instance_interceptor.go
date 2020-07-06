@@ -120,6 +120,9 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		instance := obj.(*types.ServiceInstance)
 		instance.Usable = false
 
+		span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("AroundTxCreate:"+instance.Name));
+		defer span.FinishSpan()
+
 		if instance.PlatformID != types.SMPlatform {
 			return f(ctx, obj)
 		}
@@ -127,12 +130,6 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		operation, found := opcontext.Get(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
-		}
-
-		// In case of OM for create action we trigger the delete instance flow
-		if operation.Type == types.CREATE && operation.InOrphanMitigationState() {
-			err := i.deleteSingleInstance(ctx, instance, operation)
-			return nil, err
 		}
 
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
@@ -149,6 +146,9 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 
 		var provisionResponse *osbc.ProvisionResponse
 		if !operation.Reschedule {
+			span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("AroundTxCreate - operartion is not rescheduled yet"+instance.Name));
+			defer span.FinishSpan()
+
 			provisionRequest, err := i.prepareProvisionRequest(instance, service.CatalogID, plan.CatalogID)
 			if err != nil {
 				return nil, fmt.Errorf("failed to prepare provision request: %s", err)
@@ -185,6 +185,10 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			}
 
 			if provisionResponse.Async {
+
+				span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("AroundTxCreate - operartion should be async reschedauling"+instance.Name));
+				defer span.FinishSpan()
+
 				log.C(ctx).Infof("Successful asynchronous provisioning request %s to broker %s returned response %s",
 					logProvisionRequest(provisionRequest), broker.Name, logProvisionResponse(provisionResponse))
 				operation.Reschedule = true
@@ -216,6 +220,10 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 }
 func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 	return func(ctx context.Context, updatedObj types.Object, labelChanges ...*types.LabelChange) (object types.Object, err error) {
+
+		span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("AroundTxUpdate"));
+		defer span.FinishSpan()
+
 		updatedInstance := updatedObj.(*types.ServiceInstance)
 		if updatedInstance.PlatformID != types.SMPlatform {
 			return f(ctx, updatedObj, labelChanges...)
@@ -336,6 +344,10 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 
 func (i *ServiceInstanceInterceptor) AroundTxDelete(f storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
 	return func(ctx context.Context, deletionCriteria ...query.Criterion) error {
+
+		span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("AroundTxDelete"));
+		defer span.FinishSpan()
+
 		instances, err := i.repository.List(ctx, types.ServiceInstanceType, deletionCriteria...)
 		if err != nil {
 			return fmt.Errorf("failed to get instances for deletion: %s", err)
@@ -355,6 +367,11 @@ func (i *ServiceInstanceInterceptor) AroundTxDelete(f storage.InterceptDeleteAro
 			if err := i.deleteSingleInstance(ctx, instance, operation); err != nil {
 				return err
 			}
+
+			//don't delete the instance after an orphan mitigation was completed - for async flows
+			if  operation.InOrphanMitigationState() {
+				return nil
+			}
 		}
 
 		if err := f(ctx, deletionCriteria...); err != nil {
@@ -366,6 +383,10 @@ func (i *ServiceInstanceInterceptor) AroundTxDelete(f storage.InterceptDeleteAro
 }
 
 func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, instance *types.ServiceInstance, operation *types.Operation) error {
+
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("deleting instance"));
+	defer span.FinishSpan()
+
 	byServiceInstanceID := query.ByField(query.EqualsOperator, "service_instance_id", instance.ID)
 	var bindingsCount int
 	var err error
@@ -449,6 +470,9 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 }
 
 func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, osbClient osbc.Client, instance *types.ServiceInstance, plan *types.ServicePlan, operation *types.Operation, serviceCatalogID, planCatalogID string, enableOrphanMitigation bool) error {
+	span, ctx := util.CreateChildSpan(ctx,fmt.Sprintf("Polling service instance"));
+	defer span.FinishSpan()
+
 	var key *osbc.OperationKey
 	if len(operation.ExternalID) != 0 {
 		opKey := osbc.OperationKey(operation.ExternalID)

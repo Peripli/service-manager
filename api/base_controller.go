@@ -152,7 +152,8 @@ func (c *BaseController) Routes() []web.Route {
 func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	ctx = c.eventsBus.GetContextWithEventBus(ctx)
-	//c.eventsBus.
+	ctx,parentSpan := util.CreateParentSpan(ctx,fmt.Sprintf("Flow start: Base controller -> creating object of type: %s",c.objectType.String()))
+	defer parentSpan.Finish()
 	log.C(ctx).Debugf("Creating new %s", c.objectType)
 
 	result := c.objectBlueprint()
@@ -220,14 +221,13 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		if syncEntityCreateChan.Err != nil {
 			return nil, &util.HTTPError{
 				ErrorType:   "BadRequest",
-				Description: "Sync execution timeout has been reached",
+				Description: syncEntityCreateChan.Err.Error(),
 				StatusCode:  http.StatusBadRequest,
 			}
 		}
 
 		createdObj = syncEntityCreateChan.Entity
 	}
-
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
 }
 
@@ -403,6 +403,11 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 
 	log.C(ctx).Debugf("Getting a page of %ss", c.objectType)
 	objectList, err := c.repository.List(ctx, c.objectType, criteria...)
+
+
+	//objectList.Len()
+
+
 	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}

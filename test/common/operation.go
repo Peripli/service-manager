@@ -111,7 +111,10 @@ func VerifyOperationExists(ctx *TestContext, operationURL string, expectations O
 				category := operation["type"].(string)
 				resourceType := operation["resource_type"].(string)
 				state := operation["state"].(string)
-				reschedulable := operation["reschedule"].(bool)
+				var reschedulable bool
+				if operation["reschedule"] != nil {
+					reschedulable = operation["reschedule"].(bool)
+				}
 				deletionScheduledString := operation["deletion_scheduled"].(string)
 				deletionScheduled, err := time.Parse(time.RFC3339Nano, deletionScheduledString)
 				if err != nil {
