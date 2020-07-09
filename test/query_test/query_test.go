@@ -252,7 +252,7 @@ var _ = Describe("Service Manager Query", func() {
 				},
 				Type:         types.CREATE,
 				State:        types.SUCCEEDED,
-				ResourceID:   resource.ID,
+				ResourceID:   "test-resource",
 				ResourceType: web.ServiceInstancesURL,
 			}
 			resourcelessOperation := &types.Operation{
@@ -271,10 +271,20 @@ var _ = Describe("Service Manager Query", func() {
 			repository.Create(context.Background(), resourcelessOperation)
 		})
 
-		It("should retrieve only the operation that is associated to a resource", func() {
-			templateParameters := make(map[string]interface{})
-			templateParameters["RESOURCE_TABLE"] = "platforms"
+		It("should retrieve only the operation that is not associated to a resource", func() {
+			templateParameters := query.TemplateParameters{"RESOURCE_TABLE": "platforms"}
 			criterion := query.ByIdNotExistWithTemplateParameters(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
+			criteria := []query.Criterion{criterion}
+
+			list, err := repository.List(context.Background(), types.OperationType, criteria...)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(list.Len()).To(BeEquivalentTo(1))
+			Expect(listContains(list, "resourcelessOp"))
+		})
+
+		It("should retrieve only the operation that is associated to a resource", func() {
+			templateParameters := query.TemplateParameters{"RESOURCE_TABLE": "platforms"}
+			criterion := query.ByIdExistWithTemplateParameters(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
 			criteria := []query.Criterion{criterion}
 
 			list, err := repository.List(context.Background(), types.OperationType, criteria...)

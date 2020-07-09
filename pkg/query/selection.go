@@ -36,6 +36,8 @@ const (
 	Separator string = "and"
 )
 
+type TemplateParameters map[string]interface{}
+
 // CriterionType is a type of criteria to be applied when querying
 type CriterionType string
 
@@ -112,7 +114,7 @@ type Criterion struct {
 	// Type is the type of the query
 	Type CriterionType
 	// TemplateParameters contains the template parameters of Criterion supporting sub-queries
-	TemplateParameters map[string]interface{}
+	TemplateParameters TemplateParameters
 }
 
 // ByField constructs a new criterion for field querying
@@ -120,24 +122,24 @@ func ByField(operator Operator, leftOp string, rightOp ...string) Criterion {
 	return NewCriterion(leftOp, operator, rightOp, FieldQuery)
 }
 
-func ByIdNotExistWithTemplateParameters(subQuery string, templateParameters map[string]interface{}) Criterion {
+func ByIdNotExistWithTemplateParameters(subQuery string, templateParameters TemplateParameters) Criterion {
 	criterion := ByIdNotExist(subQuery)
 	criterion.addTemplateParams(templateParameters)
 	return criterion
 }
 
 func ByIdNotExist(subQuery string) Criterion {
-	return NewCriterion("", NotExistsOperator, []string{subQuery}, ExistQuery)
+	return NewCriterion("", NotExistsSubquery, []string{subQuery}, ExistQuery)
 }
 
-func ByIdExistWithTemplateParameters(subQuery string, templateParameters map[string]interface{}) Criterion {
+func ByIdExistWithTemplateParameters(subQuery string, templateParameters TemplateParameters) Criterion {
 	criterion := ByIdExist(subQuery)
 	criterion.addTemplateParams(templateParameters)
 	return criterion
 }
 
 func ByIdExist(subQuery string) Criterion {
-	return NewCriterion("", ExistsOperator, []string{subQuery}, ExistQuery)
+	return NewCriterion("", ExistsSubquery, []string{subQuery}, ExistQuery)
 }
 
 // ByLabel constructs a new criterion for label querying
@@ -206,11 +208,11 @@ func (c Criterion) Validate() error {
 	return nil
 }
 
-func (c *Criterion) addTemplateParams(templateParametersMap map[string]interface{}) {
+func (c *Criterion) addTemplateParams(templateParameters TemplateParameters) {
 	if c.TemplateParameters == nil {
-		c.TemplateParameters = make(map[string]interface{})
+		c.TemplateParameters = TemplateParameters{}
 	}
-	for key, value := range templateParametersMap {
+	for key, value := range templateParameters {
 		c.TemplateParameters[key] = value
 	}
 }

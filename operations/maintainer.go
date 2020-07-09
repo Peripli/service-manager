@@ -271,8 +271,7 @@ func (om *Maintainer) CleanupResourcelessOperations() {
 		if entity.TableName == "operations" {
 			continue
 		}
-		templateParameters := make(map[string]interface{})
-		templateParameters["RESOURCE_TABLE"] = entity.TableName
+		templateParameters := query.TemplateParameters{"RESOURCE_TABLE": entity.TableName}
 		byIdNotExistCriterion := query.ByIdNotExistWithTemplateParameters(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
 		criteria = append(criteria, byIdNotExistCriterion)
 	}

@@ -33,11 +33,12 @@ const (
 	InOperator inOperator = "in"
 	// NotInOperator takes two operands and tests if the left is not contained in the right
 	NotInOperator notInOperator = "notin"
-	// NotExistsOperator receives a sub-query as single left-operand and checks the sub-query for rows existence, and if the NotExistsOperator receives a sub-query as single left-operand and checks the sub-query for rows existence,
-	// and if there are no rows then it are no rows then it will return TRUE, otherwise FALSE.
-	NotExistsOperator notExistsOperator = "notexists"
-	// ExistsOperator receives a sub-query as single left-operand and check the sub-query for rows existence, and if there are any then it will return TRUE otherwise FALSE
-	ExistsOperator existsOperator = "exists"
+	// NotExistsSubquery receives a sub-query as single left-operand and checks the sub-query for rows existence. If there're no rows then it will return TRUE, otherwise FALSE.
+	// Applicable for usage only with ExistQuery Criterion type
+	NotExistsSubquery notExistsSubquery = "notexists"
+	// ExistsSubquery receives a sub-query as single left-operand and checks the sub-query for rows existence. If there are any, then it will return TRUE otherwise FALSE.
+	// Applicable for usage only with ExistQuery Criterion type
+	ExistsSubquery existsSubquery = "exists"
 	// EqualsOrNilOperator takes two operands and tests if the left is equal to the right, or if the left is nil
 	EqualsOrNilOperator enOperator = "en"
 
@@ -152,39 +153,39 @@ func (notInOperator) IsNumeric() bool {
 	return false
 }
 
-type existsOperator string
+type existsSubquery string
 
-func (o existsOperator) String() string {
+func (o existsSubquery) String() string {
 	return string(o)
 }
 
-func (existsOperator) Type() OperatorType {
+func (existsSubquery) Type() OperatorType {
 	return UnivariateOperator
 }
 
-func (existsOperator) IsNullable() bool {
+func (existsSubquery) IsNullable() bool {
 	return false
 }
 
-func (existsOperator) IsNumeric() bool {
+func (existsSubquery) IsNumeric() bool {
 	return false
 }
 
-type notExistsOperator string
+type notExistsSubquery string
 
-func (o notExistsOperator) String() string {
+func (o notExistsSubquery) String() string {
 	return string(o)
 }
 
-func (notExistsOperator) Type() OperatorType {
+func (notExistsSubquery) Type() OperatorType {
 	return UnivariateOperator
 }
 
-func (notExistsOperator) IsNullable() bool {
+func (notExistsSubquery) IsNullable() bool {
 	return false
 }
 
-func (notExistsOperator) IsNumeric() bool {
+func (notExistsSubquery) IsNumeric() bool {
 	return false
 }
 

@@ -140,9 +140,9 @@ func translateOperationToSQLEquivalent(operator query.Operator) string {
 		return ">="
 	case query.NotInOperator:
 		return "NOT IN"
-	case query.ExistsOperator:
+	case query.ExistsSubquery:
 		return "EXISTS"
-	case query.NotExistsOperator:
+	case query.NotExistsSubquery:
 		return "NOT EXISTS"
 	case query.EqualsOperator:
 		fallthrough
