@@ -281,7 +281,6 @@ func (om *Maintainer) CleanupResourcelessOperations() {
 		return
 	}
 	log.C(om.smCtx).Debug("Finished cleaning up resource-less operations")
-
 }
 
 // rescheduleUnfinishedOperations reschedules IN_PROGRESS operations which are reschedulable, not scheduled for deletion and no goroutine is processing at the moment
