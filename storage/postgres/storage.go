@@ -465,8 +465,16 @@ func (ps *Storage) UpdateLabels(ctx context.Context, objectType types.ObjectType
 	return ps.updateLabels(ctx, objectType, objectID, labelChanges)
 }
 
-func (ps *Storage) GetEntitiesByTableNameMap() map[string]string {
-	return ps.scheme.entityToObjectTypeConverter
+func (ps *Storage) GetEntities() []types.Entity {
+	entities := make([]types.Entity, 0)
+	for entityTableName, entityName := range ps.scheme.entityToObjectTypeConverter {
+		entity := types.Entity{}
+		entity.SetTableName(entityTableName)
+		entity.SetName(entityName)
+
+		entities = append(entities, entity)
+	}
+	return entities
 }
 
 func (ps *Storage) updateLabels(ctx context.Context, objectType types.ObjectType, entityID string, updateActions []*types.LabelChange) error {

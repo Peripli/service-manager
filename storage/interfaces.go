@@ -197,7 +197,7 @@ type Repository interface {
 	UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, _ ...query.Criterion) error
 
 	// Retrieves all the registered entities
-	GetEntitiesByTableNameMap() map[string]string
+	GetEntities() []types.Entity
 }
 
 // TransactionalRepository is a storage repository that can initiate a transaction

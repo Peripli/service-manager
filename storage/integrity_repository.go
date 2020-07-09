@@ -161,8 +161,8 @@ func (cr *TransactionalIntegrityRepository) InTransaction(ctx context.Context, f
 	})
 }
 
-func (cr *integrityRepository) GetEntitiesByTableNameMap() map[string]string {
-	return cr.repository.GetEntitiesByTableNameMap()
+func (cr *integrityRepository) GetEntities() []types.Entity {
+	return cr.repository.GetEntities()
 }
 
 func (cr *integrityRepository) setIntegrity(obj types.Object) error {

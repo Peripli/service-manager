@@ -111,8 +111,8 @@ type Criterion struct {
 	RightOp []string
 	// Type is the type of the query
 	Type CriterionType
-	// TemplateParametersMap contains the template parameters of Criterion supporting sub-queries
-	TemplateParametersMap map[string]interface{}
+	// TemplateParameters contains the template parameters of Criterion supporting sub-queries
+	TemplateParameters map[string]interface{}
 }
 
 // ByField constructs a new criterion for field querying
@@ -120,8 +120,20 @@ func ByField(operator Operator, leftOp string, rightOp ...string) Criterion {
 	return NewCriterion(leftOp, operator, rightOp, FieldQuery)
 }
 
+func ByIdNotExistWithTemplateParameters(subQuery string, templateParameters map[string]interface{}) Criterion {
+	criterion := ByIdNotExist(subQuery)
+	criterion.addTemplateParams(templateParameters)
+	return criterion
+}
+
 func ByIdNotExist(subQuery string) Criterion {
 	return NewCriterion("", NotExistsOperator, []string{subQuery}, ExistQuery)
+}
+
+func ByIdExistWithTemplateParameters(subQuery string, templateParameters map[string]interface{}) Criterion {
+	criterion := ByIdExist(subQuery)
+	criterion.addTemplateParams(templateParameters)
+	return criterion
 }
 
 func ByIdExist(subQuery string) Criterion {
@@ -194,16 +206,12 @@ func (c Criterion) Validate() error {
 	return nil
 }
 
-func (c *Criterion) GetTemplateParams() map[string]interface{} {
-	return c.TemplateParametersMap
-}
-
-func (c *Criterion) AddTemplateParams(templateParametersMap map[string]interface{}) {
-	if c.TemplateParametersMap == nil {
-		c.TemplateParametersMap = make(map[string]interface{})
+func (c *Criterion) addTemplateParams(templateParametersMap map[string]interface{}) {
+	if c.TemplateParameters == nil {
+		c.TemplateParameters = make(map[string]interface{})
 	}
 	for key, value := range templateParametersMap {
-		c.TemplateParametersMap[key] = value
+		c.TemplateParameters[key] = value
 	}
 }
 

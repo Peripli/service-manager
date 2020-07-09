@@ -103,7 +103,7 @@ func criterionSQL(c query.Criterion, dbTags []tagType, tableAlias string) (strin
 	dbCast := determineCastByType(ttype)
 	var clause string
 	if c.Type == query.ExistQuery {
-		rightResolvedValue, _ := tsprintf(rightOpQueryValue.(string), c.TemplateParametersMap)
+		rightResolvedValue, _ := tsprintf(rightOpQueryValue.(string), c.TemplateParameters)
 		clause = fmt.Sprintf("%s (%s)", sqlOperation, rightResolvedValue)
 	} else if tableAlias != "" {
 		clause = fmt.Sprintf("%s.%s%s %s %s", tableAlias, c.LeftOp, dbCast, sqlOperation, rightOpBindVar)

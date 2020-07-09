@@ -267,14 +267,13 @@ func (om *Maintainer) CleanupResourcelessOperations() {
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
 	}
 	// Build the 'WHERE' clause of the deletion statement with 'byIdNotExist' criterion for each resource table.
-	for entityTableName := range om.repository.GetEntitiesByTableNameMap() {
-		if entityTableName == "operations" {
+	for _, entity := range om.repository.GetEntities() {
+		if entity.GetTableName() == "operations" {
 			continue
 		}
 		templateParameters := make(map[string]interface{})
-		templateParameters["RESOURCE_TABLE"] = entityTableName
-		byIdNotExistCriterion := query.ByIdNotExist(storage.GetSubQuery(storage.QueryForNonResourcelessOperations))
-		byIdNotExistCriterion.AddTemplateParams(templateParameters)
+		templateParameters["RESOURCE_TABLE"] = entity.GetTableName()
+		byIdNotExistCriterion := query.ByIdNotExistWithTemplateParameters(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
 		criteria = append(criteria, byIdNotExistCriterion)
 	}
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {

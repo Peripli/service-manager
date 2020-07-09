@@ -274,8 +274,7 @@ var _ = Describe("Service Manager Query", func() {
 		It("should retrieve only the operation that is associated to a resource", func() {
 			templateParameters := make(map[string]interface{})
 			templateParameters["RESOURCE_TABLE"] = "platforms"
-			criterion := query.ByIdExist(storage.GetSubQuery(storage.QueryForNonResourcelessOperations))
-			criterion.AddTemplateParams(templateParameters)
+			criterion := query.ByIdNotExistWithTemplateParameters(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
 			criteria := []query.Criterion{criterion}
 
 			list, err := repository.List(context.Background(), types.OperationType, criteria...)

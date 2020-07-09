@@ -117,8 +117,8 @@ type queryScopedInterceptableRepository struct {
 	deleteOnTxFuncs map[types.ObjectType]func(InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc
 }
 
-func (ir *queryScopedInterceptableRepository) GetEntitiesByTableNameMap() map[string]string {
-	return ir.repositoryInTransaction.GetEntitiesByTableNameMap()
+func (ir *queryScopedInterceptableRepository) GetEntities() []types.Entity {
+	return ir.repositoryInTransaction.GetEntities()
 }
 
 func (ir *queryScopedInterceptableRepository) QueryForList(ctx context.Context, objectType types.ObjectType, queryName NamedQuery, queryParams map[string]interface{}) (types.ObjectList, error) {
@@ -742,8 +742,8 @@ func (itr *InterceptableTransactionalRepository) UpdateLabels(ctx context.Contex
 	return nil
 }
 
-func (itr *InterceptableTransactionalRepository) GetEntitiesByTableNameMap() map[string]string {
-	return itr.RawRepository.GetEntitiesByTableNameMap()
+func (itr *InterceptableTransactionalRepository) GetEntities() []types.Entity {
+	return itr.RawRepository.GetEntities()
 }
 
 func (itr *InterceptableTransactionalRepository) validateCreateProviders(objectType types.ObjectType, providerName string, order InterceptorOrder) {
