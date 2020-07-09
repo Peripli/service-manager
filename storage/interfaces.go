@@ -46,6 +46,11 @@ type Label interface {
 	GetValue() string
 }
 
+type ResourceEntity struct {
+	Name      string
+	TableName string
+}
+
 var (
 	_, b, _, _ = runtime.Caller(0)
 	basepath   = path.Dir(b)
@@ -197,7 +202,7 @@ type Repository interface {
 	UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, _ ...query.Criterion) error
 
 	// Retrieves all the registered entities
-	GetEntities() []types.Entity
+	GetEntities() []ResourceEntity
 }
 
 // TransactionalRepository is a storage repository that can initiate a transaction

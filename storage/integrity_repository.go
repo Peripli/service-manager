@@ -161,7 +161,7 @@ func (cr *TransactionalIntegrityRepository) InTransaction(ctx context.Context, f
 	})
 }
 
-func (cr *integrityRepository) GetEntities() []types.Entity {
+func (cr *integrityRepository) GetEntities() []ResourceEntity {
 	return cr.repository.GetEntities()
 }
 

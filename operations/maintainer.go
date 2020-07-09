@@ -268,11 +268,11 @@ func (om *Maintainer) CleanupResourcelessOperations() {
 	}
 	// Build the 'WHERE' clause of the deletion statement with 'byIdNotExist' criterion for each resource table.
 	for _, entity := range om.repository.GetEntities() {
-		if entity.GetTableName() == "operations" {
+		if entity.TableName == "operations" {
 			continue
 		}
 		templateParameters := make(map[string]interface{})
-		templateParameters["RESOURCE_TABLE"] = entity.GetTableName()
+		templateParameters["RESOURCE_TABLE"] = entity.TableName
 		byIdNotExistCriterion := query.ByIdNotExistWithTemplateParameters(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
 		criteria = append(criteria, byIdNotExistCriterion)
 	}

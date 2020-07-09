@@ -465,12 +465,12 @@ func (ps *Storage) UpdateLabels(ctx context.Context, objectType types.ObjectType
 	return ps.updateLabels(ctx, objectType, objectID, labelChanges)
 }
 
-func (ps *Storage) GetEntities() []types.Entity {
-	entities := make([]types.Entity, 0)
+func (ps *Storage) GetEntities() []storage.ResourceEntity {
+	entities := make([]storage.ResourceEntity, 0)
 	for entityTableName, entityName := range ps.scheme.entityToObjectTypeConverter {
-		entity := types.Entity{}
-		entity.SetTableName(entityTableName)
-		entity.SetName(entityName)
+		entity := storage.ResourceEntity{}
+		entity.TableName = entityTableName
+		entity.Name = entityName
 
 		entities = append(entities, entity)
 	}

@@ -117,7 +117,7 @@ type queryScopedInterceptableRepository struct {
 	deleteOnTxFuncs map[types.ObjectType]func(InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc
 }
 
-func (ir *queryScopedInterceptableRepository) GetEntities() []types.Entity {
+func (ir *queryScopedInterceptableRepository) GetEntities() []ResourceEntity {
 	return ir.repositoryInTransaction.GetEntities()
 }
 
@@ -742,7 +742,7 @@ func (itr *InterceptableTransactionalRepository) UpdateLabels(ctx context.Contex
 	return nil
 }
 
-func (itr *InterceptableTransactionalRepository) GetEntities() []types.Entity {
+func (itr *InterceptableTransactionalRepository) GetEntities() []ResourceEntity {
 	return itr.RawRepository.GetEntities()
 }
 
