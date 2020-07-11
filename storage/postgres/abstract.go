@@ -259,6 +259,19 @@ func getJSONText(item json.RawMessage) sqlxtypes.JSONText {
 	return sqlxtypes.JSONText(item)
 }
 
+func toJsonAsObject(objectJson sqlxtypes.JSONText, objectType interface{}) error {
+	if objectJson == nil {
+		return nil
+	}
+	err := json.Unmarshal(objectJson, &objectType)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func getNullJSONText(item json.RawMessage) sqlxtypes.NullJSONText {
 	itemLen := len(item)
 	if itemLen == 0 || itemLen == len("null") && string(item) == "null" {

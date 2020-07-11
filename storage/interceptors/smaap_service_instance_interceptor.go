@@ -118,7 +118,7 @@ type ServiceInstanceInterceptor struct {
 func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		instance := obj.(*types.ServiceInstance)
-		instance.Usable = true
+		instance.Usable = false
 
 		if instance.PlatformID != types.SMPlatform {
 			return f(ctx, obj)
@@ -142,12 +142,14 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			}
 			log.C(ctx).Infof("Sending provision request %s to broker with name %s", logProvisionRequest(provisionRequest), broker.Name)
 			provisionResponse, err = osbClient.ProvisionInstance(provisionRequest)
+
 			if err != nil {
 				brokerError := &util.HTTPError{
 					ErrorType:   "BrokerError",
 					Description: fmt.Sprintf("Failed provisioning request %s: %s", logProvisionRequest(provisionRequest), err),
 					StatusCode:  http.StatusBadGateway,
 				}
+
 				if shouldStartOrphanMitigation(err) {
 					// store the instance so that later on we can do orphan mitigation
 					_, err := f(ctx, obj)
@@ -161,6 +163,11 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 					operation.RescheduleTimestamp = time.Time{}
 					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
+					}
+				} else if operation.Context.Async {
+					_, err := f(ctx, obj)
+					if err != nil {
+						return nil, err
 					}
 				}
 				return nil, brokerError
@@ -337,24 +344,66 @@ func (i *ServiceInstanceInterceptor) AroundTxDelete(f storage.InterceptDeleteAro
 			return fmt.Errorf("deletion of multiple instances is not supported")
 		}
 
+		operation, found := opcontext.Get(ctx)
+
+		if !found {
+			return fmt.Errorf("operation missing from context")
+		}
+
 		if instances.Len() != 0 {
+
 			instance := instances.ItemAt(0).(*types.ServiceInstance)
-			operation, found := opcontext.Get(ctx)
-			if !found {
-				return fmt.Errorf("operation missing from context")
+
+			if operation.Context == nil {
+				operation.Context = &types.OperationContext{}
+				operation.Context.ServicePlanID = instance.ServicePlanID
+				err := enrichOperationContext(ctx, operation, i.repository)
+				if err != nil {
+					return err
+				}
+			}
+			deleteInstanceError := i.deleteSingleInstance(ctx, instance, operation)
+
+			//keep the resource in case delete has failed to reflect it to the user
+			if !shouldKeepResource(operation, deleteInstanceError) {
+				if err := f(ctx, deletionCriteria...); err != nil {
+					return err
+				}
 			}
 
-			if err := i.deleteSingleInstance(ctx, instance, operation); err != nil {
+			if deleteInstanceError != nil {
+				return deleteInstanceError
+			}
+		} else if operation.Context.ServiceInstanceID != "" {
+			instance := types.ServiceInstance{}
+			instance.ServicePlanID = operation.Context.ServicePlanID
+			instance.ID = operation.ResourceID
+			if err := i.deleteSingleInstance(ctx, &instance, operation); err != nil {
 				return err
 			}
 		}
-
-		if err := f(ctx, deletionCriteria...); err != nil {
-			return err
-		}
-
 		return nil
 	}
+}
+
+func shouldKeepResource(operation *types.Operation, deleteError error) bool {
+	if operation.InOrphanMitigationState() {
+		//Newly sync mode resources that require OM won't be kept
+		if !operation.Context.Async && operation.Type == types.CREATE {
+			return false
+		} else if deleteError == nil && operation.Type == types.DELETE {
+			return false
+		} else {
+			// 1.new Async instances that require OM will be kept
+			// 2.Existing sync or async instances that fail with om during delete will be kept
+			return true
+		}
+	} else {
+		if deleteError != nil || operation.Reschedule && operation.Context.Async {
+			return true
+		}
+	}
+	return false
 }
 
 func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, instance *types.ServiceInstance, operation *types.Operation) error {
@@ -549,6 +598,15 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 			}
 		}
 	}
+}
+
+func enrichOperationContext(ctx context.Context, operation *types.Operation, repository storage.Repository) error {
+
+	if _, err := repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
+		return fmt.Errorf("failed to enrich operation with context, operation with id %s, %s", operation.ID, err)
+	}
+
+	return nil
 }
 
 func isUnreachableBroker(err error) bool {

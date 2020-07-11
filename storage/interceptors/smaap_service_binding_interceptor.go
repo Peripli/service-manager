@@ -179,6 +179,11 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
 					}
+				} else if operation.Context.Async {
+					_, err := f(ctx, obj)
+					if err != nil {
+						return nil, err
+					}
 				}
 				return nil, brokerError
 			}
@@ -238,6 +243,11 @@ func (i *ServiceBindingInterceptor) AroundTxDelete(f storage.InterceptDeleteArou
 			return fmt.Errorf("deletion of multiple bindings is not supported")
 		}
 
+		operation, found := opcontext.Get(ctx)
+		if !found {
+			return fmt.Errorf("operation missing from context")
+		}
+
 		if bindings.Len() != 0 {
 			binding := bindings.ItemAt(0).(*types.ServiceBinding)
 
@@ -246,13 +256,32 @@ func (i *ServiceBindingInterceptor) AroundTxDelete(f storage.InterceptDeleteArou
 				return fmt.Errorf("operation missing from context")
 			}
 
-			if err := i.deleteSingleBinding(ctx, binding, operation); err != nil {
+			deleteBindingError := i.deleteSingleBinding(ctx, binding, operation)
+			if !shouldKeepResource(operation, deleteBindingError) {
+				if operation.Context == nil {
+					operation.Context = &types.OperationContext{}
+					operation.Context.ServiceInstanceID = binding.ServiceInstanceID
+					err := enrichOperationContext(ctx, operation, i.repository)
+					if err != nil {
+						return err
+					}
+				}
+				if err := f(ctx, deletionCriteria...); err != nil {
+					return err
+				}
+			}
+
+			if deleteBindingError != nil {
+				return deleteBindingError
+			}
+
+		} else if operation.Context.ServiceInstanceID != "" {
+			binding := types.ServiceBinding{}
+			binding.ServiceInstanceID = operation.Context.ServiceInstanceID
+			binding.ID = operation.ResourceID
+			if err := i.deleteSingleBinding(ctx, &binding, operation); err != nil {
 				return err
 			}
-		}
-
-		if err := f(ctx, deletionCriteria...); err != nil {
-			return err
 		}
 
 		return nil

@@ -59,7 +59,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
 	PatchResource:                          test.StorageResourcePatch,
-	ResourcePropertiesToIgnore:             []string{"transitive_resources"},
+	ResourcePropertiesToIgnore:             []string{"transitive_resources", "context"},
 	AdditionalTests: func(ctx *TestContext, t *test.TestCase) {
 		Describe("Operations", func() {
 			var ctx *TestContext

@@ -221,6 +221,8 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 						CorrelationID: id.String(),
 					})
 
+					testRes := testResource.(*types.Operation)
+					testRes.Context = nil
 					return testResource, id.String()
 				}
 

@@ -19,12 +19,11 @@ package service_test
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/query"
 	"strings"
 	"sync/atomic"
 	"time"
-
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/tidwall/gjson"
@@ -710,7 +709,7 @@ var _ = DescribeTestsFor(TestCase{
 											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusOK, Object{"async": false}))
 										})
 
-										It("deletes the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
+										It("verifys the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
 											resp := createInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
@@ -721,10 +720,10 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											})
 
-											VerifyResourceDoesNotExist(newCtx.SMWithOAuthForTenant, ResourceExpectations{
+											VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:   instanceID,
 												Type: types.ServiceInstanceType,
-											})
+											}, testCase.async)
 										})
 									})
 
@@ -748,11 +747,10 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											VerifyResourceExists(newCtx.SMWithOAuthForTenant, ResourceExpectations{
-												ID:    instanceID,
-												Type:  types.ServiceInstanceType,
-												Ready: false,
-											})
+											VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:   instanceID,
+												Type: types.ServiceInstanceType,
+											}, testCase.async)
 										})
 									})
 
@@ -762,7 +760,8 @@ var _ = DescribeTestsFor(TestCase{
 											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", ParameterizedHandler(http.StatusOK, Object{"state": "succeeded"}))
 										})
 
-										It("deletes the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
+										It("keeps the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
+
 											resp := createInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
@@ -773,10 +772,10 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											})
 
-											VerifyResourceDoesNotExist(newCtx.SMWithOAuthForTenant, ResourceExpectations{
+											VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:   instanceID,
 												Type: types.ServiceInstanceType,
-											})
+											}, testCase.async)
 										})
 									})
 								})
@@ -912,7 +911,6 @@ var _ = DescribeTestsFor(TestCase{
 										BeforeEach(func() {
 											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusOK, Object{"async": false}))
 										})
-
 										It("deletes the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
 											resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
@@ -924,10 +922,10 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											})
 
-											VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:   instanceID,
 												Type: types.ServiceInstanceType,
-											})
+											}, testCase.async)
 										})
 									})
 
@@ -940,7 +938,7 @@ var _ = DescribeTestsFor(TestCase{
 											brokerServer.ResetHandlers()
 										})
 
-										It("keeps in the instance with ready false and marks the operation with deletion scheduled", func() {
+										It("verify the instance with ready false and marks the operation with deletion scheduled", func() {
 											resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -951,11 +949,10 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-												ID:    instanceID,
-												Type:  types.ServiceInstanceType,
-												Ready: false,
-											})
+											VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:   instanceID,
+												Type: types.ServiceInstanceType,
+											}, testCase.async)
 										})
 									})
 
@@ -967,7 +964,7 @@ var _ = DescribeTestsFor(TestCase{
 											))
 										})
 
-										It("deletes the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
+										It("verify the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
 											resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -978,10 +975,10 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											})
 
-											VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:   instanceID,
 												Type: types.ServiceInstanceType,
-											})
+											}, testCase.async)
 										})
 									})
 								})
@@ -1146,7 +1143,7 @@ var _ = DescribeTestsFor(TestCase{
 									delete(ctx.Servers, BrokerServerPrefix+brokerID)
 								})
 
-								It("does not store instance in SMDB and marks operation with failed", func() {
+								It("verify instance in SMDB and marks operation with failed", func() {
 									resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -1157,10 +1154,10 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 										ID:   instanceID,
 										Type: types.ServiceInstanceType,
-									})
+									}, testCase.async)
 								})
 							})
 
@@ -1169,7 +1166,7 @@ var _ = DescribeTestsFor(TestCase{
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
 								})
 
-								It("does not store the instance and marks the operation as failed, non rescheduable with empty deletion scheduled", func() {
+								It("verify the instance and marks the operation as failed, non rescheduable with empty deletion scheduled", func() {
 									resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -1180,10 +1177,10 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 										ID:   instanceID,
 										Type: types.ServiceInstanceType,
-									})
+									}, testCase.async)
 								})
 							})
 
@@ -1213,10 +1210,10 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										})
 
-										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 											ID:   instanceID,
 											Type: types.ServiceInstanceType,
-										})
+										}, testCase.async)
 									})
 
 									When("maximum deletion timeout has been reached", func() {
@@ -1320,17 +1317,16 @@ var _ = DescribeTestsFor(TestCase{
 										isDeprovisioned.Store(true)
 
 										newSMCtx = t.ContextBuilder.WithEnvPostExtensions(func(e env.Environment, servers map[string]FakeServer) {
-											e.Set("operations.action_timeout", 2*time.Second)
+											e.Set("operations.action_timeout", 1*time.Second)
 										}).BuildWithoutCleanup()
 
 										operationExpectations.DeletionScheduled = false
 										operationExpectations.Reschedulable = false
 										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectations)
-
-										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 											ID:   instanceID,
 											Type: types.ServiceInstanceType,
-										})
+										}, testCase.async)
 									})
 								})
 
@@ -1354,11 +1350,10 @@ var _ = DescribeTestsFor(TestCase{
 											Reschedulable:     false,
 											DeletionScheduled: false,
 										})
-
-										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 											ID:   instanceID,
 											Type: types.ServiceInstanceType,
-										})
+										}, testCase.async)
 									})
 								})
 							})
@@ -1393,10 +1388,10 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									VerifyResourceDoesNotExist(newCtx.SMWithOAuthForTenant, ResourceExpectations{
+									VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 										ID:   instanceID,
 										Type: types.ServiceInstanceType,
-									})
+									}, testCase.async)
 								})
 							})
 						})
@@ -3138,7 +3133,7 @@ var _ = DescribeTestsFor(TestCase{
 												newCtx.CleanupAll(false)
 											})
 
-											It("keeps the instance as ready false and marks the operation as deletion scheduled", func() {
+											FIt("keeps the instance as ready false and marks the operation as deletion scheduled", func() {
 												resp := deleteInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 												instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
@@ -3146,7 +3141,7 @@ var _ = DescribeTestsFor(TestCase{
 													State:             types.FAILED,
 													ResourceType:      types.ServiceInstanceType,
 													Reschedulable:     false,
-													DeletionScheduled: true,
+													DeletionScheduled: false,
 												})
 
 												VerifyResourceExists(newCtx.SMWithOAuthForTenant, ResourceExpectations{
