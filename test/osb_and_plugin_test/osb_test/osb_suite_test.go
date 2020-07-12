@@ -23,9 +23,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/api/osb"
+	"github.com/Peripli/service-manager/operations/opcontext"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 
@@ -101,6 +101,7 @@ var (
 	brokerPlatformCredentialsIDMap map[string]brokerPlatformCredentials
 	utils                          *common.BrokerUtils
 	shouldStoreBinding             bool
+	shouldSaveOperationInContext   bool
 )
 
 type brokerPlatformCredentials struct {
@@ -118,6 +119,7 @@ var _ = BeforeSuite(func() {
 		"zid": TenantValue,
 	}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 		smb.RegisterPluginsBefore(osb.OSBStorePluginName, &storeBindingIndicatorPlugin{})
+		smb.RegisterPlugins(&storeOperationInContextIndicatorPlugin{})
 		_, err := smb.EnableMultitenancy(TenantIdentifier, func(request *web.Request) (string, error) {
 			extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")
 			user, ok := web.UserFromContext(request.Context())
@@ -501,7 +503,7 @@ func verifyOperationDoesNotExist(resourceID string, operationTypes ...string) {
 	orderByCreation := query.OrderResultBy("paging_sequence", query.DescOrder)
 	criterias := append([]query.Criterion{}, byResourceID, orderByCreation)
 	if len(operationTypes) != 0 {
-		byOperationTypes := query.ByField(query.InOperator, "type", fmt.Sprintf("(%s)", strings.Join(operationTypes, ",")))
+		byOperationTypes := query.ByField(query.EqualsOperator, "type", operationTypes...)
 		criterias = append(criterias, byOperationTypes)
 	}
 	objectList, err := ctx.SMRepository.List(context.TODO(), types.OperationType, criterias...)
@@ -525,6 +527,34 @@ func (p *storeBindingIndicatorPlugin) Name() string { return "storeBindingIndica
 func (p *storeBindingIndicatorPlugin) Bind(request *web.Request, next web.Handler) (*web.Response, error) {
 	if !shouldStoreBinding {
 		newCtx := web.ContextWithStoreBindingsFlag(request.Context(), shouldStoreBinding)
+		request.Request = request.WithContext(newCtx)
+	}
+	return next.Handle(request)
+}
+
+type storeOperationInContextIndicatorPlugin struct{}
+
+func (p *storeOperationInContextIndicatorPlugin) Name() string {
+	return "storeOperationInContextIndicatorPlugin"
+}
+
+func (p *storeOperationInContextIndicatorPlugin) Deprovision(request *web.Request, next web.Handler) (*web.Response, error) {
+	if shouldSaveOperationInContext {
+		op := types.Operation{
+			Base: types.Base{
+				ID:        "rootID",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				Ready:     true,
+			},
+			Description:   "bla",
+			CascadeRootID: "rootID",
+			ResourceID:    "resourceID",
+			Type:          types.DELETE,
+			ResourceType:  types.ServiceInstanceType,
+			State:         types.IN_PROGRESS,
+		}
+		newCtx, _ := opcontext.Set(request.Context(), &op)
 		request.Request = request.WithContext(newCtx)
 	}
 	return next.Handle(request)
