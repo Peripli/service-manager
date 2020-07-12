@@ -270,6 +270,6 @@ func (er *TransactionalEncryptingRepository) InTransaction(ctx context.Context, 
 	})
 }
 
-func (er *encryptingRepository) GetEntities() []ResourceEntity {
+func (er *encryptingRepository) GetEntities() []EntityMetadata {
 	return er.repository.GetEntities()
 }

@@ -123,23 +123,23 @@ func ByField(operator Operator, leftOp string, rightOp ...string) Criterion {
 }
 
 func ByIdNotExistWithTemplateParameters(subQuery string, templateParameters TemplateParameters) Criterion {
-	criterion := ByIdNotExist(subQuery)
-	criterion.addTemplateParams(templateParameters)
+	criterion := NewCriterion("", NotExistsSubquery, []string{subQuery}, ExistQuery)
+	criterion.TemplateParameters = templateParameters
 	return criterion
 }
 
 func ByIdNotExist(subQuery string) Criterion {
-	return NewCriterion("", NotExistsSubquery, []string{subQuery}, ExistQuery)
+	return ByIdNotExistWithTemplateParameters(subQuery, nil)
 }
 
 func ByIdExistWithTemplateParameters(subQuery string, templateParameters TemplateParameters) Criterion {
-	criterion := ByIdExist(subQuery)
-	criterion.addTemplateParams(templateParameters)
+	criterion := NewCriterion("", ExistsSubquery, []string{subQuery}, ExistQuery)
+	criterion.TemplateParameters = templateParameters
 	return criterion
 }
 
 func ByIdExist(subQuery string) Criterion {
-	return NewCriterion("", ExistsSubquery, []string{subQuery}, ExistQuery)
+	return ByIdExistWithTemplateParameters(subQuery, nil)
 }
 
 // ByLabel constructs a new criterion for label querying
@@ -206,15 +206,6 @@ func (c Criterion) Validate() error {
 		}
 	}
 	return nil
-}
-
-func (c *Criterion) addTemplateParams(templateParameters TemplateParameters) {
-	if c.TemplateParameters == nil {
-		c.TemplateParameters = TemplateParameters{}
-	}
-	for key, value := range templateParameters {
-		c.TemplateParameters[key] = value
-	}
 }
 
 func validateCriteria(criteria []Criterion) error {
