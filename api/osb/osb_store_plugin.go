@@ -804,7 +804,7 @@ func (sp *storePlugin) storeBinding(ctx context.Context, storage storage.Reposit
 	bindingName := gjson.GetBytes(req.RawContext, "binding_name").String()
 	if len(bindingName) == 0 {
 		log.C(ctx).Debugf("Binding name missing. Defaulting to id %s", req.BindingID)
-		bindingName = req.InstanceID
+		bindingName = req.BindingID
 	}
 	binding := &types.ServiceBinding{
 		Base: types.Base{
