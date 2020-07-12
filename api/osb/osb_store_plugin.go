@@ -606,7 +606,6 @@ func (sp *storePlugin) PollBinding(request *web.Request, next web.Handler) (*web
 }
 
 func (sp *storePlugin) PollInstance(request *web.Request, next web.Handler) (*web.Response, error) {
-	ctx := request.Context()
 	requestPayload := &lastInstanceOperationRequest{}
 	if err := parseRequestForm(request, requestPayload); err != nil {
 		return nil, err
@@ -615,6 +614,12 @@ func (sp *storePlugin) PollInstance(request *web.Request, next web.Handler) (*we
 	response, err := next.Handle(request)
 	if err != nil {
 		return nil, err
+	}
+	ctx := request.Context()
+	_, operationFound := opcontext.Get(ctx)
+	if operationFound {
+		log.C(ctx).Debug("operation found in context, pollInstance is managed by another plugin..")
+		return response, nil
 	}
 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusGone {
 		return response, nil
