@@ -503,7 +503,7 @@ func verifyOperationDoesNotExist(resourceID string, operationTypes ...string) {
 	orderByCreation := query.OrderResultBy("paging_sequence", query.DescOrder)
 	criterias := append([]query.Criterion{}, byResourceID, orderByCreation)
 	if len(operationTypes) != 0 {
-		byOperationTypes := query.ByField(query.EqualsOperator, "type", operationTypes...)
+		byOperationTypes := query.ByField(query.InOperator, "type", operationTypes...)
 		criterias = append(criterias, byOperationTypes)
 	}
 	objectList, err := ctx.SMRepository.List(context.TODO(), types.OperationType, criterias...)
