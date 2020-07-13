@@ -155,6 +155,10 @@ func (o *Operation) InOrphanMitigationState() bool {
 	return !o.DeletionScheduled.IsZero()
 }
 
+func (o *Operation) Sanitize() {
+	o.Context = nil
+}
+
 func (o *Operation) IsForceDeleteCascadeOperation() bool {
 	forceCascade, found := o.Labels["force"]
 	hasForceLabel := found && len(forceCascade) > 0 && forceCascade[0] == "true"

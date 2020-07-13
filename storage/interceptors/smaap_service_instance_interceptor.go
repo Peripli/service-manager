@@ -142,14 +142,12 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			}
 			log.C(ctx).Infof("Sending provision request %s to broker with name %s", logProvisionRequest(provisionRequest), broker.Name)
 			provisionResponse, err = osbClient.ProvisionInstance(provisionRequest)
-
 			if err != nil {
 				brokerError := &util.HTTPError{
 					ErrorType:   "BrokerError",
 					Description: fmt.Sprintf("Failed provisioning request %s: %s", logProvisionRequest(provisionRequest), err),
 					StatusCode:  http.StatusBadGateway,
 				}
-
 				if shouldStartOrphanMitigation(err) {
 					// store the instance so that later on we can do orphan mitigation
 					_, err := f(ctx, obj)
@@ -165,6 +163,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 						return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
 					}
 				} else if operation.Context.Async {
+					//store the instance incase there is a broker error and the client request is async
 					_, err := f(ctx, obj)
 					if err != nil {
 						return nil, err
@@ -351,20 +350,20 @@ func (i *ServiceInstanceInterceptor) AroundTxDelete(f storage.InterceptDeleteAro
 		}
 
 		if instances.Len() != 0 {
-
 			instance := instances.ItemAt(0).(*types.ServiceInstance)
 
+			//Delete was triggered on a service broker that reference an instance
 			if operation.Context == nil {
 				operation.Context = &types.OperationContext{}
-				operation.Context.ServicePlanID = instance.ServicePlanID
-				err := enrichOperationContext(ctx, operation, i.repository)
-				if err != nil {
-					return err
-				}
+			}
+			operation.Context.ServicePlanID = instance.ServicePlanID
+			err := enrichOperationContext(ctx, operation, i.repository)
+			if err != nil {
+				return err
 			}
 			deleteInstanceError := i.deleteSingleInstance(ctx, instance, operation)
 
-			//keep the resource in case delete has failed to reflect it to the user
+			//keep the resource in case delete has failed
 			if !shouldKeepResource(operation, deleteInstanceError) {
 				if err := f(ctx, deletionCriteria...); err != nil {
 					return err
@@ -374,11 +373,16 @@ func (i *ServiceInstanceInterceptor) AroundTxDelete(f storage.InterceptDeleteAro
 			if deleteInstanceError != nil {
 				return deleteInstanceError
 			}
-		} else if operation.Context.ServiceInstanceID != "" {
+		} else if operation.InOrphanMitigationState() && operation.Context.ServicePlanID != "" {
 			instance := types.ServiceInstance{}
 			instance.ServicePlanID = operation.Context.ServicePlanID
 			instance.ID = operation.ResourceID
 			if err := i.deleteSingleInstance(ctx, &instance, operation); err != nil {
+				return err
+			}
+		} else {
+			if err := f(ctx, deletionCriteria...); err != nil {
+				//Returns 404 if resource is not found or failed to be deleted
 				return err
 			}
 		}

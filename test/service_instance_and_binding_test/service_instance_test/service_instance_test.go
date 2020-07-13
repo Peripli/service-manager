@@ -748,8 +748,9 @@ var _ = DescribeTestsFor(TestCase{
 											})
 
 											VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
-												ID:   instanceID,
-												Type: types.ServiceInstanceType,
+												ID:    instanceID,
+												Type:  types.ServiceInstanceType,
+												Ready: false,
 											}, testCase.async)
 										})
 									})
@@ -938,7 +939,7 @@ var _ = DescribeTestsFor(TestCase{
 											brokerServer.ResetHandlers()
 										})
 
-										It("verify the instance with ready false and marks the operation with deletion scheduled", func() {
+										It("verifies the instance with ready false and marks the operation with deletion scheduled", func() {
 											resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -964,7 +965,7 @@ var _ = DescribeTestsFor(TestCase{
 											))
 										})
 
-										It("verify the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
+										It("verifies the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
 											resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -1143,7 +1144,7 @@ var _ = DescribeTestsFor(TestCase{
 									delete(ctx.Servers, BrokerServerPrefix+brokerID)
 								})
 
-								It("verify instance in SMDB and marks operation with failed", func() {
+								It("verifies instance in SMDB and marks operation with failed", func() {
 									resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -1166,7 +1167,7 @@ var _ = DescribeTestsFor(TestCase{
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
 								})
 
-								It("verify the instance and marks the operation as failed, non rescheduable with empty deletion scheduled", func() {
+								It("verifies the instance and marks the operation as failed, non rescheduable with empty deletion scheduled", func() {
 									resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -3133,7 +3134,7 @@ var _ = DescribeTestsFor(TestCase{
 												newCtx.CleanupAll(false)
 											})
 
-											FIt("keeps the instance as ready false and marks the operation as deletion scheduled", func() {
+											It("keeps the instance as ready false and marks the operation as deletion scheduled", func() {
 												resp := deleteInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 												instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
@@ -3141,7 +3142,7 @@ var _ = DescribeTestsFor(TestCase{
 													State:             types.FAILED,
 													ResourceType:      types.ServiceInstanceType,
 													Reschedulable:     false,
-													DeletionScheduled: false,
+													DeletionScheduled: true,
 												})
 
 												VerifyResourceExists(newCtx.SMWithOAuthForTenant, ResourceExpectations{

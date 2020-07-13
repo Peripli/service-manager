@@ -250,22 +250,27 @@ func (i *ServiceBindingInterceptor) AroundTxDelete(f storage.InterceptDeleteArou
 
 		if bindings.Len() != 0 {
 			binding := bindings.ItemAt(0).(*types.ServiceBinding)
-
 			operation, found := opcontext.Get(ctx)
 			if !found {
 				return fmt.Errorf("operation missing from context")
 			}
 
 			deleteBindingError := i.deleteSingleBinding(ctx, binding, operation)
+
 			if !shouldKeepResource(operation, deleteBindingError) {
+
 				if operation.Context == nil {
+					// if triggered by a service broker deletion, the context object can be empty.
 					operation.Context = &types.OperationContext{}
-					operation.Context.ServiceInstanceID = binding.ServiceInstanceID
-					err := enrichOperationContext(ctx, operation, i.repository)
-					if err != nil {
-						return err
-					}
 				}
+
+				operation.Context.ServiceInstanceID = binding.ServiceInstanceID
+				err := enrichOperationContext(ctx, operation, i.repository)
+
+				if err != nil {
+					return err
+				}
+
 				if err := f(ctx, deletionCriteria...); err != nil {
 					return err
 				}
@@ -274,12 +279,17 @@ func (i *ServiceBindingInterceptor) AroundTxDelete(f storage.InterceptDeleteArou
 			if deleteBindingError != nil {
 				return deleteBindingError
 			}
-
-		} else if operation.Context.ServiceInstanceID != "" {
+		} else if operation.InOrphanMitigationState() && operation.Context.ServiceInstanceID != "" {
+			// In case we don't have instance & use the operation context to perform orphan mitigation
 			binding := types.ServiceBinding{}
 			binding.ServiceInstanceID = operation.Context.ServiceInstanceID
 			binding.ID = operation.ResourceID
 			if err := i.deleteSingleBinding(ctx, &binding, operation); err != nil {
+				return err
+			}
+		} else {
+			// Returns 404 if resource is not found or failed to be deleted
+			if err := f(ctx, deletionCriteria...); err != nil {
 				return err
 			}
 		}

@@ -781,7 +781,7 @@ var _ = DescribeTestsFor(TestCase{
 											brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusOK, Object{"async": false}))
 										})
 
-										It("verify the binding and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
+										It("verifies the binding and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
 											resp := createBinding(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 											bindingID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
@@ -804,7 +804,7 @@ var _ = DescribeTestsFor(TestCase{
 											brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
 										})
 
-										It("verify the binding is ready false and marks the operation with deletion scheduled", func() {
+										It("verifies the binding is ready false and marks the operation with deletion scheduled", func() {
 											resp := createBinding(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 											bindingID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
@@ -830,7 +830,7 @@ var _ = DescribeTestsFor(TestCase{
 											))
 										})
 
-										It("verify the binding and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
+										It("verifies the binding and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
 											resp := createBinding(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 											bindingID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
@@ -1185,7 +1185,7 @@ var _ = DescribeTestsFor(TestCase{
 									delete(ctx.Servers, BrokerServerPrefix+brokerID)
 								})
 
-								It("verify the binding in SMDB and marks operation with failed", func() {
+								It("verifies the binding in SMDB and marks operation with failed", func() {
 									resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -1212,7 +1212,7 @@ var _ = DescribeTestsFor(TestCase{
 									brokerServer.ResetHandlers()
 								})
 
-								It("verify the binding and marks the operation as failed, non rescheduable with empty deletion scheduled", func() {
+								It("verifies the binding and marks the operation as failed, non rescheduable with empty deletion scheduled", func() {
 									resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{

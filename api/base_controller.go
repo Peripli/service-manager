@@ -348,17 +348,13 @@ func GetResourceOperation(r *web.Request, repository storage.Repository, objectT
 		return nil, err
 	}
 	criteria := query.CriteriaForContext(ctx)
-	operationObj, err := repository.Get(ctx, types.OperationType, criteria...)
-	if operationObj != nil {
-		operation := operationObj.(*types.Operation)
-		operation.Context = nil
-	}
-
+	operation, err := repository.Get(ctx, types.OperationType, criteria...)
+	cleanObject(operation)
 	if err != nil {
 		return nil, util.HandleStorageError(err, objectType.String())
 	}
 
-	return util.NewJSONResponse(http.StatusOK, operationObj)
+	return util.NewJSONResponse(http.StatusOK, operation)
 }
 
 // ListObjects handles the fetching of all objects
@@ -588,8 +584,8 @@ func attachLastOperation(ctx context.Context, objectID string, object types.Obje
 	}
 
 	if lastOperation, ok := ops[objectID]; ok {
+		cleanObject(lastOperation)
 		lastOperation.TransitiveResources = nil
-		lastOperation.Context = nil
 		object.SetLastOperation(lastOperation)
 	}
 
