@@ -228,7 +228,7 @@ var _ = Describe("Service Manager Query", func() {
 		})
 
 		It("should return only the operations being last operation for their corresponding instances", func() {
-			criteria := []query.Criterion{query.ByIdExist(storage.GetSubQuery(storage.QueryForAllLastOperationsPerResource))}
+			criteria := []query.Criterion{query.ByIDExist(storage.GetSubQuery(storage.QueryForAllLastOperationsPerResource))}
 
 			list, err := repository.List(context.Background(), types.OperationType, criteria...)
 			Expect(err).ToNot(HaveOccurred())
@@ -273,7 +273,7 @@ var _ = Describe("Service Manager Query", func() {
 
 		It("should retrieve only the operation that is not associated to a resource", func() {
 			templateParameters := query.TemplateParameters{"RESOURCE_TABLE": "platforms"}
-			criterion := query.ByIdNotExistWithTemplateParameters(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
+			criterion := query.ByIDNotExistWithTemplateParameters(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
 			criteria := []query.Criterion{criterion}
 
 			list, err := repository.List(context.Background(), types.OperationType, criteria...)
@@ -284,7 +284,7 @@ var _ = Describe("Service Manager Query", func() {
 
 		It("should retrieve only the operation that is associated to a resource", func() {
 			templateParameters := query.TemplateParameters{"RESOURCE_TABLE": "platforms"}
-			criterion := query.ByIdExistWithTemplateParameters(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
+			criterion := query.ByIDExistWithTemplateParameter(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
 			criteria := []query.Criterion{criterion}
 
 			list, err := repository.List(context.Background(), types.OperationType, criteria...)

@@ -122,24 +122,24 @@ func ByField(operator Operator, leftOp string, rightOp ...string) Criterion {
 	return NewCriterion(leftOp, operator, rightOp, FieldQuery)
 }
 
-func ByIdNotExistWithTemplateParameters(subQuery string, templateParameters TemplateParameters) Criterion {
+func ByIDNotExistWithTemplateParameters(subQuery string, templateParameters TemplateParameters) Criterion {
 	criterion := NewCriterion("", NotExistsSubquery, []string{subQuery}, ExistQuery)
 	criterion.TemplateParameters = templateParameters
 	return criterion
 }
 
-func ByIdNotExist(subQuery string) Criterion {
-	return ByIdNotExistWithTemplateParameters(subQuery, nil)
+func ByIDNotExist(subQuery string) Criterion {
+	return ByIDNotExistWithTemplateParameters(subQuery, nil)
 }
 
-func ByIdExistWithTemplateParameters(subQuery string, templateParameters TemplateParameters) Criterion {
+func ByIDExistWithTemplateParameter(subQuery string, templateParameters TemplateParameters) Criterion {
 	criterion := NewCriterion("", ExistsSubquery, []string{subQuery}, ExistQuery)
 	criterion.TemplateParameters = templateParameters
 	return criterion
 }
 
-func ByIdExist(subQuery string) Criterion {
-	return ByIdExistWithTemplateParameters(subQuery, nil)
+func ByIDExist(subQuery string) Criterion {
+	return ByIDExistWithTemplateParameter(subQuery, nil)
 }
 
 // ByLabel constructs a new criterion for label querying
