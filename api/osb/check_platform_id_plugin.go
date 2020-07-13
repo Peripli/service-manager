@@ -1,6 +1,7 @@
 package osb
 
 import (
+	"github.com/Peripli/service-manager/instances/instcontext"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -100,7 +101,7 @@ func (p *checkPlatformIDPlugin) assertPlatformID(req *web.Request, next web.Hand
 			StatusCode:  http.StatusNotFound,
 		}
 	}
-	req.Request = req.WithContext(web.ContextWithInstance(req.Context(), instance))
+	req.Request = req.WithContext(instcontext.Set(req.Context(), instance))
 
 	if platform.ID != instance.PlatformID {
 		log.C(ctx).Errorf("Instance with id %s and platform id %s does not belong to platform with id %s", instance.ID, instance.PlatformID, platform.ID)
