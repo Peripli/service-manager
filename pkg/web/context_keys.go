@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/types"
 )
 
 type contextKey int
@@ -13,6 +14,7 @@ const (
 	authenticationErrorKey
 	authorizationErrorKey
 	shouldStoreBindingsKey
+	instanceKey
 )
 
 // ShouldStoreBindings returns whether the request has to store bindings
@@ -68,4 +70,13 @@ func ContextWithAuthorizationError(ctx context.Context, authZError error) contex
 func AuthorizationErrorFromContext(ctx context.Context) (bool, error) {
 	authzError, ok := ctx.Value(authorizationErrorKey).(error)
 	return ok && authzError != nil, authzError
+}
+
+func ContextWithInstance(ctx context.Context, serviceInstance *types.ServiceInstance) context.Context {
+	return context.WithValue(ctx, instanceKey, serviceInstance)
+}
+
+func InstanceFromContext(ctx context.Context) (*types.ServiceInstance, bool) {
+	instance, ok := ctx.Value(instanceKey).(*types.ServiceInstance)
+	return instance, ok && instance != nil
 }
