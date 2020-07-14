@@ -90,6 +90,7 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 		}
 		ps.layerOneEncryptionKey = []byte(settings.EncryptionKey)
 		ps.db.SetMaxIdleConns(settings.MaxIdleConnections)
+		ps.db.SetMaxOpenConns(settings.MaxOpenConnections)
 		ps.pgDB = ps.db
 		ps.queryBuilder = NewQueryBuilder(ps.pgDB)
 
