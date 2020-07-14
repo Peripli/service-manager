@@ -276,7 +276,7 @@ func (om *Maintainer) CleanupResourcelessOperations() {
 		subQuery, err := util.Tsprintf(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
 		if err != nil {
 			log.C(om.smCtx).Debugf(
-				"Failed resolving template parameters for sub-query: %s. Error: %s",
+				"Failed resolving template parameters for sub-query: %v. Error: %v",
 				storage.QueryForNonResourcelessOperations,
 				err)
 		}

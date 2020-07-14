@@ -12,17 +12,17 @@ const (
 // As in sql's EXIST/ NOT EXIST, in order for the main query to work with the sub-query, the sub-queries will require a where clause that
 // compares the id from the parent query with and id retrieved from the sub-query.
 //
-// Example: Get all internal operations which aren't orphans (have corresponding resources) using ByIdExist criterion:
+// Example: Get all internal operations which aren't orphans (have corresponding resources) using ByIDExist criterion:
 //
 // queryForAllNonOrphanOperations := `
 //    SELECT id
-//    FROM platforms
-//    WHERE operations.resource_id = service_instances.id`
+//    FROM service_instances.id
+//	  WHERE operations.resource_id = service_instances.id`
 //
 // criteria := []query.Criterion{
-//    query.ByIdExist(storage.GetSubQuery(queryForAllNonOrphanOperations)),
+// query.ByIDExist(queryForAllNonOrphanOperations),
 // }
-// allNonOrphanOperations := repository.List(ctx, types.OperationType, criteria...)
+// allNonOrphanServiceOperations, _ := repository.List(context.Background(), types.OperationType, criteria...)
 
 var subQueries = map[SubQuery]string{
 	QueryForAllLastOperationsPerResource: `
