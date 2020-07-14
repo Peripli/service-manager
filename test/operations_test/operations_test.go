@@ -280,7 +280,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				When("Internal Operation is the 'last' for a given resource", func() {
+				When("Operation is the 'last' for a given resource", func() {
 					BeforeEach(func() {
 						ctx = ctxBuilder.Build()
 						testResource1 := &types.Platform{
@@ -290,16 +290,16 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Base: types.Base{ID: "test-resource2"},
 						}
 						lastInternalSuccessfulOperation := &types.Operation{
-							Base:       types.Base{ID: "test-last-op-internal-successful"},
+							Base:       types.Base{ID: "test-last-op-successful"},
 							ResourceID: testResource1.ID,
 							Type:       types.CREATE,
 							State:      "succeeded",
 						}
 						lastInternalFailedOperation := &types.Operation{
-							Base:       types.Base{ID: "test-last-op-internal-failed"},
+							Base:       types.Base{ID: "test-last-op-failed"},
 							ResourceID: testResource2.ID,
 							Type:       types.CREATE,
-							State:      "succeeded",
+							State:      "failed",
 						}
 						ctx.SMRepository.Create(context.Background(), testResource1)
 						ctx.SMRepository.Create(context.Background(), testResource2)
@@ -307,16 +307,15 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						ctx.SMRepository.Create(context.Background(), lastInternalFailedOperation)
 					})
 					It("Should not be deleted", func() {
-						ensureOperationExist(ctx.SMRepository, "test-last-op-internal-successful")
-						ensureOperationExist(ctx.SMRepository, "test-last-op-internal-failed")
+						ensureOperationExist(ctx.SMRepository, "test-last-op-successful")
+						ensureOperationExist(ctx.SMRepository, "test-last-op-failed")
 
-						Eventually(func() bool {
-							ensureOperationExist(ctx.SMRepository, "test-last-op-internal-successful")
-							ensureOperationExist(ctx.SMRepository, "test-last-op-internal-failed")
+						Consistently(func() bool {
+							ensureOperationExist(ctx.SMRepository, "test-last-op-successful")
+							ensureOperationExist(ctx.SMRepository, "test-last-op-failed")
 
 							return true
-						}, cleanupInterval*4).Should(BeTrue())
-
+						}, cleanupInterval+1, time.Second).Should(BeTrue())
 					})
 				})
 

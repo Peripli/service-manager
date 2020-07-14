@@ -278,7 +278,9 @@ var _ = Describe("Service Manager Query", func() {
 
 				It("should retrieve only the operation that is not associated to a resource", func() {
 					templateParameters := query.TemplateParameters{"RESOURCE_TABLE": "platforms"}
-					criterion := query.ByIDNotExistWithTemplateParameters(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
+					subQuery, err := util.Tsprintf(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
+					Expect(err).ToNot(HaveOccurred())
+					criterion := query.ByIDNotExist(subQuery)
 					criteria := []query.Criterion{criterion}
 
 					list, err := repository.List(context.Background(), types.OperationType, criteria...)
@@ -289,7 +291,9 @@ var _ = Describe("Service Manager Query", func() {
 
 				It("should retrieve only the operation that is associated to a resource", func() {
 					templateParameters := query.TemplateParameters{"RESOURCE_TABLE": "platforms"}
-					criterion := query.ByIDExistWithTemplateParameter(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
+					subQuery, err := util.Tsprintf(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
+					Expect(err).ToNot(HaveOccurred())
+					criterion := query.ByIDExist(subQuery)
 					criteria := []query.Criterion{criterion}
 
 					list, err := repository.List(context.Background(), types.OperationType, criteria...)
@@ -298,9 +302,7 @@ var _ = Describe("Service Manager Query", func() {
 					Expect(listContains(list, "opForInstance1"))
 				})
 			})
-
 		})
-
 	})
 
 	Context("Query Notifications", func() {

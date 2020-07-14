@@ -272,8 +272,15 @@ func (om *Maintainer) CleanupResourcelessOperations() {
 			continue
 		}
 		templateParameters := query.TemplateParameters{"RESOURCE_TABLE": entity.TableName}
-		byIdNotExistCriterion := query.ByIDNotExistWithTemplateParameters(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
-		criteria = append(criteria, byIdNotExistCriterion)
+		subQuery, err := util.Tsprintf(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
+		if err != nil{
+			log.C(om.smCtx).Debugf(
+				"Failed resolving template parameters for sub-query: %s. Error: %s",
+				storage.QueryForNonResourcelessOperations,
+				err)
+		}
+		byIDNotExistCriterion := query.ByIDNotExist(subQuery)
+		criteria = append(criteria, byIDNotExistCriterion)
 	}
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
 		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)

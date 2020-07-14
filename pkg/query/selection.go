@@ -113,8 +113,6 @@ type Criterion struct {
 	RightOp []string
 	// Type is the type of the query
 	Type CriterionType
-	// TemplateParameters contains the template parameters of Criterion supporting sub-queries
-	TemplateParameters TemplateParameters
 }
 
 // ByField constructs a new criterion for field querying
@@ -122,24 +120,12 @@ func ByField(operator Operator, leftOp string, rightOp ...string) Criterion {
 	return NewCriterion(leftOp, operator, rightOp, FieldQuery)
 }
 
-func ByIDNotExistWithTemplateParameters(subQuery string, templateParameters TemplateParameters) Criterion {
-	criterion := NewCriterion("", NotExistsSubquery, []string{subQuery}, ExistQuery)
-	criterion.TemplateParameters = templateParameters
-	return criterion
-}
-
 func ByIDNotExist(subQuery string) Criterion {
-	return ByIDNotExistWithTemplateParameters(subQuery, nil)
-}
-
-func ByIDExistWithTemplateParameter(subQuery string, templateParameters TemplateParameters) Criterion {
-	criterion := NewCriterion("", ExistsSubquery, []string{subQuery}, ExistQuery)
-	criterion.TemplateParameters = templateParameters
-	return criterion
+	return NewCriterion("", NotExistsSubquery, []string{subQuery}, ExistQuery)
 }
 
 func ByIDExist(subQuery string) Criterion {
-	return ByIDExistWithTemplateParameter(subQuery, nil)
+	return NewCriterion("", ExistsSubquery, []string{subQuery}, ExistQuery)
 }
 
 // ByLabel constructs a new criterion for label querying

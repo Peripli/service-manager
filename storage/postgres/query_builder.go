@@ -1,17 +1,14 @@
 package postgres
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/storage"
 	"regexp"
 	"strings"
-	"text/template"
-
-	"github.com/Peripli/service-manager/pkg/log"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -169,7 +166,7 @@ func (pq *pgQuery) ListNoLabels(ctx context.Context) (*sqlx.Rows, error) {
 }
 
 func (pq *pgQuery) Query(ctx context.Context, queryName storage.NamedQuery, queryParams map[string]interface{}) (*sqlx.Rows, error) {
-	sql, err := tsprintf(storage.GetNamedQuery(queryName), pq.getTemplateParams())
+	sql, err := util.Tsprintf(storage.GetNamedQuery(queryName), pq.getTemplateParams())
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +235,7 @@ func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, template string) (s
 	}
 	data := pq.getTemplateParams()
 
-	q, err := tsprintf(template, data)
+	q, err := util.Tsprintf(template, data)
 	if err != nil {
 		return "", err
 	}
@@ -503,17 +500,4 @@ func validateFields(columns map[string]bool, errorTemplate string, fields ...str
 		}
 	}
 	return nil
-}
-
-// tsprintf stands for "template Sprintf" and fills the specified templated string with the provided data
-func tsprintf(tmpl string, data map[string]interface{}) (string, error) {
-	t, err := template.New("sql").Parse(tmpl)
-	if err != nil {
-		return "", err
-	}
-	buff := &bytes.Buffer{}
-	if err := t.Execute(buff, data); err != nil {
-		return "", nil
-	}
-	return buff.String(), nil
 }
