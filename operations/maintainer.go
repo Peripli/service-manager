@@ -273,7 +273,7 @@ func (om *Maintainer) CleanupResourcelessOperations() {
 		}
 		templateParameters := query.TemplateParameters{"RESOURCE_TABLE": entity.TableName}
 		subQuery, err := util.Tsprintf(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
-		if err != nil{
+		if err != nil {
 			log.C(om.smCtx).Debugf(
 				"Failed resolving template parameters for sub-query: %s. Error: %s",
 				storage.QueryForNonResourcelessOperations,
