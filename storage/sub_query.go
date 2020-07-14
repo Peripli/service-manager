@@ -7,22 +7,22 @@ const (
 	QueryForNonResourcelessOperations
 )
 
-// The aforementioned sub-queries are dedicated to be used with ByIDExists/ByIDNotExists Criterion to allow additional querying/filtering on top of
-// combined with main query generated from the criteria.
-// As in sql's EXIST/ NOT EXIST,	in order for main query to work with the sub-query,the  sub-queries will require a where clause that compares the id from
-// the parent query with and id retrieved from the sub-query.
+// The aforementioned sub-queries are dedicated to be used with ByIDExists/ByIDNotExists Criterion to allow additional querying/filtering
+// combined with a main query generated from the criteria.
+// As in sql's EXIST/ NOT EXIST, in order for the main query to work with the sub-query, the sub-queries will require a where clause that
+// compares the id from the parent query with and id retrieved from the sub-query.
 //
 // Example: Get all internal operations which aren't orphans (have corresponding resources) using ByIdExist criterion:
 //
 // queryForAllNonOrphanOperations := `
 //    SELECT id
 //    FROM platforms
-//    WHERE operations.resource_id = platforms.id`
+//    WHERE operations.resource_id = service_instances.id`
 //
 // criteria := []query.Criterion{
-//    query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 //    query.ByIdExist(storage.GetSubQuery(queryForAllNonOrphanOperations)),
-//}
+// }
+// allNonOrphanOperations := repository.List(ctx, types.OperationType, criteria...)
 
 var subQueries = map[SubQuery]string{
 	QueryForAllLastOperationsPerResource: `

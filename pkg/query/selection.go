@@ -36,8 +36,6 @@ const (
 	Separator string = "and"
 )
 
-type TemplateParameters map[string]interface{}
-
 // CriterionType is a type of criteria to be applied when querying
 type CriterionType string
 

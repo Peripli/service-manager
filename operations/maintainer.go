@@ -271,7 +271,8 @@ func (om *Maintainer) CleanupResourcelessOperations() {
 		if entity.TableName == "operations" {
 			continue
 		}
-		templateParameters := query.TemplateParameters{"RESOURCE_TABLE": entity.TableName}
+		templateParameters := make(map[string]interface{})
+		templateParameters["RESOURCE_TABLE"] = entity.TableName
 		subQuery, err := util.Tsprintf(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
 		if err != nil {
 			log.C(om.smCtx).Debugf(
