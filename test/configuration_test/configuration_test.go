@@ -107,7 +107,7 @@ var _ = Describe("Service Manager Config API", func() {
 				"storage": {
 					"encryption_key": "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8",
 					"max_idle_connections": 5,
-					"max_open_connections": 5,
+					"max_open_connections": 30,
 					"notification": {
 						"clean_interval": "24h",
 						"keep_for": "24h",
