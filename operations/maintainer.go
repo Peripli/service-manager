@@ -87,6 +87,11 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			interval: options.CleanupInterval,
 		},
 		{
+			name:     "cleanupResourcelessOperations",
+			execute:  maintainer.CleanupResourcelessOperations,
+			interval: options.CleanupInterval,
+		},
+		{
 			name:     "pollPendingCascadeOperations",
 			execute:  maintainer.pollPendingCascadeOperations,
 			interval: options.PollCascadeInterval,
@@ -175,8 +180,8 @@ func (om *Maintainer) cleanupExternalOperations() {
 		query.ByField(query.NotEqualsOperator, "platform_id", types.SMPlatform),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+		query.ByIDNotExist(storage.GetSubQuery(storage.QueryForAllLastOperationsPerResource)),
 	}
-
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
 		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
 		return
@@ -195,6 +200,7 @@ func (om *Maintainer) CleanupFinishedCascadeOperations() {
 		query.ByField(query.InOperator, "state", string(types.SUCCEEDED), string(types.FAILED)),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB//
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+		query.ByIDNotExist(storage.GetSubQuery(storage.QueryForAllLastOperationsPerResource)),
 	}
 
 	roots, err := om.repository.List(om.smCtx, types.OperationType, rootsCriteria...)
@@ -222,6 +228,7 @@ func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 		query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+		query.ByIDNotExist(storage.GetSubQuery(storage.QueryForAllLastOperationsPerResource)),
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
@@ -243,6 +250,7 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 		query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+		query.ByIDNotExist(storage.GetSubQuery(storage.QueryForAllLastOperationsPerResource)),
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
@@ -250,6 +258,36 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 		return
 	}
 	log.C(om.smCtx).Debug("Finished cleaning up failed internal operations")
+}
+
+func (om *Maintainer) CleanupResourcelessOperations() {
+	currentTime := time.Now()
+	criteria := []query.Criterion{
+		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+	}
+	// Build the 'WHERE' clause of the deletion statement with 'byIdNotExist' criterion for each resource table.
+	for _, entity := range om.repository.GetEntities() {
+		if entity.TableName == "operations" {
+			continue
+		}
+		templateParameters := make(map[string]interface{})
+		templateParameters["RESOURCE_TABLE"] = entity.TableName
+		subQuery, err := util.Tsprintf(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
+		if err != nil {
+			log.C(om.smCtx).Debugf(
+				"Failed resolving template parameters for sub-query: %v. Error: %v",
+				storage.QueryForNonResourcelessOperations,
+				err)
+		}
+		byIDNotExistCriterion := query.ByIDNotExist(subQuery)
+		criteria = append(criteria, byIDNotExistCriterion)
+	}
+	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
+		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
+		return
+	}
+	log.C(om.smCtx).Debug("Finished cleaning up resource-less operations")
 }
 
 // rescheduleUnfinishedOperations reschedules IN_PROGRESS operations which are reschedulable, not scheduled for deletion and no goroutine is processing at the moment

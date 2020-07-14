@@ -465,6 +465,18 @@ func (ps *Storage) UpdateLabels(ctx context.Context, objectType types.ObjectType
 	return ps.updateLabels(ctx, objectType, objectID, labelChanges)
 }
 
+func (ps *Storage) GetEntities() []storage.EntityMetadata {
+	entities := make([]storage.EntityMetadata, 0)
+	for entityTableName, entityName := range ps.scheme.entityToObjectTypeConverter {
+		entity := storage.EntityMetadata{}
+		entity.TableName = entityTableName
+		entity.Name = entityName
+
+		entities = append(entities, entity)
+	}
+	return entities
+}
+
 func (ps *Storage) updateLabels(ctx context.Context, objectType types.ObjectType, entityID string, updateActions []*types.LabelChange) error {
 	_, addedLabels, removedLabels := query.ApplyLabelChangesToLabels(updateActions, types.Labels{})
 	var pgAddedLabels []PostgresLabel
