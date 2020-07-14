@@ -22,7 +22,7 @@ const (
 // criteria := []query.Criterion{
 // query.ByIDExist(queryForAllNonOrphanOperations),
 // }
-// allNonOrphanServiceOperations, _ := repository.List(context.Background(), types.OperationType, criteria...)
+// allNonOrphanServiceOperations, _ := repository.List(ctx, types.OperationType, criteria...)
 
 var subQueries = map[SubQuery]string{
 	QueryForAllLastOperationsPerResource: `
