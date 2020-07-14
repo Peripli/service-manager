@@ -16,7 +16,7 @@ const (
 //
 // queryForAllNonOrphanOperations := `
 //    SELECT id
-//    FROM service_instances.id
+//    FROM service_instances
 //	  WHERE operations.resource_id = service_instances.id`
 //
 // criteria := []query.Criterion{
