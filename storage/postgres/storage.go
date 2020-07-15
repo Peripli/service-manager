@@ -90,6 +90,7 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 		}
 		ps.layerOneEncryptionKey = []byte(settings.EncryptionKey)
 		ps.db.SetMaxIdleConns(settings.MaxIdleConnections)
+		ps.db.SetMaxOpenConns(settings.MaxOpenConnections)
 		ps.pgDB = ps.db
 		ps.queryBuilder = NewQueryBuilder(ps.pgDB)
 
@@ -463,6 +464,18 @@ func (ps *Storage) Update(ctx context.Context, obj types.Object, labelChanges ty
 
 func (ps *Storage) UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, _ ...query.Criterion) error {
 	return ps.updateLabels(ctx, objectType, objectID, labelChanges)
+}
+
+func (ps *Storage) GetEntities() []storage.EntityMetadata {
+	entities := make([]storage.EntityMetadata, 0)
+	for entityTableName, entityName := range ps.scheme.entityToObjectTypeConverter {
+		entity := storage.EntityMetadata{}
+		entity.TableName = entityTableName
+		entity.Name = entityName
+
+		entities = append(entities, entity)
+	}
+	return entities
 }
 
 func (ps *Storage) updateLabels(ctx context.Context, objectType types.ObjectType, entityID string, updateActions []*types.LabelChange) error {
