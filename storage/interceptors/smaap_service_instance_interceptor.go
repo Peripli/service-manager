@@ -577,15 +577,6 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 	}
 }
 
-func enrichOperationContext(ctx context.Context, operation *types.Operation, repository storage.Repository) error {
-
-	if _, err := repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
-		return fmt.Errorf("failed to enrich operation with context, operation with id %s, %s", operation.ID, err)
-	}
-
-	return nil
-}
-
 func isUnreachableBroker(err error) bool {
 	if timeOutError, ok := err.(net.Error); ok && timeOutError.Timeout() {
 		return true
