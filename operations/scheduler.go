@@ -532,9 +532,8 @@ func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObjec
 		if opAfterJob.Type == types.CREATE && finalState == types.SUCCEEDED {
 			var err error
 			if actionObject, err = updateResource(ctx, storage, actionObject, func(obj types.Object) {
-				switch v := obj.(type) {
-				case *types.ServiceInstance:
-					v.Usable = true
+				if serviceInstance, ok := obj.(*types.ServiceInstance); ok {
+					serviceInstance.Usable = true
 				}
 				obj.SetReady(true)
 			}); err != nil {

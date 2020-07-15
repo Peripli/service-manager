@@ -148,6 +148,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 					Description: fmt.Sprintf("Failed provisioning request %s: %s", logProvisionRequest(provisionRequest), err),
 					StatusCode:  http.StatusBadGateway,
 				}
+
 				if shouldStartOrphanMitigation(err) {
 					// store the instance so that later on we can do orphan mitigation
 					_, err := f(ctx, obj)
@@ -159,16 +160,20 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 					operation.DeletionScheduled = time.Now().UTC()
 					operation.Reschedule = false
 					operation.RescheduleTimestamp = time.Time{}
+					operation.Context.ServicePlanID = instance.ServicePlanID
 					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
 					}
-				} else if operation.Context.Async {
-					//store the instance incase there is a broker error and the client request is async
+				}
+
+				//save the instance in case of an async client call
+				if operation.Context.Async {
 					_, err := f(ctx, obj)
 					if err != nil {
 						return nil, err
 					}
 				}
+
 				return nil, brokerError
 			}
 
@@ -187,7 +192,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 				if provisionResponse.OperationKey != nil {
 					operation.ExternalID = string(*provisionResponse.OperationKey)
 				}
-
+				operation.Context.ServicePlanID = instance.ServicePlanID
 				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", instance.ID, err)
 				}
@@ -344,70 +349,38 @@ func (i *ServiceInstanceInterceptor) AroundTxDelete(f storage.InterceptDeleteAro
 		}
 
 		operation, found := opcontext.Get(ctx)
-
 		if !found {
 			return fmt.Errorf("operation missing from context")
 		}
 
 		if instances.Len() != 0 {
 			instance := instances.ItemAt(0).(*types.ServiceInstance)
-
-			//Delete was triggered on a service broker that reference an instance
-			if operation.Context == nil {
-				operation.Context = &types.OperationContext{}
-			}
-			operation.Context.ServicePlanID = instance.ServicePlanID
-			err := enrichOperationContext(ctx, operation, i.repository)
-			if err != nil {
-				return err
-			}
-			deleteInstanceError := i.deleteSingleInstance(ctx, instance, operation)
-
-			//keep the resource in case delete has failed
-			if !shouldKeepResource(operation, deleteInstanceError) {
+			//When sm is async polling we have a binding (in case user expect a sync response it should be deleted)
+			if operation.Type == types.CREATE && !operation.Context.Async {
 				if err := f(ctx, deletionCriteria...); err != nil {
 					return err
 				}
 			}
-
-			if deleteInstanceError != nil {
-				return deleteInstanceError
+			if err := i.deleteSingleInstance(ctx, instance, operation); err != nil {
+				return err
 			}
 		} else if operation.InOrphanMitigationState() && operation.Context.ServicePlanID != "" {
+			// In case we don't have instance & use the operation context to perform orphan mitigation
 			instance := types.ServiceInstance{}
 			instance.ServicePlanID = operation.Context.ServicePlanID
 			instance.ID = operation.ResourceID
 			if err := i.deleteSingleInstance(ctx, &instance, operation); err != nil {
 				return err
 			}
-		} else {
+		}
+
+		if shouldRemoveResource(operation) {
 			if err := f(ctx, deletionCriteria...); err != nil {
-				//Returns 404 if resource is not found or failed to be deleted
 				return err
 			}
 		}
 		return nil
 	}
-}
-
-func shouldKeepResource(operation *types.Operation, deleteError error) bool {
-	if operation.InOrphanMitigationState() {
-		//Newly sync mode resources that require OM won't be kept
-		if !operation.Context.Async && operation.Type == types.CREATE {
-			return false
-		} else if deleteError == nil && operation.Type == types.DELETE {
-			return false
-		} else {
-			// 1.new Async instances that require OM will be kept
-			// 2.Existing sync or async instances that fail with om during delete will be kept
-			return true
-		}
-	} else {
-		if deleteError != nil || operation.Reschedule && operation.Context.Async {
-			return true
-		}
-	}
-	return false
 }
 
 func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, instance *types.ServiceInstance, operation *types.Operation) error {

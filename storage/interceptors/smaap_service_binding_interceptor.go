@@ -166,20 +166,17 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 					StatusCode:  http.StatusBadGateway,
 				}
 				if shouldStartOrphanMitigation(err) {
-					// store the instance so that later on we can do orphan mitigation
-					_, err := f(ctx, obj)
-					if err != nil {
-						return nil, fmt.Errorf("broker error %s caused orphan mitigation which required storing the resource which failed with: %s", brokerError, err)
-					}
-
-					// mark the operation as deletion scheduled meaning orphan mitigation is required
+					// store the instance data on the operation context so that later on we can do orphan mitigation
 					operation.DeletionScheduled = time.Now()
 					operation.Reschedule = false
 					operation.RescheduleTimestamp = time.Time{}
+					operation.Context.ServiceInstanceID = binding.ServiceInstanceID
 					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
 					}
-				} else if operation.Context.Async {
+				}
+
+				if operation.Context.Async {
 					_, err := f(ctx, obj)
 					if err != nil {
 						return nil, err
@@ -208,6 +205,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				if bindResponse.OperationKey != nil {
 					operation.ExternalID = string(*bindResponse.OperationKey)
 				}
+				operation.Context.ServiceInstanceID = binding.ServiceInstanceID
 				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", instance.ID, err)
 				}
@@ -250,34 +248,13 @@ func (i *ServiceBindingInterceptor) AroundTxDelete(f storage.InterceptDeleteArou
 
 		if bindings.Len() != 0 {
 			binding := bindings.ItemAt(0).(*types.ServiceBinding)
-			operation, found := opcontext.Get(ctx)
-			if !found {
-				return fmt.Errorf("operation missing from context")
-			}
-
-			deleteBindingError := i.deleteSingleBinding(ctx, binding, operation)
-
-			if !shouldKeepResource(operation, deleteBindingError) {
-
-				if operation.Context == nil {
-					// if triggered by a service broker deletion, the context object can be empty.
-					operation.Context = &types.OperationContext{}
-				}
-
-				operation.Context.ServiceInstanceID = binding.ServiceInstanceID
-				err := enrichOperationContext(ctx, operation, i.repository)
-
-				if err != nil {
-					return err
-				}
-
+			if operation.Type == types.CREATE && !operation.Context.Async {
 				if err := f(ctx, deletionCriteria...); err != nil {
 					return err
 				}
 			}
-
-			if deleteBindingError != nil {
-				return deleteBindingError
+			if err := i.deleteSingleBinding(ctx, binding, operation); err != nil {
+				return err
 			}
 		} else if operation.InOrphanMitigationState() && operation.Context.ServiceInstanceID != "" {
 			// In case we don't have instance & use the operation context to perform orphan mitigation
@@ -287,8 +264,9 @@ func (i *ServiceBindingInterceptor) AroundTxDelete(f storage.InterceptDeleteArou
 			if err := i.deleteSingleBinding(ctx, &binding, operation); err != nil {
 				return err
 			}
-		} else {
-			// Returns 404 if resource is not found or failed to be deleted
+		}
+
+		if shouldRemoveResource(operation) {
 			if err := f(ctx, deletionCriteria...); err != nil {
 				return err
 			}
@@ -296,6 +274,19 @@ func (i *ServiceBindingInterceptor) AroundTxDelete(f storage.InterceptDeleteArou
 
 		return nil
 	}
+}
+
+func shouldRemoveResource(operation *types.Operation) bool {
+	if operation.State == types.FAILED {
+		if operation.Type == types.CREATE && operation.Context.Async {
+			return false
+		}
+
+		if operation.Type == types.DELETE && !operation.InOrphanMitigationState() {
+			return false
+		}
+	}
+	return true
 }
 
 func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, binding *types.ServiceBinding, operation *types.Operation) error {
