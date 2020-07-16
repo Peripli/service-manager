@@ -2,6 +2,7 @@ package query_test
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"testing"
@@ -168,8 +169,8 @@ var _ = Describe("Service Manager Query", func() {
 
 	})
 
-	Context("ByID SubQuery", func() {
-		Context("ByID Exist", func() {
+	Context("ByExists/ByNotExists SubQuery", func() {
+		Context("ByExists", func() {
 			When("there are multiple operations for each instance", func() {
 				BeforeEach(func() {
 					common.RemoveAllInstances(ctx)
@@ -231,7 +232,7 @@ var _ = Describe("Service Manager Query", func() {
 				})
 
 				It("should return only the operations being last operation for their corresponding instances", func() {
-					criteria := []query.Criterion{query.ByIDExist(storage.GetSubQuery(storage.QueryForAllLastOperationsPerResource))}
+					criteria := []query.Criterion{query.ByExists(storage.GetSubQuery(storage.QueryForAllLastOperationsPerResource))}
 
 					list, err := repository.List(context.Background(), types.OperationType, criteria...)
 					Expect(err).ToNot(HaveOccurred())
@@ -242,7 +243,7 @@ var _ = Describe("Service Manager Query", func() {
 			})
 
 		})
-		Context("ById Exist with template parameters", func() {
+		Context("ByExists with template parameters", func() {
 			When("There is an operation is associated to a resource and another operation that is resource-less", func() {
 				BeforeEach(func() {
 					common.RemoveAllInstances(ctx)
@@ -277,11 +278,12 @@ var _ = Describe("Service Manager Query", func() {
 				})
 
 				It("should retrieve only the operation that is not associated to a resource", func() {
-					templateParameters := make(map[string]interface{})
-					templateParameters["RESOURCE_TABLE"] = "platforms"
-					subQuery, err := util.Tsprintf(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
+					params := storage.SubQueryParams{
+						"RESOURCE_TABLE": "platforms",
+					}
+					subQuery, err := storage.GetSubQueryWithParams(storage.QueryForOperationsWithResource, params)
 					Expect(err).ToNot(HaveOccurred())
-					criterion := query.ByIDNotExist(subQuery)
+					criterion := query.ByNotExists(subQuery)
 					criteria := []query.Criterion{criterion}
 
 					list, err := repository.List(context.Background(), types.OperationType, criteria...)
@@ -291,17 +293,60 @@ var _ = Describe("Service Manager Query", func() {
 				})
 
 				It("should retrieve only the operation that is associated to a resource", func() {
-					templateParameters := make(map[string]interface{})
-					templateParameters["RESOURCE_TABLE"] = "platforms"
-					subQuery, err := util.Tsprintf(storage.GetSubQuery(storage.QueryForNonResourcelessOperations), templateParameters)
+					params := storage.SubQueryParams{
+						"RESOURCE_TABLE": "platforms",
+					}
+
+					subQuery, err := storage.GetSubQueryWithParams(storage.QueryForOperationsWithResource, params)
 					Expect(err).ToNot(HaveOccurred())
-					criterion := query.ByIDExist(subQuery)
+					criterion := query.ByExists(subQuery)
 					criteria := []query.Criterion{criterion}
 
 					list, err := repository.List(context.Background(), types.OperationType, criteria...)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(list.Len()).To(BeEquivalentTo(1))
 					Expect(listContains(list, "opForInstance1"))
+				})
+			})
+
+			When("There are tenant specific services", func() {
+				var tenantServiceMap map[string]interface{}
+				BeforeEach(func() {
+					tenantPlan := common.GenerateFreeTestPlan()
+					globalPlan := common.GenerateFreeTestPlan()
+					tenantService := common.GenerateTestServiceWithPlans(tenantPlan)
+					globalService := common.GenerateTestServiceWithPlans(globalPlan)
+					tenantServiceMap = make(map[string]interface{})
+					if err := json.Unmarshal([]byte(tenantService), &tenantServiceMap); err != nil {
+						panic(err)
+					}
+
+					tenantCatalog := common.NewEmptySBCatalog()
+					tenantCatalog.AddService(tenantService)
+					labels := common.Object{
+						"labels": common.Object{
+							"tenant_id": common.Array{"tenant_id_value"},
+						},
+					}
+					ctx.RegisterBrokerWithCatalogAndLabels(tenantCatalog, labels)
+					globalCatalog := common.NewEmptySBCatalog()
+					globalCatalog.AddService(globalService)
+					ctx.RegisterBrokerWithCatalog(globalCatalog)
+				})
+
+				It("should find query for tenant scoped service offerings", func() {
+					params := storage.SubQueryParams{
+						"TENANT_KEY": "tenant_id",
+					}
+					subQuery, err := storage.GetSubQueryWithParams(storage.QueryForTenantScopedServiceOfferings, params)
+					Expect(err).ToNot(HaveOccurred())
+					criteria := []query.Criterion{query.ByExists(subQuery)}
+
+					list, err := repository.List(context.Background(), types.ServiceOfferingType, criteria...)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(list.Len()).To(BeEquivalentTo(1))
+					service := list.ItemAt(0).(*types.ServiceOffering)
+					Expect(service.CatalogID).To(Equal(tenantServiceMap["id"]))
 				})
 			})
 		})
