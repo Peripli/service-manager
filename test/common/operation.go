@@ -48,6 +48,15 @@ type ResourceExpectations struct {
 	Ready bool
 }
 
+func VerifyResource(smClient *SMExpect, expectations ResourceExpectations, async bool) *httpexpect.Object {
+	if async {
+		return VerifyResourceExists(smClient, expectations)
+	}
+
+	VerifyResourceDoesNotExist(smClient, expectations)
+	return nil
+}
+
 func VerifyResourceExists(smClient *SMExpect, expectations ResourceExpectations) *httpexpect.Object {
 	timeoutDuration := 15 * time.Second
 	timeout := time.After(timeoutDuration)

@@ -192,6 +192,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		ResourceType:  c.objectType,
 		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
+		Context:       &types.OperationContext{Async: c.shouldExecuteAsync(r)},
 	}
 
 	if c.shouldExecuteAsync(r) {
@@ -281,6 +282,7 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		ResourceType:  c.objectType,
 		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
+		Context:       &types.OperationContext{Async: c.shouldExecuteAsync(r)},
 	}
 
 	if c.shouldExecuteAsync(r) {
@@ -347,6 +349,7 @@ func GetResourceOperation(r *web.Request, repository storage.Repository, objectT
 	}
 	criteria := query.CriteriaForContext(ctx)
 	operation, err := repository.Get(ctx, types.OperationType, criteria...)
+	cleanObject(operation)
 	if err != nil {
 		return nil, util.HandleStorageError(err, objectType.String())
 	}
@@ -483,6 +486,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		ResourceType:  c.objectType,
 		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
+		Context:       &types.OperationContext{Async: c.shouldExecuteAsync(r)},
 	}
 
 	if c.shouldExecuteAsync(r) {
@@ -580,6 +584,7 @@ func attachLastOperation(ctx context.Context, objectID string, object types.Obje
 	}
 
 	if lastOperation, ok := ops[objectID]; ok {
+		cleanObject(lastOperation)
 		lastOperation.TransitiveResources = nil
 		object.SetLastOperation(lastOperation)
 	}
