@@ -278,7 +278,7 @@ var _ = Describe("Service Manager Query", func() {
 				})
 
 				It("should retrieve only the operation that is not associated to a resource", func() {
-					params := storage.SubQueryParams {
+					params := storage.SubQueryParams{
 						"RESOURCE_TABLE": "platforms",
 					}
 					subQuery, err := storage.GetSubQueryWithParams(storage.QueryForOperationsWithResource, params)
@@ -293,7 +293,7 @@ var _ = Describe("Service Manager Query", func() {
 				})
 
 				It("should retrieve only the operation that is associated to a resource", func() {
-					params := storage.SubQueryParams {
+					params := storage.SubQueryParams{
 						"RESOURCE_TABLE": "platforms",
 					}
 
@@ -335,7 +335,7 @@ var _ = Describe("Service Manager Query", func() {
 				})
 
 				It("should find query for tenant scoped service offerings", func() {
-					params := storage.SubQueryParams {
+					params := storage.SubQueryParams{
 						"TENANT_KEY": "tenant_id",
 					}
 					subQuery, err := storage.GetSubQueryWithParams(storage.QueryForTenantScopedServiceOfferings, params)

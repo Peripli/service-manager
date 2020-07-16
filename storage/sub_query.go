@@ -46,7 +46,6 @@ var subQueries = map[SubQuery]string{
 	QueryForTenantScopedServiceOfferings: `
 	SELECT id FROM broker_labels l
 	where l.broker_id = service_offerings.broker_id AND l.key = '{{.TENANT_KEY}}'`,
-
 }
 
 func GetSubQuery(query SubQuery) string {
