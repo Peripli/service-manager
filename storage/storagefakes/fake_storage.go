@@ -93,6 +93,16 @@ type FakeStorage struct {
 		result1 types.Object
 		result2 error
 	}
+	GetEntitiesStub        func() []storage.EntityMetadata
+	getEntitiesMutex       sync.RWMutex
+	getEntitiesArgsForCall []struct {
+	}
+	getEntitiesReturns struct {
+		result1 []storage.EntityMetadata
+	}
+	getEntitiesReturnsOnCall map[int]struct {
+		result1 []storage.EntityMetadata
+	}
 	GetForUpdateStub        func(context.Context, types.ObjectType, ...query.Criterion) (types.Object, error)
 	getForUpdateMutex       sync.RWMutex
 	getForUpdateArgsForCall []struct {
@@ -599,6 +609,58 @@ func (fake *FakeStorage) GetReturnsOnCall(i int, result1 types.Object, result2 e
 		result1 types.Object
 		result2 error
 	}{result1, result2}
+}
+
+func (fake *FakeStorage) GetEntities() []storage.EntityMetadata {
+	fake.getEntitiesMutex.Lock()
+	ret, specificReturn := fake.getEntitiesReturnsOnCall[len(fake.getEntitiesArgsForCall)]
+	fake.getEntitiesArgsForCall = append(fake.getEntitiesArgsForCall, struct {
+	}{})
+	fake.recordInvocation("GetEntities", []interface{}{})
+	fake.getEntitiesMutex.Unlock()
+	if fake.GetEntitiesStub != nil {
+		return fake.GetEntitiesStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.getEntitiesReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeStorage) GetEntitiesCallCount() int {
+	fake.getEntitiesMutex.RLock()
+	defer fake.getEntitiesMutex.RUnlock()
+	return len(fake.getEntitiesArgsForCall)
+}
+
+func (fake *FakeStorage) GetEntitiesCalls(stub func() []storage.EntityMetadata) {
+	fake.getEntitiesMutex.Lock()
+	defer fake.getEntitiesMutex.Unlock()
+	fake.GetEntitiesStub = stub
+}
+
+func (fake *FakeStorage) GetEntitiesReturns(result1 []storage.EntityMetadata) {
+	fake.getEntitiesMutex.Lock()
+	defer fake.getEntitiesMutex.Unlock()
+	fake.GetEntitiesStub = nil
+	fake.getEntitiesReturns = struct {
+		result1 []storage.EntityMetadata
+	}{result1}
+}
+
+func (fake *FakeStorage) GetEntitiesReturnsOnCall(i int, result1 []storage.EntityMetadata) {
+	fake.getEntitiesMutex.Lock()
+	defer fake.getEntitiesMutex.Unlock()
+	fake.GetEntitiesStub = nil
+	if fake.getEntitiesReturnsOnCall == nil {
+		fake.getEntitiesReturnsOnCall = make(map[int]struct {
+			result1 []storage.EntityMetadata
+		})
+	}
+	fake.getEntitiesReturnsOnCall[i] = struct {
+		result1 []storage.EntityMetadata
+	}{result1}
 }
 
 func (fake *FakeStorage) GetForUpdate(arg1 context.Context, arg2 types.ObjectType, arg3 ...query.Criterion) (types.Object, error) {
@@ -1219,6 +1281,8 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.deleteReturningMutex.RUnlock()
 	fake.getMutex.RLock()
 	defer fake.getMutex.RUnlock()
+	fake.getEntitiesMutex.RLock()
+	defer fake.getEntitiesMutex.RUnlock()
 	fake.getForUpdateMutex.RLock()
 	defer fake.getForUpdateMutex.RUnlock()
 	fake.inTransactionMutex.RLock()
