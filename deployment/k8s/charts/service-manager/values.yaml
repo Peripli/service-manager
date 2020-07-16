@@ -49,3 +49,4 @@ config:
     token_issuer_url: https://uaa.dev.cfdev.sh
   storage:
     max_idle_connections: 5
+    max_open_connections: 30

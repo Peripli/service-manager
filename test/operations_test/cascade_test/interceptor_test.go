@@ -179,7 +179,7 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 
 			It("empty virtual operation", func() {
 				triggerCascadeOperation(context.Background(), types.TenantType, "fake-tenant-id", false)
-				AssertOperationCount(func(count int) { Expect(count).To(Equal(1)) }, query.ByField(query.EqualsOperator, "resource_id", "fake-tenant-id"))
+				AssertOperationCount(func(count int) { Expect(count).To(Equal(2)) }, query.ByField(query.EqualsOperator, "resource_id", "fake-tenant-id"))
 			})
 
 			It("virtual cascade op", func() {

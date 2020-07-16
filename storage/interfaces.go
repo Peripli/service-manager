@@ -46,6 +46,11 @@ type Label interface {
 	GetValue() string
 }
 
+type EntityMetadata struct {
+	Name      string
+	TableName string
+}
+
 var (
 	_, b, _, _ = runtime.Caller(0)
 	basepath   = path.Dir(b)
@@ -58,6 +63,7 @@ type Settings struct {
 	EncryptionKey      string                `mapstructure:"encryption_key" description:"key to use for encrypting database entries"`
 	SkipSSLValidation  bool                  `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when connecting to the storage"`
 	MaxIdleConnections int                   `mapstructure:"max_idle_connections" description:"sets the maximum number of connections in the idle connection pool"`
+	MaxOpenConnections int                   `mapstructure:"max_open_connections" description:"sets the maximum number of open connections to the database"`
 	Notification       *NotificationSettings `mapstructure:"notification"`
 	IntegrityProcessor security.IntegrityProcessor
 }
@@ -70,6 +76,7 @@ func DefaultSettings() *Settings {
 		EncryptionKey:      "",
 		SkipSSLValidation:  false,
 		MaxIdleConnections: 5,
+		MaxOpenConnections: 30,
 		Notification:       DefaultNotificationSettings(),
 		IntegrityProcessor: &security.HashingIntegrityProcessor{
 			HashingFunc: func(data []byte) []byte {
@@ -195,6 +202,9 @@ type Repository interface {
 
 	// UpdateLabels updates the object labels in SM DB
 	UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, _ ...query.Criterion) error
+
+	// Retrieves all the registered entities
+	GetEntities() []EntityMetadata
 }
 
 // TransactionalRepository is a storage repository that can initiate a transaction

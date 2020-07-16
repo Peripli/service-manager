@@ -33,6 +33,12 @@ const (
 	InOperator inOperator = "in"
 	// NotInOperator takes two operands and tests if the left is not contained in the right
 	NotInOperator notInOperator = "notin"
+	// NotExistsSubquery receives a sub-query as single left-operand and checks the sub-query for rows existence. If there're no rows then it will return TRUE, otherwise FALSE.
+	// Applicable for usage only with ExistQuery Criterion type
+	NotExistsSubquery notExistsSubquery = "notexists"
+	// ExistsSubquery receives a sub-query as single left-operand and checks the sub-query for rows existence. If there are any, then it will return TRUE otherwise FALSE.
+	// Applicable for usage only with ExistQuery Criterion type
+	ExistsSubquery existsSubquery = "exists"
 	// EqualsOrNilOperator takes two operands and tests if the left is equal to the right, or if the left is nil
 	EqualsOrNilOperator enOperator = "en"
 
@@ -144,6 +150,42 @@ func (notInOperator) IsNullable() bool {
 }
 
 func (notInOperator) IsNumeric() bool {
+	return false
+}
+
+type existsSubquery string
+
+func (o existsSubquery) String() string {
+	return string(o)
+}
+
+func (existsSubquery) Type() OperatorType {
+	return UnivariateOperator
+}
+
+func (existsSubquery) IsNullable() bool {
+	return false
+}
+
+func (existsSubquery) IsNumeric() bool {
+	return false
+}
+
+type notExistsSubquery string
+
+func (o notExistsSubquery) String() string {
+	return string(o)
+}
+
+func (notExistsSubquery) Type() OperatorType {
+	return UnivariateOperator
+}
+
+func (notExistsSubquery) IsNullable() bool {
+	return false
+}
+
+func (notExistsSubquery) IsNumeric() bool {
 	return false
 }
 

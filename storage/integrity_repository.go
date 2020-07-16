@@ -161,6 +161,10 @@ func (cr *TransactionalIntegrityRepository) InTransaction(ctx context.Context, f
 	})
 }
 
+func (cr *integrityRepository) GetEntities() []EntityMetadata {
+	return cr.repository.GetEntities()
+}
+
 func (cr *integrityRepository) setIntegrity(obj types.Object) error {
 	if integralObject, isIntegral := obj.(security.IntegralObject); isIntegral {
 		integrity, err := cr.integrityProcessor.CalculateIntegrity(integralObject)
