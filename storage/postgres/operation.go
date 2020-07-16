@@ -48,6 +48,7 @@ type Operation struct {
 	ParentID            sql.NullString     `db:"parent_id"`
 	RescheduleTimestamp time.Time          `db:"reschedule_timestamp"`
 	DeletionScheduled   time.Time          `db:"deletion_scheduled"`
+	Context             sqlxtypes.JSONText `db:"context"`
 }
 
 func (o *Operation) ToObject() (types.Object, error) {
@@ -56,6 +57,13 @@ func (o *Operation) ToObject() (types.Object, error) {
 		if err := util.BytesToObject(getJSONRawMessage(o.TransitiveResources), &transitiveResources); err != nil {
 			return nil, err
 		}
+	}
+
+	operationContext := types.OperationContext{}
+	err := toJsonAsObject(o.Context, &operationContext)
+	if err != nil {
+		log.D().Errorf("Could not un-marshal context for operation: %s", err.Error())
+		return nil, err
 	}
 
 	return &types.Operation{
@@ -77,6 +85,7 @@ func (o *Operation) ToObject() (types.Object, error) {
 		CorrelationID:       o.CorrelationID.String,
 		ExternalID:          o.ExternalID.String,
 		Reschedule:          o.Reschedule,
+		Context:             &operationContext,
 		CascadeRootID:       o.CascadeRootID.String,
 		ParentID:            o.ParentID.String,
 		RescheduleTimestamp: o.RescheduleTimestamp,
@@ -93,6 +102,12 @@ func (*Operation) FromObject(object types.Object) (storage.Entity, error) {
 		operation.TransitiveResources = make([]*types.RelatedType, 0)
 	}
 	transitiveResourcesBytes, err := json.Marshal(operation.TransitiveResources)
+	if err != nil {
+		log.D().Errorf("Could not marshal transitive resources of operation: %s", err.Error())
+		return nil, err
+	}
+
+	operationContext, err := json.Marshal(operation.Context)
 	if err != nil {
 		log.D().Errorf("Could not marshal transitive resources of operation: %s", err.Error())
 		return nil, err
@@ -117,6 +132,7 @@ func (*Operation) FromObject(object types.Object) (storage.Entity, error) {
 		CorrelationID:       toNullString(operation.CorrelationID),
 		ExternalID:          toNullString(operation.ExternalID),
 		Reschedule:          operation.Reschedule,
+		Context:             getJSONText(operationContext),
 		CascadeRootID:       toNullString(operation.CascadeRootID),
 		ParentID:            toNullString(operation.ParentID),
 		RescheduleTimestamp: operation.RescheduleTimestamp,

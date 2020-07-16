@@ -156,6 +156,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				return nil, fmt.Errorf("failed to marshal OSB context %+v: %s", bindRequest.Context, err)
 			}
 			binding.Context = contextBytes
+			operation.Context.ServiceInstanceID = binding.ServiceInstanceID
 
 			log.C(ctx).Infof("Sending bind request %s to broker with name %s", logBindRequest(bindRequest), broker.Name)
 			bindResponse, err = osbClient.Bind(bindRequest)
@@ -166,18 +167,19 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 					StatusCode:  http.StatusBadGateway,
 				}
 				if shouldStartOrphanMitigation(err) {
-					// store the instance so that later on we can do orphan mitigation
-					_, err := f(ctx, obj)
-					if err != nil {
-						return nil, fmt.Errorf("broker error %s caused orphan mitigation which required storing the resource which failed with: %s", brokerError, err)
-					}
-
-					// mark the operation as deletion scheduled meaning orphan mitigation is required
+					// store the instance data on the operation context so that later on we can do orphan mitigation
 					operation.DeletionScheduled = time.Now()
 					operation.Reschedule = false
 					operation.RescheduleTimestamp = time.Time{}
 					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
+					}
+				}
+
+				if operation.Context.Async {
+					_, err := f(ctx, obj)
+					if err != nil {
+						return nil, err
 					}
 				}
 				return nil, brokerError
@@ -238,25 +240,52 @@ func (i *ServiceBindingInterceptor) AroundTxDelete(f storage.InterceptDeleteArou
 			return fmt.Errorf("deletion of multiple bindings is not supported")
 		}
 
+		operation, found := opcontext.Get(ctx)
+		if !found {
+			return fmt.Errorf("operation missing from context")
+		}
+
 		if bindings.Len() != 0 {
 			binding := bindings.ItemAt(0).(*types.ServiceBinding)
-
-			operation, found := opcontext.Get(ctx)
-			if !found {
-				return fmt.Errorf("operation missing from context")
+			if operation.Type == types.CREATE && !operation.Context.Async {
+				if err := f(ctx, deletionCriteria...); err != nil {
+					return err
+				}
 			}
-
 			if err := i.deleteSingleBinding(ctx, binding, operation); err != nil {
+				return err
+			}
+		} else if operation.InOrphanMitigationState() && operation.Context.ServiceInstanceID != "" {
+			// In case we don't have instance & use the operation context to perform orphan mitigation
+			binding := types.ServiceBinding{}
+			binding.ServiceInstanceID = operation.Context.ServiceInstanceID
+			binding.ID = operation.ResourceID
+			if err := i.deleteSingleBinding(ctx, &binding, operation); err != nil {
 				return err
 			}
 		}
 
-		if err := f(ctx, deletionCriteria...); err != nil {
-			return err
+		if shouldRemoveResource(operation) {
+			if err := f(ctx, deletionCriteria...); err != nil {
+				return err
+			}
 		}
 
 		return nil
 	}
+}
+
+func shouldRemoveResource(operation *types.Operation) bool {
+	if operation.State == types.FAILED {
+		if operation.Type == types.CREATE && operation.Context.Async {
+			return false
+		}
+
+		if operation.Type == types.DELETE && !operation.InOrphanMitigationState() {
+			return false
+		}
+	}
+	return true
 }
 
 func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, binding *types.ServiceBinding, operation *types.Operation) error {
