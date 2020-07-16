@@ -156,6 +156,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				return nil, fmt.Errorf("failed to marshal OSB context %+v: %s", bindRequest.Context, err)
 			}
 			binding.Context = contextBytes
+			operation.Context.ServiceInstanceID = binding.ServiceInstanceID
 
 			log.C(ctx).Infof("Sending bind request %s to broker with name %s", logBindRequest(bindRequest), broker.Name)
 			bindResponse, err = osbClient.Bind(bindRequest)
@@ -170,7 +171,6 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 					operation.DeletionScheduled = time.Now()
 					operation.Reschedule = false
 					operation.RescheduleTimestamp = time.Time{}
-					operation.Context.ServiceInstanceID = binding.ServiceInstanceID
 					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
 					}
@@ -205,7 +205,6 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				if bindResponse.OperationKey != nil {
 					operation.ExternalID = string(*bindResponse.OperationKey)
 				}
-				operation.Context.ServiceInstanceID = binding.ServiceInstanceID
 				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", instance.ID, err)
 				}
