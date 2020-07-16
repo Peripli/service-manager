@@ -79,13 +79,19 @@ type Operation struct {
 	ExternalID          string            `json:"-"`
 	ParentID            string            `json:"parent_id,omitempty"`
 	CascadeRootID       string            `json:"cascade_root_id,omitempty"`
-
+	Context             *OperationContext `json:"context,omitempty"`
 	// Reschedule specifies that the operation has reached a state after which it can be retried (checkpoint)
 	Reschedule bool `json:"reschedule"`
 	// RescheduleTimestamp is the time when an operation became reschedulable=true for the first time
 	RescheduleTimestamp time.Time `json:"reschedule_timestamp,omitempty"`
 	// DeletionScheduled specifies the time when an operation was marked for deletion
 	DeletionScheduled time.Time `json:"deletion_scheduled,omitempty"`
+}
+
+type OperationContext struct {
+	Async             bool   `json:"async"`
+	ServicePlanID     string `json:"service_plan_id"`
+	ServiceInstanceID string `json:"service_instance_id"`
 }
 
 func (e *Operation) Equals(obj Object) bool {
@@ -147,6 +153,10 @@ func (o *Operation) Validate() error {
 
 func (o *Operation) InOrphanMitigationState() bool {
 	return !o.DeletionScheduled.IsZero()
+}
+
+func (o *Operation) Sanitize() {
+	o.Context = nil
 }
 
 func (o *Operation) IsForceDeleteCascadeOperation() bool {
