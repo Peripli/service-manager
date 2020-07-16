@@ -38,7 +38,7 @@ func TestAPI(t *testing.T) {
 	RunSpecs(t, "API Suite")
 }
 
-var _ = Describe("API", func() {
+var _ = Describe("APII", func() {
 	var (
 		mockedStorage   *storage.InterceptableTransactionalRepository
 		server          *common.OAuthServer
