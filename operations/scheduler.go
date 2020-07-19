@@ -623,6 +623,19 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 			log.C(ctx).Errorf("concurrent operation has been rejected: last operation is %+v, current operation is %+v and error is %s", lastOperation, operation, err)
 			return err
 		}
+
+		// Block updates of service instances or bindings that were not created successfully
+		if operation.Type == types.UPDATE {
+			if lastOperation.Type == types.CREATE && lastOperation.State == types.FAILED {
+				if operation.ResourceType == types.ServiceBindingType || operation.ResourceType == types.ServiceInstanceType {
+					return &util.HTTPError{
+						ErrorType:   "UpdateOperationIsNotAllowed",
+						Description: "Update is not possible for this resource",
+						StatusCode:  http.StatusForbidden,
+					}
+				}
+			}
+		}
 	}
 
 	if err := s.storeOrUpdateOperation(ctx, operation, currentOpExists); err != nil {

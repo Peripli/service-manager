@@ -1230,7 +1230,7 @@ var _ = DescribeTestsFor(TestCase{
 											newCtx.CleanupAll(false)
 										})
 
-										It("keeps the instance as ready false and marks the operation as deletion scheduled", func() {
+										It("verifies the instance as ready false and marks the operation as deletion scheduled", func() {
 											resp := createInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
@@ -1241,11 +1241,11 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											VerifyResourceExists(newCtx.SMWithOAuthForTenant, ResourceExpectations{
+											VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:    instanceID,
-												Type:  types.ServiceInstanceType,
 												Ready: false,
-											})
+												Type:  types.ServiceInstanceType,
+											}, testCase.async)
 										})
 									})
 								})
@@ -1350,6 +1350,7 @@ var _ = DescribeTestsFor(TestCase{
 											ResourceType:      types.ServiceInstanceType,
 											Reschedulable:     false,
 											DeletionScheduled: false,
+											Error:             "Failed provisioning request context",
 										})
 										VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 											ID:   instanceID,
@@ -2492,6 +2493,40 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 						})
+
+						if testCase.async {
+							When("instance that has failed to create exists in the service manager platform", func() {
+								BeforeEach(func() {
+									EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", ParameterizedHandler(
+										http.StatusOK, Object{"state": "failed"},
+									))
+
+									resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.FAILED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   instanceID,
+										Type: types.ServiceInstanceType,
+									})
+								})
+
+								It("patch should fail", func() {
+									ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
+										WithQuery("async", testCase.async).
+										WithJSON(Object{"name": "instance2"}).
+										Expect().Status(http.StatusForbidden)
+								})
+							})
+						}
 					})
 				}
 			})

@@ -150,12 +150,6 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 				}
 
 				if shouldStartOrphanMitigation(err) {
-					// store the instance so that later on we can do orphan mitigation
-					_, err := f(ctx, obj)
-					if err != nil {
-						return nil, fmt.Errorf("broker error %s caused orphan mitigation which required storing the resource which failed with: %s", brokerError, err)
-					}
-
 					// mark the operation as deletion scheduled meaning orphan mitigation is required
 					operation.DeletionScheduled = time.Now().UTC()
 					operation.Reschedule = false
