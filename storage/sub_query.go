@@ -1,18 +1,21 @@
 package storage
 
+import "github.com/Peripli/service-manager/pkg/util"
+
 type SubQuery int
 
 const (
 	QueryForAllLastOperationsPerResource SubQuery = iota
-	QueryForNonResourcelessOperations
+	QueryForOperationsWithResource
+	QueryForTenantScopedServiceOfferings
 )
 
-// The aforementioned sub-queries are dedicated to be used with ByIDExists/ByIDNotExists Criterion to allow additional querying/filtering
+// The sub-queries are dedicated to be used with ByExists/ByNotExists Criterion to allow additional querying/filtering
 // combined with a main query generated from the criteria.
-// As in sql's EXIST/ NOT EXIST, in order for the main query to work with the sub-query, the sub-queries will require a where clause that
-// compares the id from the parent query with and id retrieved from the sub-query.
+// As in sql's EXISTS/ NOT EXISTS, in order for the main query to work with the sub-query, the sub-queries will require a where clause that
+// uses columns from the parent query for comparison.
 //
-// Example: Get all internal operations which aren't orphans (have corresponding resources) using ByIDExist criterion:
+// Example: Get all internal operations which aren't orphans (have corresponding resources) using ByExists criterion:
 //
 // queryForAllNonOrphanOperations := `
 //    SELECT id
@@ -20,9 +23,11 @@ const (
 //	  WHERE operations.resource_id = service_instances.id`
 //
 // criteria := []query.Criterion{
-// query.ByIDExist(queryForAllNonOrphanOperations),
+// query.ByExists(queryForAllNonOrphanOperations),
 // }
 // allNonOrphanServiceOperations, _ := repository.List(ctx, types.OperationType, criteria...)
+
+type SubQueryParams map[string]interface{}
 
 var subQueries = map[SubQuery]string{
 	QueryForAllLastOperationsPerResource: `
@@ -34,12 +39,19 @@ var subQueries = map[SubQuery]string{
         GROUP BY resource_id, resource_type) LAST_OPERATIONS ON 
     op.paging_sequence = LAST_OPERATIONS.paging_sequence
     WHERE operations.id = op.id`,
-	QueryForNonResourcelessOperations: `
+	QueryForOperationsWithResource: `
     SELECT id
     FROM {{.RESOURCE_TABLE}}
     WHERE operations.resource_id = {{.RESOURCE_TABLE}}.id`,
+	QueryForTenantScopedServiceOfferings: `
+	SELECT id FROM broker_labels l
+	where l.broker_id = service_offerings.broker_id AND l.key = '{{.TENANT_KEY}}'`,
 }
 
 func GetSubQuery(query SubQuery) string {
 	return subQueries[query]
+}
+
+func GetSubQueryWithParams(query SubQuery, params SubQueryParams) (string, error) {
+	return util.Tsprintf(subQueries[query], params)
 }
