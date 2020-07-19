@@ -72,7 +72,7 @@ const (
 	testTimeout                 = 10
 
 	brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
-	brokerAPIVersionHeaderValue = "2.13"
+	brokerAPIVersionHeaderValue = "2.16"
 )
 
 var (
