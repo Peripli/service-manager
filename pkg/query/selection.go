@@ -118,11 +118,11 @@ func ByField(operator Operator, leftOp string, rightOp ...string) Criterion {
 	return NewCriterion(leftOp, operator, rightOp, FieldQuery)
 }
 
-func ByIDNotExist(subQuery string) Criterion {
+func ByNotExists(subQuery string) Criterion {
 	return NewCriterion("", NotExistsSubquery, []string{subQuery}, ExistQuery)
 }
 
-func ByIDExist(subQuery string) Criterion {
+func ByExists(subQuery string) Criterion {
 	return NewCriterion("", ExistsSubquery, []string{subQuery}, ExistQuery)
 }
 
