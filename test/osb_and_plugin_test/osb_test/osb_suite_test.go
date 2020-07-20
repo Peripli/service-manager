@@ -219,6 +219,7 @@ var _ = BeforeEach(func() {
 	credentials := brokerPlatformCredentialsIDMap[brokerID]
 	ctx.SMWithBasic.SetBasicCredentials(ctx, credentials.username, credentials.password)
 	shouldStoreBinding = true
+	shouldSaveOperationInContext = false
 })
 
 var _ = JustAfterEach(func() {
