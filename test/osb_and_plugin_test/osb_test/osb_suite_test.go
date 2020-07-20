@@ -102,6 +102,7 @@ var (
 	utils                          *common.BrokerUtils
 	shouldStoreBinding             bool
 	shouldSaveOperationInContext   bool
+	fakeStateResponseBody          []byte
 )
 
 type brokerPlatformCredentials struct {
@@ -539,6 +540,20 @@ func (p *storeOperationInContextIndicatorPlugin) Name() string {
 }
 
 func (p *storeOperationInContextIndicatorPlugin) Deprovision(request *web.Request, next web.Handler) (*web.Response, error) {
+	p.saveOperationInContextIfNeeded(request)
+	return next.Handle(request)
+}
+
+func (p *storeOperationInContextIndicatorPlugin) PollInstance(request *web.Request, next web.Handler) (*web.Response, error) {
+	p.saveOperationInContextIfNeeded(request)
+	fakeStateResponseBody, _ = sjson.SetBytes(nil, "state", types.IN_PROGRESS)
+	return &web.Response{
+		StatusCode: http.StatusOK,
+		Body:       fakeStateResponseBody,
+	}, nil
+}
+
+func (p *storeOperationInContextIndicatorPlugin) saveOperationInContextIfNeeded(request *web.Request) {
 	if shouldSaveOperationInContext {
 		op := types.Operation{
 			Base: types.Base{
@@ -557,5 +572,4 @@ func (p *storeOperationInContextIndicatorPlugin) Deprovision(request *web.Reques
 		newCtx, _ := opcontext.Set(request.Context(), &op)
 		request.Request = request.WithContext(newCtx)
 	}
-	return next.Handle(request)
 }
