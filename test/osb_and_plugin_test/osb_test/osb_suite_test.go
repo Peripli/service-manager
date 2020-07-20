@@ -540,20 +540,26 @@ func (p *storeOperationInContextIndicatorPlugin) Name() string {
 }
 
 func (p *storeOperationInContextIndicatorPlugin) Deprovision(request *web.Request, next web.Handler) (*web.Response, error) {
-	p.saveOperationInContextIfNeeded(request)
+	if shouldSaveOperationInContext {
+		p.saveOperationInContext(request)
+	}
 	return next.Handle(request)
 }
 
 func (p *storeOperationInContextIndicatorPlugin) PollInstance(request *web.Request, next web.Handler) (*web.Response, error) {
-	p.saveOperationInContextIfNeeded(request)
-	fakeStateResponseBody, _ = sjson.SetBytes(nil, "state", types.IN_PROGRESS)
-	return &web.Response{
-		StatusCode: http.StatusOK,
-		Body:       fakeStateResponseBody,
-	}, nil
+	if shouldSaveOperationInContext {
+		p.saveOperationInContext(request)
+		fakeStateResponseBody, _ = sjson.SetBytes(nil, "state", types.IN_PROGRESS)
+		return &web.Response{
+			StatusCode: http.StatusOK,
+			Body:       fakeStateResponseBody,
+		}, nil
+	}
+
+	return next.Handle(request)
 }
 
-func (p *storeOperationInContextIndicatorPlugin) saveOperationInContextIfNeeded(request *web.Request) {
+func (p *storeOperationInContextIndicatorPlugin) saveOperationInContext(request *web.Request) {
 	if shouldSaveOperationInContext {
 		op := types.Operation{
 			Base: types.Base{
