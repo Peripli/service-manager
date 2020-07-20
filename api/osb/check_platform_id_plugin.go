@@ -91,7 +91,7 @@ func (p *checkPlatformIDPlugin) assertPlatformID(req *web.Request, next web.Hand
 		return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
 	}
 
-	instance, _ := object.(*types.ServiceInstance)
+	instance := object.(*types.ServiceInstance)
 	req.Request = req.WithContext(types.ContextWithInstance(req.Context(), instance))
 
 	if platform.ID != instance.PlatformID {
