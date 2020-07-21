@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/operations/opcontext"
 	"net/http"
 	"time"
 
@@ -424,7 +425,6 @@ func (sp *storePlugin) Provision(request *web.Request, next web.Handler) (*web.R
 }
 
 func (sp *storePlugin) Deprovision(request *web.Request, next web.Handler) (*web.Response, error) {
-	ctx := request.Context()
 	requestPayload := &deprovisionRequest{}
 	if err := parseRequestForm(request, requestPayload); err != nil {
 		return nil, err
@@ -432,6 +432,12 @@ func (sp *storePlugin) Deprovision(request *web.Request, next web.Handler) (*web
 	response, err := next.Handle(request)
 	if err != nil {
 		return nil, err
+	}
+	ctx := request.Context()
+	_, operationFound := opcontext.Get(ctx)
+	if operationFound {
+		log.C(ctx).Debug("operation found in context - Deprovision is managed by another plugin..")
+		return response, nil
 	}
 
 	responsePayload := provisionResponse{
@@ -600,7 +606,6 @@ func (sp *storePlugin) PollBinding(request *web.Request, next web.Handler) (*web
 }
 
 func (sp *storePlugin) PollInstance(request *web.Request, next web.Handler) (*web.Response, error) {
-	ctx := request.Context()
 	requestPayload := &lastInstanceOperationRequest{}
 	if err := parseRequestForm(request, requestPayload); err != nil {
 		return nil, err
@@ -609,6 +614,12 @@ func (sp *storePlugin) PollInstance(request *web.Request, next web.Handler) (*we
 	response, err := next.Handle(request)
 	if err != nil {
 		return nil, err
+	}
+	ctx := request.Context()
+	_, operationFound := opcontext.Get(ctx)
+	if operationFound {
+		log.C(ctx).Debug("operation found in context, pollInstance is managed by another plugin..")
+		return response, nil
 	}
 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusGone {
 		return response, nil
@@ -798,7 +809,7 @@ func (sp *storePlugin) storeBinding(ctx context.Context, storage storage.Reposit
 	bindingName := gjson.GetBytes(req.RawContext, "binding_name").String()
 	if len(bindingName) == 0 {
 		log.C(ctx).Debugf("Binding name missing. Defaulting to id %s", req.BindingID)
-		bindingName = req.InstanceID
+		bindingName = req.BindingID
 	}
 	binding := &types.ServiceBinding{
 		Base: types.Base{

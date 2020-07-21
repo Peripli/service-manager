@@ -59,7 +59,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
 	PatchResource:                          test.StorageResourcePatch,
-	ResourcePropertiesToIgnore:             []string{"transitive_resources"},
+	ResourcePropertiesToIgnore:             []string{"transitive_resources", "context"},
 	AdditionalTests: func(ctx *TestContext, t *test.TestCase) {
 		Describe("Operations", func() {
 			var ctx *TestContext
@@ -257,12 +257,77 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					ctxBuilder = NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook)
 				})
 
+				When("A resource-less operation is created", func() {
+					BeforeEach(func() {
+						ctx = ctxBuilder.Build()
+						resourcelessOperation := types.Operation{
+							Base:       types.Base{ID: "test-resource-less-operation"},
+							ResourceID: "non-existent-resource",
+							Type:       types.CREATE,
+							State:      "succeeded",
+						}
+						ctx.SMRepository.Create(context.Background(), &resourcelessOperation)
+
+					})
+					It("Should be deleted once cleanup interval has passed", func() {
+						ensureOperationExist(ctx.SMRepository, "test-resource-less-operation")
+						Eventually(func() types.Object {
+							byID := query.ByField(query.EqualsOperator, "id", "test-resource-less-operation")
+							resourcelessOperation, _ := ctx.SMRepository.Get(context.Background(), types.OperationType, byID)
+							return resourcelessOperation
+						}, cleanupInterval*4).Should(BeNil())
+
+					})
+				})
+
+				When("Operation is the 'last' for a given resource", func() {
+					BeforeEach(func() {
+						ctx = ctxBuilder.Build()
+						testResource1 := &types.Platform{
+							Base: types.Base{ID: "test-resource1"},
+						}
+						testResource2 := &types.Platform{
+							Base: types.Base{ID: "test-resource2"},
+						}
+						lastInternalSuccessfulOperation := &types.Operation{
+							Base:       types.Base{ID: "test-last-op-successful"},
+							ResourceID: testResource1.ID,
+							Type:       types.CREATE,
+							State:      "succeeded",
+						}
+						lastInternalFailedOperation := &types.Operation{
+							Base:       types.Base{ID: "test-last-op-failed"},
+							ResourceID: testResource2.ID,
+							Type:       types.CREATE,
+							State:      "failed",
+						}
+						ctx.SMRepository.Create(context.Background(), testResource1)
+						ctx.SMRepository.Create(context.Background(), testResource2)
+						ctx.SMRepository.Create(context.Background(), lastInternalSuccessfulOperation)
+						ctx.SMRepository.Create(context.Background(), lastInternalFailedOperation)
+					})
+					It("Should not be deleted", func() {
+						ensureOperationExist(ctx.SMRepository, "test-last-op-successful")
+						ensureOperationExist(ctx.SMRepository, "test-last-op-failed")
+
+						Consistently(func() bool {
+							ensureOperationExist(ctx.SMRepository, "test-last-op-successful")
+							ensureOperationExist(ctx.SMRepository, "test-last-op-failed")
+
+							return true
+						}, cleanupInterval+1, time.Second).Should(BeTrue())
+					})
+				})
+
 				When("Specified cleanup interval passes", func() {
 					BeforeEach(func() {
 						ctx = ctxBuilder.Build()
 					})
 
 					Context("operation platform is service Manager", func() {
+						BeforeEach(func() {
+							createLastOperationForTestPlatform(ctx)
+						})
 						It("Deletes operations older than that interval", func() {
 							ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
 								Expect().
@@ -335,7 +400,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect(err).To(BeNil())
 
 								return count
-							}, cleanupInterval*4).Should(Equal(0))
+
+								// Since we no longer delete "last" operations, the async provision of instance: '12345'
+								//will result with 1 expected operation which shouldn't be deleted.
+							}, cleanupInterval*4).Should(Equal(1))
 						})
 					})
 
@@ -359,6 +427,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							object, err := ctx.SMRepository.Create(context.Background(), operation)
 							Expect(err).To(BeNil())
 							Expect(object).To(Not(BeNil()))
+							createLastOperationForTestPlatform(ctx)
 						})
 
 						It("should cleanup external old ones", func() {
@@ -367,7 +436,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Eventually(func() int {
 								count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
 								Expect(err).To(BeNil())
-
 								return count
 							}, operationExpiration*3).Should(Equal(0))
 						})
@@ -498,6 +566,31 @@ var _ = test.DescribeTestsFor(test.TestCase{
 		})
 	},
 })
+
+func ensureOperationExist(repository storage.TransactionalRepository, operationId string) {
+	byID := query.ByField(query.EqualsOperator, "id", operationId)
+	resourcelessOperation, err := repository.Get(context.Background(), types.OperationType, byID)
+	Expect(err).To(BeNil())
+	Expect(resourcelessOperation).ToNot(BeNil())
+}
+
+func createLastOperationForTestPlatform(ctx *TestContext) {
+	//Last operation is never deleted since we keep the last operation for any resource (see: CleanupResourcelessOperations in maintainer.go).
+	//The test framework creates the platform 'basic-auth-default-test-platform' which is associated to a single 'create' operation that will never be deleted
+	//that's why we create here another operation for 'basic-auth-default-test-platform'.
+	//This allows us to verify the deletion of the operations under tests properly.
+	UUID, err := uuid.NewV4()
+	Expect(err).ToNot(HaveOccurred())
+	lastOperation := types.Operation{
+		Base:         types.Base{ID: UUID.String()},
+		ResourceID:   "basic-auth-default-test-platform",
+		ResourceType: "/v1/platforms",
+		Type:         types.CREATE,
+		State:        "succeeded",
+	}
+
+	ctx.SMRepository.Create(context.Background(), &lastOperation)
+}
 
 type DeleteBrokerDelayingInterceptorProvider struct{}
 

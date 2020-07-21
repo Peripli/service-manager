@@ -215,9 +215,12 @@ new line`))
 
 			Context("Duplicate query key", func() {
 				It("Should return error", func() {
-					criteria, err := Parse(queryType, "leftop1 eq 'rightop' and leftop1 eq 'rightop2'")
-					Expect(err).To(HaveOccurred())
-					Expect(criteria).To(BeNil())
+					//ExistQuery type doesn't support left operands nor it excepts any operators aside from NotExist/Exist operators
+					if queryType != ExistQuery {
+						criteria, err := Parse(queryType, "leftop1 eq 'rightop' and leftop1 eq 'rightop2'")
+						Expect(err).To(HaveOccurred())
+						Expect(criteria).To(BeNil())
+					}
 				})
 			})
 

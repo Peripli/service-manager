@@ -388,4 +388,24 @@ var _ = Describe("Deprovision", func() {
 			})
 		})
 	})
+
+	Context("deprovision operation is handled by external plugin", func() {
+		BeforeEach(func() {
+			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().StatusRange(httpexpect.Status2xx)
+
+			shouldSaveOperationInContext = true
+			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusAccepted, `{"operation":"abc123"}`)
+		})
+
+		It("osb store plugin should not create delete operation", func() {
+			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				Expect().Status(http.StatusAccepted)
+
+			verifyOperationDoesNotExist(SID, string(types.DELETE))
+		})
+	})
 })
