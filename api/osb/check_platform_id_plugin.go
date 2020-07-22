@@ -90,7 +90,9 @@ func (p *checkPlatformIDPlugin) assertPlatformID(req *web.Request, next web.Hand
 		}
 		return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
 	}
+
 	instance := object.(*types.ServiceInstance)
+	req.Request = req.WithContext(types.ContextWithInstance(req.Context(), instance))
 
 	if platform.ID != instance.PlatformID {
 		log.C(ctx).Errorf("Instance with id %s and platform id %s does not belong to platform with id %s", instance.ID, instance.PlatformID, platform.ID)
