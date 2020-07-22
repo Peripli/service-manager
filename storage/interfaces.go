@@ -64,6 +64,8 @@ type Settings struct {
 	SkipSSLValidation  bool                  `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when connecting to the storage"`
 	MaxIdleConnections int                   `mapstructure:"max_idle_connections" description:"sets the maximum number of connections in the idle connection pool"`
 	MaxOpenConnections int                   `mapstructure:"max_open_connections" description:"sets the maximum number of open connections to the database"`
+	ReadTimeout        int                   `mapstructure:"read_timeout" description:"sets the limit for reading in milliseconds"`
+	WriteTimeout       int                   `mapstructure:"write_timeout" description:"sets the limit for writing in milliseconds"`
 	Notification       *NotificationSettings `mapstructure:"notification"`
 	IntegrityProcessor security.IntegrityProcessor
 }
@@ -77,6 +79,8 @@ func DefaultSettings() *Settings {
 		SkipSSLValidation:  false,
 		MaxIdleConnections: 5,
 		MaxOpenConnections: 30,
+		ReadTimeout: 900000, //15 minutes
+		WriteTimeout: 900000, //15 minutes
 		Notification:       DefaultNotificationSettings(),
 		IntegrityProcessor: &security.HashingIntegrityProcessor{
 			HashingFunc: func(data []byte) []byte {
@@ -119,7 +123,7 @@ func DefaultNotificationSettings() *NotificationSettings {
 		QueuesSize:           100,
 		MinReconnectInterval: time.Millisecond * 200,
 		MaxReconnectInterval: time.Second * 20,
-		CleanInterval:        time.Hour,
+		CleanInterval:        time.Minute * 15,
 		KeepFor:              time.Hour * 12,
 	}
 }

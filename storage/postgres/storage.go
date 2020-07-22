@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	postgresDriverName  = "postgres"
+	postgresDriverName  = "pq-timeouts"
 	foreignKeyViolation = "foreign_key_violation"
 )
 
@@ -72,11 +72,11 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 	ps.mutex.Lock()
 	defer ps.mutex.Unlock()
 	if ps.db == nil {
-		sslModeParam := ""
+		url := fmt.Sprintf("%s?read_timeout=%d&write_timeout=%d", settings.URI, settings.ReadTimeout, settings.WriteTimeout)
 		if settings.SkipSSLValidation {
-			sslModeParam = "?sslmode=disable"
+			url += "&sslmode=disable"
 		}
-		db, err := ps.ConnectFunc(postgresDriverName, settings.URI+sslModeParam)
+		db, err := ps.ConnectFunc(postgresDriverName, url)
 		if err != nil {
 			return fmt.Errorf("could not connect to PostgreSQL: %s", err)
 		}
