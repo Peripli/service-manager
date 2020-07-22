@@ -46,7 +46,7 @@
   branch = "master"
 
 [[constraint]]
-  name = "https://github.com/Kount/pq-timeouts"
+  name = "github.com/Kount/pq-timeouts"
   version = "=1.0.0"
 
 [[constraint]]
