@@ -46,6 +46,10 @@
   branch = "master"
 
 [[constraint]]
+  name = "https://github.com/Kount/pq-timeouts"
+  version = "=1.0.0"
+
+[[constraint]]
   name = "github.com/gofrs/uuid"
   version = "=3.1.0"
 
