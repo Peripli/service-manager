@@ -20,6 +20,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -72,11 +74,22 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 	ps.mutex.Lock()
 	defer ps.mutex.Unlock()
 	if ps.db == nil {
-		url := fmt.Sprintf("%s?read_timeout=%d&write_timeout=%d", settings.URI, settings.ReadTimeout, settings.WriteTimeout)
-		if settings.SkipSSLValidation {
-			url += "&sslmode=disable"
+		parsedUrl, err := url.Parse(settings.URI)
+		if err != nil {
+			return fmt.Errorf("could not parse PostgreSQL URI: %s", err)
 		}
-		db, err := ps.ConnectFunc(postgresDriverName, url)
+		parsedQuery, err := url.ParseQuery(parsedUrl.RawQuery)
+		if err != nil {
+			return fmt.Errorf("could not parse PostgreSQL URL query: %s", err)
+		}
+		parsedQuery.Add("read_timeout", strconv.Itoa(settings.ReadTimeout))
+		parsedQuery.Add("write_timeout", strconv.Itoa(settings.WriteTimeout))
+		if settings.SkipSSLValidation {
+			parsedQuery.Add("sslmode", "disable")
+		}
+		parsedUrl.RawQuery = parsedQuery.Encode()
+
+		db, err := ps.ConnectFunc(postgresDriverName, parsedUrl.String())
 		if err != nil {
 			return fmt.Errorf("could not connect to PostgreSQL: %s", err)
 		}
