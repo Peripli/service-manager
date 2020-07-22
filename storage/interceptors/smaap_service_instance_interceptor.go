@@ -134,8 +134,17 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			return nil, err
 		}
 
+		if operation.Reschedule {
+			if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
+				return nil, err
+			}
+
+			return instance, nil
+		}
+
 		var provisionResponse *osbc.ProvisionResponse
 		if !operation.Reschedule {
+			operation.Context.ServicePlanID = instance.ServicePlanID
 			provisionRequest, err := i.prepareProvisionRequest(instance, service.CatalogID, plan.CatalogID)
 			if err != nil {
 				return nil, fmt.Errorf("failed to prepare provision request: %s", err)
@@ -154,14 +163,13 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 					operation.DeletionScheduled = time.Now().UTC()
 					operation.Reschedule = false
 					operation.RescheduleTimestamp = time.Time{}
-					operation.Context.ServicePlanID = instance.ServicePlanID
 					if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 						return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
 					}
 				}
 
 				//save the instance in case of an async client call
-				if operation.Context.Async {
+				if operation.IsAsyncResponse() {
 					_, err := f(ctx, obj)
 					if err != nil {
 						return nil, err
@@ -180,13 +188,13 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 				log.C(ctx).Infof("Successful asynchronous provisioning request %s to broker %s returned response %s",
 					logProvisionRequest(provisionRequest), broker.Name, logProvisionResponse(provisionResponse))
 				operation.Reschedule = true
+				operation.Context.BrokerResponse.Async = true
 				if operation.RescheduleTimestamp.IsZero() {
 					operation.RescheduleTimestamp = time.Now()
 				}
 				if provisionResponse.OperationKey != nil {
 					operation.ExternalID = string(*provisionResponse.OperationKey)
 				}
-				operation.Context.ServicePlanID = instance.ServicePlanID
 				if _, err := i.repository.Update(ctx, operation, types.LabelChanges{}); err != nil {
 					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", instance.ID, err)
 				}
@@ -203,7 +211,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			instance = object.(*types.ServiceInstance)
 		}
 
-		if operation.Reschedule {
+		if operation.DoPolling() {
 			if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
 				return nil, err
 			}
@@ -350,7 +358,7 @@ func (i *ServiceInstanceInterceptor) AroundTxDelete(f storage.InterceptDeleteAro
 		if instances.Len() != 0 {
 			instance := instances.ItemAt(0).(*types.ServiceInstance)
 			//When sm is async polling we have a binding (in case user expect a sync response it should be deleted)
-			if operation.Type == types.CREATE && !operation.Context.Async {
+			if operation.Type == types.CREATE && !operation.IsAsyncResponse() {
 				if err := f(ctx, deletionCriteria...); err != nil {
 					return err
 				}

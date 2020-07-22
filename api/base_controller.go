@@ -178,6 +178,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
 	}
+
 	operation := &types.Operation{
 		Base: types.Base{
 			ID:        UUID.String(),
@@ -192,23 +193,14 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		ResourceType:  c.objectType,
 		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
-		Context:       &types.OperationContext{Async: c.shouldExecuteAsync(r)},
+		Context:       c.getOperationContextByRequest(r),
 	}
 
-	if c.shouldExecuteAsync(r) {
-		log.C(ctx).Debugf("Request will be executed asynchronously")
-		if err := c.checkAsyncSupport(); err != nil {
-			return nil, err
-		}
-
-		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-			return nil, err
-		}
-
-		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
+	if operation.IsAsyncResponse() {
+		log.C(ctx).Debugf("Request will be executed asynchronously due to client request async=true")
+		return c.executeAsync(ctx, operation, action, result.GetID())
 	}
 
-	log.C(ctx).Debugf("Request will be executed synchronously")
 	createdObj, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
 	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
@@ -218,7 +210,24 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
+	if createdObj.GetLastOperation().IsAsyncResponse() {
+		log.C(ctx).Debugf("Request will be executed asynchronously due to broker async response")
+		return c.executeAsync(ctx, operation, action, result.GetID())
+	}
+
+	cleanObject(createdObj.GetLastOperation())
+
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
+}
+
+func (c *BaseController) executeAsync(ctx context.Context, operation *types.Operation, action func(ctx context.Context, repository storage.Repository) (types.Object, error), resourceID string) (*web.Response, error) {
+	if err := c.checkAsyncSupport(); err != nil {
+		return nil, err
+	}
+	if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
+		return nil, err
+	}
+	return util.NewLocationResponse(operation.GetID(), resourceID, c.resourceBaseURL)
 }
 
 // DeleteObjects handles the deletion of the objects specified in the request
@@ -282,25 +291,26 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		ResourceType:  c.objectType,
 		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
-		Context:       &types.OperationContext{Async: c.shouldExecuteAsync(r)},
+		Context:       c.getOperationContextByRequest(r),
 	}
 
-	if c.shouldExecuteAsync(r) {
-		log.C(ctx).Debugf("Request will be executed asynchronously")
-		if err := c.checkAsyncSupport(); err != nil {
-			return nil, err
-		}
-
-		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-			return nil, err
-		}
-
-		return util.NewLocationResponse(operation.GetID(), objectID, c.resourceBaseURL)
+	if operation.IsAsyncResponse() {
+		log.C(ctx).Debugf("Request will be executed asynchronously due to client request async=true")
+		return c.executeAsync(ctx, operation, action, objectID)
 	}
 
-	log.C(ctx).Debugf("Request will be executed synchronously")
 	if _, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action); err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
+	}
+
+	operation, err = getLastOperation(ctx, objectID, c.repository)
+	if err != nil {
+		return nil, err
+	}
+
+	if operation.IsAsyncResponse() {
+		log.C(ctx).Debugf("Request will be executed asynchronously due to broker async response")
+		return c.executeAsync(ctx, operation, action, objectID)
 	}
 
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -325,6 +335,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 		return nil, err
 	}
 
+	cleanObject(object.GetLastOperation())
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
@@ -486,20 +497,12 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		ResourceType:  c.objectType,
 		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
-		Context:       &types.OperationContext{Async: c.shouldExecuteAsync(r)},
+		Context:       c.getOperationContextByRequest(r),
 	}
 
-	if c.shouldExecuteAsync(r) {
-		log.C(ctx).Debugf("Request will be executed asynchronously")
-		if err := c.checkAsyncSupport(); err != nil {
-			return nil, err
-		}
-
-		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-			return nil, err
-		}
-
-		return util.NewLocationResponse(operation.GetID(), objFromDB.GetID(), c.resourceBaseURL)
+	if operation.IsAsyncResponse() {
+		log.C(ctx).Debugf("Request will be executed asynchronously due to client request async=true")
+		return c.executeAsync(ctx, operation, action, objFromDB.GetID())
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
@@ -508,16 +511,27 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	cleanObject(object)
 	if err := attachLastOperation(ctx, object.GetID(), object, c.repository); err != nil {
 		return nil, err
 	}
+
+	if object.GetLastOperation().IsAsyncResponse() {
+		log.C(ctx).Debugf("Request will be executed asynchronously due to broker async response")
+		return c.executeAsync(ctx, operation, action, object.GetID())
+	}
+
+	cleanObject(object.GetLastOperation())
+	cleanObject(object)
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
 func cleanObject(object types.Object) {
+	if object == nil{
+		return
+	}
+
 	if secured, ok := object.(types.Strip); ok {
-		secured.Sanitize()
+			secured.Sanitize()
 	}
 }
 func getResourceIds(resources types.ObjectList) []string {
@@ -576,6 +590,21 @@ func getLastOperations(ctx context.Context, resourceIDs []string, repository sto
 	return instanceLastOpsMap, nil
 }
 
+func getLastOperation(ctx context.Context, objectID string, repository storage.Repository) (*types.Operation, error) {
+	ops, err := getLastOperations(ctx, []string{objectID}, repository)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if lastOperation, ok := ops[objectID]; ok {
+		lastOperation.TransitiveResources = nil
+		return lastOperation, nil
+	}
+
+	return nil, nil
+}
+
 func attachLastOperation(ctx context.Context, objectID string, object types.Object, repository storage.Repository) error {
 	ops, err := getLastOperations(ctx, []string{objectID}, repository)
 
@@ -584,7 +613,6 @@ func attachLastOperation(ctx context.Context, objectID string, object types.Obje
 	}
 
 	if lastOperation, ok := ops[objectID]; ok {
-		cleanObject(lastOperation)
 		lastOperation.TransitiveResources = nil
 		object.SetLastOperation(lastOperation)
 	}
@@ -652,13 +680,22 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 	return targetPageSequence, nil
 }
 
-func (c *BaseController) shouldExecuteAsync(r *web.Request) bool {
+func (c *BaseController) getOperationContextByRequest(r *web.Request) *types.OperationContext {
+	operationContext := &types.OperationContext{BrokerResponse: types.BrokerResponse{}}
 	async := r.URL.Query().Get(web.QueryParamAsync)
+
 	if async == "" {
-		return c.isAsyncDefault
+		operationContext.Async = false
+		operationContext.BrokerResponse.ByBrokerResponse = true
+	} else if async == "true" {
+		operationContext.Async = true
+		operationContext.BrokerResponse.ByBrokerResponse = false
+	} else {
+		operationContext.Async = false
+		operationContext.BrokerResponse.ByBrokerResponse = false
 	}
 
-	return async == "true"
+	return operationContext
 }
 
 func (c *BaseController) checkAsyncSupport() error {

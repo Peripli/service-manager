@@ -116,6 +116,13 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			return nil, err
 		}
 
+		if operation.Reschedule {
+			if err := i.pollServiceBinding(ctx, osbClient, binding, instance, plan, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
+				return nil, err
+			}
+			return binding, nil
+		}
+
 		if isBindable := !i.isPlanBindable(service, plan); isBindable {
 			return nil, &util.HTTPError{
 				ErrorType:   "BrokerError",
@@ -147,6 +154,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 
 		var bindResponse *osbc.BindResponse
 		if !operation.Reschedule {
+			operation.Context.ServiceInstanceID = binding.ServiceInstanceID
 			bindRequest, err := i.prepareBindRequest(instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable)
 			if err != nil {
 				return nil, fmt.Errorf("failed to prepare bind request: %s", err)
@@ -156,7 +164,6 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				return nil, fmt.Errorf("failed to marshal OSB context %+v: %s", bindRequest.Context, err)
 			}
 			binding.Context = contextBytes
-			operation.Context.ServiceInstanceID = binding.ServiceInstanceID
 
 			log.C(ctx).Infof("Sending bind request %s to broker with name %s", logBindRequest(bindRequest), broker.Name)
 			bindResponse, err = osbClient.Bind(bindRequest)
@@ -176,7 +183,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 					}
 				}
 
-				if operation.Context.Async {
+				if operation.IsAsyncResponse() {
 					_, err := f(ctx, obj)
 					if err != nil {
 						return nil, err
@@ -199,6 +206,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				log.C(ctx).Infof("Successful asynchronous binding request %s to broker %s returned response %s",
 					logBindRequest(bindRequest), broker.Name, logBindResponse(bindResponse))
 				operation.Reschedule = true
+				operation.Context.BrokerResponse.Async = true
 				if operation.RescheduleTimestamp.IsZero() {
 					operation.RescheduleTimestamp = time.Now()
 				}
@@ -220,7 +228,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			binding = object.(*types.ServiceBinding)
 		}
 
-		if operation.Reschedule {
+		if operation.DoPolling() {
 			if err := i.pollServiceBinding(ctx, osbClient, binding, instance, plan, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
 				return nil, err
 			}
@@ -247,7 +255,7 @@ func (i *ServiceBindingInterceptor) AroundTxDelete(f storage.InterceptDeleteArou
 
 		if bindings.Len() != 0 {
 			binding := bindings.ItemAt(0).(*types.ServiceBinding)
-			if operation.Type == types.CREATE && !operation.Context.Async {
+			if operation.Type == types.CREATE && !operation.IsAsyncResponse() {
 				if err := f(ctx, deletionCriteria...); err != nil {
 					return err
 				}
@@ -277,7 +285,7 @@ func (i *ServiceBindingInterceptor) AroundTxDelete(f storage.InterceptDeleteArou
 
 func shouldRemoveResource(operation *types.Operation) bool {
 	if operation.State == types.FAILED {
-		if operation.Type == types.CREATE && operation.Context.Async {
+		if operation.Type == types.CREATE && operation.IsAsyncResponse() {
 			return false
 		}
 

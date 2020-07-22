@@ -92,6 +92,12 @@ type OperationContext struct {
 	Async             bool   `json:"async"`
 	ServicePlanID     string `json:"service_plan_id"`
 	ServiceInstanceID string `json:"service_instance_id"`
+	BrokerResponse    BrokerResponse
+}
+
+type BrokerResponse struct {
+	ByBrokerResponse bool `json:"by_broker_response,omitempty"`
+	Async            bool `json:"broker_response,omitempty"`
 }
 
 func (e *Operation) Equals(obj Object) bool {
@@ -116,6 +122,22 @@ func (e *Operation) Equals(obj Object) bool {
 	}
 
 	return true
+}
+
+func (o *Operation) IsAsyncResponse() bool {
+
+	if o.Context.BrokerResponse.ByBrokerResponse {
+		return o.Context.BrokerResponse.Async
+	}
+
+	return o.Context.Async
+}
+
+func (o *Operation) DoPolling() bool {
+	if !o.Context.BrokerResponse.ByBrokerResponse && o.Reschedule {
+		return true
+	}
+	return false
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
