@@ -78,10 +78,12 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 		if err != nil {
 			return fmt.Errorf("could not parse PostgreSQL URI: %s", err)
 		}
+
 		parsedQuery, err := url.ParseQuery(parsedUrl.RawQuery)
 		if err != nil {
 			return fmt.Errorf("could not parse PostgreSQL URL query: %s", err)
 		}
+
 		parsedQuery.Add("read_timeout", strconv.Itoa(settings.ReadTimeout))
 		parsedQuery.Add("write_timeout", strconv.Itoa(settings.WriteTimeout))
 		if settings.SkipSSLValidation {
