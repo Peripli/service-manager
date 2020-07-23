@@ -1,0 +1,1 @@
+ALTER TABLE broker_platform_credentials ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT false;

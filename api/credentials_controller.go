@@ -153,8 +153,13 @@ func (c *credentialsController) registerCredentials(ctx context.Context, credent
 func (c *credentialsController) updateCredentials(ctx context.Context, body, credentialsFromDB *types.BrokerPlatformCredential) (*web.Response, error) {
 	log.C(ctx).Debugf("Updating broker platform credentials")
 
-	credentialsFromDB.OldUsername = credentialsFromDB.Username
-	credentialsFromDB.OldPasswordHash = credentialsFromDB.PasswordHash
+	if credentialsFromDB.IsActive || len(credentialsFromDB.OldUsername) == 0 || len(credentialsFromDB.OldPasswordHash) == 0 {
+		log.C(ctx).Debug("Updating old username and old password")
+		credentialsFromDB.OldUsername = credentialsFromDB.Username
+		credentialsFromDB.OldPasswordHash = credentialsFromDB.PasswordHash
+	} else {
+		log.C(ctx).Info("Current credentials were not active, will not be saved to old username and old password")
+	}
 
 	credentialsFromDB.Username = body.Username
 	credentialsFromDB.PasswordHash = body.PasswordHash
