@@ -197,6 +197,9 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	}
 
 	if operation.IsAsyncResponse() {
+		if err := c.checkAsyncSupport(); err != nil {
+			return nil, err
+		}
 		log.C(ctx).Debugf("Request will be executed asynchronously due to client request async=true")
 		return c.executeAsync(ctx, operation, action, result.GetID())
 	}
@@ -211,6 +214,9 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	}
 
 	if createdObj.GetLastOperation().IsAsyncResponse() {
+		if err := c.checkAsyncSupport(); err != nil {
+			return nil, err
+		}
 		log.C(ctx).Debugf("Request will be executed asynchronously due to broker async response")
 		return c.executeAsync(ctx, operation, action, result.GetID())
 	}
@@ -296,6 +302,9 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 
 	if operation.IsAsyncResponse() {
 		log.C(ctx).Debugf("Request will be executed asynchronously due to client request async=true")
+		if err := c.checkAsyncSupport(); err != nil {
+			return nil, err
+		}
 		return c.executeAsync(ctx, operation, action, objectID)
 	}
 
@@ -309,6 +318,9 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 	}
 
 	if operation.IsAsyncResponse() {
+		if err := c.checkAsyncSupport(); err != nil {
+			return nil, err
+		}
 		log.C(ctx).Debugf("Request will be executed asynchronously due to broker async response")
 		return c.executeAsync(ctx, operation, action, objectID)
 	}
@@ -501,6 +513,9 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	}
 
 	if operation.IsAsyncResponse() {
+		if err := c.checkAsyncSupport(); err != nil {
+			return nil, err
+		}
 		log.C(ctx).Debugf("Request will be executed asynchronously due to client request async=true")
 		return c.executeAsync(ctx, operation, action, objFromDB.GetID())
 	}
@@ -516,6 +531,9 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	}
 
 	if object.GetLastOperation().IsAsyncResponse() {
+		if err := c.checkAsyncSupport(); err != nil {
+			return nil, err
+		}
 		log.C(ctx).Debugf("Request will be executed asynchronously due to broker async response")
 		return c.executeAsync(ctx, operation, action, object.GetID())
 	}
@@ -526,12 +544,8 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 }
 
 func cleanObject(object types.Object) {
-	if object == nil{
-		return
-	}
-
 	if secured, ok := object.(types.Strip); ok {
-			secured.Sanitize()
+		secured.Sanitize()
 	}
 }
 func getResourceIds(resources types.ObjectList) []string {
