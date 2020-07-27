@@ -33,10 +33,16 @@ jobs:
         - goveralls -coverprofile profile-int-osb-and-plugin.cov -service=travis-ci
         - kill %1
     - stage: "Tests"
-      name: "Service Instance and Service Bindings Integration Tests"
+      name: "Service Bindings Integration Tests"
       script:
-        - make precommit-integration-tests-service-instance-and-binding
-        - goveralls -coverprofile profile-int-service-instance-and-bindings.cov -service=travis-ci
+        - make precommit-integration-tests-binding
+        - goveralls -coverprofile profile-int-service-binding.cov -service=travis-ci
+        - kill %1
+    - stage: "Tests"
+      name: "Service Instance Integration Tests"
+      script:
+        - make precommit-integration-tests-service-instance
+        - goveralls -coverprofile profile-int-service-instance.cov -service=travis-ci
         - kill %1
     - stage: "Tests"
       name: "Unit Tests"
