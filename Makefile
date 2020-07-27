@@ -25,9 +25,9 @@ ARCH     			?= amd64
 INT_TEST_PROFILE 	?= $(CURDIR)/profile-int.cov
 UNIT_TEST_PROFILE 	?= $(CURDIR)/profile-unit.cov
 INT_BROKER_TEST_PROFILE ?= $(CURDIR)/profile-int-broker.cov
-INT_OSB_AND_PLUGIN_TEST_PROFILE ?= $(CURDIR)/profile-int-osb-and-plugin.cov
 INT_SERVICE_INSTANCE_PROFILE ?= $(CURDIR)/profile-int-service-instance.cov
-INT_SERVICE_BINDINGS_PROFILE ?= $(CURDIR)/profile-int-service-binding.cov
+INT_OSB_AND_PLUGIN_TEST_PROFILE ?= $(CURDIR)/profile-int-osb-and-plugin.cov
+INT_BINDING_PROFILE ?= $(CURDIR)/profile-int-binding.cov
 INT_OTHER_TEST_PROFILE ?= $(CURDIR)/profile-int-other.cov
 TEST_PROFILE 		?= $(CURDIR)/profile.cov
 COVERAGE 			?= $(CURDIR)/coverage.html
@@ -62,7 +62,7 @@ GO_INT_TEST_OSB_AND_PLUGIN = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shel
 				./test/osb_and_plugin_test/... $(TEST_FLAGS) -coverprofile=$(INT_OSB_AND_PLUGIN_TEST_PROFILE)
 
 GO_INT_TEST_BINDING = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
-				./test/service_instance_and_binding_test/service_binding_test... $(TEST_FLAGS) -coverprofile=$(INT_SERVICE_BINDINGS_PROFILE)
+				./test/service_instance_and_binding_test/service_binding_test... $(TEST_FLAGS) -coverprofile=$(INT_BINDING_PROFILE)
 
 GO_INT_TEST_SERVICE_INSTANCE= $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
 				./test/service_instance_and_binding_test/service_instance_test... $(TEST_FLAGS) -coverprofile=$(INT_SERVICE_INSTANCE_PROFILE)
@@ -188,11 +188,11 @@ test-int-osb-and-plugin: generate ## Runs the osb and plugin integration tests. 
 	@echo Running integration tests:
 	$(GO_INT_TEST_OSB_AND_PLUGIN)
 
-test-int-service-instance: generate ## Runs the service-instance and service-binding integration tests. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
+test-int-service-instance: generate ## Runs the service-instance integration tests. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
 	@echo Running service instance integration tests:
 	$(GO_INT_TEST_SERVICE_INSTANCE)
 
-test-int-binding: generate ## Runs the service-instance and service-binding integration tests. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
+test-int-binding: generate ## Runs the service-binding integration tests. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
 	@echo Running service binding integration tests:
 	$(GO_INT_TEST_BINDING)
 
