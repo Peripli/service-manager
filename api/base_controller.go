@@ -196,7 +196,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		Context:       c.prepareOperationContextByRequest(r),
 	}
 
-	if operation.IsAsyncResponse() {
+	if operation.Context.Async {
 		log.C(ctx).Debugf("Request will be executed asynchronously due to client request async=true")
 		return c.executeAsync(ctx, operation, action, result.GetID())
 	}
@@ -490,7 +490,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		Context:       c.prepareOperationContextByRequest(r),
 	}
 
-	if operation.IsAsyncResponse() {
+	if operation.Context.Async {
 		log.C(ctx).Debugf("Request will be executed asynchronously due to client request async=true")
 		return c.executeAsync(ctx, operation, action, objFromDB.GetID())
 	}
