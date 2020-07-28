@@ -779,4 +779,36 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 			})
 		})
 	})
+
+	Context("pollInstance operation is handled by external plugin", func() {
+		BeforeEach(func() {
+			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+
+			verifyOperationExists(operationExpectations{
+				Type:         types.CREATE,
+				State:        types.SUCCEEDED,
+				ResourceID:   SID,
+				ResourceType: "/v1/service_instances",
+				ExternalID:   "",
+			})
+			shouldSaveOperationInContext = true
+		})
+
+		It("osb store plugin should return the response from the external plugin without updating DB", func() {
+			ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				Expect().Status(http.StatusOK).Body().Equal(string(fakeStateResponseBody))
+			//verify state is not changed
+			verifyOperationExists(operationExpectations{
+				Type:         types.CREATE,
+				State:        types.SUCCEEDED,
+				ResourceID:   SID,
+				ResourceType: "/v1/service_instances",
+				ExternalID:   "",
+			})
+		})
+	})
 })
