@@ -49,6 +49,13 @@ func (c *credentialsController) Routes() []web.Route {
 			},
 			Handler: c.setCredentials,
 		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodPut,
+				Path:   fmt.Sprintf("%s/{%s}/activate", web.BrokerPlatformCredentialsURL, web.PathParamResourceID),
+			},
+			Handler: c.activateCredentials,
+		},
 	}
 }
 func (c *credentialsController) setCredentials(r *web.Request) (*web.Response, error) {
@@ -163,12 +170,33 @@ func (c *credentialsController) updateCredentials(ctx context.Context, body, cre
 
 	credentialsFromDB.Username = body.Username
 	credentialsFromDB.PasswordHash = body.PasswordHash
+	credentialsFromDB.IsActive = false
 
 	object, err := c.repository.Update(ctx, credentialsFromDB, types.LabelChanges{})
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
 	}
 	log.C(ctx).Infof("Successfully rotated credentials for platform %s and broker %s", credentialsFromDB.PlatformID, credentialsFromDB.BrokerID)
+
+	return util.NewJSONResponse(http.StatusOK, object)
+}
+
+func (c *credentialsController) activateCredentials(r *web.Request) (*web.Response, error) {
+	ctx := r.Context()
+
+	criteria := query.ByField(query.EqualsOperator, "id", r.PathParams[web.PathParamResourceID])
+	objFromDB, err := c.repository.Get(ctx, types.BrokerPlatformCredentialType, criteria)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
+	}
+
+	credentialsFromDB := objFromDB.(*types.BrokerPlatformCredential)
+	credentialsFromDB.IsActive = true
+	object, err := c.repository.Update(ctx, credentialsFromDB, types.LabelChanges{})
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
+	}
+	log.C(ctx).Infof("Successfully activated credentials for platform %s and broker %s", credentialsFromDB.PlatformID, credentialsFromDB.BrokerID)
 
 	return util.NewJSONResponse(http.StatusOK, object)
 }

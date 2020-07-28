@@ -120,14 +120,13 @@ func BasicOSBAuthenticator(request *web.Request, repository storage.Repository, 
 		return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
 	}
 
-	if !useOldCredentials && (!credentials.IsActive || credentials.OldUsername != "" || credentials.OldPasswordHash != "") {
-		log.C(ctx).Debugf("Using current credentials, updating is_active to true and deleting old platform credentials if exist")
-		credentials.IsActive = true
+	if !useOldCredentials && credentials.OldUsername != "" && credentials.OldPasswordHash != "" {
+		log.C(ctx).Debugf("Found old broker platform credentials - proceeding with deleting them")
 		credentials.OldUsername = ""
 		credentials.OldPasswordHash = ""
 
 		if _, err := repository.Update(ctx, credentials, types.LabelChanges{}); err != nil {
-			return nil, httpsec.Abstain, fmt.Errorf("could not update broker platform credentials in storage: %s", err)
+			return nil, httpsec.Abstain, fmt.Errorf("could not delete old broker platform credentials from storage: %s", err)
 		}
 	}
 
