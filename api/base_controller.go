@@ -193,13 +193,10 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		ResourceType:  c.objectType,
 		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
-		Context:       c.getOperationContextByRequest(r),
+		Context:       c.prepareOperationContextByRequest(r),
 	}
 
 	if operation.IsAsyncResponse() {
-		if err := c.checkAsyncSupport(); err != nil {
-			return nil, err
-		}
 		log.C(ctx).Debugf("Request will be executed asynchronously due to client request async=true")
 		return c.executeAsync(ctx, operation, action, result.GetID())
 	}
@@ -214,15 +211,11 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	}
 
 	if createdObj.GetLastOperation().IsAsyncResponse() {
-		if err := c.checkAsyncSupport(); err != nil {
-			return nil, err
-		}
 		log.C(ctx).Debugf("Request will be executed asynchronously due to broker async response")
 		return c.executeAsync(ctx, operation, action, result.GetID())
 	}
 
 	cleanObject(createdObj.GetLastOperation())
-
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
 }
 
@@ -297,32 +290,17 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		ResourceType:  c.objectType,
 		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
-		Context:       c.getOperationContextByRequest(r),
+		Context:       c.prepareOperationContextByRequest(r),
 	}
 
-	if operation.IsAsyncResponse() {
+	if operation.Context.Async {
 		log.C(ctx).Debugf("Request will be executed asynchronously due to client request async=true")
-		if err := c.checkAsyncSupport(); err != nil {
-			return nil, err
-		}
 		return c.executeAsync(ctx, operation, action, objectID)
 	}
 
+	log.C(ctx).Debugf("Request will be executed synchronously")
 	if _, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action); err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
-	}
-
-	operation, err = getLastOperation(ctx, objectID, c.repository)
-	if err != nil {
-		return nil, err
-	}
-
-	if operation.IsAsyncResponse() {
-		if err := c.checkAsyncSupport(); err != nil {
-			return nil, err
-		}
-		log.C(ctx).Debugf("Request will be executed asynchronously due to broker async response")
-		return c.executeAsync(ctx, operation, action, objectID)
 	}
 
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -509,13 +487,10 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		ResourceType:  c.objectType,
 		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
-		Context:       c.getOperationContextByRequest(r),
+		Context:       c.prepareOperationContextByRequest(r),
 	}
 
 	if operation.IsAsyncResponse() {
-		if err := c.checkAsyncSupport(); err != nil {
-			return nil, err
-		}
 		log.C(ctx).Debugf("Request will be executed asynchronously due to client request async=true")
 		return c.executeAsync(ctx, operation, action, objFromDB.GetID())
 	}
@@ -531,9 +506,6 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	}
 
 	if object.GetLastOperation().IsAsyncResponse() {
-		if err := c.checkAsyncSupport(); err != nil {
-			return nil, err
-		}
 		log.C(ctx).Debugf("Request will be executed asynchronously due to broker async response")
 		return c.executeAsync(ctx, operation, action, object.GetID())
 	}
@@ -602,21 +574,6 @@ func getLastOperations(ctx context.Context, resourceIDs []string, repository sto
 	}
 
 	return instanceLastOpsMap, nil
-}
-
-func getLastOperation(ctx context.Context, objectID string, repository storage.Repository) (*types.Operation, error) {
-	ops, err := getLastOperations(ctx, []string{objectID}, repository)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if lastOperation, ok := ops[objectID]; ok {
-		lastOperation.TransitiveResources = nil
-		return lastOperation, nil
-	}
-
-	return nil, nil
 }
 
 func attachLastOperation(ctx context.Context, objectID string, object types.Object, repository storage.Repository) error {
@@ -694,7 +651,7 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 	return targetPageSequence, nil
 }
 
-func (c *BaseController) getOperationContextByRequest(r *web.Request) *types.OperationContext {
+func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types.OperationContext {
 	operationContext := &types.OperationContext{BrokerResponse: types.BrokerResponse{}}
 	async := r.URL.Query().Get(web.QueryParamAsync)
 

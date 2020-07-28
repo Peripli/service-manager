@@ -116,13 +116,6 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			return nil, err
 		}
 
-		if operation.Reschedule {
-			if err := i.pollServiceBinding(ctx, osbClient, binding, instance, plan, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
-				return nil, err
-			}
-			return binding, nil
-		}
-
 		if isBindable := !i.isPlanBindable(service, plan); isBindable {
 			return nil, &util.HTTPError{
 				ErrorType:   "BrokerError",
@@ -150,6 +143,13 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				Description: fmt.Sprintf("instance %s is in state of delteion", instance.Name),
 				StatusCode:  http.StatusUnprocessableEntity,
 			}
+		}
+
+		if operation.Reschedule {
+			if err := i.pollServiceBinding(ctx, osbClient, binding, instance, plan, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
+				return nil, err
+			}
+			return binding, nil
 		}
 
 		var bindResponse *osbc.BindResponse
@@ -228,7 +228,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			binding = object.(*types.ServiceBinding)
 		}
 
-		if operation.DoPolling() {
+		if shouldStartPolling(operation) {
 			if err := i.pollServiceBinding(ctx, osbClient, binding, instance, plan, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
 				return nil, err
 			}

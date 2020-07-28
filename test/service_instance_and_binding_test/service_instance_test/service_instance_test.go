@@ -2277,7 +2277,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									It("polling broker last operation until operation succeeds and eventually marks operation as success", func() {
-										resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.expectedUpdateSuccessStatusCode)
+										resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.responseByBrokerOrClientMode(testCase.expectedUpdateSuccessStatusCode, http.StatusAccepted))
 
 										instanceID, _ = VerifyOperationExists(testCtx, resp.Header("Location").Raw(), OperationExpectations{
 											Category:          types.UPDATE,
@@ -2391,7 +2391,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										It("keeps polling and eventually updates the instance to ready true and operation to success", func() {
-											resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.expectedUpdateSuccessStatusCode)
+											resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.responseByBrokerOrClientMode(testCase.expectedUpdateSuccessStatusCode, http.StatusAccepted))
 
 											instanceID, _ = VerifyOperationExists(testCtx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.UPDATE,
@@ -2400,6 +2400,7 @@ var _ = DescribeTestsFor(TestCase{
 												Reschedulable:     false,
 												DeletionScheduled: false,
 											})
+
 											VerifyResourceExists(testCtx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:    instanceID,
 												Type:  types.ServiceInstanceType,
@@ -2415,7 +2416,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										It("keeps the instance and marks the operation as failed with no deletion scheduled and not reschedulable", func() {
-											resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.expectedBrokerFailureStatusCode)
+											resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 											instanceID, _ = VerifyOperationExists(testCtx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.UPDATE,
@@ -2439,7 +2440,7 @@ var _ = DescribeTestsFor(TestCase{
 											})
 
 											It("stores the instance as ready true and marks the operation as reschedulable", func() {
-												resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.expectedBrokerFailureStatusCode)
+												resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 												instanceID, _ = VerifyOperationExists(testCtx, resp.Header("Location").Raw(), OperationExpectations{
 													Category:          types.UPDATE,

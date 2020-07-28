@@ -211,7 +211,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			instance = object.(*types.ServiceInstance)
 		}
 
-		if operation.DoPolling() {
+		if shouldStartPolling(operation) {
 			if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
 				return nil, err
 			}
@@ -220,6 +220,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		return instance, nil
 	}
 }
+
 func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 	return func(ctx context.Context, updatedObj types.Object, labelChanges ...*types.LabelChange) (object types.Object, err error) {
 		updatedInstance := updatedObj.(*types.ServiceInstance)
@@ -235,6 +236,18 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, updatedInstance)
 		if err != nil {
 			return nil, err
+		}
+
+		if operation.Reschedule {
+			if err := i.pollServiceInstance(ctx, osbClient, updatedInstance, plan, operation, service.CatalogID, plan.CatalogID, false); err != nil {
+				updatedInstance.UpdateValues = types.InstanceUpdateValues{}
+				_, updateErr := i.repository.RawRepository.Update(ctx, updatedInstance, types.LabelChanges{})
+				if updateErr != nil {
+					return nil, updateErr
+				}
+				return nil, err
+			}
+			return updatedInstance, nil
 		}
 
 		var instance *types.ServiceInstance
@@ -303,6 +316,7 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 				log.C(ctx).Infof("Successful asynchronous update instance request %s to broker %s returned response %s",
 					logUpdateInstanceRequest(updateInstanceRequest), broker.Name, logUpdateInstanceResponse(updateInstanceResponse))
 				operation.Reschedule = true
+				operation.Context.BrokerResponse.Async = true
 				if operation.RescheduleTimestamp.IsZero() {
 					operation.RescheduleTimestamp = time.Now()
 				}
@@ -321,7 +335,7 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			instance = updatedInstance
 		}
 
-		if operation.Reschedule {
+		if shouldStartPolling(operation) {
 			if err := i.pollServiceInstance(ctx, osbClient, updatedInstance, plan, operation, service.CatalogID, plan.CatalogID, false); err != nil {
 				instance.UpdateValues = types.InstanceUpdateValues{}
 				_, updateErr := i.repository.RawRepository.Update(ctx, instance, types.LabelChanges{})
@@ -588,6 +602,10 @@ func isUnreachableBroker(err error) bool {
 		return false
 	}
 	return (httpError.StatusCode == http.StatusServiceUnavailable || httpError.StatusCode == http.StatusNotFound)
+}
+
+func shouldStartPolling(operation *types.Operation) bool {
+	return !operation.Context.BrokerResponse.ByBrokerResponse && operation.Reschedule
 }
 
 func (i *ServiceInstanceInterceptor) processMaxPollingDurationElapsed(ctx context.Context, instance *types.ServiceInstance, plan *types.ServicePlan, operation *types.Operation, enableOrphanMitigation bool) error {

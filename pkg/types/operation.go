@@ -124,22 +124,6 @@ func (e *Operation) Equals(obj Object) bool {
 	return true
 }
 
-func (e *Operation) IsAsyncResponse() bool {
-
-	if e.Context.BrokerResponse.ByBrokerResponse {
-		return e.Context.BrokerResponse.Async
-	}
-
-	return e.Context.Async
-}
-
-func (e *Operation) DoPolling() bool {
-	if !e.Context.BrokerResponse.ByBrokerResponse && e.Reschedule {
-		return true
-	}
-	return false
-}
-
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (e *Operation) Validate() error {
 	if util.HasRFC3986ReservedSymbols(e.ID) {
