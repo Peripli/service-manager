@@ -89,15 +89,15 @@ type Operation struct {
 }
 
 type OperationContext struct {
-	Async             bool   `json:"async"`
-	ServicePlanID     string `json:"service_plan_id"`
-	ServiceInstanceID string `json:"service_instance_id"`
-	BrokerResponse    BrokerResponse
+	Async                  bool   `json:"async"`
+	IsAsyncDefinedByClient bool   `json:"by_broker_response,omitempty"`
+	ServicePlanID          string `json:"service_plan_id"`
+	ServiceInstanceID      string `json:"service_instance_id"`
+	BrokerResponse         BrokerResponse
 }
 
 type BrokerResponse struct {
-	ByBrokerResponse bool `json:"by_broker_response,omitempty"`
-	Async            bool `json:"broker_response,omitempty"`
+	Async bool `json:"broker_response,omitempty"`
 }
 
 func (e *Operation) Equals(obj Object) bool {

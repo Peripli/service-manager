@@ -2,7 +2,7 @@ package types
 
 func (e *Operation) IsAsyncResponse() bool {
 
-	if e.Context.BrokerResponse.ByBrokerResponse {
+	if e.Context.IsAsyncDefinedByClient {
 		return e.Context.BrokerResponse.Async
 	}
 

@@ -605,7 +605,7 @@ func isUnreachableBroker(err error) bool {
 }
 
 func shouldStartPolling(operation *types.Operation) bool {
-	return !operation.Context.BrokerResponse.ByBrokerResponse && operation.Reschedule
+	return !operation.Context.IsAsyncDefinedByClient && operation.Reschedule
 }
 
 func (i *ServiceInstanceInterceptor) processMaxPollingDurationElapsed(ctx context.Context, instance *types.ServiceInstance, plan *types.ServicePlan, operation *types.Operation, enableOrphanMitigation bool) error {
