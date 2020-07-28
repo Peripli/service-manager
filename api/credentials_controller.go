@@ -160,7 +160,7 @@ func (c *credentialsController) registerCredentials(ctx context.Context, credent
 func (c *credentialsController) updateCredentials(ctx context.Context, body, credentialsFromDB *types.BrokerPlatformCredential) (*web.Response, error) {
 	log.C(ctx).Debugf("Updating broker platform credentials")
 
-	if credentialsFromDB.IsActive || len(credentialsFromDB.OldUsername) == 0 || len(credentialsFromDB.OldPasswordHash) == 0 {
+	if credentialsFromDB.Active || len(credentialsFromDB.OldUsername) == 0 || len(credentialsFromDB.OldPasswordHash) == 0 {
 		log.C(ctx).Debug("Updating old username and old password")
 		credentialsFromDB.OldUsername = credentialsFromDB.Username
 		credentialsFromDB.OldPasswordHash = credentialsFromDB.PasswordHash
@@ -170,7 +170,7 @@ func (c *credentialsController) updateCredentials(ctx context.Context, body, cre
 
 	credentialsFromDB.Username = body.Username
 	credentialsFromDB.PasswordHash = body.PasswordHash
-	credentialsFromDB.IsActive = false
+	credentialsFromDB.Active = false
 
 	object, err := c.repository.Update(ctx, credentialsFromDB, types.LabelChanges{})
 	if err != nil {
@@ -191,7 +191,7 @@ func (c *credentialsController) activateCredentials(r *web.Request) (*web.Respon
 	}
 
 	credentialsFromDB := objFromDB.(*types.BrokerPlatformCredential)
-	credentialsFromDB.IsActive = true
+	credentialsFromDB.Active = true
 	object, err := c.repository.Update(ctx, credentialsFromDB, types.LabelChanges{})
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())

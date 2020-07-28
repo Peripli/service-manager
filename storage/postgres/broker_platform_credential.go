@@ -37,6 +37,8 @@ type BrokerPlatformCredential struct {
 	BrokerID   string `db:"broker_id"`
 
 	Integrity []byte `db:"integrity"`
+
+	Active bool `json:"active"`
 }
 
 func (bpc *BrokerPlatformCredential) ToObject() (types.Object, error) {
