@@ -36,12 +36,12 @@ jobs:
       name: "Service Bindings Integration Tests"
       script:
         - make precommit-integration-tests-binding
-        - goveralls -coverprofile profile-int-binding.cov -service=travis-ci
+        - goveralls -coverprofile profile-int-service-binding.cov -service=travis-ci
         - kill %1
     - stage: "Tests"
       name: "Service Instance Integration Tests"
       script:
-        - travis_wait 20 make precommit-integration-tests-service-instance
+        - make precommit-integration-tests-service-instance
         - goveralls -coverprofile profile-int-service-instance.cov -service=travis-ci
         - kill %1
     - stage: "Tests"
