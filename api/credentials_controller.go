@@ -184,15 +184,15 @@ func (c *credentialsController) updateCredentials(ctx context.Context, body, cre
 func (c *credentialsController) activateCredentials(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 
-	criteria := query.ByField(query.EqualsOperator, "id", r.PathParams[web.PathParamResourceID])
-	objFromDB, err := c.repository.Get(ctx, types.BrokerPlatformCredentialType, criteria)
+	byID := query.ByField(query.EqualsOperator, "id", r.PathParams[web.PathParamResourceID])
+	objFromDB, err := c.repository.Get(ctx, types.BrokerPlatformCredentialType, byID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
 	}
 
 	credentialsFromDB := objFromDB.(*types.BrokerPlatformCredential)
 	credentialsFromDB.Active = true
-	object, err := c.repository.Update(ctx, credentialsFromDB, types.LabelChanges{})
+	object, err := c.repository.Update(ctx, credentialsFromDB, nil, byID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
 	}
