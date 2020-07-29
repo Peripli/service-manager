@@ -197,7 +197,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	}
 
 	var createdObj types.Object
-	if operation.Context.IsAsyncDefinedByClient {
+	if operation.Context.IsAsyncNotDefined {
 		log.C(ctx).Debugf("Request will be executed by broker response")
 		createdObj, err = c.scheduler.ScheduleStorageAction(ctx, operation, action)
 		if err != nil {
@@ -497,7 +497,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	}
 
 	var object types.Object
-	if operation.Context.IsAsyncDefinedByClient {
+	if operation.Context.IsAsyncNotDefined {
 		log.C(ctx).Debugf("Request will be executed by broker response")
 		object, err = c.scheduler.ScheduleStorageAction(ctx, operation, action)
 		if err != nil {
@@ -663,18 +663,18 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 }
 
 func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types.OperationContext {
-	operationContext := &types.OperationContext{BrokerResponse: types.BrokerResponse{}}
+	operationContext := &types.OperationContext{}
 	async := r.URL.Query().Get(web.QueryParamAsync)
 
 	if async == "" {
 		operationContext.Async = false
-		operationContext.IsAsyncDefinedByClient = true
+		operationContext.IsAsyncNotDefined = true
 	} else if async == "false" {
 		operationContext.Async = false
-		operationContext.IsAsyncDefinedByClient = false
+		operationContext.IsAsyncNotDefined = false
 	} else {
 		operationContext.Async = true
-		operationContext.IsAsyncDefinedByClient = false
+		operationContext.IsAsyncNotDefined = false
 	}
 
 	return operationContext

@@ -75,7 +75,7 @@ func (s *Scheduler) ScheduleStorageAction(ctx context.Context, operation *types.
 		return nil, err
 	}
 
-	if lastOperation.Context.BrokerResponse.Async {
+	if lastOperation.Reschedule {
 		if err := s.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
 			return nil, err
 		}

@@ -206,7 +206,9 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				log.C(ctx).Infof("Successful asynchronous binding request %s to broker %s returned response %s",
 					logBindRequest(bindRequest), broker.Name, logBindResponse(bindResponse))
 				operation.Reschedule = true
-				operation.Context.BrokerResponse.Async = true
+				if operation.Context.IsAsyncNotDefined {
+					operation.Context.Async = true
+				}
 				if operation.RescheduleTimestamp.IsZero() {
 					operation.RescheduleTimestamp = time.Now()
 				}

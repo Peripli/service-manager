@@ -188,7 +188,9 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 				log.C(ctx).Infof("Successful asynchronous provisioning request %s to broker %s returned response %s",
 					logProvisionRequest(provisionRequest), broker.Name, logProvisionResponse(provisionResponse))
 				operation.Reschedule = true
-				operation.Context.BrokerResponse.Async = true
+				if operation.Context.IsAsyncNotDefined {
+					operation.Context.Async = true
+				}
 				if operation.RescheduleTimestamp.IsZero() {
 					operation.RescheduleTimestamp = time.Now()
 				}
@@ -316,7 +318,9 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 				log.C(ctx).Infof("Successful asynchronous update instance request %s to broker %s returned response %s",
 					logUpdateInstanceRequest(updateInstanceRequest), broker.Name, logUpdateInstanceResponse(updateInstanceResponse))
 				operation.Reschedule = true
-				operation.Context.BrokerResponse.Async = true
+				if operation.Context.IsAsyncNotDefined {
+					operation.Context.Async = true
+				}
 				if operation.RescheduleTimestamp.IsZero() {
 					operation.RescheduleTimestamp = time.Now()
 				}
@@ -605,7 +609,7 @@ func isUnreachableBroker(err error) bool {
 }
 
 func shouldStartPolling(operation *types.Operation) bool {
-	return !operation.Context.IsAsyncDefinedByClient && operation.Reschedule
+	return !operation.Context.IsAsyncNotDefined && operation.Reschedule
 }
 
 func (i *ServiceInstanceInterceptor) processMaxPollingDurationElapsed(ctx context.Context, instance *types.ServiceInstance, plan *types.ServicePlan, operation *types.Operation, enableOrphanMitigation bool) error {
