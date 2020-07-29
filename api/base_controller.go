@@ -178,6 +178,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
 	}
+
 	operation := &types.Operation{
 		Base: types.Base{
 			ID:        UUID.String(),
@@ -192,33 +193,46 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		ResourceType:  c.objectType,
 		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
-		Context:       &types.OperationContext{Async: c.shouldExecuteAsync(r)},
+		Context:       c.prepareOperationContextByRequest(r),
 	}
 
-	if c.shouldExecuteAsync(r) {
+	var createdObj types.Object
+	if operation.Context.IsAsyncNotDefined {
+		log.C(ctx).Debugf("Request will be executed by broker response")
+		createdObj, err = c.scheduler.ScheduleStorageAction(ctx, operation, action)
+		if err != nil {
+			return nil, err
+		}
+		if createdObj == nil {
+			return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
+		}
+	} else if operation.Context.Async {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
-		if err := c.checkAsyncSupport(); err != nil {
-			return nil, err
+		return c.executeAsync(ctx, operation, action, result.GetID())
+	} else {
+		log.C(ctx).Debugf("Request will be executed synchronously")
+		createdObj, err = c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
+		if err != nil {
+			return nil, util.HandleStorageError(err, c.objectType.String())
 		}
-
-		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-			return nil, err
-		}
-
-		return util.NewLocationResponse(operation.GetID(), result.GetID(), c.resourceBaseURL)
-	}
-
-	log.C(ctx).Debugf("Request will be executed synchronously")
-	createdObj, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
-	if err != nil {
-		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
 	if err := attachLastOperation(ctx, createdObj.GetID(), createdObj, c.repository); err != nil {
 		return nil, err
 	}
 
+	cleanObject(createdObj.GetLastOperation())
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
+}
+
+func (c *BaseController) executeAsync(ctx context.Context, operation *types.Operation, action func(ctx context.Context, repository storage.Repository) (types.Object, error), resourceID string) (*web.Response, error) {
+	if err := c.checkAsyncSupport(); err != nil {
+		return nil, err
+	}
+	if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
+		return nil, err
+	}
+	return util.NewLocationResponse(operation.GetID(), resourceID, c.resourceBaseURL)
 }
 
 // DeleteObjects handles the deletion of the objects specified in the request
@@ -282,20 +296,12 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		ResourceType:  c.objectType,
 		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
-		Context:       &types.OperationContext{Async: c.shouldExecuteAsync(r)},
+		Context:       c.prepareOperationContextByRequest(r),
 	}
 
-	if c.shouldExecuteAsync(r) {
-		log.C(ctx).Debugf("Request will be executed asynchronously")
-		if err := c.checkAsyncSupport(); err != nil {
-			return nil, err
-		}
-
-		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-			return nil, err
-		}
-
-		return util.NewLocationResponse(operation.GetID(), objectID, c.resourceBaseURL)
+	if operation.Context.Async {
+		log.C(ctx).Debugf("Request will be executed asynchronously due to client request async=true")
+		return c.executeAsync(ctx, operation, action, objectID)
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
@@ -325,6 +331,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 		return nil, err
 	}
 
+	cleanObject(object.GetLastOperation())
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
@@ -486,32 +493,36 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		ResourceType:  c.objectType,
 		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
-		Context:       &types.OperationContext{Async: c.shouldExecuteAsync(r)},
+		Context:       c.prepareOperationContextByRequest(r),
 	}
 
-	if c.shouldExecuteAsync(r) {
+	var object types.Object
+	if operation.Context.IsAsyncNotDefined {
+		log.C(ctx).Debugf("Request will be executed by broker response")
+		object, err = c.scheduler.ScheduleStorageAction(ctx, operation, action)
+		if err != nil {
+			return nil, err
+		}
+		if object == nil {
+			return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
+		}
+	} else if operation.Context.Async {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
-		if err := c.checkAsyncSupport(); err != nil {
-			return nil, err
+		return c.executeAsync(ctx, operation, action, objFromDB.GetID())
+	} else {
+		log.C(ctx).Debugf("Request will be executed synchronously")
+		object, err = c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
+		if err != nil {
+			return nil, util.HandleStorageError(err, c.objectType.String())
 		}
-
-		if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-			return nil, err
-		}
-
-		return util.NewLocationResponse(operation.GetID(), objFromDB.GetID(), c.resourceBaseURL)
 	}
 
-	log.C(ctx).Debugf("Request will be executed synchronously")
-	object, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
-	if err != nil {
-		return nil, util.HandleStorageError(err, c.objectType.String())
-	}
-
-	cleanObject(object)
 	if err := attachLastOperation(ctx, object.GetID(), object, c.repository); err != nil {
 		return nil, err
 	}
+
+	cleanObject(object.GetLastOperation())
+	cleanObject(object)
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
@@ -584,7 +595,6 @@ func attachLastOperation(ctx context.Context, objectID string, object types.Obje
 	}
 
 	if lastOperation, ok := ops[objectID]; ok {
-		cleanObject(lastOperation)
 		lastOperation.TransitiveResources = nil
 		object.SetLastOperation(lastOperation)
 	}
@@ -652,13 +662,22 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 	return targetPageSequence, nil
 }
 
-func (c *BaseController) shouldExecuteAsync(r *web.Request) bool {
+func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types.OperationContext {
+	operationContext := &types.OperationContext{}
 	async := r.URL.Query().Get(web.QueryParamAsync)
+
 	if async == "" {
-		return c.isAsyncDefault
+		operationContext.Async = false
+		operationContext.IsAsyncNotDefined = true
+	} else if async == "false" {
+		operationContext.Async = false
+		operationContext.IsAsyncNotDefined = false
+	} else {
+		operationContext.Async = true
+		operationContext.IsAsyncNotDefined = false
 	}
 
-	return async == "true"
+	return operationContext
 }
 
 func (c *BaseController) checkAsyncSupport() error {

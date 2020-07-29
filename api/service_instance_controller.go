@@ -19,10 +19,9 @@ package api
 import (
 	"context"
 	"fmt"
-	"net/http"
-
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
+	"net/http"
 )
 
 // ServiceInstanceController implements api.Controller by providing service Instances API logic
