@@ -58,6 +58,7 @@ func (bpc *BrokerPlatformCredential) ToObject() (types.Object, error) {
 		PlatformID:      bpc.PlatformID,
 		BrokerID:        bpc.BrokerID,
 		Integrity:       bpc.Integrity,
+		Active:          bpc.Active,
 	}, nil
 }
 
@@ -82,6 +83,7 @@ func (*BrokerPlatformCredential) FromObject(object types.Object) (storage.Entity
 		PlatformID:      brokerPlatformCredential.PlatformID,
 		BrokerID:        brokerPlatformCredential.BrokerID,
 		Integrity:       brokerPlatformCredential.Integrity,
+		Active:          brokerPlatformCredential.Active,
 	}
 
 	return bpc, nil
