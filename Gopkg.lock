@@ -31,6 +31,14 @@
   version = "v1.0.1"
 
 [[projects]]
+  digest = "1:db68af2043b5de50b5dde7953a212d47efa299e1bef79379ac6ebcd243f34f99"
+  name = "github.com/Kount/pq-timeouts"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "079ba81f56daf25f2c22b7b2c224f5a9ba38840c"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:f780d408067189c4c42b53f7bb24ebf8fd2a1e4510b813ed6e79dd6563e38cc5"
   name = "github.com/ajg/form"
   packages = ["."]
@@ -723,6 +731,7 @@
     "github.com/InVisionApp/go-health",
     "github.com/InVisionApp/go-health/checkers",
     "github.com/InVisionApp/go-logger/shims/logrus",
+    "github.com/Kount/pq-timeouts",
     "github.com/antlr/antlr4/runtime/Go/antlr",
     "github.com/benjamintf1/unmarshalledmatchers",
     "github.com/cloudfoundry-community/go-cfenv",
