@@ -192,6 +192,8 @@ func (c *credentialsController) activateCredentials(r *web.Request) (*web.Respon
 
 	credentialsFromDB := objFromDB.(*types.BrokerPlatformCredential)
 	credentialsFromDB.Active = true
+	credentialsFromDB.OldPasswordHash = ""
+	credentialsFromDB.OldUsername = ""
 	object, err := c.repository.Update(ctx, credentialsFromDB, types.LabelChanges{})
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
