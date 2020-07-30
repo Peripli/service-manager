@@ -48,8 +48,8 @@ type ResourceExpectations struct {
 	Ready bool
 }
 
-func VerifyResource(smClient *SMExpect, expectations ResourceExpectations, async bool) *httpexpect.Object {
-	if async {
+func VerifyResource(smClient *SMExpect, expectations ResourceExpectations, async string, isBrokerAsyncResponse bool) *httpexpect.Object {
+	if async == "true" || async == "" && isBrokerAsyncResponse {
 		return VerifyResourceExists(smClient, expectations)
 	}
 

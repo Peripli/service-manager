@@ -63,6 +63,27 @@ func NewScheduler(smCtx context.Context, repository storage.TransactionalReposit
 	}
 }
 
+func (s *Scheduler) ScheduleStorageAction(ctx context.Context, operation *types.Operation, action storageAction) (types.Object, error) {
+	createdObj, err := s.ScheduleSyncStorageAction(ctx, operation, action)
+
+	if err != nil {
+		return nil, err
+	}
+
+	lastOperation, _, _, err := s.getResourceLastOperation(ctx, operation)
+	if err != nil {
+		return nil, err
+	}
+
+	if lastOperation.Reschedule {
+		if err := s.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+	return createdObj, nil
+}
+
 // ScheduleSyncStorageAction stores the job's Operation entity in DB and synchronously executes the CREATE/UPDATE/DELETE DB transaction
 func (s *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *types.Operation, action storageAction) (types.Object, error) {
 	initialLogMessage(ctx, operation, false)
@@ -622,6 +643,19 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 		if err := s.checkForConcurrentOperations(ctx, operation, lastOperation); err != nil {
 			log.C(ctx).Errorf("concurrent operation has been rejected: last operation is %+v, current operation is %+v and error is %s", lastOperation, operation, err)
 			return err
+		}
+
+		// Block updates of service instances or bindings that were not created successfully
+		if operation.Type == types.UPDATE {
+			if lastOperation.Type == types.CREATE && lastOperation.State == types.FAILED {
+				if operation.ResourceType == types.ServiceBindingType || operation.ResourceType == types.ServiceInstanceType {
+					return &util.HTTPError{
+						ErrorType:   "UpdateOperationIsNotAllowed",
+						Description: "Update is not possible for this resource",
+						StatusCode:  http.StatusForbidden,
+					}
+				}
+			}
 		}
 	}
 
