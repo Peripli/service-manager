@@ -20,7 +20,6 @@ func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.Ser
 	return platformIDs, nil
 }
 
-
 func ResolveSupportedPlatformsForPlans(ctx context.Context, plans []*types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
 	platformsMap := make(map[string]*types.Platform)
 
