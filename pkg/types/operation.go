@@ -90,6 +90,7 @@ type Operation struct {
 
 type OperationContext struct {
 	Async             bool   `json:"async"`
+	IsAsyncNotDefined bool   `json:"is_async_not_defined"`
 	ServicePlanID     string `json:"service_plan_id"`
 	ServiceInstanceID string `json:"service_instance_id"`
 }
@@ -119,49 +120,51 @@ func (e *Operation) Equals(obj Object) bool {
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
-func (o *Operation) Validate() error {
-	if util.HasRFC3986ReservedSymbols(o.ID) {
-		return fmt.Errorf("%s contains invalid character(s)", o.ID)
+func (e *Operation) Validate() error {
+	if util.HasRFC3986ReservedSymbols(e.ID) {
+		return fmt.Errorf("%s contains invalid character(s)", e.ID)
 	}
 
-	if o.Type == "" {
+	if e.Type == "" {
 		return fmt.Errorf("missing operation type")
 	}
 
-	if o.State == "" {
+	if e.State == "" {
 		return fmt.Errorf("missing operation state")
 	}
 
-	if o.ResourceID == "" {
+	if e.ResourceID == "" {
 		return fmt.Errorf("missing resource id")
 	}
 
-	if o.ResourceType == "" {
+	if e.ResourceType == "" {
 		return fmt.Errorf("missing resource type")
 	}
 
-	if o.State == PENDING && o.CascadeRootID == "" {
+	if e.State == PENDING && e.CascadeRootID == "" {
 		return fmt.Errorf("PENDING state only allowed for cascade operations")
 	}
 
-	if len(o.CascadeRootID) > 0 && len(o.ParentID) == 0 && o.CascadeRootID != o.ID {
+	if len(e.CascadeRootID) > 0 && len(e.ParentID) == 0 && e.CascadeRootID != e.ID {
 		return fmt.Errorf("root operation should have the same CascadeRootID and ID")
 	}
 
 	return nil
 }
 
-func (o *Operation) InOrphanMitigationState() bool {
-	return !o.DeletionScheduled.IsZero()
+func (e *Operation) InOrphanMitigationState() bool {
+	return !e.DeletionScheduled.IsZero()
 }
 
-func (o *Operation) Sanitize() {
-	o.Context = nil
+func (e *Operation) Sanitize() {
+	if e != nil {
+		e.Context = nil
+	}
 }
 
-func (o *Operation) IsForceDeleteCascadeOperation() bool {
-	forceCascade, found := o.Labels["force"]
+func (e *Operation) IsForceDeleteCascadeOperation() bool {
+	forceCascade, found := e.Labels["force"]
 	hasForceLabel := found && len(forceCascade) > 0 && forceCascade[0] == "true"
 
-	return o.Type == DELETE && o.CascadeRootID != "" && hasForceLabel
+	return e.Type == DELETE && e.CascadeRootID != "" && hasForceLabel
 }

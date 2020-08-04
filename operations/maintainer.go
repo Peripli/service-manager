@@ -131,10 +131,10 @@ func (om *Maintainer) Run() {
 	for _, functor := range om.functors {
 		functor := functor
 		maintainerFunc := func() {
-			log.C(om.smCtx).Infof("Attempting to retrieve lock for maintainer functor (%s)", functor.name)
+			log.C(om.smCtx).Debugf("Attempting to retrieve lock for maintainer functor (%s)", functor.name)
 			err := om.operationLockers[functor.name].TryLock(om.smCtx)
 			if err != nil {
-				log.C(om.smCtx).Infof("Failed to retrieve lock for maintainer functor (%s): %s", functor.name, err)
+				log.C(om.smCtx).Debugf("Failed to retrieve lock for maintainer functor (%s): %s", functor.name, err)
 				return
 			}
 			defer func() {
@@ -142,7 +142,7 @@ func (om *Maintainer) Run() {
 					log.C(om.smCtx).Warnf("Could not unlock for maintainer functor (%s): %s", functor.name, err)
 				}
 			}()
-			log.C(om.smCtx).Infof("Successfully retrieved lock for maintainer functor (%s)", functor.name)
+			log.C(om.smCtx).Debugf("Successfully retrieved lock for maintainer functor (%s)", functor.name)
 
 			functor.execute()
 		}
@@ -161,9 +161,9 @@ func (om *Maintainer) processOperations(functor func(), functorName string, inte
 			func() {
 				om.wg.Add(1)
 				defer om.wg.Done()
-				log.C(om.smCtx).Infof("Starting execution of maintainer functor (%s)", functorName)
+				log.C(om.smCtx).Debugf("Starting execution of maintainer functor (%s)", functorName)
 				functor()
-				log.C(om.smCtx).Infof("Finished execution of maintainer functor (%s)", functorName)
+				log.C(om.smCtx).Debugf("Finished execution of maintainer functor (%s)", functorName)
 			}()
 		case <-om.smCtx.Done():
 			ticker.Stop()
