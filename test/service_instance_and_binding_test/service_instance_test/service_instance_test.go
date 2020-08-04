@@ -80,6 +80,22 @@ func checkInstance(req *http.Request) (int, map[string]interface{}) {
 	return http.StatusCreated, Object{}
 }
 
+type testCase struct {
+	async                           string
+	expectedCreateSuccessStatusCode int
+	expectedUpdateSuccessStatusCode int
+	expectedDeleteSuccessStatusCode int
+	expectedBrokerFailureStatusCode int
+	expectedSMCrashStatusCode       int
+}
+
+func (t *testCase) responseByBrokerOrClientMode(expected int, statusByBrokerResponse int) int {
+	if t.async != "" {
+		return expected
+	}
+	return statusByBrokerResponse
+}
+
 var _ = DescribeTestsFor(TestCase{
 	API: web.ServiceInstancesURL,
 	SupportedOps: []Op{
@@ -120,18 +136,9 @@ var _ = DescribeTestsFor(TestCase{
 				instanceID                  string
 			)
 
-			type testCase struct {
-				async                           bool
-				expectedCreateSuccessStatusCode int
-				expectedUpdateSuccessStatusCode int
-				expectedDeleteSuccessStatusCode int
-				expectedBrokerFailureStatusCode int
-				expectedSMCrashStatusCode       int
-			}
-
 			testCases := []testCase{
 				{
-					async:                           false,
+					async:                           "false",
 					expectedCreateSuccessStatusCode: http.StatusCreated,
 					expectedUpdateSuccessStatusCode: http.StatusOK,
 					expectedDeleteSuccessStatusCode: http.StatusOK,
@@ -139,16 +146,24 @@ var _ = DescribeTestsFor(TestCase{
 					expectedSMCrashStatusCode:       http.StatusBadGateway,
 				},
 				{
-					async:                           true,
+					async:                           "true",
 					expectedCreateSuccessStatusCode: http.StatusAccepted,
 					expectedUpdateSuccessStatusCode: http.StatusAccepted,
 					expectedDeleteSuccessStatusCode: http.StatusAccepted,
 					expectedBrokerFailureStatusCode: http.StatusAccepted,
 					expectedSMCrashStatusCode:       http.StatusAccepted,
 				},
+				{
+					async:                           "",
+					expectedCreateSuccessStatusCode: http.StatusCreated,
+					expectedUpdateSuccessStatusCode: http.StatusOK,
+					expectedDeleteSuccessStatusCode: http.StatusOK,
+					expectedBrokerFailureStatusCode: http.StatusBadGateway,
+					expectedSMCrashStatusCode:       http.StatusBadGateway,
+				},
 			}
 
-			createInstance := func(smClient *SMExpect, async bool, expectedStatusCode int) *httpexpect.Response {
+			createInstance := func(smClient *SMExpect, async string, expectedStatusCode int) *httpexpect.Response {
 				resp := smClient.POST(web.ServiceInstancesURL).
 					WithQuery("async", async).
 					WithJSON(postInstanceRequest).
@@ -166,14 +181,14 @@ var _ = DescribeTestsFor(TestCase{
 				return resp
 			}
 
-			patchInstance := func(smClient *SMExpect, async bool, instanceID string, expectedStatusCode int) *httpexpect.Response {
+			patchInstance := func(smClient *SMExpect, async string, instanceID string, expectedStatusCode int) *httpexpect.Response {
 				return smClient.PATCH(web.ServiceInstancesURL+"/"+instanceID).
 					WithQuery("async", async).
 					WithJSON(patchInstanceRequest).
 					Expect().Status(expectedStatusCode)
 			}
 
-			deleteInstance := func(smClient *SMExpect, async bool, expectedStatusCode int) *httpexpect.Response {
+			deleteInstance := func(smClient *SMExpect, async string, expectedStatusCode int) *httpexpect.Response {
 				return smClient.DELETE(web.ServiceInstancesURL+"/"+instanceID).
 					WithQuery("async", async).
 					Expect().
@@ -241,7 +256,7 @@ var _ = DescribeTestsFor(TestCase{
 				When("service instance contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
 						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
-						resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+						resp := createInstance(ctx.SMWithOAuthForTenant, "", http.StatusCreated)
 						instanceName = resp.JSON().Object().Value("name").String().Raw()
 						Expect(instanceName).ToNot(BeEmpty())
 					})
@@ -269,7 +284,7 @@ var _ = DescribeTestsFor(TestCase{
 					BeforeEach(func() {
 						postInstanceRequest["dashboard_url"] = ""
 						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
-						createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+						createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
 					})
 
 					It("doesn't return dashboard_url", func() {
@@ -282,11 +297,11 @@ var _ = DescribeTestsFor(TestCase{
 			Describe("POST", func() {
 				for _, testCase := range testCases {
 					testCase := testCase
-					Context(fmt.Sprintf("async = %t", testCase.async), func() {
+					Context(fmt.Sprintf("async = '%s'", testCase.async), func() {
 						When("content type is not JSON", func() {
 							It("returns 415", func() {
 								ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
-									WithQuery("async", testCase.async).
+									WithQuery("async", testCase.async == "true").
 									WithText("text").
 									Expect().
 									Status(http.StatusUnsupportedMediaType).
@@ -316,7 +331,7 @@ var _ = DescribeTestsFor(TestCase{
 						When("request body is not a valid JSON", func() {
 							It("returns 400", func() {
 								ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
-									WithQuery("async", testCase.async).
+									WithQuery("async", testCase.async == "true").
 									WithText("invalid json").
 									WithHeader("content-type", "application/json").
 									Expect().
@@ -329,7 +344,7 @@ var _ = DescribeTestsFor(TestCase{
 						Context("when request body contains protected labels", func() {
 							It("returns 400", func() {
 								ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
-									WithQuery("async", testCase.async).
+									WithQuery("async", testCase.async == "true").
 									WithHeader("Content-Type", "application/json").
 									WithBytes([]byte(fmt.Sprintf(`{
 										"name": "test-instance-name",
@@ -348,7 +363,7 @@ var _ = DescribeTestsFor(TestCase{
 							Context("when request body contains multiple label objects", func() {
 								It("returns 400", func() {
 									ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
-										WithQuery("async", testCase.async).
+										WithQuery("async", testCase.async == "true").
 										WithHeader("Content-Type", "application/json").
 										WithBytes([]byte(fmt.Sprintf(`{
 										"name": "test-instance-name",
@@ -378,7 +393,7 @@ var _ = DescribeTestsFor(TestCase{
 									EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 									ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 										WithJSON(postInstanceRequest).
-										WithQuery("async", testCase.async).
+										WithQuery("async", testCase.async == "true").
 										Expect().
 										Status(expectedStatusCode).
 										JSON().Object().
@@ -524,7 +539,7 @@ var _ = DescribeTestsFor(TestCase{
 								When("for the same tenant", func() {
 									It("should reject", func() {
 										statusCode := http.StatusAccepted
-										if !testCase.async {
+										if testCase.async == "false" || testCase.async == "" {
 											statusCode = http.StatusConflict
 										}
 
@@ -582,7 +597,7 @@ var _ = DescribeTestsFor(TestCase{
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
 									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", DelayingHandler(doneChannel))
 
-									resp := createInstance(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
+									resp := createInstance(ctx.SMWithOAuthForTenant, "true", http.StatusAccepted)
 
 									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.CREATE,
@@ -604,12 +619,12 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								It("updates fail with operation in progress", func() {
-									ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).WithQuery("async", testCase.async).WithJSON(Object{}).
+									ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).WithQuery("async", testCase.async == "true").WithJSON(Object{}).
 										Expect().Status(http.StatusUnprocessableEntity)
 								})
 
 								It("deletes succeed", func() {
-									resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+instanceID).WithQuery("async", testCase.async).
+									resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+instanceID).WithQuery("async", testCase.async == "true").
 										Expect().StatusRange(httpexpect.Status2xx)
 
 									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -668,7 +683,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								It("polling broker last operation until operation succeeds and eventually marks operation as success", func() {
-									resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+									resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedCreateSuccessStatusCode, http.StatusAccepted))
 
 									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.CREATE,
@@ -709,8 +724,8 @@ var _ = DescribeTestsFor(TestCase{
 											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusOK, Object{"async": false}))
 										})
 
-										It("verifys the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
-											resp := createInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+										It("verifies the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
+											resp := createInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.CREATE,
@@ -723,7 +738,7 @@ var _ = DescribeTestsFor(TestCase{
 											VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:   instanceID,
 												Type: types.ServiceInstanceType,
-											}, testCase.async)
+											}, testCase.async, true)
 										})
 									})
 
@@ -737,7 +752,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										It("keeps in the instance with ready false and marks the operation with deletion scheduled", func() {
-											resp := createInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+											resp := createInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.CREATE,
@@ -751,7 +766,7 @@ var _ = DescribeTestsFor(TestCase{
 												ID:    instanceID,
 												Type:  types.ServiceInstanceType,
 												Ready: false,
-											}, testCase.async)
+											}, testCase.async, true)
 										})
 									})
 
@@ -763,7 +778,7 @@ var _ = DescribeTestsFor(TestCase{
 
 										It("keeps the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
 
-											resp := createInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+											resp := createInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.CREATE,
@@ -776,12 +791,12 @@ var _ = DescribeTestsFor(TestCase{
 											VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:   instanceID,
 												Type: types.ServiceInstanceType,
-											}, testCase.async)
+											}, testCase.async, true)
 										})
 									})
 								})
 
-								if testCase.async {
+								if testCase.async == "true" {
 									When("action timeout is reached while polling", func() {
 										var newCtx *TestContext
 
@@ -799,7 +814,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										It("stores instance as ready false and the operation as reschedulable in progress", func() {
-											resp := createInstance(newCtx.SMWithOAuthForTenant, true, http.StatusAccepted)
+											resp := createInstance(newCtx.SMWithOAuthForTenant, "true", http.StatusAccepted)
 
 											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.CREATE,
@@ -885,7 +900,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									It("keeps polling and eventually updates the instance to ready true and operation to success", func() {
-										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedCreateSuccessStatusCode, http.StatusAccepted))
 
 										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 											Category:          types.CREATE,
@@ -912,8 +927,8 @@ var _ = DescribeTestsFor(TestCase{
 										BeforeEach(func() {
 											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusOK, Object{"async": false}))
 										})
-										It("deletes the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
-											resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+										It("verifies the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
+											resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.CREATE,
@@ -926,7 +941,7 @@ var _ = DescribeTestsFor(TestCase{
 											VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:   instanceID,
 												Type: types.ServiceInstanceType,
-											}, testCase.async)
+											}, testCase.async, true)
 										})
 									})
 
@@ -940,7 +955,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										It("verifies the instance with ready false and marks the operation with deletion scheduled", func() {
-											resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+											resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.CREATE,
@@ -953,7 +968,7 @@ var _ = DescribeTestsFor(TestCase{
 											VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:   instanceID,
 												Type: types.ServiceInstanceType,
-											}, testCase.async)
+											}, testCase.async, true)
 										})
 									})
 
@@ -966,7 +981,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										It("verifies the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
-											resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+											resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.CREATE,
@@ -979,7 +994,7 @@ var _ = DescribeTestsFor(TestCase{
 											VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:   instanceID,
 												Type: types.ServiceInstanceType,
-											}, testCase.async)
+											}, testCase.async, true)
 										})
 									})
 								})
@@ -991,7 +1006,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									It("stores the instance as ready false and marks the operation as reschedulable", func() {
-										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 											Category:          types.CREATE,
@@ -1018,7 +1033,7 @@ var _ = DescribeTestsFor(TestCase{
 											Object{"error": "error"}, Object{"state": "succeeded"},
 										))
 
-										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedCreateSuccessStatusCode, http.StatusAccepted))
 
 										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 											Category:          types.CREATE,
@@ -1041,7 +1056,7 @@ var _ = DescribeTestsFor(TestCase{
 											Object{"error": "error"}, Object{"state": "succeeded"},
 										))
 
-										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedCreateSuccessStatusCode, http.StatusAccepted))
 
 										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 											Category:          types.CREATE,
@@ -1061,7 +1076,7 @@ var _ = DescribeTestsFor(TestCase{
 
 							})
 
-							if testCase.async {
+							if testCase.async == "true" {
 								When("SM crashes after storing operation before storing resource", func() {
 									var newSMCtx *TestContext
 									var anotherSMCtx *TestContext
@@ -1158,7 +1173,7 @@ var _ = DescribeTestsFor(TestCase{
 									VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 										ID:   instanceID,
 										Type: types.ServiceInstanceType,
-									}, testCase.async)
+									}, testCase.async, false)
 								})
 							})
 
@@ -1181,7 +1196,7 @@ var _ = DescribeTestsFor(TestCase{
 									VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 										ID:   instanceID,
 										Type: types.ServiceInstanceType,
-									}, testCase.async)
+									}, testCase.async, false)
 								})
 							})
 
@@ -1214,7 +1229,7 @@ var _ = DescribeTestsFor(TestCase{
 										VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 											ID:   instanceID,
 											Type: types.ServiceInstanceType,
-										}, testCase.async)
+										}, testCase.async, false)
 									})
 
 									When("maximum deletion timeout has been reached", func() {
@@ -1230,7 +1245,7 @@ var _ = DescribeTestsFor(TestCase{
 											newCtx.CleanupAll(false)
 										})
 
-										It("keeps the instance as ready false and marks the operation as deletion scheduled", func() {
+										It("verifies the instance as ready false and marks the operation as deletion scheduled", func() {
 											resp := createInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
@@ -1241,16 +1256,16 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											VerifyResourceExists(newCtx.SMWithOAuthForTenant, ResourceExpectations{
+											VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:    instanceID,
-												Type:  types.ServiceInstanceType,
 												Ready: false,
-											})
+												Type:  types.ServiceInstanceType,
+											}, testCase.async, false)
 										})
 									})
 								})
 
-								if testCase.async {
+								if testCase.async == "true" {
 									When("broker orphan mitigation deprovision asynchronously keeps failing with an error while polling", func() {
 										BeforeEach(func() {
 											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
@@ -1258,7 +1273,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										It("keeps the instance as ready false and marks the operation as deletion scheduled", func() {
-											resp := createInstance(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
+											resp := createInstance(ctx.SMWithOAuthForTenant, "true", http.StatusAccepted)
 
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.CREATE,
@@ -1327,7 +1342,7 @@ var _ = DescribeTestsFor(TestCase{
 										VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 											ID:   instanceID,
 											Type: types.ServiceInstanceType,
-										}, testCase.async)
+										}, testCase.async, false)
 									})
 								})
 
@@ -1350,11 +1365,12 @@ var _ = DescribeTestsFor(TestCase{
 											ResourceType:      types.ServiceInstanceType,
 											Reschedulable:     false,
 											DeletionScheduled: false,
+											Error:             "Failed provisioning request context",
 										})
 										VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 											ID:   instanceID,
 											Type: types.ServiceInstanceType,
-										}, testCase.async)
+										}, testCase.async, false)
 									})
 								})
 							})
@@ -1392,7 +1408,7 @@ var _ = DescribeTestsFor(TestCase{
 									VerifyResource(ctx.SMWithOAuthForTenant, ResourceExpectations{
 										ID:   instanceID,
 										Type: types.ServiceInstanceType,
-									}, testCase.async)
+									}, testCase.async, false)
 								})
 							})
 						})
@@ -1403,11 +1419,11 @@ var _ = DescribeTestsFor(TestCase{
 			Describe("PATCH", func() {
 				for _, testCase := range testCases {
 					testCase := testCase
-					Context(fmt.Sprintf("async = %t", testCase.async), func() {
+					Context(fmt.Sprintf("async = %s", testCase.async), func() {
 						When("instance is missing", func() {
 							It("returns 404", func() {
 								ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/no_such_id").
-									WithQuery("async", testCase.async).
+									WithQuery("async", testCase.async == "true").
 									WithJSON(postInstanceRequest).
 									Expect().Status(http.StatusNotFound).
 									JSON().Object().
@@ -1472,7 +1488,7 @@ var _ = DescribeTestsFor(TestCase{
 								When("transfer instance is disabled", func() {
 									It("should return 400", func() {
 										testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
-											WithQuery("async", testCase.async).
+											WithQuery("async", testCase.async == "true").
 											WithJSON(Object{"platform_id": "service-manager"}).
 											Expect().Status(http.StatusBadRequest).
 											JSON().Object().Value("error").Equal("TransferDisabled")
@@ -1501,7 +1517,7 @@ var _ = DescribeTestsFor(TestCase{
 									Context("which is not service-manager platform", func() {
 										It("should return 400", func() {
 											testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
-												WithQuery("async", testCase.async).
+												WithQuery("async", testCase.async == "true").
 												WithJSON(Object{"platform_id": "another-platform-id"}).
 												Expect().Status(http.StatusBadRequest)
 
@@ -1524,7 +1540,7 @@ var _ = DescribeTestsFor(TestCase{
 
 											It("should return 400", func() {
 												testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
-													WithQuery("async", testCase.async).
+													WithQuery("async", testCase.async == "true").
 													WithJSON(Object{"platform_id": types.SMPlatform}).
 													Expect().Status(http.StatusBadRequest).
 													JSON().Object().Value("error").Equal("UnsupportedPlatform")
@@ -1539,7 +1555,7 @@ var _ = DescribeTestsFor(TestCase{
 
 											It("should return 400", func() {
 												testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
-													WithQuery("async", testCase.async).
+													WithQuery("async", testCase.async == "true").
 													WithJSON(Object{"platform_id": types.SMPlatform}).
 													Expect().Status(http.StatusBadRequest).
 													JSON().Object().Value("error").Equal("UnsupportedContextUpdate")
@@ -1557,7 +1573,7 @@ var _ = DescribeTestsFor(TestCase{
 
 												By("verify patch request for instance transfer to SMaaP succeeds")
 												resp := testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
-													WithQuery("async", testCase.async).
+													WithQuery("async", testCase.async == "true").
 													WithJSON(Object{"platform_id": types.SMPlatform}).
 													Expect().Status(testCase.expectedUpdateSuccessStatusCode)
 
@@ -1582,7 +1598,7 @@ var _ = DescribeTestsFor(TestCase{
 
 												By("verify instance updates in SMaaP still works after transfer")
 												resp = testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
-													WithQuery("async", testCase.async).
+													WithQuery("async", testCase.async == "true").
 													WithJSON(Object{}).
 													Expect().Status(testCase.expectedUpdateSuccessStatusCode)
 
@@ -1605,7 +1621,7 @@ var _ = DescribeTestsFor(TestCase{
 
 												By("verify instance binds in SMaaP still works after transfer")
 												resp = testCtx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
-													WithQuery("async", testCase.async).
+													WithQuery("async", testCase.async == "true").
 													WithJSON(Object{
 														"name":                "binding-to-transferred-instance",
 														"service_instance_id": SID,
@@ -1623,7 +1639,7 @@ var _ = DescribeTestsFor(TestCase{
 
 												By("verify instance unbind in SMaaP still works after transfer")
 												resp = testCtx.SMWithOAuthForTenant.DELETE(web.ServiceBindingsURL+"/"+bindingID).
-													WithQuery("async", testCase.async).
+													WithQuery("async", testCase.async == "true").
 													Expect().
 													Status(testCase.expectedDeleteSuccessStatusCode)
 
@@ -1669,7 +1685,7 @@ var _ = DescribeTestsFor(TestCase{
 
 												By("verify instance deprovision in SMaaP still works after transfer")
 												resp = testCtx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+SID).
-													WithQuery("async", testCase.async).
+													WithQuery("async", testCase.async == "true").
 													WithJSON(Object{}).
 													Expect().Status(testCase.expectedDeleteSuccessStatusCode)
 
@@ -1699,7 +1715,7 @@ var _ = DescribeTestsFor(TestCase{
 
 								It("returns 404", func() {
 									testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
-										WithQuery("async", testCase.async).
+										WithQuery("async", testCase.async == "true").
 										WithJSON(Object{}).
 										Expect().Status(http.StatusNotFound)
 								})
@@ -1735,7 +1751,7 @@ var _ = DescribeTestsFor(TestCase{
 							When("content type is not JSON", func() {
 								It("returns 415", func() {
 									testCtx.SMWithOAuth.PATCH(web.ServiceInstancesURL+"/"+instanceID).
-										WithQuery("async", testCase.async).
+										WithQuery("async", testCase.async == "true").
 										WithText("text").
 										Expect().Status(http.StatusUnsupportedMediaType).
 										JSON().Object().
@@ -1746,7 +1762,7 @@ var _ = DescribeTestsFor(TestCase{
 							When("request body is not valid JSON", func() {
 								It("returns 400", func() {
 									testCtx.SMWithOAuth.PATCH(web.ServiceInstancesURL+"/"+instanceID).
-										WithQuery("async", testCase.async).
+										WithQuery("async", testCase.async == "true").
 										WithText("invalid json").
 										WithHeader("content-type", "application/json").
 										Expect().
@@ -1762,7 +1778,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									resp := testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
 										WithJSON(Object{"created_at": createdAt}).
-										WithQuery("async", testCase.async).
+										WithQuery("async", testCase.async == "true").
 										Expect().
 										Status(testCase.expectedUpdateSuccessStatusCode)
 
@@ -1802,7 +1818,7 @@ var _ = DescribeTestsFor(TestCase{
 								When("transfer instance is disabled", func() {
 									It("should return 400", func() {
 										testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
-											WithQuery("async", testCase.async).
+											WithQuery("async", testCase.async == "true").
 											WithJSON(Object{"platform_id": "service-manager"}).
 											Expect().Status(http.StatusBadRequest).
 											JSON().Object().Value("error").Equal("TransferDisabled")
@@ -1829,7 +1845,7 @@ var _ = DescribeTestsFor(TestCase{
 									Context("which is not service-manager platform", func() {
 										It("should return 400", func() {
 											testCtx.SMWithOAuth.PATCH(web.ServiceInstancesURL+"/"+instanceID).
-												WithQuery("async", testCase.async).
+												WithQuery("async", testCase.async == "true").
 												WithJSON(Object{"platform_id": "test-platform-id"}).
 												Expect().Status(http.StatusBadRequest)
 										})
@@ -1838,7 +1854,7 @@ var _ = DescribeTestsFor(TestCase{
 									Context("which is service-manager platform", func() {
 										It("should return 200", func() {
 											resp := testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
-												WithQuery("async", testCase.async).
+												WithQuery("async", testCase.async == "true").
 												WithJSON(Object{"platform_id": types.SMPlatform}).
 												Expect().Status(testCase.expectedUpdateSuccessStatusCode)
 
@@ -1866,7 +1882,7 @@ var _ = DescribeTestsFor(TestCase{
 										}
 
 										resp := testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
-											WithQuery("async", testCase.async).
+											WithQuery("async", testCase.async == "true").
 											WithJSON(updatedBrokerJSON).
 											Expect().
 											Status(testCase.expectedUpdateSuccessStatusCode)
@@ -1907,7 +1923,7 @@ var _ = DescribeTestsFor(TestCase{
 
 								It("enriches the osb context with the tenant and sm platform", func() {
 									testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
-										WithQuery("async", testCase.async).
+										WithQuery("async", testCase.async == "true").
 										WithJSON(Object{}).
 										Expect().Status(testCase.expectedBrokerFailureStatusCode)
 								})
@@ -1919,7 +1935,7 @@ var _ = DescribeTestsFor(TestCase{
 										EnsurePlanVisibilityDoesNotExist(testCtx.SMRepository, TenantIdentifier, types.SMPlatform, anotherServicePlanID, TenantIDValue)
 
 										testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
-											WithQuery("async", testCase.async).
+											WithQuery("async", testCase.async == "true").
 											WithJSON(Object{"service_plan_id": anotherServicePlanID}).
 											Expect().Status(http.StatusNotFound)
 									})
@@ -1929,7 +1945,7 @@ var _ = DescribeTestsFor(TestCase{
 									It("returns success", func() {
 										EnsurePlanVisibility(testCtx.SMRepository, TenantIdentifier, types.SMPlatform, anotherServicePlanID, TenantIDValue)
 										resp := testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
-											WithQuery("async", testCase.async).
+											WithQuery("async", testCase.async == "true").
 											WithJSON(Object{"service_plan_id": anotherServicePlanID}).
 											Expect().Status(testCase.expectedUpdateSuccessStatusCode)
 
@@ -1958,7 +1974,7 @@ var _ = DescribeTestsFor(TestCase{
 									It("returns 404", func() {
 										otherTenantExpect := testCtx.NewTenantExpect("tenancyClient", "other-tenant")
 										otherTenantExpect.PATCH(web.ServiceInstancesURL+"/"+instanceID).
-											WithQuery("async", testCase.async).
+											WithQuery("async", testCase.async == "true").
 											WithJSON(Object{"service_plan_id": anotherServicePlanID}).
 											Expect().Status(http.StatusNotFound)
 									})
@@ -1967,7 +1983,7 @@ var _ = DescribeTestsFor(TestCase{
 								When("tenant has ownership of instance", func() {
 									It("returns 200", func() {
 										resp := testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
-											WithQuery("async", testCase.async).
+											WithQuery("async", testCase.async == "true").
 											WithJSON(Object{}).
 											Expect().Status(testCase.expectedUpdateSuccessStatusCode)
 
@@ -2072,7 +2088,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										resp = testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instance2ID).
-											WithQuery("async", testCase.async).
+											WithQuery("async", testCase.async == "true").
 											WithJSON(Object{"name": "instance1"}).
 											Expect().Status(testCase.expectedUpdateSuccessStatusCode)
 
@@ -2112,7 +2128,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									It("should update it", func() {
 										resp := testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
-											WithQuery("async", testCase.async).
+											WithQuery("async", testCase.async == "true").
 											WithJSON(Object{}).
 											Expect().
 											Status(testCase.expectedUpdateSuccessStatusCode)
@@ -2176,7 +2192,7 @@ var _ = DescribeTestsFor(TestCase{
 										brokerServer.ServiceInstanceHandlerFunc(http.MethodPatch, http.MethodPatch+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
 										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPatch+"1", DelayingHandler(doneChannel))
 
-										resp := patchInstance(testCtx.SMWithOAuthForTenant, true, instanceID, http.StatusAccepted)
+										resp := patchInstance(testCtx.SMWithOAuthForTenant, "true", instanceID, http.StatusAccepted)
 
 										instanceID, _ = VerifyOperationExists(testCtx, resp.Header("Location").Raw(), OperationExpectations{
 											Category:          types.UPDATE,
@@ -2202,7 +2218,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									It("deletes succeed", func() {
-										resp := testCtx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+instanceID).WithQuery("async", testCase.async).
+										resp := testCtx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+instanceID).WithQuery("async", testCase.async == "true").
 											Expect().StatusRange(httpexpect.Status2xx)
 
 										instanceID, _ = VerifyOperationExists(testCtx, resp.Header("Location").Raw(), OperationExpectations{
@@ -2261,7 +2277,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									It("polling broker last operation until operation succeeds and eventually marks operation as success", func() {
-										resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.expectedUpdateSuccessStatusCode)
+										resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.responseByBrokerOrClientMode(testCase.expectedUpdateSuccessStatusCode, http.StatusAccepted))
 
 										instanceID, _ = VerifyOperationExists(testCtx, resp.Header("Location").Raw(), OperationExpectations{
 											Category:          types.UPDATE,
@@ -2313,7 +2329,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										It("keeps instance as ready true and stores the operation as failed", func() {
-											resp := patchInstance(testCtx.SMWithOAuthForTenant, true, instanceID, http.StatusAccepted)
+											resp := patchInstance(testCtx.SMWithOAuthForTenant, "true", instanceID, http.StatusAccepted)
 
 											instanceID, _ = VerifyOperationExists(testCtx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.UPDATE,
@@ -2331,7 +2347,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 									})
 
-									if testCase.async {
+									if testCase.async == "true" {
 										When("action timeout is reached while polling", func() {
 											var newtestCtx *TestContext
 
@@ -2349,7 +2365,7 @@ var _ = DescribeTestsFor(TestCase{
 											})
 
 											It("stores instance as ready true and the operation as reschedulable in progress", func() {
-												resp := patchInstance(newtestCtx.SMWithOAuthForTenant, true, instanceID, http.StatusAccepted)
+												resp := patchInstance(newtestCtx.SMWithOAuthForTenant, "true", instanceID, http.StatusAccepted)
 
 												instanceID, _ = VerifyOperationExists(newtestCtx, resp.Header("Location").Raw(), OperationExpectations{
 													Category:          types.UPDATE,
@@ -2375,7 +2391,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										It("keeps polling and eventually updates the instance to ready true and operation to success", func() {
-											resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.expectedUpdateSuccessStatusCode)
+											resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.responseByBrokerOrClientMode(testCase.expectedUpdateSuccessStatusCode, http.StatusAccepted))
 
 											instanceID, _ = VerifyOperationExists(testCtx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.UPDATE,
@@ -2384,6 +2400,7 @@ var _ = DescribeTestsFor(TestCase{
 												Reschedulable:     false,
 												DeletionScheduled: false,
 											})
+
 											VerifyResourceExists(testCtx.SMWithOAuthForTenant, ResourceExpectations{
 												ID:    instanceID,
 												Type:  types.ServiceInstanceType,
@@ -2399,7 +2416,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										It("keeps the instance and marks the operation as failed with no deletion scheduled and not reschedulable", func() {
-											resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.expectedBrokerFailureStatusCode)
+											resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 											instanceID, _ = VerifyOperationExists(testCtx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.UPDATE,
@@ -2423,7 +2440,7 @@ var _ = DescribeTestsFor(TestCase{
 											})
 
 											It("stores the instance as ready true and marks the operation as reschedulable", func() {
-												resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.expectedBrokerFailureStatusCode)
+												resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 												instanceID, _ = VerifyOperationExists(testCtx, resp.Header("Location").Raw(), OperationExpectations{
 													Category:          types.UPDATE,
@@ -2492,6 +2509,39 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 						})
+						if testCase.async == "true" {
+							When("instance that has failed to create exists in the service manager platform", func() {
+								BeforeEach(func() {
+									EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", ParameterizedHandler(
+										http.StatusOK, Object{"state": "failed"},
+									))
+
+									resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.FAILED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   instanceID,
+										Type: types.ServiceInstanceType,
+									})
+								})
+
+								It("patch should fail", func() {
+									ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
+										WithQuery("async", testCase.async == "true").
+										WithJSON(Object{"name": "instance2"}).
+										Expect().Status(http.StatusForbidden)
+								})
+							})
+						}
 					})
 				}
 			})
@@ -2505,7 +2555,7 @@ var _ = DescribeTestsFor(TestCase{
 				for _, testCase := range testCases {
 					testCase := testCase
 
-					Context(fmt.Sprintf("async = %t", testCase.async), func() {
+					Context(fmt.Sprintf("async = %s", testCase.async), func() {
 						BeforeEach(func() {
 							brokerServer.ShouldRecordRequests(true)
 						})
@@ -2582,7 +2632,7 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										})
 										expectedCode := http.StatusNotFound
-										if testCase.async {
+										if testCase.async == "true" {
 											expectedCode = http.StatusAccepted
 										}
 										otherTenantExpect := ctx.NewTenantExpect("tenancyClient", "other-tenant")
@@ -2646,7 +2696,7 @@ var _ = DescribeTestsFor(TestCase{
 										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
 										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", DelayingHandler(doneChannel))
 
-										resp := deleteInstance(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
+										resp := deleteInstance(ctx.SMWithOAuthForTenant, "true", http.StatusAccepted)
 
 										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 											Category:          types.DELETE,
@@ -2824,7 +2874,7 @@ var _ = DescribeTestsFor(TestCase{
 											Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 
 										expectedStatus := http.StatusBadRequest
-										if testCase.async {
+										if testCase.async == "true" {
 											expectedStatus = http.StatusAccepted
 										}
 										resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, expectedStatus)
@@ -2914,7 +2964,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 									})
 
-									if testCase.async {
+									if testCase.async == "true" {
 										When("SM crashes while polling", func() {
 											var newSMCtx *TestContext
 											var isDeprovisioned atomic.Value
@@ -2939,7 +2989,7 @@ var _ = DescribeTestsFor(TestCase{
 											})
 
 											It("should restart polling through maintainer and eventually deletes the instance", func() {
-												resp := deleteInstance(newSMCtx.SMWithOAuthForTenant, true, http.StatusAccepted)
+												resp := deleteInstance(newSMCtx.SMWithOAuthForTenant, "true", http.StatusAccepted)
 
 												operationExpectations := OperationExpectations{
 													Category:          types.DELETE,
@@ -3263,10 +3313,10 @@ var _ = DescribeTestsFor(TestCase{
 										})
 									})
 
-									if testCase.async {
+									if testCase.async == "true" {
 										When("broker orphan mitigation deprovision asynchronously keeps failing with an error while polling", func() {
 											It("keeps the instance and marks the operation as failed reschedulable with deletion scheduled", func() {
-												resp := deleteInstance(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
+												resp := deleteInstance(ctx.SMWithOAuthForTenant, "true", http.StatusAccepted)
 
 												instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 													Category:          types.DELETE,

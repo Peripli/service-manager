@@ -20,6 +20,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -39,7 +41,7 @@ import (
 )
 
 const (
-	postgresDriverName  = "postgres"
+	postgresDriverName  = "pq-timeouts"
 	foreignKeyViolation = "foreign_key_violation"
 )
 
@@ -72,11 +74,24 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 	ps.mutex.Lock()
 	defer ps.mutex.Unlock()
 	if ps.db == nil {
-		sslModeParam := ""
-		if settings.SkipSSLValidation {
-			sslModeParam = "?sslmode=disable"
+		parsedUrl, err := url.Parse(settings.URI)
+		if err != nil {
+			return fmt.Errorf("could not parse PostgreSQL URI: %s", err)
 		}
-		db, err := ps.ConnectFunc(postgresDriverName, settings.URI+sslModeParam)
+
+		parsedQuery, err := url.ParseQuery(parsedUrl.RawQuery)
+		if err != nil {
+			return fmt.Errorf("could not parse PostgreSQL URL query: %s", err)
+		}
+
+		parsedQuery.Set("read_timeout", strconv.Itoa(settings.ReadTimeout))
+		parsedQuery.Set("write_timeout", strconv.Itoa(settings.WriteTimeout))
+		if settings.SkipSSLValidation {
+			parsedQuery.Add("sslmode", "disable")
+		}
+		parsedUrl.RawQuery = parsedQuery.Encode()
+
+		db, err := ps.ConnectFunc(postgresDriverName, parsedUrl.String())
 		if err != nil {
 			return fmt.Errorf("could not connect to PostgreSQL: %s", err)
 		}

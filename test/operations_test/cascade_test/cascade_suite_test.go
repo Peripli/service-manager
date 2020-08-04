@@ -542,6 +542,7 @@ func createContainerWithChildren() ContainerInstance {
 		ResourceID:    instanceInContainer.GetID(),
 		ResourceType:  types.ServiceInstanceType,
 		CorrelationID: "-",
+		Context:       &types.OperationContext{},
 	}, func(ctx context.Context, repository storage.Repository) (object types.Object, e error) {
 		return repository.Update(ctx, instanceInContainer, []*types.LabelChange{&change}, query.ByField(query.EqualsOperator, "id", instanceInContainer.GetID()))
 	})
