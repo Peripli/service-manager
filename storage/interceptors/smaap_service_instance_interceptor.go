@@ -428,6 +428,13 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 		log.C(ctx).Infof("Orphan mitigation in progress for instance with id %s and name %s triggered due to failure in operation %s", instance.ID, instance.Name, operation.Type)
 	}
 
+	if operation.Reschedule {
+		if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
+			return err
+		}
+		return nil
+	}
+
 	var deprovisionResponse *osbc.DeprovisionResponse
 	if !operation.Reschedule {
 		deprovisionRequest := prepareDeprovisionRequest(instance, service.CatalogID, plan.CatalogID)
@@ -461,6 +468,9 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 			log.C(ctx).Infof("Successful asynchronous deprovisioning request %s to broker %s returned response %s",
 				logDeprovisionRequest(deprovisionRequest), broker.Name, logDeprovisionResponse(deprovisionResponse))
 			operation.Reschedule = true
+			if operation.Context.IsAsyncNotDefined {
+				operation.Context.Async = true
+			}
 			if operation.RescheduleTimestamp.IsZero() {
 				operation.RescheduleTimestamp = time.Now()
 			}
@@ -477,7 +487,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 		}
 	}
 
-	if operation.Reschedule {
+	if shouldStartPolling(operation) || (operation.InOrphanMitigationState() && operation.Reschedule) {
 		if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
 			return err
 		}

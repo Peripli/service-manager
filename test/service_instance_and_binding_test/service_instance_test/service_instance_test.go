@@ -2765,7 +2765,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									When("orphan mitigation deprovision synchronously succeeds", func() {
 										It("deletes the instance and marks the operation as success", func() {
-											resp := deleteInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+											resp := deleteInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.DELETE,
@@ -2794,7 +2794,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									When("broker orphan mitigation deprovision synchronously fails with an unexpected error", func() {
 										It("keeps in the instance and marks the operation with deletion scheduled", func() {
-											resp := deleteInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+											resp := deleteInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.DELETE,
@@ -2824,7 +2824,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									When("broker orphan mitigation deprovision synchronously fails with an error that will continue further orphan mitigation and eventually succeed", func() {
 										It("deletes the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
-											resp := deleteInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+											resp := deleteInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.DELETE,
@@ -2948,7 +2948,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									It("polling broker last operation until operation succeeds and eventually marks operation as success", func() {
-										resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+										resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedDeleteSuccessStatusCode, http.StatusAccepted))
 
 										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 											Category:          types.DELETE,
@@ -3033,7 +3033,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										It("keeps polling and eventually deletes the instance and marks the operation as success", func() {
-											resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+											resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedDeleteSuccessStatusCode, http.StatusAccepted))
 
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.DELETE,
@@ -3057,7 +3057,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										It("keeps polling and eventually deletes the instance and marks the operation as success", func() {
-											resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+											resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedDeleteSuccessStatusCode, http.StatusAccepted))
 
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.DELETE,
@@ -3082,7 +3082,7 @@ var _ = DescribeTestsFor(TestCase{
 
 										When("orphan mitigation deprovision synchronously succeeds", func() {
 											It("deletes the instance and marks the operation as success", func() {
-												resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+												resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 												instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 													Category:          types.DELETE,
@@ -3111,7 +3111,7 @@ var _ = DescribeTestsFor(TestCase{
 
 										When("broker orphan mitigation deprovision synchronously fails with an unexpected error", func() {
 											It("keeps in the instance and marks the operation with deletion scheduled", func() {
-												resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+												resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 												instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 													Category:          types.DELETE,
@@ -3141,7 +3141,7 @@ var _ = DescribeTestsFor(TestCase{
 
 										When("broker orphan mitigation deprovision synchronously fails with an error that will continue further orphan mitigation and eventually succeed", func() {
 											It("deletes the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
-												resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+												resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 												instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 													Category:          types.DELETE,
@@ -3176,7 +3176,7 @@ var _ = DescribeTestsFor(TestCase{
 
 											BeforeEach(func() {
 												newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
-													Expect(set.Set("operations.reconciliation_operation_timeout", (2 * time.Millisecond).String())).ToNot(HaveOccurred())
+													Expect(set.Set("operations.reconciliation_operation_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
 												}).BuildWithoutCleanup()
 											})
 
@@ -3185,7 +3185,7 @@ var _ = DescribeTestsFor(TestCase{
 											})
 
 											It("keeps the instance as ready false and marks the operation as deletion scheduled", func() {
-												resp := deleteInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+												resp := deleteInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 												instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 													Category:          types.DELETE,
@@ -3211,7 +3211,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										It("keeps the instance and stores the operation as reschedulable", func() {
-											resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+											resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.DELETE,

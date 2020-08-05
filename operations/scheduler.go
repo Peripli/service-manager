@@ -63,25 +63,25 @@ func NewScheduler(smCtx context.Context, repository storage.TransactionalReposit
 	}
 }
 
-func (s *Scheduler) ScheduleStorageAction(ctx context.Context, operation *types.Operation, action storageAction) (types.Object, error) {
-	createdObj, err := s.ScheduleSyncStorageAction(ctx, operation, action)
+func (s *Scheduler) ScheduleStorageAction(ctx context.Context, operation *types.Operation, action storageAction) (types.Object, bool, error) {
+	object, err := s.ScheduleSyncStorageAction(ctx, operation, action)
 
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	lastOperation, _, _, err := s.getResourceLastOperation(ctx, operation)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	if lastOperation.Reschedule {
 		if err := s.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		return nil, nil
+		return nil, true, nil
 	}
-	return createdObj, nil
+	return object, false, nil
 }
 
 // ScheduleSyncStorageAction stores the job's Operation entity in DB and synchronously executes the CREATE/UPDATE/DELETE DB transaction
