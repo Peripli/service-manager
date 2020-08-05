@@ -38,7 +38,7 @@ type Locker struct {
 // Lock acquires a database lock so that only one process can manipulate the encryption key.
 // Returns an error if the process has already acquired the lock
 func (l *Locker) Lock(ctx context.Context) error {
-	log.C(ctx).Infof("Attempting to lock advisory lock with index (%d)", l.AdvisoryIndex)
+	log.C(ctx).Debugf("Attempting to lock advisory lock with index (%d)", l.AdvisoryIndex)
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	if l.isLocked || l.lockerCon != nil {
@@ -51,7 +51,7 @@ func (l *Locker) Lock(ctx context.Context) error {
 		return err
 	}
 
-	log.C(ctx).Infof("Executing lock of locker with advisory index (%d)", l.AdvisoryIndex)
+	log.C(ctx).Debugf("Executing lock of locker with advisory index (%d)", l.AdvisoryIndex)
 	rows, err := l.lockerCon.QueryContext(ctx, "SELECT pg_advisory_lock($1)", l.AdvisoryIndex)
 	if err != nil {
 		l.release(ctx)
@@ -66,14 +66,14 @@ func (l *Locker) Lock(ctx context.Context) error {
 
 	l.isLocked = true
 
-	log.C(ctx).Infof("Successfully locked locker with advisory index (%d)", l.AdvisoryIndex)
+	log.C(ctx).Debugf("Successfully locked locker with advisory index (%d)", l.AdvisoryIndex)
 	return nil
 }
 
 // Lock acquires a database lock so that only one process can manipulate the encryption key.
 // Returns an error if the process has already acquired the lock
 func (l *Locker) TryLock(ctx context.Context) error {
-	log.C(ctx).Infof("Attempting to try_lock advisory lock with index (%d)", l.AdvisoryIndex)
+	log.C(ctx).Debugf("Attempting to try_lock advisory lock with index (%d)", l.AdvisoryIndex)
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	if l.isLocked || l.lockerCon != nil {
@@ -86,7 +86,7 @@ func (l *Locker) TryLock(ctx context.Context) error {
 		return err
 	}
 
-	log.C(ctx).Infof("Executing try_lock of locker with advisory index (%d)", l.AdvisoryIndex)
+	log.C(ctx).Debugf("Executing try_lock of locker with advisory index (%d)", l.AdvisoryIndex)
 	rows, err := l.lockerCon.QueryContext(ctx, "SELECT pg_try_advisory_lock($1)", l.AdvisoryIndex)
 	if err != nil {
 		l.release(ctx)
@@ -115,13 +115,13 @@ func (l *Locker) TryLock(ctx context.Context) error {
 
 	l.isLocked = true
 
-	log.C(ctx).Infof("Successfully try_locked locker with advisory index (%d)", l.AdvisoryIndex)
+	log.C(ctx).Debugf("Successfully try_locked locker with advisory index (%d)", l.AdvisoryIndex)
 	return nil
 }
 
 // Unlock releases the database lock.
 func (l *Locker) Unlock(ctx context.Context) error {
-	log.C(ctx).Infof("Attempting to unlock advisory lock with index (%d)", l.AdvisoryIndex)
+	log.C(ctx).Debugf("Attempting to unlock advisory lock with index (%d)", l.AdvisoryIndex)
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	if !l.isLocked || l.lockerCon == nil {
@@ -130,7 +130,7 @@ func (l *Locker) Unlock(ctx context.Context) error {
 	}
 	defer l.release(ctx)
 
-	log.C(ctx).Infof("Executing unlock of locker with advisory index (%d)", l.AdvisoryIndex)
+	log.C(ctx).Debugf("Executing unlock of locker with advisory index (%d)", l.AdvisoryIndex)
 	rows, err := l.lockerCon.QueryContext(ctx, "SELECT pg_advisory_unlock($1)", l.AdvisoryIndex)
 	if err != nil {
 		log.C(ctx).Infof("Failed to unlock locker with advisory index (%d)", l.AdvisoryIndex)
@@ -156,7 +156,7 @@ func (l *Locker) Unlock(ctx context.Context) error {
 
 	l.isLocked = false
 
-	log.C(ctx).Infof("Successfully unlocked locker with advisory index (%d)", l.AdvisoryIndex)
+	log.C(ctx).Debugf("Successfully unlocked locker with advisory index (%d)", l.AdvisoryIndex)
 	return nil
 }
 
