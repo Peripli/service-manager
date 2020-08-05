@@ -197,13 +197,14 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	}
 
 	var createdObj types.Object
+	var isAsync bool
 	if operation.Context.IsAsyncNotDefined {
 		log.C(ctx).Debugf("Request will be executed by broker response")
-		createdObj, err = c.scheduler.ScheduleStorageAction(ctx, operation, action)
+		createdObj, isAsync, err = c.scheduler.ScheduleStorageAction(ctx, operation, action)
 		if err != nil {
 			return nil, err
 		}
-		if createdObj == nil {
+		if isAsync {
 			return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
 		}
 	} else if operation.Context.Async {
@@ -299,14 +300,23 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		Context:       c.prepareOperationContextByRequest(r),
 	}
 
-	if operation.Context.Async {
+	if operation.Context.IsAsyncNotDefined {
+		log.C(ctx).Debugf("Request will be executed by broker response")
+		_, isAsync, err := c.scheduler.ScheduleStorageAction(ctx, operation, action)
+		if err != nil {
+			return nil, err
+		}
+		if isAsync {
+			return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
+		}
+	} else if operation.Context.Async {
 		log.C(ctx).Debugf("Request will be executed asynchronously due to client request async=true")
 		return c.executeAsync(ctx, operation, action, objectID)
-	}
-
-	log.C(ctx).Debugf("Request will be executed synchronously")
-	if _, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action); err != nil {
-		return nil, util.HandleStorageError(err, c.objectType.String())
+	} else {
+		log.C(ctx).Debugf("Request will be executed synchronously")
+		if _, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action); err != nil {
+			return nil, util.HandleStorageError(err, c.objectType.String())
+		}
 	}
 
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -497,13 +507,14 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	}
 
 	var object types.Object
+	var isAsync bool
 	if operation.Context.IsAsyncNotDefined {
 		log.C(ctx).Debugf("Request will be executed by broker response")
-		object, err = c.scheduler.ScheduleStorageAction(ctx, operation, action)
+		object, isAsync, err = c.scheduler.ScheduleStorageAction(ctx, operation, action)
 		if err != nil {
 			return nil, err
 		}
-		if object == nil {
+		if isAsync {
 			return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
 		}
 	} else if operation.Context.Async {
