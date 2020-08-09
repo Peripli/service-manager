@@ -196,26 +196,13 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		Context:       c.prepareOperationContextByRequest(r),
 	}
 
-	var createdObj types.Object
-	var isAsync bool
-	if operation.Context.IsAsyncNotDefined {
-		log.C(ctx).Debugf("Request will be executed by broker response")
-		createdObj, isAsync, err = c.scheduler.ScheduleStorageAction(ctx, operation, action)
-		if err != nil {
-			return nil, err
-		}
-		if isAsync {
-			return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
-		}
-	} else if operation.Context.Async {
-		log.C(ctx).Debugf("Request will be executed asynchronously")
-		return c.executeAsync(ctx, operation, action, result.GetID())
-	} else {
-		log.C(ctx).Debugf("Request will be executed synchronously")
-		createdObj, err = c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
-		if err != nil {
-			return nil, util.HandleStorageError(err, c.objectType.String())
-		}
+	createdObj, isAsync, err := c.scheduler.ScheduleStorageAction(ctx, operation, action)
+	if err != nil {
+		return nil, err
+	}
+
+	if isAsync {
+		return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
 	}
 
 	if err := attachLastOperation(ctx, createdObj.GetID(), createdObj, c.repository); err != nil {
@@ -300,23 +287,13 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		Context:       c.prepareOperationContextByRequest(r),
 	}
 
-	if operation.Context.IsAsyncNotDefined {
-		log.C(ctx).Debugf("Request will be executed by broker response")
-		_, isAsync, err := c.scheduler.ScheduleStorageAction(ctx, operation, action)
-		if err != nil {
-			return nil, err
-		}
-		if isAsync {
-			return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
-		}
-	} else if operation.Context.Async {
-		log.C(ctx).Debugf("Request will be executed asynchronously due to client request async=true")
-		return c.executeAsync(ctx, operation, action, objectID)
-	} else {
-		log.C(ctx).Debugf("Request will be executed synchronously")
-		if _, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action); err != nil {
-			return nil, util.HandleStorageError(err, c.objectType.String())
-		}
+	_, isAsync, err := c.scheduler.ScheduleStorageAction(ctx, operation, action)
+	if err != nil {
+		return nil, err
+	}
+
+	if isAsync {
+		return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
 	}
 
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -506,26 +483,13 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		Context:       c.prepareOperationContextByRequest(r),
 	}
 
-	var object types.Object
-	var isAsync bool
-	if operation.Context.IsAsyncNotDefined {
-		log.C(ctx).Debugf("Request will be executed by broker response")
-		object, isAsync, err = c.scheduler.ScheduleStorageAction(ctx, operation, action)
-		if err != nil {
-			return nil, err
-		}
-		if isAsync {
-			return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
-		}
-	} else if operation.Context.Async {
-		log.C(ctx).Debugf("Request will be executed asynchronously")
-		return c.executeAsync(ctx, operation, action, objFromDB.GetID())
-	} else {
-		log.C(ctx).Debugf("Request will be executed synchronously")
-		object, err = c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
-		if err != nil {
-			return nil, util.HandleStorageError(err, c.objectType.String())
-		}
+	object, isAsync, err := c.scheduler.ScheduleStorageAction(ctx, operation, action)
+	if err != nil {
+		return nil, err
+	}
+
+	if isAsync {
+		return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
 	}
 
 	if err := attachLastOperation(ctx, object.GetID(), object, c.repository); err != nil {
