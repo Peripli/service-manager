@@ -3184,7 +3184,7 @@ var _ = DescribeTestsFor(TestCase{
 												newCtx.CleanupAll(false)
 											})
 
-											It("keeps the instance as ready false and marks the operation as deletion scheduled", func() {
+											FIt("keeps the instance as ready false and marks the operation as deletion scheduled", func() {
 												resp := deleteInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
 												instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
