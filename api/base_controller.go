@@ -196,7 +196,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		Context:       c.prepareOperationContextByRequest(r),
 	}
 
-	createdObj, isAsync, err := c.scheduler.ScheduleStorageAction(ctx, operation, action)
+	createdObj, isAsync, err := c.scheduler.ScheduleStorageAction(ctx, operation, action, c.supportsAsync)
 	if err != nil {
 		return nil, err
 	}
@@ -211,16 +211,6 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 
 	cleanObject(createdObj.GetLastOperation())
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
-}
-
-func (c *BaseController) executeAsync(ctx context.Context, operation *types.Operation, action func(ctx context.Context, repository storage.Repository) (types.Object, error), resourceID string) (*web.Response, error) {
-	if err := c.checkAsyncSupport(); err != nil {
-		return nil, err
-	}
-	if err := c.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-		return nil, err
-	}
-	return util.NewLocationResponse(operation.GetID(), resourceID, c.resourceBaseURL)
 }
 
 // DeleteObjects handles the deletion of the objects specified in the request
@@ -287,7 +277,7 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		Context:       c.prepareOperationContextByRequest(r),
 	}
 
-	_, isAsync, err := c.scheduler.ScheduleStorageAction(ctx, operation, action)
+	_, isAsync, err := c.scheduler.ScheduleStorageAction(ctx, operation, action, c.supportsAsync)
 	if err != nil {
 		return nil, err
 	}
@@ -483,7 +473,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		Context:       c.prepareOperationContextByRequest(r),
 	}
 
-	object, isAsync, err := c.scheduler.ScheduleStorageAction(ctx, operation, action)
+	object, isAsync, err := c.scheduler.ScheduleStorageAction(ctx, operation, action, c.supportsAsync)
 	if err != nil {
 		return nil, err
 	}
@@ -653,17 +643,6 @@ func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types
 	}
 
 	return operationContext
-}
-
-func (c *BaseController) checkAsyncSupport() error {
-	if !c.supportsAsync {
-		return &util.HTTPError{
-			ErrorType:   "InvalidRequest",
-			Description: fmt.Sprintf("requested %s api doesn't support asynchronous operations", c.objectType),
-			StatusCode:  http.StatusBadRequest,
-		}
-	}
-	return nil
 }
 
 func generateTokenForItem(obj types.Object) string {

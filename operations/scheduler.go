@@ -64,11 +64,11 @@ func NewScheduler(smCtx context.Context, repository storage.TransactionalReposit
 }
 
 //Identifies the preferred execution mode and execute the storage action
-func (s *Scheduler) ScheduleStorageAction(ctx context.Context, operation *types.Operation, action storageAction) (types.Object, bool, error) {
+func (s *Scheduler) ScheduleStorageAction(ctx context.Context, operation *types.Operation, action storageAction, isAsyncSupported bool) (types.Object, bool, error) {
 	var object types.Object
 	var err error
 
-	if operation.Context.IsAsyncNotDefined {
+	if operation.Context.IsAsyncNotDefined && isAsyncSupported {
 		object, err = s.ScheduleSyncStorageAction(ctx, operation, action)
 
 		if err != nil {
@@ -91,6 +91,15 @@ func (s *Scheduler) ScheduleStorageAction(ctx context.Context, operation *types.
 	}
 
 	if operation.Context.Async {
+
+		if !isAsyncSupported {
+			return nil, false, &util.HTTPError{
+				ErrorType:   "InvalidRequest",
+				Description: fmt.Sprintf("requested api doesn't support asynchronous operations"),
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+
 		log.C(ctx).Debugf("Request will be executed asynchronously")
 		if err := s.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
 			return nil, true, err
