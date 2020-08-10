@@ -333,24 +333,6 @@ var _ = Describe("Basic Authenticator", func() {
 								Expect(user).ToNot(BeNil())
 								Expect(decision).To(Equal(httpsec.Allow))
 							})
-
-							Context("When deleting old broker platform credentials fails", func() {
-								expectedError := fmt.Errorf("error")
-
-								BeforeEach(func() {
-									fakeRepository.UpdateReturns(nil, expectedError)
-								})
-
-								It("should abstain with error", func() {
-									user, decision, err := authenticator.Authenticate(req)
-									Expect(err).To(HaveOccurred())
-									Expect(err.Error()).To(ContainSubstring(expectedError.Error()))
-									Expect(user).To(BeNil())
-									Expect(decision).To(Equal(httpsec.Abstain))
-
-								})
-							})
-
 						})
 
 						Context("When old credentials match", func() {

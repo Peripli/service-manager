@@ -354,16 +354,17 @@ var _ = Describe("Catalog", func() {
 							newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationID(SMWithBasicPlatform, prefixedBrokerID, notifications.ItemAt(0).GetID())
 							ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
 
-							By("new credentials not yet used - old ones should still be valid")
+							By("new credentials not yet used")
 							oldSMWithBasic.GET(osbURL + "/v2/catalog").
 								Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 
-							By("new credentials used - old ones should be invalidated")
+							By("new credentials used")
 							ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
 								Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 
+							//old credentials are valid until the new credentials are activated by the service-broker-proxy
 							oldSMWithBasic.GET(osbURL + "/v2/catalog").
-								Expect().Status(http.StatusUnauthorized)
+								Expect().Status(http.StatusOK)
 
 						})
 					})
@@ -447,11 +448,6 @@ var _ = Describe("Catalog", func() {
 					By("rotation of K8S credentials broker platform credentials should work")
 					k8sOSBClient.GET(osbURL + "/v2/catalog").
 						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
-
-					By("old K8S credentials broker platform credentials should not work")
-					k8sOSBClient.SetBasicCredentials(ctx, username, password)
-					k8sOSBClient.GET(osbURL + "/v2/catalog").
-						Expect().Status(http.StatusUnauthorized)
 				})
 			})
 		})
