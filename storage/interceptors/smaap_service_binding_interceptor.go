@@ -295,7 +295,8 @@ func shouldRemoveResource(operation *types.Operation) bool {
 			return false
 		}
 	}
-	if operation.Reschedule {
+	// Keep the instance in case the operation type is "DELETE" and the operation is rescheduled
+	if operation.Type == types.DELETE && operation.Reschedule {
 		return false
 	}
 	return true
@@ -370,7 +371,7 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 		}
 	}
 
-	if shouldStartPolling(operation) || (operation.InOrphanMitigationState() && operation.Reschedule) {
+	if shouldStartPolling(operation) {
 		if err := i.pollServiceBinding(ctx, osbClient, binding, instance, plan, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
 			return err
 		}

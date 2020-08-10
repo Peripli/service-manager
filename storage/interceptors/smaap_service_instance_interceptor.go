@@ -487,7 +487,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 		}
 	}
 
-	if shouldStartPolling(operation) || (operation.InOrphanMitigationState() && operation.Reschedule) {
+	if shouldStartPolling(operation) {
 		if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
 			return err
 		}
@@ -619,10 +619,17 @@ func isUnreachableBroker(err error) bool {
 }
 
 func shouldStartPolling(operation *types.Operation) bool {
-	if operation.Context != nil {
-		return !operation.Context.IsAsyncNotDefined && operation.Reschedule
+
+	// In case the operation not rescheduled, don't start polling
+	if !operation.Reschedule {
+		return false
 	}
-	return operation.Reschedule
+
+	if operation.Context != nil {
+		// The polling should start if the operation is rescheduled and (orphan mitigation state is in true state or async mode is defined)
+		return !operation.Context.IsAsyncNotDefined || operation.InOrphanMitigationState()
+	}
+	return true
 }
 
 func (i *ServiceInstanceInterceptor) processMaxPollingDurationElapsed(ctx context.Context, instance *types.ServiceInstance, plan *types.ServicePlan, operation *types.Operation, enableOrphanMitigation bool) error {

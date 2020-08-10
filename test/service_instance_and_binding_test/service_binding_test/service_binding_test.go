@@ -2038,7 +2038,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										It("keeps the binding and marks the operation with deletion scheduled", func() {
-											resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode,  http.StatusAccepted))
+											resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.responseByBrokerOrClientMode(testCase.expectedBrokerFailureStatusCode, http.StatusAccepted))
 
 											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.DELETE,
