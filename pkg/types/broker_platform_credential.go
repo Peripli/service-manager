@@ -38,6 +38,8 @@ type BrokerPlatformCredential struct {
 
 	NotificationID string `json:"notification_id,omitempty"`
 	Integrity      []byte `json:"-"`
+
+	Active bool `json:"active"`
 }
 
 func (e *BrokerPlatformCredential) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {

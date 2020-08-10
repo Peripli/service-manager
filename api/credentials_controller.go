@@ -49,6 +49,13 @@ func (c *credentialsController) Routes() []web.Route {
 			},
 			Handler: c.setCredentials,
 		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodPut,
+				Path:   fmt.Sprintf("%s/{%s}/activate", web.BrokerPlatformCredentialsURL, web.PathParamResourceID),
+			},
+			Handler: c.activateCredentials,
+		},
 	}
 }
 func (c *credentialsController) setCredentials(r *web.Request) (*web.Response, error) {
@@ -153,17 +160,45 @@ func (c *credentialsController) registerCredentials(ctx context.Context, credent
 func (c *credentialsController) updateCredentials(ctx context.Context, body, credentialsFromDB *types.BrokerPlatformCredential) (*web.Response, error) {
 	log.C(ctx).Debugf("Updating broker platform credentials")
 
-	credentialsFromDB.OldUsername = credentialsFromDB.Username
-	credentialsFromDB.OldPasswordHash = credentialsFromDB.PasswordHash
+	if credentialsFromDB.Active || len(credentialsFromDB.OldUsername) == 0 || len(credentialsFromDB.OldPasswordHash) == 0 {
+		log.C(ctx).Debug("Updating old username and old password")
+		credentialsFromDB.OldUsername = credentialsFromDB.Username
+		credentialsFromDB.OldPasswordHash = credentialsFromDB.PasswordHash
+	} else {
+		log.C(ctx).Info("Current credentials were not active, will not be saved to old username and old password")
+	}
 
 	credentialsFromDB.Username = body.Username
 	credentialsFromDB.PasswordHash = body.PasswordHash
+	credentialsFromDB.Active = false
 
 	object, err := c.repository.Update(ctx, credentialsFromDB, types.LabelChanges{})
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
 	}
 	log.C(ctx).Infof("Successfully rotated credentials for platform %s and broker %s", credentialsFromDB.PlatformID, credentialsFromDB.BrokerID)
+
+	return util.NewJSONResponse(http.StatusOK, object)
+}
+
+func (c *credentialsController) activateCredentials(r *web.Request) (*web.Response, error) {
+	ctx := r.Context()
+
+	byID := query.ByField(query.EqualsOperator, "id", r.PathParams[web.PathParamResourceID])
+	objFromDB, err := c.repository.Get(ctx, types.BrokerPlatformCredentialType, byID)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
+	}
+
+	credentialsFromDB := objFromDB.(*types.BrokerPlatformCredential)
+	credentialsFromDB.Active = true
+	credentialsFromDB.OldPasswordHash = ""
+	credentialsFromDB.OldUsername = ""
+	object, err := c.repository.Update(ctx, credentialsFromDB, types.LabelChanges{})
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
+	}
+	log.C(ctx).Infof("Successfully activated credentials for platform %s and broker %s", credentialsFromDB.PlatformID, credentialsFromDB.BrokerID)
 
 	return util.NewJSONResponse(http.StatusOK, object)
 }
