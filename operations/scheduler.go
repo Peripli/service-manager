@@ -63,25 +63,53 @@ func NewScheduler(smCtx context.Context, repository storage.TransactionalReposit
 	}
 }
 
-func (s *Scheduler) ScheduleStorageAction(ctx context.Context, operation *types.Operation, action storageAction) (types.Object, error) {
-	createdObj, err := s.ScheduleSyncStorageAction(ctx, operation, action)
+//Identifies the preferred execution mode and execute the storage action
+func (s *Scheduler) ScheduleStorageAction(ctx context.Context, operation *types.Operation, action storageAction, isAsyncSupported bool) (types.Object, bool, error) {
+	var object types.Object
+	var err error
 
-	if err != nil {
-		return nil, err
-	}
+	if operation.Context.IsAsyncNotDefined && isAsyncSupported {
+		object, err = s.ScheduleSyncStorageAction(ctx, operation, action)
 
-	lastOperation, _, _, err := s.getResourceLastOperation(ctx, operation)
-	if err != nil {
-		return nil, err
-	}
-
-	if lastOperation.Reschedule {
-		if err := s.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-			return nil, err
+		if err != nil {
+			return nil, false, err
 		}
-		return nil, nil
+
+		lastOperation, _, _, err := s.getResourceLastOperation(ctx, operation)
+		if err != nil {
+			return nil, false, err
+		}
+
+		if lastOperation.Reschedule {
+			if err := s.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
+				return nil, false, err
+			}
+			return nil, true, nil
+		}
+
+		return object, false, err
 	}
-	return createdObj, nil
+
+	if operation.Context.Async {
+
+		if !isAsyncSupported {
+			return nil, false, &util.HTTPError{
+				ErrorType:   "InvalidRequest",
+				Description: fmt.Sprintf("requested api doesn't support asynchronous operations"),
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+
+		log.C(ctx).Debugf("Request will be executed asynchronously")
+		if err := s.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
+			return nil, true, err
+		}
+		return nil, true, nil
+	}
+
+	log.C(ctx).Debugf("Request will be executed synchronously")
+	object, err = s.ScheduleSyncStorageAction(ctx, operation, action)
+	return object, false, err
 }
 
 // ScheduleSyncStorageAction stores the job's Operation entity in DB and synchronously executes the CREATE/UPDATE/DELETE DB transaction

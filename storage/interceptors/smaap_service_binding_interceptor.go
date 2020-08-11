@@ -266,7 +266,7 @@ func (i *ServiceBindingInterceptor) AroundTxDelete(f storage.InterceptDeleteArou
 				return err
 			}
 		} else if operation.InOrphanMitigationState() && operation.Context.ServiceInstanceID != "" {
-			// In case we don't have instance & use the operation context to perform orphan mitigation
+			// In case we don't have a binding & use the operation context to perform orphan mitigation
 			binding := types.ServiceBinding{}
 			binding.ServiceInstanceID = operation.Context.ServiceInstanceID
 			binding.ID = operation.ResourceID
@@ -295,6 +295,10 @@ func shouldRemoveResource(operation *types.Operation) bool {
 			return false
 		}
 	}
+	// Keep the instance in case the operation type is "DELETE" and the operation is rescheduled
+	if operation.Type == types.DELETE && operation.Reschedule {
+		return false
+	}
 	return true
 }
 
@@ -307,6 +311,13 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 	osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
 	if err != nil {
 		return err
+	}
+
+	if operation.Reschedule {
+		if err := i.pollServiceBinding(ctx, osbClient, binding, instance, plan, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
+			return err
+		}
+		return nil
 	}
 
 	var unbindResponse *osbc.UnbindResponse
@@ -341,6 +352,9 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 			log.C(ctx).Infof("Successful asynchronous unbind request %s to broker %s returned response %s",
 				logUnbindRequest(unbindRequest), broker.Name, logUnbindResponse(unbindResponse))
 			operation.Reschedule = true
+			if operation.Context.IsAsyncNotDefined {
+				operation.Context.Async = true
+			}
 			if operation.RescheduleTimestamp.IsZero() {
 				operation.RescheduleTimestamp = time.Now()
 			}
@@ -357,7 +371,7 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 		}
 	}
 
-	if operation.Reschedule {
+	if shouldStartPolling(operation) {
 		if err := i.pollServiceBinding(ctx, osbClient, binding, instance, plan, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
 			return err
 		}
