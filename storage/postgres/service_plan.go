@@ -77,6 +77,7 @@ func (sp *ServicePlan) FromObject(object types.Object) (storage.Entity, error) {
 
 	isFree := func() bool {
 		if plan.Free == nil {
+			//If not specified, plan should be free as default
 			return true
 		} else {
 			return *plan.Free
