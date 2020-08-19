@@ -34,7 +34,7 @@ type ServicePlan struct {
 
 	CatalogID     string `json:"catalog_id"`
 	CatalogName   string `json:"catalog_name"`
-	Free          bool   `json:"free"`
+	Free          *bool  `json:"free,omitempty"`
 	Bindable      *bool  `json:"bindable,omitempty"`
 	PlanUpdatable *bool  `json:"plan_updateable,omitempty"`
 
