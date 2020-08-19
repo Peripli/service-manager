@@ -76,10 +76,10 @@ func (sp *ServicePlan) FromObject(object types.Object) (storage.Entity, error) {
 	}
 
 	isFree := func() bool {
-		if &sp.Free == nil {
+		if plan.Free == nil {
 			return true
 		} else {
-			return sp.Free
+			return *plan.Free
 		}
 	}
 
