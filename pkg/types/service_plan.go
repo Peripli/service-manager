@@ -54,7 +54,9 @@ func (e *ServicePlan) Equals(obj Object) bool {
 	plan := obj.(*ServicePlan)
 	if e.Name != plan.Name ||
 		e.ServiceOfferingID != plan.ServiceOfferingID ||
-		e.Free != plan.Free ||
+		(e.Free == nil && plan.Free != nil) ||
+		(e.Free != nil && plan.Free == nil) ||
+		(e.Free != nil && plan.Free != nil && *e.Free != *plan.Free) ||
 		(e.Bindable == nil && plan.Bindable != nil) ||
 		(e.Bindable != nil && plan.Bindable == nil) ||
 		(e.Bindable != nil && plan.Bindable != nil && *e.Bindable != *plan.Bindable) ||
