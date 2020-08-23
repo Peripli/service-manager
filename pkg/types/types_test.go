@@ -333,7 +333,7 @@ func createServicePlan(now time.Time) Object {
 		Description:       "description",
 		CatalogID:         "1",
 		CatalogName:       "catname",
-		Free:              true,
+		Free:              &trueVar,
 		Bindable:          &trueVar,
 		PlanUpdatable:     &trueVar,
 		Metadata:          []byte("metadata"),

@@ -2,6 +2,8 @@ package storage_test
 
 import (
 	"context"
+	"fmt"
+	"github.com/gofrs/uuid"
 	"net/http"
 	"testing"
 
@@ -289,6 +291,38 @@ var _ = Describe("Test", func() {
 
 			ctx.SMWithOAuth.GET(web.VisibilitiesURL + "/" + visibilityID).Expect().
 				Status(http.StatusOK).JSON().Object().Value("id").String().Equal(visibilityID)
+		})
+	})
+
+	Context("when plan has no 'free' property", func() {
+		var testPlanWithoutFree = `
+	{
+      "name": "another-paid-plan-name-%[1]s",
+      "id": "%[1]s",
+      "description": "test-description",
+      "bindable": true
+    }
+`
+		var catalogID string
+
+		BeforeEach(func() {
+			UUID, err := uuid.NewV4()
+			Expect(err).ToNot(HaveOccurred())
+			catalogID = UUID.String()
+			plan1 := common.GenerateTestPlanFromTemplate(catalogID, testPlanWithoutFree)
+			UUID, err = uuid.NewV4()
+			Expect(err).ToNot(HaveOccurred())
+			serviceID := UUID.String()
+			service1 := common.GenerateTestServiceWithPlansWithID(serviceID, plan1)
+			catalog := common.NewEmptySBCatalog()
+			catalog.AddService(service1)
+			ctx.RegisterBrokerWithCatalog(catalog)
+		})
+
+		It("stored with free = true", func() {
+			plans := ctx.SMWithBasic.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_id eq '%s'", catalogID))
+			planIsFree := plans.First().Object().Value("free").Raw()
+			Expect(planIsFree).To(Equal(true))
 		})
 	})
 })

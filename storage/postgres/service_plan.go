@@ -58,7 +58,7 @@ func (sp *ServicePlan) ToObject() (types.Object, error) {
 		Description:            sp.Description,
 		CatalogID:              sp.CatalogID,
 		CatalogName:            sp.CatalogName,
-		Free:                   sp.Free,
+		Free:                   &sp.Free,
 		Bindable:               toBoolPointer(sp.Bindable),
 		PlanUpdatable:          toBoolPointer(sp.PlanUpdatable),
 		Metadata:               getJSONRawMessage(sp.Metadata),
@@ -74,6 +74,16 @@ func (sp *ServicePlan) FromObject(object types.Object) (storage.Entity, error) {
 	if !ok {
 		return nil, fmt.Errorf("object is not of type ServicePlan")
 	}
+
+	isFree := func() bool {
+		if plan.Free == nil {
+			//If not specified, plan should be free as default
+			return true
+		} else {
+			return *plan.Free
+		}
+	}
+
 	return &ServicePlan{
 		BaseEntity: BaseEntity{
 			ID:             plan.ID,
@@ -84,7 +94,7 @@ func (sp *ServicePlan) FromObject(object types.Object) (storage.Entity, error) {
 		},
 		Name:                   plan.Name,
 		Description:            plan.Description,
-		Free:                   plan.Free,
+		Free:                   isFree(),
 		Bindable:               toNullBool(plan.Bindable),
 		PlanUpdatable:          toNullBool(plan.PlanUpdatable),
 		CatalogID:              plan.CatalogID,
