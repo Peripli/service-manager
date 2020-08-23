@@ -300,27 +300,7 @@ var _ = Describe("Test", func() {
       "name": "another-paid-plan-name-%[1]s",
       "id": "%[1]s",
       "description": "test-description",
-      "bindable": true,
-      "metadata": {
-        "max_storage_tb": 5,
-        "costs":[
-            {
-               "amount":{
-                  "usd":199.0
-               },
-               "unit":"MONTHLY"
-            },
-            {
-               "amount":{
-                  "usd":0.99
-               },
-               "unit":"1GB of messages over 20GB"
-            }
-         ],
-        "bullets": [
-          "40 concurrent connections"
-        ]
-      }
+      "bindable": true
     }
 `
 		var catalogID string
