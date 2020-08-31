@@ -88,7 +88,7 @@ func (c *ServiceBindingDeleteInterceptorProvider) Name() string {
 
 type ServiceBindingInterceptor struct {
 	osbClientCreateFunc osbc.CreateFunc
-	repository          storage.TransactionalRepository
+	repository          *storage.InterceptableTransactionalRepository
 	tenantKey           string
 	pollingInterval     time.Duration
 }
@@ -258,7 +258,7 @@ func (i *ServiceBindingInterceptor) AroundTxDelete(f storage.InterceptDeleteArou
 		if bindings.Len() != 0 {
 			binding := bindings.ItemAt(0).(*types.ServiceBinding)
 			if operation.Type == types.CREATE && !operation.IsAsyncResponse() {
-				if err := f(ctx, deletionCriteria...); err != nil {
+				if err := i.repository.RawRepository.Delete(ctx, types.ServiceInstanceType, deletionCriteria...); err != nil {
 					return err
 				}
 			}
