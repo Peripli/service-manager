@@ -377,7 +377,7 @@ func (i *ServiceInstanceInterceptor) AroundTxDelete(f storage.InterceptDeleteAro
 			instance := instances.ItemAt(0).(*types.ServiceInstance)
 			//When sm is async polling we have a binding (in case user expect a sync response it should be deleted)
 			if operation.Type == types.CREATE && !operation.IsAsyncResponse() {
-				if err := f(ctx, deletionCriteria...); err != nil {
+				if err := i.repository.RawRepository.Delete(ctx, types.ServiceInstanceType, deletionCriteria...); err != nil {
 					return err
 				}
 			}
