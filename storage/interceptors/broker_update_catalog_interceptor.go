@@ -78,18 +78,18 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 
 		oldBroker.Services = existingServiceOfferingsWithServicePlans.ServiceOfferings
 
-		updatedObject, err := f(ctx, txStorage, oldObj, newObj, labelChanges...)
+		_, err = f(ctx, txStorage, oldObj, newObj, labelChanges...)
 		if err != nil {
 			return nil, err
 		}
 
-		updatedBroker := updatedObject.(*types.ServiceBroker)
-		brokerID := updatedBroker.GetID()
+		newBrokerObj := newObj.(*types.ServiceBroker)
+		brokerID := newObj.GetID()
 
 		existingServicesOfferingsMap, existingServicePlansPerOfferingMap := convertExistingServiceOfferringsToMaps(existingServiceOfferingsWithServicePlans.ServiceOfferings)
 		log.C(ctx).Debugf("Found %d services currently known for broker", len(existingServicesOfferingsMap))
 
-		catalogServices, catalogPlansMap, err := getBrokerCatalogServicesAndPlans(updatedBroker.Services)
+		catalogServices, catalogPlansMap, err := getBrokerCatalogServicesAndPlans(newBrokerObj.Services)
 		if err != nil {
 			return nil, err
 		}
@@ -222,10 +222,10 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 			}
 		}
 
-		updatedBroker.Services = catalogServices
+		newBrokerObj.Services = catalogServices
 
 		log.C(ctx).Debugf("Successfully resynced service plans for broker with id %s", brokerID)
-		return updatedBroker, nil
+		return newBrokerObj, nil
 	}
 }
 
