@@ -94,7 +94,6 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 			return nil, err
 		}
 		log.C(ctx).Debugf("Found %d services and %d plans in catalog for broker with id %s", len(catalogServices), len(catalogPlansMap), brokerID)
-
 		log.C(ctx).Debugf("Resyncing service offerings for broker with id %s...", brokerID)
 		offeringsToBeCreated := make([]*types.ServiceOffering, 0)
 		for _, catalogService := range catalogServices {
