@@ -183,7 +183,7 @@ var _ = Describe("Notifications Suite", func() {
 
 				for _, serviceOffering := range serviceOfferings.ServiceOfferings {
 					for _, servicePlan := range serviceOffering.Plans {
-						if servicePlan.Free {
+						if *servicePlan.Free {
 							found := false
 							for _, notification := range notificationsAfterOp.Notifications {
 								if notification.Resource == types.VisibilityType && notification.Type == types.CREATED {
@@ -349,7 +349,7 @@ var _ = Describe("Notifications Suite", func() {
 		ctx = common.NewTestContextBuilderWithSecurity().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 			smb.WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanCreateInterceptorProvider{
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
-					return catalogPlan.Free, nil
+					return *catalogPlan.Free, nil
 				},
 				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
 					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
@@ -358,7 +358,7 @@ var _ = Describe("Notifications Suite", func() {
 
 			smb.WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanUpdateInterceptorProvider{
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
-					return catalogPlan.Free, nil
+					return *catalogPlan.Free, nil
 				},
 				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
 					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
