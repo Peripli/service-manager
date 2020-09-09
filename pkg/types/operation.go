@@ -141,10 +141,6 @@ func (e *Operation) Validate() error {
 		return fmt.Errorf("missing resource type")
 	}
 
-	if e.State == PENDING && e.CascadeRootID == "" {
-		return fmt.Errorf("PENDING state only allowed for cascade operations")
-	}
-
 	if len(e.CascadeRootID) > 0 && len(e.ParentID) == 0 && e.CascadeRootID != e.ID {
 		return fmt.Errorf("root operation should have the same CascadeRootID and ID")
 	}
