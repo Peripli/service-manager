@@ -107,6 +107,11 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			interval: options.MaintainerRetryInterval,
 		},
 		{
+			name:     "schedulePendingOperations",
+			execute:  maintainer.schedulePendingOperations,
+			interval: options.MaintainerRetryInterval,
+		},
+		{
 			name:     "rescheduleOrphanMitigationOperations",
 			execute:  maintainer.rescheduleOrphanMitigationOperations,
 			interval: options.MaintainerRetryInterval,
@@ -291,21 +296,30 @@ func (om *Maintainer) CleanupResourcelessOperations() {
 	log.C(om.smCtx).Debug("Finished cleaning up resource-less operations")
 }
 
+func (om *Maintainer) schedulePendingOperations() {
+	om.scheduleOperations(
+		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
+		query.ByField(query.EqualsOperator, "state", string(types.PENDING)),
+		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
+		query.ByField(query.EqualsOrNilOperator, "cascade_root_id", ""))
+}
+
 // rescheduleUnfinishedOperations reschedules IN_PROGRESS operations which are reschedulable, not scheduled for deletion and no goroutine is processing at the moment
 func (om *Maintainer) rescheduleUnfinishedOperations() {
 	currentTime := time.Now()
-	criteria := []query.Criterion{
+	om.scheduleOperations(
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
 		query.ByField(query.EqualsOperator, "reschedule", "true"),
 		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
 		// check if operation hasn't been updated for the operation's maximum allowed time to execute
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ActionTimeout))),
-	}
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.ActionTimeout))))
+}
 
+func (om *Maintainer) scheduleOperations(criteria ...query.Criterion) {
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
 	if err != nil {
-		log.C(om.smCtx).Debugf("Failed to fetch unprocessed operations: %s", err)
+		log.C(om.smCtx).Debugf("Failed to fetch operations: %s", err)
 		return
 	}
 
@@ -356,10 +370,10 @@ func (om *Maintainer) rescheduleUnfinishedOperations() {
 		}
 
 		if err := om.scheduler.ScheduleAsyncStorageAction(ctx, operation, action); err != nil {
-			logger.Warnf("Failed to reschedule unprocessed operation with ID (%s): %s", operation.ID, err)
+			logger.Warnf("Failed to reschedule operation with ID (%s): %s", operation.ID, err)
 		}
 
-		logger.Debugf("Successfully rescheduled unfinished operation %+v", operation)
+		logger.Debugf("Successfully rescheduled operation %+v", operation)
 	}
 }
 
