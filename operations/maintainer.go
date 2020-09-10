@@ -326,6 +326,7 @@ func (om *Maintainer) scheduleOperations(criteria ...query.Criterion) {
 	operations := objectList.(*types.Operations)
 	for i := 0; i < operations.Len(); i++ {
 		operation := operations.ItemAt(i).(*types.Operation)
+		operation.State = types.IN_PROGRESS
 		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
 		ctx := log.ContextWithLogger(om.smCtx, logger)
 
