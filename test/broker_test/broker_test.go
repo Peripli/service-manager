@@ -680,17 +680,26 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				Context("Labelled", func() {
+				FContext("Labelled", func() {
 					Context("When labels are valid", func() {
 						It("should return 201", func() {
 							ctx.SMWithOAuth.POST(web.ServiceBrokersURL).
 								WithJSON(postBrokerRequestWithLabels).
 								Expect().Status(http.StatusCreated).JSON().Object().Keys().Contains("id", "labels")
 						})
+
+						When("When creating labeled broker with a key containing a forbidden separator as substring", func() {
+							It("should return 201", func() {
+								labels[fmt.Sprintf("containing_%s_separator", query.Separator)] = Array{"val"}
+								ctx.SMWithOAuth.POST(web.ServiceBrokersURL).
+									WithJSON(postBrokerRequestWithLabels).
+									Expect().Status(http.StatusCreated).JSON().Object().Keys().Contains("id", "labels")
+							})
+						})
 					})
 
-					Context("When creating labeled broker with key containing forbidden character", func() {
-						It("Should return 400", func() {
+					Context("When creating labeled broker with a forbidden separator", func() {
+						It("Should return 400 if the separator is a standalone word", func() {
 							labels[fmt.Sprintf("containing %s separator", query.Separator)] = Array{"val"}
 							ctx.SMWithOAuth.POST(web.ServiceBrokersURL).
 								WithJSON(postBrokerRequestWithLabels).

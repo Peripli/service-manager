@@ -181,7 +181,9 @@ func (c Criterion) Validate() error {
 	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) && !isDateTime(c.RightOp[0]) {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand %s is not numeric or datetime", c.Operator, c.RightOp[0])}
 	}
-	if strings.Contains(c.LeftOp, Separator) {
+	if strings.Contains(c.LeftOp, fmt.Sprintf(" %s ", Separator)) ||
+		strings.Contains(c.LeftOp, fmt.Sprintf("%s ", Separator)) ||
+		strings.Contains(c.LeftOp, fmt.Sprintf(" %s", Separator)) {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("separator %s is not allowed in %s with left operand \"%s\".", Separator, c.Type, c.LeftOp)}
 	}
 	for _, op := range c.RightOp {

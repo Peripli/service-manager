@@ -282,8 +282,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 					})
 
-					Context("When creating labeled visibility with key containing forbidden character", func() {
-						It("Should return 400", func() {
+					Context("When creating labeled visibility with key containing forbidden separator", func() {
+						It("Should return 201 when the separator is a substring", func() {
+							labels[fmt.Sprintf("containing_%s_separator", query.Separator)] = common.Array{"val"}
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
+								WithJSON(postVisibilityRequestWithLabels).
+								Expect().Status(http.StatusCreated)
+						})
+						It("Should return 400 when the separator is a standalone word", func() {
 							labels[fmt.Sprintf("containing %s separator", query.Separator)] = common.Array{"val"}
 							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 								WithJSON(postVisibilityRequestWithLabels).
