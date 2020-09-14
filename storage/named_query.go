@@ -6,6 +6,7 @@ const (
 	QueryByMissingLabel NamedQuery = iota
 	QueryByExistingLabel
 	QueryForLastOperationsPerResource
+	QueryForLabelLessVisibilities
 )
 
 var namedQueries = map[NamedQuery]string{
@@ -51,6 +52,10 @@ var namedQueries = map[NamedQuery]string{
 		 ) LAST_OPERATIONS
 		 ON {{.ENTITY_TABLE}}.paging_sequence = LAST_OPERATIONS.paging_sequence
 	WHERE resource_id IN (:id_list)`,
+	QueryForLabelLessVisibilities: `
+	SELECT v.* FROM visibilities v
+	LEFT OUTER JOIN visibility_labels vl on v.id = vl.visibility_id
+	WHERE (vl.id IS NULL and v.platform_id in (:platform_ids)) OR v.platform_id IS NULL`,
 }
 
 func GetNamedQuery(query NamedQuery) string {
