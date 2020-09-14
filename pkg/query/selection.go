@@ -183,7 +183,8 @@ func (c Criterion) Validate() error {
 	}
 	if strings.Contains(c.LeftOp, fmt.Sprintf(" %s ", Separator)) ||
 		strings.Contains(c.LeftOp, fmt.Sprintf("%s ", Separator)) ||
-		strings.Contains(c.LeftOp, fmt.Sprintf(" %s", Separator)) {
+		strings.Contains(c.LeftOp, fmt.Sprintf(" %s", Separator)) ||
+		c.LeftOp == Separator {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("separator %s is not allowed in %s with left operand \"%s\".", Separator, c.Type, c.LeftOp)}
 	}
 	for _, op := range c.RightOp {
