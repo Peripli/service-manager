@@ -839,6 +839,18 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 
 			})
 		})
+		Context("when query for label less visibilities", func() {
+			It("builds a valid query", func() {
+				params := map[string]interface{}{
+					"platform_ids": []string{"a", "b"}}
+
+				qb.NewQuery(entity).Query(ctx, storage.QueryForLabelLessVisibilities, params)
+				Expect(executedQuery).Should(Equal(`
+	SELECT v.* FROM visibilities v
+	LEFT OUTER JOIN visibility_labels vl on v.id = vl.visibility_id
+	WHERE (vl.id IS NULL and v.platform_id in (?, ?)) OR v.platform_id IS NULL`))
+			})
+		})
 
 		Context("when query by existing label with params ", func() {
 			It("builds a valid query", func() {
