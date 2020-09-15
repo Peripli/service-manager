@@ -688,7 +688,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().Status(http.StatusCreated).JSON().Object().Keys().Contains("id", "labels")
 						})
 
-						When("When creating labeled broker with a key containing a forbidden separator as substring", func() {
+						When("When creating labeled broker containing a separator not as a standalone word", func() {
 							It("should return 201", func() {
 								labels[fmt.Sprintf("containing_%s_separator", query.Separator)] = Array{"val"}
 								ctx.SMWithOAuth.POST(web.ServiceBrokersURL).
