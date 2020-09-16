@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/storage"
@@ -59,16 +58,20 @@ WHERE {{.ENTITY_TABLE}}.paging_sequence IN
 {{.FOR_UPDATE_OF}};`
 
 const SelectNoLabelsQueryTemplate = `
-{{if .hasFieldCriteria}}
+{{if or .hasFieldCriteria .hasLabelCriteria}}
 WITH matching_resources as (SELECT DISTINCT {{.ENTITY_TABLE}}.paging_sequence
 							FROM {{.ENTITY_TABLE}}
+							{{if .hasLabelCriteria}}
+							{{.JOIN}} {{.LABELS_TABLE}} 
+								ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
+							{{end}}
 							{{.WHERE}}
 							{{.ORDER_BY_SEQUENCE}}
 							{{.LIMIT}})
 {{end}}
 SELECT *
 FROM {{.ENTITY_TABLE}}
-{{if .hasFieldCriteria}}
+{{if or .hasFieldCriteria .hasLabelCriteria}}
 WHERE {{.ENTITY_TABLE}}.paging_sequence IN 
 	(SELECT matching_resources.paging_sequence FROM matching_resources)
 {{end}}
@@ -155,9 +158,6 @@ func (pq *pgQuery) List(ctx context.Context) (*sqlx.Rows, error) {
 }
 
 func (pq *pgQuery) ListNoLabels(ctx context.Context) (*sqlx.Rows, error) {
-	if !pq.labelsWhereClause.isEmpty() {
-		return nil, errors.New("label queries are not supported by ListNoLabels")
-	}
 	q, err := pq.resolveQueryTemplate(ctx, SelectNoLabelsQueryTemplate)
 	if err != nil {
 		return nil, err
