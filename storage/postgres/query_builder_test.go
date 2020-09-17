@@ -348,12 +348,21 @@ ORDER BY visibilities.paging_sequence ASC ;`)))
 		})
 
 		Context("when label criteria is used", func() {
-			It("should return error", func() {
+			It("should not return error", func() {
 				_, err := qb.NewQuery(entity).
 					WithCriteria(query.ByLabel(query.EqualsOperator, "labelKey", "labelValue")).
 					ListNoLabels(ctx)
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).Should(Equal("label queries are not supported by ListNoLabels"))
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(executedQuery).Should(Equal(trim(`
+WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence 
+							FROM visibilities JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id 
+							WHERE (key::text = ? AND val::text = ?) ) 
+SELECT * 
+FROM visibilities 
+WHERE visibilities.paging_sequence IN 
+(SELECT matching_resources.paging_sequence FROM matching_resources) 
+ORDER BY visibilities.paging_sequence ASC ;
+`)))
 			})
 		})
 
