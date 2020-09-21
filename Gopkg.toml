@@ -124,4 +124,4 @@ source = "https://github.com/fsnotify/fsnotify.git"
 
 [[constraint]]
   name = "github.com/kubernetes-sigs/go-open-service-broker-client"
-  version = "=7.0.0"
+  version = "0.0.12"
