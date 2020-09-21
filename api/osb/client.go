@@ -1,6 +1,6 @@
 package osb
 
-import osbc "github.com/kubernetes-sigs/go-open-service-broker-client/v2"
+import osbc "sigs.k8s.io/go-open-service-broker-client/v2"
 
 // NewBrokerClientProvider provides a function which constructs an OSB client based on a provided configuration
 func NewBrokerClientProvider(skipSsl bool, timeout int) osbc.CreateFunc {

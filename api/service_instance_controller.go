@@ -116,6 +116,9 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 	plan := planObject.(*types.ServicePlan)
 
 	serviceObject, err := c.repository.Get(context.TODO(), types.ServiceOfferingType, query.ByField(query.EqualsOperator, "id", plan.ServiceOfferingID))
+	if err!=nil{
+		//contsruct an error web reponse
+	}
 	service := serviceObject.(*types.ServiceOffering)
 	fmt.Println("service:", service)
 	if service.InstancesRetrievable{

@@ -36,7 +36,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/types"
-	osbc "github.com/kubernetes-sigs/go-open-service-broker-client/v2"
+	osbc "sigs.k8s.io/go-open-service-broker-client/v2"
 
 	"github.com/Peripli/service-manager/storage"
 )
@@ -151,6 +151,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			}
 			log.C(ctx).Infof("Sending provision request %s to broker with name %s", logProvisionRequest(provisionRequest), broker.Name)
 			provisionResponse, err = osbClient.ProvisionInstance(provisionRequest)
+
 			if err != nil {
 				brokerError := &util.HTTPError{
 					ErrorType:   "BrokerError",

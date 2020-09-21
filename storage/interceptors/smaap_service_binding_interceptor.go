@@ -36,7 +36,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/Peripli/service-manager/storage"
-	osbc "github.com/kubernetes-sigs/go-open-service-broker-client/v2"
+	osbc "sigs.k8s.io/go-open-service-broker-client/v2"
+
 )
 
 const ServiceBindingCreateInterceptorProviderName = "ServiceBindingCreateInterceptorProvider"
