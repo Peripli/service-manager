@@ -34,10 +34,11 @@ const (
 )
 
 type publicPlanProcessor func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (bool, error)
+type SupportedPlatformsProcessor func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error)
 
 type PublicPlanCreateInterceptorProvider struct {
 	IsCatalogPlanPublicFunc publicPlanProcessor
-	SupportedPlatforms      func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error)
+	SupportedPlatforms      SupportedPlatformsProcessor
 	TenantKey               string
 }
 
