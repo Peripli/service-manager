@@ -121,6 +121,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
 					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
+				TenantKey: "tenant",
 			}).OnTxBefore(interceptors.BrokerCreateCatalogInterceptorName).Register()
 			smb.EnableMultitenancy("tenant", func(request *web.Request) (string, error) {
 				extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")
@@ -147,6 +148,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
 					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
+				TenantKey: "tenant",
 			}).OnTxBefore(interceptors.BrokerUpdateCatalogInterceptorName).Register()
 			return nil
 		}).WithTenantTokenClaims(map[string]interface{}{
@@ -590,9 +592,18 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 			BeforeEach(func() {
 				platform := ctx.RegisterTenantPlatform()
 				supportedPlatformsByID = map[string]*types.Platform{platform.ID: platform}
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
 			})
 
 			FIt("creates a single public visibility for that platform", func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+
 				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
 					WithJSON(common.Object{}).
 					Expect().
