@@ -122,9 +122,15 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 	service := serviceObject.(*types.ServiceOffering)
 	fmt.Println("service:", service)
 	if service.InstancesRetrievable{
-		//TODO go to osb2
+		//c.osbProvider
+
 	}else{
 		//Construct a response "not supported"
 	}
 	return nil, nil
 }
+
+
+
+
+
