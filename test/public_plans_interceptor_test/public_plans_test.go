@@ -692,6 +692,31 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				Expect(vis["platform_id"]).To(Equal(getSupportedPlatformIDs()[0]))
 			})
 		})
+
+		When("when a public plan visibility exist for a tenant scoped platform", func() {
+
+			BeforeEach(func() {
+				platform := ctx.RegisterTenantPlatform()
+				supportedPlatformsByID = map[string]*types.Platform{platform.ID: platform}
+			})
+
+			JustBeforeEach(func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+			})
+
+			It("should keep the existing plan visibility", func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+
+				vis := findOneVisibilityForServicePlanID(planID)
+				Expect(vis["platform_id"]).To(Equal(getSupportedPlatformIDs()[0]))
+			})
+		})
 	})
 
 	Context("when a plan has specified excluded platform names", func() {
