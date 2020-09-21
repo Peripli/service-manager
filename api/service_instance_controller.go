@@ -19,7 +19,10 @@ package api
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 )
@@ -53,6 +56,15 @@ func (c *ServiceInstanceController) Routes() []web.Route {
 			},
 			Handler: c.GetSingleObject,
 		},
+
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodGet,
+				Path:   fmt.Sprintf("%s/{%s}%s", c.resourceBaseURL, web.PathParamResourceID, web.ParametersURL),
+			},
+			Handler: c.GetParameters,
+		},
+
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
@@ -82,4 +94,34 @@ func (c *ServiceInstanceController) Routes() []web.Route {
 			Handler: c.PatchObject,
 		},
 	}
+}
+
+func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response, error) {
+	// c.repository , c.objectType
+	serviceId := r.PathParams[web.PathParamResourceID]
+	ctx := r.Context()
+	log.C(ctx).Debugf("Getting %s with id %s", c.objectType, serviceId)
+	byID := query.ByField(query.EqualsOperator, "id", serviceId)
+	criteria := query.CriteriaForContext(ctx)
+	obj, err := c.repository.Get(ctx, types.ServiceInstanceType, append(criteria, byID)...)
+	serviceInstance := obj.(*types.ServiceInstance)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+	}
+	planObject, err := c.repository.Get(context.TODO(), types.ServicePlanType, query.ByField(query.EqualsOperator, "id", serviceInstance.ServicePlanID))
+	if err != nil {
+		//TODO construct a web response in case of error
+		return nil, err
+	}
+	plan := planObject.(*types.ServicePlan)
+
+	serviceObject, err := c.repository.Get(context.TODO(), types.ServiceOfferingType, query.ByField(query.EqualsOperator, "id", plan.ServiceOfferingID))
+	service := serviceObject.(*types.ServiceOffering)
+	fmt.Println("service:", service)
+	if service.InstancesRetrievable{
+		//TODO go to osb2
+	}else{
+		//Construct a response "not supported"
+	}
+	return nil, nil
 }
