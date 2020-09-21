@@ -192,14 +192,14 @@ func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage
 		shouldDeleteVisibility := true
 
 		id, matches, isSubAccountScoped := platformsAnyMatchesVisibility(supportedPlatforms, visibility, tenantKey)
-		if isPlanPublic { // trying to match the current visibility to one of the supported platforms that should have visibilities
+		if isPlanPublic || isSubAccountScoped { // trying to match the current visibility to one of the supported platforms that should have visibilities
 			if matches && len(visibility.Labels) == 0 { // visibility is present, no need to create a new one or delete this one
 				delete(supportedPlatforms, id)
 				shouldDeleteVisibility = false
 			}
 		} else {
 			// trying to match the current visibility to one of the supported platforms - if match is found and it has no labels - it's a public visibility and it has to be deleted
-			if matches && len(visibility.Labels) != 0 || matches && isSubAccountScoped { // visibility is present, but has labels -> visibility for paid so don't delete it
+			if matches && len(visibility.Labels) != 0 { // visibility is present, but has labels -> visibility for paid so don't delete it
 				shouldDeleteVisibility = false
 			}
 		}

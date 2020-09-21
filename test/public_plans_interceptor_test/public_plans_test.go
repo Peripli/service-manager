@@ -18,7 +18,9 @@ package interceptor_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/multitenancy"
 	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/service_plans"
@@ -120,7 +122,24 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerCreateCatalogInterceptorName).Register()
-
+			smb.EnableMultitenancy("tenant", func(request *web.Request) (string, error) {
+				extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")
+				user, ok := web.UserFromContext(request.Context())
+				if !ok {
+					return "", nil
+				}
+				var userData json.RawMessage
+				if err := user.Data(&userData); err != nil {
+					return "", fmt.Errorf("could not unmarshal claims from token: %s", err)
+				}
+				clientIDFromToken := gjson.GetBytes([]byte(userData), "cid").String()
+				if "tenancyClient" != clientIDFromToken {
+					return "", nil
+				}
+				user.AccessLevel = web.TenantAccess
+				request.Request = request.WithContext(web.ContextWithUser(request.Context(), user))
+				return extractTenantFromToken(request)
+			})
 			smb.WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanUpdateInterceptorProvider{
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return *catalogPlan.Free, nil
@@ -130,6 +149,9 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				},
 			}).OnTxBefore(interceptors.BrokerUpdateCatalogInterceptorName).Register()
 			return nil
+		}).WithTenantTokenClaims(map[string]interface{}{
+			"cid": "tenancyClient",
+			"zid": "tenant",
 		}).Build()
 
 		ctx.SMWithOAuth.List(web.ServicePlansURL).
@@ -236,6 +258,30 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 	})
 
 	Context("when a new public plan is added", func() {
+		BeforeEach(func() {
+			s, err := sjson.Set(testCatalog, "services.0.plans.-1", common.JSONToMap(newPublicPlan))
+			Expect(err).ShouldNot(HaveOccurred())
+			existingBrokerServer.Catalog = common.SBCatalog(s)
+		})
+
+		It("creates the plan and creates a public visibility for it", func() {
+			ctx.SMWithOAuth.List(web.ServicePlansURL).
+				Path("$[*].catalog_id").Array().NotContains(newPublicPlanCatalogID)
+
+			ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+				WithJSON(common.Object{}).
+				Expect().
+				Status(http.StatusOK)
+
+			planID := findDatabaseIDForServicePlanByCatalogName(newPublicPlanCatalogName)
+			Expect(planID).ToNot(BeEmpty())
+
+			visibilities := findOneVisibilityForServicePlanID(planID)
+			Expect(visibilities["platform_id"]).To(Equal(""))
+		})
+	})
+
+	Context("when a new sub-account platform scoped plan is added", func() {
 		BeforeEach(func() {
 			s, err := sjson.Set(testCatalog, "services.0.plans.-1", common.JSONToMap(newPublicPlan))
 			Expect(err).ShouldNot(HaveOccurred())
@@ -383,7 +429,6 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 			plan := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_name eq '%s'", oldPublicPlanCatalogName))
 
 			plan.Path("$[*].metadata.supportedPlatforms").NotNull().Array().Empty()
-
 			planID := plan.First().Object().Value("id").String().Raw()
 			Expect(planID).ToNot(BeEmpty())
 
@@ -543,11 +588,11 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 		Context("when a plan supports only one platform name", func() {
 
 			BeforeEach(func() {
-				platform := ctx.RegisterPlatform()
+				platform := ctx.RegisterTenantPlatform()
 				supportedPlatformsByID = map[string]*types.Platform{platform.ID: platform}
 			})
 
-			It("creates a single public visibility for that platform", func() {
+			FIt("creates a single public visibility for that platform", func() {
 				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
 					WithJSON(common.Object{}).
 					Expect().
