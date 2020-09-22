@@ -646,7 +646,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 			})
 		})
 
-		When("when a non public plan visibility exists for a tenant scoped platform", func() {
+		When("when a non public plan visibility exist for a tenant scoped platform", func() {
 
 			BeforeEach(func() {
 				platform := ctx.RegisterTenantPlatform()
