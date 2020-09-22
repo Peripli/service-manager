@@ -192,15 +192,15 @@ func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage
 
 		shouldDeleteVisibility := true
 
-		id, matches, isSubAccountScoped := platformsAnyMatchesVisibility(supportedPlatforms, visibility, tenantKey)
-		if isPlanPublic || isSubAccountScoped { // trying to match the current visibility to one of the supported platforms that should have visibilities
-			if matches && len(visibility.Labels) == 0 { // visibility is present, no need to create a new one or delete this one
-				delete(supportedPlatforms, id)
+		platform := findPlatformByVisibility(supportedPlatforms, visibility)
+		if isPlanPublic || isTenantScoped(platform, tenantKey) { // trying to match the current visibility to one of the supported platforms that should have visibilities
+			if platform != nil && len(visibility.Labels) == 0 { // visibility is present, no need to create a new one or delete this one
+				delete(supportedPlatforms, platform.ID)
 				shouldDeleteVisibility = false
 			}
 		} else {
 			// trying to match the current visibility to one of the supported platforms - if match is found and it has no labels - it's a public visibility and it has to be deleted
-			if matches && len(visibility.Labels) != 0 { // visibility is present, but has labels -> visibility for paid so don't delete it
+			if platform != nil && len(visibility.Labels) != 0 { // visibility is present, but has labels -> visibility for paid so don't delete it
 				shouldDeleteVisibility = false
 			}
 		}
@@ -224,18 +224,13 @@ func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage
 	return nil
 }
 
-// platformsAnyMatchesVisibility checks whether any of the platform IDs matches the provided visibility
-func platformsAnyMatchesVisibility(supportedPlatforms map[string]*types.Platform, visibility *types.Visibility, tenantKey string) (string, bool, bool) {
+func findPlatformByVisibility(supportedPlatforms map[string]*types.Platform, visibility *types.Visibility) *types.Platform {
 	for id, platform := range supportedPlatforms {
 		if visibility.PlatformID == id {
-			if _, ok := platform.GetLabels()[tenantKey]; ok {
-				return id, true, true
-			}
-			return id, true, false
+			return platform
 		}
 	}
-
-	return "", false, false
+	return nil
 }
 
 func persistVisibility(ctx context.Context, txStorage storage.Repository, platformID, planID string, broker *types.ServiceBroker) error {
@@ -263,4 +258,12 @@ func persistVisibility(ctx context.Context, txStorage storage.Repository, platfo
 
 	log.C(ctx).Debugf("Created new public visibility for broker with id (%s), plan with id (%s) and platform with id (%s)", broker.ID, planID, platformID)
 	return nil
+}
+
+func isTenantScoped(platform *types.Platform, tenantKey string) bool {
+	if _, ok := platform.GetLabels()[tenantKey]; ok {
+		return true
+	}
+
+	return false
 }
