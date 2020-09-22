@@ -30,12 +30,12 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 				}
 			}
 
-			supportedPlatforms, err := service_plans.ResolveSupportedPlatformIDsForPlans(ctx, plans, repository)
+			supportedPlatforms, err := service_plans.ResolveSupportedPlatformsForPlans(ctx, plans, repository)
 			if err != nil {
 				return nil, err
 			}
 
-			return removeSMPlatform(getAsPlatformIds(supportedPlatforms)), nil
+			return removeSMPlatform(getAsPlatformIDs(supportedPlatforms)), nil
 		},
 		AdditionalDetailsFunc: func(ctx context.Context, objects types.ObjectList, repository storage.Repository) (objectDetails, error) {
 			details := make(objectDetails, objects.Len())
@@ -159,7 +159,7 @@ func fetchBrokerPlans(ctx context.Context, brokerID string, repository storage.R
 	return objList.(*types.ServicePlans).ServicePlans, nil
 }
 
-func getAsPlatformIds(platforms map[string]*types.Platform) []string {
+func getAsPlatformIDs(platforms map[string]*types.Platform) []string {
 	platformIDs := make([]string, 0)
 
 	for id := range platforms {

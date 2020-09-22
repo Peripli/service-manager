@@ -34,18 +34,18 @@ const (
 )
 
 type publicPlanProcessor func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (bool, error)
-type SupportedPlatformsProcessor func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error)
+type supportedPlatformsProcessor func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error)
 
 type PublicPlanCreateInterceptorProvider struct {
-	IsCatalogPlanPublicFunc publicPlanProcessor
-	SupportedPlatforms      SupportedPlatformsProcessor
-	TenantKey               string
+	IsCatalogPlanPublicFunc     publicPlanProcessor
+	SupportedPlatformsProcessor supportedPlatformsProcessor
+	TenantKey                   string
 }
 
 func (p *PublicPlanCreateInterceptorProvider) Provide() storage.CreateInterceptor {
 	return &publicPlanCreateInterceptor{
 		isCatalogPlanPublicFunc: p.IsCatalogPlanPublicFunc,
-		supportedPlatforms:      p.SupportedPlatforms,
+		supportedPlatformsFunc:  p.SupportedPlatformsProcessor,
 		tenantKey:               p.TenantKey,
 	}
 }
@@ -56,7 +56,7 @@ func (p *PublicPlanCreateInterceptorProvider) Name() string {
 
 type PublicPlanUpdateInterceptorProvider struct {
 	IsCatalogPlanPublicFunc publicPlanProcessor
-	SupportedPlatforms      func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error)
+	SupportedPlatformsFunc  supportedPlatformsProcessor
 	TenantKey               string
 }
 
@@ -67,14 +67,14 @@ func (p *PublicPlanUpdateInterceptorProvider) Name() string {
 func (p *PublicPlanUpdateInterceptorProvider) Provide() storage.UpdateInterceptor {
 	return &publicPlanUpdateInterceptor{
 		isCatalogPlanPublicFunc: p.IsCatalogPlanPublicFunc,
-		supportedPlatforms:      p.SupportedPlatforms,
+		supportedPlatformsFunc:  p.SupportedPlatformsFunc,
 		tenantKey:               p.TenantKey,
 	}
 }
 
 type publicPlanCreateInterceptor struct {
 	isCatalogPlanPublicFunc publicPlanProcessor
-	supportedPlatforms      func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error)
+	supportedPlatformsFunc  supportedPlatformsProcessor
 	tenantKey               string
 }
 
@@ -88,13 +88,13 @@ func (p *publicPlanCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFu
 		if err != nil {
 			return nil, err
 		}
-		return newObject, resync(ctx, obj.(*types.ServiceBroker), txStorage, p.isCatalogPlanPublicFunc, p.supportedPlatforms, p.tenantKey)
+		return newObject, resync(ctx, obj.(*types.ServiceBroker), txStorage, p.isCatalogPlanPublicFunc, p.supportedPlatformsFunc, p.tenantKey)
 	}
 }
 
 type publicPlanUpdateInterceptor struct {
 	isCatalogPlanPublicFunc publicPlanProcessor
-	supportedPlatforms      func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error)
+	supportedPlatformsFunc  func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error)
 	tenantKey               string
 }
 
@@ -108,7 +108,7 @@ func (p *publicPlanUpdateInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFu
 		if err != nil {
 			return nil, err
 		}
-		return result, resync(ctx, result.(*types.ServiceBroker), txStorage, p.isCatalogPlanPublicFunc, p.supportedPlatforms, p.tenantKey)
+		return result, resync(ctx, result.(*types.ServiceBroker), txStorage, p.isCatalogPlanPublicFunc, p.supportedPlatformsFunc, p.tenantKey)
 	}
 }
 

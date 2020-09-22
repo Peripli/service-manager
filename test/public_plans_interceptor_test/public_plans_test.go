@@ -18,9 +18,7 @@ package interceptor_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/multitenancy"
 	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/service_plans"
@@ -118,36 +116,19 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return *catalogPlan.Free, nil
 				},
-				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
-					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
+				SupportedPlatformsProcessor: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
+					return service_plans.ResolveSupportedPlatformsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 				TenantKey: "tenant",
 			}).OnTxBefore(interceptors.BrokerCreateCatalogInterceptorName).Register()
-			_, err := smb.EnableMultitenancy("tenant", func(request *web.Request) (string, error) {
-				extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")
-				user, ok := web.UserFromContext(request.Context())
-				if !ok {
-					return "", nil
-				}
-				var userData json.RawMessage
-				if err := user.Data(&userData); err != nil {
-					return "", fmt.Errorf("could not unmarshal claims from token: %s", err)
-				}
-				clientIDFromToken := gjson.GetBytes([]byte(userData), "cid").String()
-				if "tenancyClient" != clientIDFromToken {
-					return "", nil
-				}
-				user.AccessLevel = web.TenantAccess
-				request.Request = request.WithContext(web.ContextWithUser(request.Context(), user))
-				return extractTenantFromToken(request)
-			})
+			_, err := smb.EnableMultitenancy("tenant", common.ExtractTenantFunc)
 			Expect(err).ToNot(HaveOccurred())
 			smb.WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanUpdateInterceptorProvider{
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return *catalogPlan.Free, nil
 				},
-				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
-					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
+				SupportedPlatformsFunc: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
+					return service_plans.ResolveSupportedPlatformsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 				TenantKey: "tenant",
 			}).OnTxBefore(interceptors.BrokerUpdateCatalogInterceptorName).Register()

@@ -351,8 +351,8 @@ var _ = Describe("Notifications Suite", func() {
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return *catalogPlan.Free, nil
 				},
-				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
-					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
+				SupportedPlatformsProcessor: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
+					return service_plans.ResolveSupportedPlatformsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerCreateNotificationInterceptorName).Register()
 
@@ -361,7 +361,7 @@ var _ = Describe("Notifications Suite", func() {
 					return *catalogPlan.Free, nil
 				},
 				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
-					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
+					return service_plans.ResolveSupportedPlatformsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
 			}).OnTxBefore(interceptors.BrokerUpdateNotificationInterceptorName).Register()
 

@@ -7,15 +7,6 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
-	platforms, err := ResolveSupportedPlatformsForPlans(ctx, plans, repository)
-	if err != nil {
-		return nil, err
-	}
-
-	return platforms, nil
-}
-
 func ResolveSupportedPlatformsForPlans(ctx context.Context, plans []*types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
 	platformsMap := make(map[string]*types.Platform)
 
