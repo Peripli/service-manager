@@ -19,6 +19,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -117,15 +118,25 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 
 	serviceObject, err := c.repository.Get(context.TODO(), types.ServiceOfferingType, query.ByField(query.EqualsOperator, "id", plan.ServiceOfferingID))
 	if err!=nil{
-		//contsruct an error web reponse
+		//TODO contsruct an error web reponse
 	}
 	service := serviceObject.(*types.ServiceOffering)
 	fmt.Println("service:", service)
+	brokerObject, err := c.repository.Get(ctx, types.ServiceBrokerType, query.ByField(query.EqualsOperator, "id", service.BrokerID))
+	if err != nil {
+		//TODO contsruct an error web reponse
+	}
+	broker := brokerObject.(*types.ServiceBroker)
 	if service.InstancesRetrievable{
-		//c.osbProvider
+		osbClient, err:=osb.CreateDefaultOSBClient(broker)
+		if err!=nil{
+			//TODO contsruct an error web reponse
+		}
+		fmt.Println(osbClient)
+
 
 	}else{
-		//Construct a response "not supported"
+		//TODO Construct a response "not supported"
 	}
 	return nil, nil
 }
