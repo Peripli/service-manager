@@ -18,7 +18,6 @@ package test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -34,10 +33,6 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gavv/httpexpect"
 	"github.com/gofrs/uuid"
-
-	"github.com/tidwall/gjson"
-
-	"github.com/Peripli/service-manager/pkg/multitenancy"
 
 	"github.com/Peripli/service-manager/pkg/web"
 
@@ -220,24 +215,7 @@ func DescribeTestsFor(t TestCase) bool {
 						e.Set("api.protected_labels", t.MultitenancySettings.LabelKey)
 					}).
 					WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-						_, err := smb.EnableMultitenancy(t.MultitenancySettings.LabelKey, func(request *web.Request) (string, error) {
-							extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc(t.MultitenancySettings.TenantTokenClaim)
-							user, ok := web.UserFromContext(request.Context())
-							if !ok {
-								return "", nil
-							}
-							var userData json.RawMessage
-							if err := user.Data(&userData); err != nil {
-								return "", fmt.Errorf("could not unmarshal claims from token: %s", err)
-							}
-							clientIDFromToken := gjson.GetBytes([]byte(userData), t.MultitenancySettings.ClientIDTokenClaim).String()
-							if t.MultitenancySettings.ClientID != clientIDFromToken {
-								return "", nil
-							}
-							user.AccessLevel = web.TenantAccess
-							request.Request = request.WithContext(web.ContextWithUser(request.Context(), user))
-							return extractTenantFromToken(request)
-						})
+						_, err := smb.EnableMultitenancy(t.MultitenancySettings.LabelKey, common.ExtractTenantFunc)
 						return err
 					})
 			}
