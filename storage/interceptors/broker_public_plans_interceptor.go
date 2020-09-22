@@ -193,7 +193,7 @@ func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage
 		shouldDeleteVisibility := true
 
 		platform := findPlatformByVisibility(supportedPlatforms, visibility)
-		if isPlanPublic || isTenantScoped(platform, tenantKey) { // trying to match the current visibility to one of the supported platforms that should have visibilities
+		if isPlanPublic || platform != nil && isTenantScoped(platform, tenantKey) { // trying to match the current visibility to one of the supported platforms that should have visibilities
 			if platform != nil && len(visibility.Labels) == 0 { // visibility is present, no need to create a new one or delete this one
 				delete(supportedPlatforms, platform.ID)
 				shouldDeleteVisibility = false
