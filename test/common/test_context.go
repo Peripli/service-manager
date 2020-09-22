@@ -754,6 +754,10 @@ func (ctx *TestContext) RegisterPlatform() *types.Platform {
 	return ctx.RegisterPlatformWithType("test-type")
 }
 
+func (ctx *TestContext) RegisterTenantPlatform() *types.Platform {
+	return RegisterPlatformInSM(GenerateRandomPlatform(), ctx.SMWithOAuthForTenant, map[string]string{})
+}
+
 func (ctx *TestContext) RegisterPlatformWithType(platformType string) *types.Platform {
 	UUID, err := uuid.NewV4()
 	if err != nil {

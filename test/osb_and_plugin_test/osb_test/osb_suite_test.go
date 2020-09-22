@@ -33,11 +33,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/Peripli/service-manager/pkg/multitenancy"
-	"github.com/Peripli/service-manager/pkg/sm"
-	"github.com/tidwall/gjson"
-
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
@@ -121,24 +118,7 @@ var _ = BeforeSuite(func() {
 	}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 		smb.RegisterPluginsBefore(osb.OSBStorePluginName, &storeBindingIndicatorPlugin{})
 		smb.RegisterPlugins(&storeOperationInContextIndicatorPlugin{})
-		_, err := smb.EnableMultitenancy(TenantIdentifier, func(request *web.Request) (string, error) {
-			extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")
-			user, ok := web.UserFromContext(request.Context())
-			if !ok {
-				return "", nil
-			}
-			var userData json.RawMessage
-			if err := user.Data(&userData); err != nil {
-				return "", fmt.Errorf("could not unmarshal claims from token: %s", err)
-			}
-			clientIDFromToken := gjson.GetBytes([]byte(userData), "cid").String()
-			if "tenancyClient" != clientIDFromToken {
-				return "", nil
-			}
-			user.AccessLevel = web.TenantAccess
-			request.Request = request.WithContext(web.ContextWithUser(request.Context(), user))
-			return extractTenantFromToken(request)
-		})
+		_, err := smb.EnableMultitenancy(TenantIdentifier, common.ExtractTenantFunc)
 		return err
 	}).Build()
 

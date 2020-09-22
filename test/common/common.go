@@ -18,6 +18,8 @@ package common
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/pkg/multitenancy"
+	"github.com/tidwall/gjson"
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -594,4 +596,23 @@ func DoHTTPSequence(sequence []HTTPCouple) util.DoRequestFunc {
 		i++
 		return r, err
 	}
+}
+
+func ExtractTenantFunc(request *web.Request) (string, error) {
+	extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")
+	user, ok := web.UserFromContext(request.Context())
+	if !ok {
+		return "", nil
+	}
+	var userData json.RawMessage
+	if err := user.Data(&userData); err != nil {
+		return "", fmt.Errorf("could not unmarshal claims from token: %s", err)
+	}
+	clientIDFromToken := gjson.GetBytes([]byte(userData), "cid").String()
+	if "tenancyClient" != clientIDFromToken {
+		return "", nil
+	}
+	user.AccessLevel = web.TenantAccess
+	request.Request = request.WithContext(web.ContextWithUser(request.Context(), user))
+	return extractTenantFromToken(request)
 }

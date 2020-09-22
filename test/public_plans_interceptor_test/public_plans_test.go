@@ -116,20 +116,26 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return *catalogPlan.Free, nil
 				},
-				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
-					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
+				SupportedPlatformsFunc: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
+					return service_plans.ResolveSupportedPlatformsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
+				TenantKey: "tenant",
 			}).OnTxBefore(interceptors.BrokerCreateCatalogInterceptorName).Register()
-
+			_, err := smb.EnableMultitenancy("tenant", common.ExtractTenantFunc)
+			Expect(err).ToNot(HaveOccurred())
 			smb.WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanUpdateInterceptorProvider{
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return *catalogPlan.Free, nil
 				},
-				SupportedPlatforms: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error) {
-					return service_plans.ResolveSupportedPlatformIDsForPlans(ctx, []*types.ServicePlan{plan}, repository)
+				SupportedPlatformsFunc: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
+					return service_plans.ResolveSupportedPlatformsForPlans(ctx, []*types.ServicePlan{plan}, repository)
 				},
+				TenantKey: "tenant",
 			}).OnTxBefore(interceptors.BrokerUpdateCatalogInterceptorName).Register()
 			return nil
+		}).WithTenantTokenClaims(map[string]interface{}{
+			"cid": "tenancyClient",
+			"zid": "tenant",
 		}).Build()
 
 		ctx.SMWithOAuth.List(web.ServicePlansURL).
@@ -637,6 +643,59 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 					Expect(k8sVis.Element(0).Object().Value("platform_id").String().Raw()).To(BeEquivalentTo(k8sPlatformID))
 				})
 
+			})
+		})
+
+		When("when a non public plan visibility exist for a tenant scoped platform", func() {
+
+			BeforeEach(func() {
+				platform := ctx.RegisterTenantPlatform()
+				supportedPlatformsByID = map[string]*types.Platform{platform.ID: platform}
+			})
+
+			JustBeforeEach(func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+				catalog, err := sjson.Set(string(existingBrokerServer.Catalog), "services.0.plans.0.free", false)
+				Expect(err).ToNot(HaveOccurred())
+				existingBrokerServer.Catalog = common.SBCatalog(catalog)
+			})
+
+			It("should keep the existing plan visibility", func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+
+				vis := findOneVisibilityForServicePlanID(planID)
+				Expect(vis["platform_id"]).To(Equal(getSupportedPlatformIDs()[0]))
+			})
+		})
+
+		When("when a public plan visibility exist for a tenant scoped platform", func() {
+
+			BeforeEach(func() {
+				platform := ctx.RegisterTenantPlatform()
+				supportedPlatformsByID = map[string]*types.Platform{platform.ID: platform}
+			})
+
+			JustBeforeEach(func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+			})
+
+			It("should keep the existing plan visibility", func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+
+				vis := findOneVisibilityForServicePlanID(planID)
+				Expect(vis["platform_id"]).To(Equal(getSupportedPlatformIDs()[0]))
 			})
 		})
 	})
