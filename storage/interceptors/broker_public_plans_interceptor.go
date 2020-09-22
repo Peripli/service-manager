@@ -37,15 +37,15 @@ type publicPlanProcessor func(broker *types.ServiceBroker, catalogService *types
 type supportedPlatformsProcessor func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error)
 
 type PublicPlanCreateInterceptorProvider struct {
-	IsCatalogPlanPublicFunc     publicPlanProcessor
-	SupportedPlatformsProcessor supportedPlatformsProcessor
-	TenantKey                   string
+	IsCatalogPlanPublicFunc publicPlanProcessor
+	SupportedPlatformsFunc  supportedPlatformsProcessor
+	TenantKey               string
 }
 
 func (p *PublicPlanCreateInterceptorProvider) Provide() storage.CreateInterceptor {
 	return &publicPlanCreateInterceptor{
 		isCatalogPlanPublicFunc: p.IsCatalogPlanPublicFunc,
-		supportedPlatformsFunc:  p.SupportedPlatformsProcessor,
+		supportedPlatformsFunc:  p.SupportedPlatformsFunc,
 		tenantKey:               p.TenantKey,
 	}
 }
