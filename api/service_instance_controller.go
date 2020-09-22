@@ -98,46 +98,53 @@ func (c *ServiceInstanceController) Routes() []web.Route {
 }
 
 func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response, error) {
-	// c.repository , c.objectType
-	serviceId := r.PathParams[web.PathParamResourceID]
+	serviceInstanceId := r.PathParams[web.PathParamResourceID]
 	ctx := r.Context()
-	log.C(ctx).Debugf("Getting %s with id %s", c.objectType, serviceId)
-	byID := query.ByField(query.EqualsOperator, "id", serviceId)
+	log.C(ctx).Debugf("Getting %s with id %s", c.objectType, serviceInstanceId)
+	byID := query.ByField(query.EqualsOperator, "id", serviceInstanceId)
 	criteria := query.CriteriaForContext(ctx)
 	obj, err := c.repository.Get(ctx, types.ServiceInstanceType, append(criteria, byID)...)
-	serviceInstance := obj.(*types.ServiceInstance)
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
+	serviceInstance := obj.(*types.ServiceInstance)
 	planObject, err := c.repository.Get(context.TODO(), types.ServicePlanType, query.ByField(query.EqualsOperator, "id", serviceInstance.ServicePlanID))
 	if err != nil {
-		//TODO construct a web response in case of error
-		return nil, err
+		return nil, util.HandleStorageError(err, types.ServicePlanType.String())
 	}
 	plan := planObject.(*types.ServicePlan)
-
 	serviceObject, err := c.repository.Get(context.TODO(), types.ServiceOfferingType, query.ByField(query.EqualsOperator, "id", plan.ServiceOfferingID))
 	if err!=nil{
-		//TODO contsruct an error web reponse
+		return nil, util.HandleStorageError(err, types.ServiceOfferingType.String())
 	}
 	service := serviceObject.(*types.ServiceOffering)
-	fmt.Println("service:", service)
 	brokerObject, err := c.repository.Get(ctx, types.ServiceBrokerType, query.ByField(query.EqualsOperator, "id", service.BrokerID))
 	if err != nil {
-		//TODO contsruct an error web reponse
+		return nil, util.HandleStorageError(err, types.ServiceBrokerType.String())
 	}
 	broker := brokerObject.(*types.ServiceBroker)
 	if service.InstancesRetrievable{
 		osbClient, err:=osb.CreateDefaultOSBClient(broker)
 		if err!=nil{
-			//TODO contsruct an error web reponse
+			return nil, &util.HTTPError{
+				ErrorType:   "ServiceBrokerErr",
+				Description: fmt.Sprintf("Error initiating request to the broker %s", broker.BrokerURL),
+				StatusCode:  http.StatusInternalServerError,
+			}
 		}
+		//TODO construct a response
+		//send request get instance to the broker
 		fmt.Println(osbClient)
 
 
 	}else{
-		//TODO Construct a response "not supported"
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("This operation is not supported"),
+			StatusCode:  http.StatusBadRequest,
+		}
 	}
+
 	return nil, nil
 }
 
