@@ -57,7 +57,7 @@ import (
 	_ "github.com/Kount/pq-timeouts"
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/pkg/web"
-	osbc "sigs.k8s.io/go-open-service-broker-client/v2"
+	osbc "github.com/kubernetes-sigs/go-open-service-broker-client/v2"
 )
 
 // ServiceManagerBuilder type is an extension point that allows adding additional filters, plugins and

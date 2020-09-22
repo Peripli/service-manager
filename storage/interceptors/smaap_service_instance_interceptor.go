@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/api/osb"
 	"math"
 	"net"
 	"net/http"
@@ -37,7 +36,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/types"
-	osbc "sigs.k8s.io/go-open-service-broker-client/v2"
+	osbc "github.com/kubernetes-sigs/go-open-service-broker-client/v2"
 
 	"github.com/Peripli/service-manager/storage"
 )
@@ -152,7 +151,6 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			}
 			log.C(ctx).Infof("Sending provision request %s to broker with name %s", logProvisionRequest(provisionRequest), broker.Name)
 			provisionResponse, err = osbClient.ProvisionInstance(provisionRequest)
-
 			if err != nil {
 				brokerError := &util.HTTPError{
 					ErrorType:   "BrokerError",
@@ -669,10 +667,37 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 		return nil, nil, nil, nil, util.HandleStorageError(err, types.ServiceBrokerType.String())
 	}
 	broker := brokerObject.(*types.ServiceBroker)
-	osbClient, err := osb.CreateOSBClient(broker, osbClientFunc)
+
+	tlsConfig, err := broker.GetTLSConfig()
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
+
+	osbClientConfig := &osbc.ClientConfiguration{
+		Name:                broker.Name + " broker client",
+		EnableAlphaFeatures: true,
+		URL:                 broker.BrokerURL,
+		APIVersion:          osbc.LatestAPIVersion(),
+	}
+
+	if broker.Credentials.Basic != nil {
+		osbClientConfig.AuthConfig = &osbc.AuthConfig{
+			BasicAuthConfig: &osbc.BasicAuthConfig{
+				Username: broker.Credentials.Basic.Username,
+				Password: broker.Credentials.Basic.Password,
+			},
+		}
+	}
+
+	if tlsConfig != nil {
+		osbClientConfig.TLSConfig = tlsConfig
+	}
+
+	osbClient, err := osbClientFunc(osbClientConfig)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
 	return osbClient, broker, service, plan, nil
 }
 
