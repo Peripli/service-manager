@@ -31,13 +31,16 @@ import (
 // ServiceInstanceController implements api.Controller by providing service Instances API logic
 type ServiceInstanceController struct {
 	*BaseController
+	osbVersion string
 }
 
 func NewServiceInstanceController(ctx context.Context, options *Options) *ServiceInstanceController {
+
 	return &ServiceInstanceController{
 		BaseController: NewAsyncController(ctx, options, web.ServiceInstancesURL, types.ServiceInstanceType, true, func() types.Object {
 			return &types.ServiceInstance{}
 		}),
+		osbVersion: options.APISettings.OSBVersion,
 	}
 }
 
@@ -114,7 +117,7 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 	}
 	plan := planObject.(*types.ServicePlan)
 	serviceObject, err := c.repository.Get(context.TODO(), types.ServiceOfferingType, query.ByField(query.EqualsOperator, "id", plan.ServiceOfferingID))
-	if err!=nil{
+	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceOfferingType.String())
 	}
 	service := serviceObject.(*types.ServiceOffering)
@@ -123,21 +126,31 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 		return nil, util.HandleStorageError(err, types.ServiceBrokerType.String())
 	}
 	broker := brokerObject.(*types.ServiceBroker)
-	if service.InstancesRetrievable{
-		osbClient, err:=osb.CreateDefaultOSBClient(broker)
-		if err!=nil{
+	if service.InstancesRetrievable {
+		serviceInstanceBytes, err:=osb.GetInstance(util.ClientRequest, c.osbVersion,ctx,broker,serviceInstanceId)
+
+
+		if err != nil {
 			return nil, &util.HTTPError{
 				ErrorType:   "ServiceBrokerErr",
-				Description: fmt.Sprintf("Error initiating request to the broker %s", broker.BrokerURL),
+				Description: fmt.Sprintf("Error sending request to the broker %s", broker.BrokerURL),
 				StatusCode:  http.StatusInternalServerError,
 			}
 		}
-		//TODO construct a response
-		//send request get instance to the broker
-		fmt.Println(osbClient)
+
+		serviceResponse:=&types.ServiceInstance{}
+		if err := util.BytesToObject(serviceInstanceBytes, &serviceResponse); err != nil {
+			return nil, &util.HTTPError{
+				ErrorType:   "ServiceBrokerErr",
+				Description: fmt.Sprintf("Error reading parameters of service instance with id %s from broker broker %s", serviceInstanceId, broker.BrokerURL),
+				StatusCode:  http.StatusInternalServerError,
+			}
+		}
+
+		return util.NewJSONResponse(http.StatusOK, &serviceResponse.Parameters)
 
 
-	}else{
+	} else {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
 			Description: fmt.Sprintf("This operation is not supported"),
@@ -147,8 +160,3 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 
 	return nil, nil
 }
-
-
-
-
-
