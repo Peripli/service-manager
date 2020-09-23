@@ -19,6 +19,10 @@ package api
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/api/osb"
+	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/storage"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -28,6 +32,7 @@ import (
 // ServiceBindingController implements api.Controller by providing service bindings API logic
 type ServiceBindingController struct {
 	*BaseController
+	osbVersion string
 }
 
 func NewServiceBindingController(ctx context.Context, options *Options) *ServiceBindingController {
@@ -35,6 +40,7 @@ func NewServiceBindingController(ctx context.Context, options *Options) *Service
 		BaseController: NewAsyncController(ctx, options, web.ServiceBindingsURL, types.ServiceBindingType, true, func() types.Object {
 			return &types.ServiceBinding{}
 		}),
+		osbVersion: options.APISettings.OSBVersion,
 	}
 }
 
@@ -70,10 +76,60 @@ func (c *ServiceBindingController) Routes() []web.Route {
 		},
 		{
 			Endpoint: web.Endpoint{
+				Method: http.MethodGet,
+				Path:   fmt.Sprintf("%s/{%s}/{%s}", c.resourceBaseURL, web.PathParamResourceID, web.ParametersURL),
+			},
+			Handler: c.GetParameters,
+		},
+		{
+			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
 				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
 			},
 			Handler: c.DeleteSingleObject,
 		},
 	}
+}
+func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response, error) {
+	ctx := r.Context()
+	serviceBindingId := r.PathParams[web.PathParamResourceID]
+	service, err := storage.GetServiceByServiceBinding(c.repository, ctx, serviceBindingId)
+	if err != nil {
+		return nil, err
+	}
+	brokerObject, err := c.repository.Get(ctx, types.ServiceBrokerType, query.ByField(query.EqualsOperator, "id", service.BrokerID))
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceBrokerType.String())
+	}
+	broker := brokerObject.(*types.ServiceBroker)
+	if service.BindingsRetrievable {
+		serviceBindingBytes, err := osb.GetServiceBinding(util.ClientRequest, c.osbVersion, ctx, broker, service.ID, serviceBindingId)
+		if err != nil {
+			return nil, &util.HTTPError{
+				ErrorType:   "ServiceBrokerErr",
+				Description: fmt.Sprintf("Error sending request to the broker %s", broker.BrokerURL),
+				StatusCode:  http.StatusInternalServerError,
+			}
+		}
+
+		serviceBindingResponse := &types.ServiceBinding{}
+		if err := util.BytesToObject(serviceBindingBytes, &serviceBindingResponse); err != nil {
+			return nil, &util.HTTPError{
+				ErrorType:   "ServiceBrokerErr",
+				Description: fmt.Sprintf("Error reading parameters of service binding with id %s from broker broker %s", serviceBindingId, broker.BrokerURL),
+				StatusCode:  http.StatusInternalServerError,
+			}
+		}
+
+		return util.NewJSONResponse(http.StatusOK, &serviceBindingResponse.Parameters)
+
+	} else {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("This operation is not supported"),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
+	return nil, nil
 }
