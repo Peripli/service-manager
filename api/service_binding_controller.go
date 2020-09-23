@@ -123,13 +123,11 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 
 		return util.NewJSONResponse(http.StatusOK, &serviceBindingResponse.Parameters)
 
-	} else {
-		return nil, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("This operation is not supported"),
-			StatusCode:  http.StatusBadRequest,
-		}
 	}
 
-	return nil, nil
+	return nil, &util.HTTPError{
+		ErrorType:   "BadRequest",
+		Description: fmt.Sprintf("This operation is not supported"),
+		StatusCode:  http.StatusBadRequest,
+	}
 }

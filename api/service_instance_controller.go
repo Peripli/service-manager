@@ -117,13 +117,8 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 	broker := brokerObject.(*types.ServiceBroker)
 	if service.InstancesRetrievable {
 		serviceInstanceBytes, err := osb.GetInstance(util.ClientRequest, c.osbVersion, ctx, broker, serviceInstanceId)
-
 		if err != nil {
-			return nil, &util.HTTPError{
-				ErrorType:   "ServiceBrokerErr",
-				Description: fmt.Sprintf("Error sending request to the broker %s", broker.BrokerURL),
-				StatusCode:  http.StatusInternalServerError,
-			}
+			return nil, err
 		}
 
 		serviceResponse := &types.ServiceInstance{}
@@ -137,13 +132,11 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 
 		return util.NewJSONResponse(http.StatusOK, &serviceResponse.Parameters)
 
-	} else {
-		return nil, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("This operation is not supported"),
-			StatusCode:  http.StatusBadRequest,
-		}
 	}
 
-	return nil, nil
+	return nil, &util.HTTPError{
+		ErrorType:   "BadRequest",
+		Description: fmt.Sprintf("This operation is not supported"),
+		StatusCode:  http.StatusBadRequest,
+	}
 }
