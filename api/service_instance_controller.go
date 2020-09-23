@@ -116,7 +116,12 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 	}
 	broker := brokerObject.(*types.ServiceBroker)
 	if service.InstancesRetrievable {
-		serviceInstanceBytes, err := osb.GetInstance(util.ClientRequest, c.osbVersion, ctx, broker, serviceInstanceId)
+		serviceInstanceBytes, err := osb.Get(util.ClientRequest, c.osbVersion, ctx,
+			broker,
+			fmt.Sprintf(osb.ServiceInstanceURL, broker.BrokerURL, serviceInstanceId),
+			types.ServiceInstanceType.String(),
+			serviceInstanceId)
+
 		if err != nil {
 			return nil, err
 		}
