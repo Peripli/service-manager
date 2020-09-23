@@ -29,6 +29,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
+const serviceBindingOSBURL="%s/v2/service_instances/%s/service_bindings/%s"
 // ServiceBindingController implements api.Controller by providing service bindings API logic
 type ServiceBindingController struct {
 	*BaseController
@@ -105,7 +106,7 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 	if service.BindingsRetrievable {
 		serviceBindingBytes, err := osb.Get(util.ClientRequest, c.osbVersion, ctx,
 			broker,
-			fmt.Sprintf(osb.ServiceBindingURL, broker.BrokerURL, service.ID, serviceBindingId),
+			fmt.Sprintf(serviceBindingOSBURL, broker.BrokerURL, service.ID, serviceBindingId),
 			types.ServiceBindingType.String(),
 			serviceBindingId)
 		if err != nil {

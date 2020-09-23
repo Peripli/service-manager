@@ -29,6 +29,7 @@ import (
 	"net/http"
 )
 
+const serviceInstanceOSBURL string= "%s/v2/service_instances/%s"
 // ServiceInstanceController implements api.Controller by providing service Instances API logic
 type ServiceInstanceController struct {
 	*BaseController
@@ -118,7 +119,7 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 	if service.InstancesRetrievable {
 		serviceInstanceBytes, err := osb.Get(util.ClientRequest, c.osbVersion, ctx,
 			broker,
-			fmt.Sprintf(osb.ServiceInstanceURL, broker.BrokerURL, serviceInstanceId),
+			fmt.Sprintf(serviceInstanceOSBURL, broker.BrokerURL, serviceInstanceId),
 			types.ServiceInstanceType.String(),
 			serviceInstanceId)
 
