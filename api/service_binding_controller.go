@@ -29,7 +29,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const serviceBindingOSBURL="%s/v2/service_instances/%s/service_bindings/%s"
+const serviceBindingOSBURL = "%s/v2/service_instances/%s/service_bindings/%s"
+
 // ServiceBindingController implements api.Controller by providing service bindings API logic
 type ServiceBindingController struct {
 	*BaseController
@@ -94,7 +95,13 @@ func (c *ServiceBindingController) Routes() []web.Route {
 func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	serviceBindingId := r.PathParams[web.PathParamResourceID]
-	service, err := storage.GetServiceByServiceBinding(c.repository, ctx, serviceBindingId)
+	byID := query.ByField(query.EqualsOperator, "id", serviceBindingId)
+	serviceBindingObject, err := c.repository.Get(ctx, types.ServiceBindingType, byID)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceBindingType.String())
+	}
+	serviceBinding := serviceBindingObject.(*types.ServiceBinding)
+	service, err := storage.GetServiceByServiceInstance(c.repository, ctx, serviceBinding.ServiceInstanceID)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +113,7 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 	if service.BindingsRetrievable {
 		serviceBindingBytes, err := osb.Get(util.ClientRequest, c.osbVersion, ctx,
 			broker,
-			fmt.Sprintf(serviceBindingOSBURL, broker.BrokerURL, service.ID, serviceBindingId),
+			fmt.Sprintf(serviceBindingOSBURL, broker.BrokerURL, serviceBinding.ServiceInstanceID, serviceBindingId),
 			types.ServiceBindingType.String(),
 			serviceBindingId)
 		if err != nil {

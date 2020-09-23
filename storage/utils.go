@@ -8,17 +8,6 @@ import (
 
 )
 
-func GetServiceByServiceBinding(repository Repository,ctx context.Context, serviceBindingId  string) (*types.ServiceOffering, error){
-	byID:=query.ByField(query.EqualsOperator, "id",serviceBindingId)
-	serviceBindingObject, err := repository.Get(ctx, types.ServiceBindingType, byID)
-	if err!=nil{
-		return nil, util.HandleStorageError(err, types.ServiceBindingType.String())
-	}
-	serviceBinding:=serviceBindingObject.(*types.ServiceBinding)
-	return GetServiceByServiceInstance(repository,ctx,serviceBinding.ServiceInstanceID)
-}
-
-
 
 func GetServiceByServiceInstance(repository Repository,ctx context.Context, serviceInstanceId  string) (*types.ServiceOffering, error){
 	byID := query.ByField(query.EqualsOperator, "id", serviceInstanceId)
