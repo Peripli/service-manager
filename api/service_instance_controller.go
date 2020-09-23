@@ -25,6 +25,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/storage"
 	"net/http"
 )
 
@@ -104,31 +105,18 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 	serviceInstanceId := r.PathParams[web.PathParamResourceID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting %s with id %s", c.objectType, serviceInstanceId)
-	byID := query.ByField(query.EqualsOperator, "id", serviceInstanceId)
-	criteria := query.CriteriaForContext(ctx)
-	obj, err := c.repository.Get(ctx, types.ServiceInstanceType, append(criteria, byID)...)
+
+	service, err := storage.GetServiceByServiceInstance(c.repository, ctx, serviceInstanceId)
 	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+		return nil, err
 	}
-	serviceInstance := obj.(*types.ServiceInstance)
-	planObject, err := c.repository.Get(context.TODO(), types.ServicePlanType, query.ByField(query.EqualsOperator, "id", serviceInstance.ServicePlanID))
-	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServicePlanType.String())
-	}
-	plan := planObject.(*types.ServicePlan)
-	serviceObject, err := c.repository.Get(context.TODO(), types.ServiceOfferingType, query.ByField(query.EqualsOperator, "id", plan.ServiceOfferingID))
-	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServiceOfferingType.String())
-	}
-	service := serviceObject.(*types.ServiceOffering)
 	brokerObject, err := c.repository.Get(ctx, types.ServiceBrokerType, query.ByField(query.EqualsOperator, "id", service.BrokerID))
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceBrokerType.String())
 	}
 	broker := brokerObject.(*types.ServiceBroker)
 	if service.InstancesRetrievable {
-		serviceInstanceBytes, err:=osb.GetInstance(util.ClientRequest, c.osbVersion,ctx,broker,serviceInstanceId)
-
+		serviceInstanceBytes, err := osb.GetInstance(util.ClientRequest, c.osbVersion, ctx, broker, serviceInstanceId)
 
 		if err != nil {
 			return nil, &util.HTTPError{
@@ -138,7 +126,7 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 			}
 		}
 
-		serviceResponse:=&types.ServiceInstance{}
+		serviceResponse := &types.ServiceInstance{}
 		if err := util.BytesToObject(serviceInstanceBytes, &serviceResponse); err != nil {
 			return nil, &util.HTTPError{
 				ErrorType:   "ServiceBrokerErr",
@@ -148,7 +136,6 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 		}
 
 		return util.NewJSONResponse(http.StatusOK, &serviceResponse.Parameters)
-
 
 	} else {
 		return nil, &util.HTTPError{
