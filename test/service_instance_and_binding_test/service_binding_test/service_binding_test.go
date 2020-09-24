@@ -239,6 +239,21 @@ var _ = DescribeTestsFor(TestCase{
 				ctx.CleanupAdditionalResources()
 			})
 
+			Describe("Get Parameters", func() {
+				When("service binding not found", func() {
+					It("should return an error", func(){
+						ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + bindingID).Expect().
+							Status(http.StatusNotFound).JSON().Object().Value("error").String().Equal("NotFound")
+					})
+				})
+
+				When("Service binding exists", func() {
+
+				})
+			})
+
+
+
 			Describe("GET", func() {
 				When("service binding contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {

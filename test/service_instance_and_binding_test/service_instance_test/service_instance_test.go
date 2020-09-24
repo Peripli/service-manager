@@ -253,7 +253,7 @@ var _ = DescribeTestsFor(TestCase{
 
 			Describe("GET Service Instance Parameters", func() {
 				When("Service does not exist", func() {
-					FIt("Should return an error", func() {
+					It("Should return an error", func() {
 						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/jkljljk/parameters").Expect().
 							Status(http.StatusNotFound).JSON().Object().Value("error").String().Equal("NotFound")
 					})
