@@ -252,6 +252,14 @@ var _ = DescribeTestsFor(TestCase{
 			})
 
 			Describe("GET Service Instance Parameters", func() {
+				When("Service does not exist", func() {
+					FIt("Should return an error", func() {
+						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/jkljljk/parameters").Expect().
+							Status(http.StatusNotFound).JSON().Object().Value("error").String().Equal("NotFound")
+					})
+				})
+
+				When("Service exists", func() {
 				var instanceName string
 				var serviceID string
 				JustBeforeEach(func() {
@@ -272,13 +280,34 @@ var _ = DescribeTestsFor(TestCase{
 
 					It("Should return an error", func() {
 						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect().
-							Status(http.StatusBadRequest)
+							Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("his operation is not supported")
 					})
 
 				})
 
+				When("When service is retrievable and params are set ", func() {
+					BeforeEach(func() {
+						serviceID = service1CatalogID
+						postInstanceRequest["parameters"] = map[string]string{
+							"cat": "Freddy",
+							"dog": "Lucy",
+						}
+					})
+
+					It("Should return parameters", func() {
+						response := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect()
+						//add mock
+						response.Status(http.StatusOK)
+						jsonObject := response.JSON().Object()
+						jsonObject.Value("cat").String().Equal("Freddy")
+						jsonObject.Value("dog").String().Equal("Lucy")
+
+					})
+
+				})
 			})
 
+			})
 
 			Describe("GET", func() {
 				var instanceName string
@@ -3532,9 +3561,9 @@ func prepareBrokerWithCatalogAndPollingDuration(ctx *TestContext, auth *SMExpect
 	if err != nil {
 		panic(err)
 	}
-	cPaidPlan4:= GenerateTestPlanWithID(plan1CatalogID)
+	cPaidPlan4 := GenerateTestPlanWithID(plan1CatalogID)
 	cService3 := GenerateTestServiceWithPlansWithID(notRertiavableService, cPaidPlan4)
-	cService3, err= sjson.Set(cService3, "instances_retrievable", false)
+	cService3, err = sjson.Set(cService3, "instances_retrievable", false)
 	if err != nil {
 		panic(err)
 	}
