@@ -251,63 +251,69 @@ var _ = DescribeTestsFor(TestCase{
 				ctx.CleanupAdditionalResources()
 			})
 
-			Describe("GET Service Instance Parameters", func() {
-				When("Service does not exist", func() {
-					It("Should return an error", func() {
-						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/jkljljk/parameters").Expect().
-							Status(http.StatusNotFound).JSON().Object().Value("error").String().Equal("NotFound")
-					})
-				})
-
-				When("Service exists", func() {
-				var instanceName string
-				var serviceID string
-				JustBeforeEach(func() {
-					Expect(serviceID).ToNot(BeEmpty())
-					planId := findPlanIDForCatalogID(ctx, brokerID, serviceID, plan1CatalogID)
-					EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, planId, TenantIDValue)
-					postInstanceRequest["service_plan_id"] = planId
-					resp := createInstance(ctx.SMWithOAuthForTenant, "", http.StatusCreated)
-					instanceName = resp.JSON().Object().Value("name").String().Raw()
-					Expect(instanceName).ToNot(BeEmpty())
-
-				})
-
-				When("When service is not retrievable", func() {
-					BeforeEach(func() {
-						serviceID = notRertiavableService
-					})
-
-					It("Should return an error", func() {
-						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect().
-							Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("his operation is not supported")
-					})
-
-				})
-
-				When("When service is retrievable and params are set ", func() {
-					BeforeEach(func() {
-						serviceID = service1CatalogID
-						postInstanceRequest["parameters"] = map[string]string{
-							"cat": "Freddy",
-							"dog": "Lucy",
-						}
-					})
-
-					It("Should return parameters", func() {
-						response := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect()
-						//add mock
-						response.Status(http.StatusOK)
-						jsonObject := response.JSON().Object()
-						jsonObject.Value("cat").String().Equal("Freddy")
-						jsonObject.Value("dog").String().Equal("Lucy")
-
-					})
-
+			Describe("GET Service Instance Parameters, Service does not exist", func() {
+				It("Should return an error", func() {
+					ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/jkljljk/parameters").Expect().
+						Status(http.StatusNotFound).JSON().Object().Value("error").String().Equal("NotFound")
 				})
 			})
 
-			})
+			Describe("Service exists", func() {
+					var instanceName string
+					var serviceID string
+					JustBeforeEach(func() {
+						Expect(serviceID).ToNot(BeEmpty())
+						planId := findPlanIDForCatalogID(ctx, brokerID, serviceID, plan1CatalogID)
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, planId, TenantIDValue)
+						postInstanceRequest["service_plan_id"] = planId
+						resp := createInstance(ctx.SMWithOAuthForTenant, "", http.StatusCreated)
+						instanceName = resp.JSON().Object().Value("name").String().Raw()
+						Expect(instanceName).ToNot(BeEmpty())
+
+					})
+
+					When("When service is not retrievable", func() {
+						BeforeEach(func() {
+							serviceID = notRertiavableService
+						})
+
+						It("Should return an error", func() {
+							ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect().
+								Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("his operation is not supported")
+						})
+
+					})
+
+					When("When service is retrievable and params are set ", func() {
+						BeforeEach(func() {
+							serviceID = service1CatalogID
+							postInstanceRequest["parameters"] = map[string]string{
+								"cat": "Freddy",
+								"dog": "Lucy",
+							}
+
+							brokerServer.ServiceInstanceHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
+								"parameters":    map[string]string{
+									"cat": "Freddy",
+									"dog": "Lucy",
+								},
+								"dashboard_url": "http://dashboard.com",
+							}))
+						})
+
+						FIt("Should return parameters", func() {
+							response := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect()
+							response.Status(http.StatusOK)
+							jsonObject := response.JSON().Object()
+							jsonObject.Value("cat").String().Equal("Freddy")
+							jsonObject.Value("dog").String().Equal("Lucy")
+
+						})
+
+					})
+				})
+
+
 
 			Describe("GET", func() {
 				var instanceName string
