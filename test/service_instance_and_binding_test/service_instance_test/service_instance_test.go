@@ -258,7 +258,7 @@ var _ = DescribeTestsFor(TestCase{
 				})
 			})
 
-			Describe("Service exists", func() {
+			Describe("GET Service Instance Parameters Service exists", func() {
 					var instanceName string
 					var serviceID string
 					JustBeforeEach(func() {
