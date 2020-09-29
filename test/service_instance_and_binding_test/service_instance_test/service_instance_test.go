@@ -258,7 +258,7 @@ var _ = DescribeTestsFor(TestCase{
 				})
 			})
 
-			Describe("GET Service Instance Parameters Service exists", func() {
+			Describe("GET Service Instance Parameters,service exists", func() {
 					var instanceName string
 					var serviceID string
 					JustBeforeEach(func() {
@@ -272,7 +272,7 @@ var _ = DescribeTestsFor(TestCase{
 
 					})
 
-					When("When service is not retrievable", func() {
+					When("service instance is not retrievable", func() {
 						BeforeEach(func() {
 							serviceID = notRertiavableService
 						})
@@ -283,8 +283,41 @@ var _ = DescribeTestsFor(TestCase{
 						})
 
 					})
+					When("service instance is retrievable and async requested", func() {
+						BeforeEach(func() {
+							serviceID = service1CatalogID
+						})
 
-					When("When service is retrievable and params are set ", func() {
+						It("Should return an error", func() {
+							url:=web.ServiceInstancesURL + "/" + instanceID + "/parameters"
+							s:=fmt.Sprintf("requested %s?async=true api doesn't support asynchronous operation.", url)
+							ctx.SMWithOAuthForTenant.GET(url).WithQuery("async", true).Expect().
+								Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains(s)
+						})
+
+					})
+
+					When("service instance is retrievable and parameters are not readable", func() {
+						BeforeEach(func() {
+							serviceID = service1CatalogID
+							postInstanceRequest["parameters"] = map[string]string{
+								"cat": "Freddy",
+								"dog": "Lucy",
+							}
+
+							brokerServer.ServiceInstanceHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
+								"parameters":   "mayamayamay:s",
+								"dashboard_url": "http://dashboard.com",
+							}))
+						})
+						It("Should return an error", func() {
+							s:=fmt.Sprintf("Error reading parameters of service instance with id %s from broker %s", instanceID, brokerServer.URL())
+							ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect().
+								Status(http.StatusBadGateway).JSON().Object().Value("description").String().Contains(s)
+						})
+					})
+
+					When("service instance is retrievable and params are ok ", func() {
 						BeforeEach(func() {
 							serviceID = service1CatalogID
 							postInstanceRequest["parameters"] = map[string]string{

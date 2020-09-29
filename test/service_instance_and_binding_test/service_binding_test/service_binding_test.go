@@ -241,13 +241,13 @@ var _ = DescribeTestsFor(TestCase{
 
 			Describe("Get Parameters, service does not exist", func() {
 				It("should return an error", func(){
-						ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + bindingID+"/params").Expect().
+						ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + bindingID+"/parameters").Expect().
 							Status(http.StatusNotFound).JSON().Object().Value("error").String().Equal("NotFound")
 
 				})
 
 			})
-			Describe("Get parameters, service binding does not exist", func() {
+			Describe("Get parameters, service binding exists", func() {
 				var bindingRetrievable bool
 				JustBeforeEach(func() {
 					brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut, func(req *http.Request) (int, map[string]interface{}) {
@@ -276,22 +276,60 @@ var _ = DescribeTestsFor(TestCase{
 						Type:  types.ServiceInstanceType,
 						Ready: true,
 					})
-
 					postBindingRequest["name"] = "test-binding-retrievable-name"
 					postBindingRequest["service_instance_id"] = instanceID
+					brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusCreated, syncBindingResponse))
+					createBinding(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
+
+
 				})
 
-				When("When service is not retrievable", func() {
+				When("When async requested", func() {
+					BeforeEach(func() {
+						bindingRetrievable = true
+					})
+
+					It("Should return an error", func() {
+						url:=web.ServiceBindingsURL + "/" + bindingID + "/parameters"
+						s:=fmt.Sprintf("requested %s?async=true api doesn't support asynchronous operation.", url)
+						ctx.SMWithOAuthForTenant.GET(url).WithQuery("async", true).Expect().
+							Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains(s)
+					})
+
+				})
+
+				When("When binding is not retrievable", func() {
 					BeforeEach(func() {
 						bindingRetrievable = false
 					})
 
 					It("should return an error", func() {
-						ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + instanceID + "/parameters").Expect().
-							Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("his operation is not supported")
+						ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + bindingID + "/parameters").Expect().
+							Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("This operation is not supported")
 					})
 				})
-				When("When service is retrievable", func() {
+
+				When("When service binding is retrievable and params that are returned are not readable", func() {
+					BeforeEach(func() {
+						bindingRetrievable = true
+						postBindingRequest["parameters"] = map[string]string{
+							"cat": "Freddy",
+							"dog": "Lucy",
+						}
+
+						brokerServer.BindingHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
+							"parameters": "fdafds:fdasfd.f",
+							"dashboard_url": "http://dashboard.com",
+						}))
+					})
+					It("Should return an error", func() {
+						s:=fmt.Sprintf("Error reading parameters of service binding with id %s from broker %s", bindingID, brokerServer.URL())
+						ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + bindingID + "/parameters").Expect().
+							Status(http.StatusBadGateway).JSON().Object().Value("description").String().Contains(s)
+					})
+				})
+
+				When("When service is retrievable and params are o.k", func() {
 					BeforeEach(func() {
 						bindingRetrievable = true
 						postBindingRequest["parameters"] = map[string]string{
@@ -309,7 +347,7 @@ var _ = DescribeTestsFor(TestCase{
 					})
 
 					It("Should return parameters", func() {
-						response := ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + instanceID + "/parameters").Expect()
+						response := ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + bindingID + "/parameters").Expect()
 						response.Status(http.StatusOK)
 						jsonObject := response.JSON().Object()
 						jsonObject.Value("cat").String().Equal("Freddy")
