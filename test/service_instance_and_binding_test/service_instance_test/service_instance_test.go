@@ -301,7 +301,7 @@ var _ = DescribeTestsFor(TestCase{
 							}))
 						})
 
-						FIt("Should return parameters", func() {
+						It("Should return parameters", func() {
 							response := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect()
 							response.Status(http.StatusOK)
 							jsonObject := response.JSON().Object()
