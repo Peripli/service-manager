@@ -251,14 +251,15 @@ var _ = DescribeTestsFor(TestCase{
 				ctx.CleanupAdditionalResources()
 			})
 
-			Describe("GET Service Instance Parameters, Service does not exist", func() {
-				It("Should return an error", func() {
-					ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/jkljljk/parameters").Expect().
-						Status(http.StatusNotFound).JSON().Object().Value("error").String().Equal("NotFound")
+			Describe("get parameters", func() {
+				When("service instance does not exist", func() {
+					It("Should return an error", func() {
+						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/jkljljk/parameters").Expect().
+							Status(http.StatusNotFound).JSON().Object().Value("error").String().Equal("NotFound")
+					})
 				})
-			})
 
-			Describe("GET Service Instance Parameters,service exists", func() {
+				When("service instance exists", func() {
 					var instanceName string
 					var serviceID string
 					JustBeforeEach(func() {
@@ -271,8 +272,7 @@ var _ = DescribeTestsFor(TestCase{
 						Expect(instanceName).ToNot(BeEmpty())
 
 					})
-
-					When("service instance is not retrievable", func() {
+					Describe("not retrievable service instances", func() {
 						BeforeEach(func() {
 							serviceID = notRertiavableService
 						})
@@ -283,21 +283,7 @@ var _ = DescribeTestsFor(TestCase{
 						})
 
 					})
-					When("service instance is retrievable and async requested", func() {
-						BeforeEach(func() {
-							serviceID = service1CatalogID
-						})
-
-						It("Should return an error", func() {
-							url:=web.ServiceInstancesURL + "/" + instanceID + "/parameters"
-							s:=fmt.Sprintf("requested %s?async=true api doesn't support asynchronous operation.", url)
-							ctx.SMWithOAuthForTenant.GET(url).WithQuery("async", true).Expect().
-								Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains(s)
-						})
-
-					})
-
-					When("service instance is retrievable and parameters are not readable", func() {
+					Describe("retrievable service instances", func() {
 						BeforeEach(func() {
 							serviceID = service1CatalogID
 							postInstanceRequest["parameters"] = map[string]string{
@@ -305,48 +291,53 @@ var _ = DescribeTestsFor(TestCase{
 								"dog": "Lucy",
 							}
 
-							brokerServer.ServiceInstanceHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
-								"parameters":   "mayamayamay:s",
-								"dashboard_url": "http://dashboard.com",
-							}))
 						})
-						It("Should return an error", func() {
-							s:=fmt.Sprintf("Error reading parameters of service instance with id %s from broker %s", instanceID, brokerServer.URL())
-							ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect().
-								Status(http.StatusBadGateway).JSON().Object().Value("description").String().Contains(s)
+						When("async operations is requested", func() {
+							It("Should return an error", func() {
+								url:=web.ServiceInstancesURL + "/" + instanceID + "/parameters"
+								s:=fmt.Sprintf("requested %s?async=true api doesn't support asynchronous operation.", url)
+								ctx.SMWithOAuthForTenant.GET(url).WithQuery("async", true).Expect().
+									Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains(s)
+							})
 						})
+						When("parameters are not readable", func() {
+							BeforeEach(func() {
+								brokerServer.ServiceInstanceHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
+									"parameters":   "mayamayamay:s",
+									"dashboard_url": "http://dashboard.com",
+								}))
+							})
+							It("should return an error", func() {
+								s:=fmt.Sprintf("Error reading parameters of service instance with id %s from broker %s", instanceID, brokerServer.URL())
+								ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect().
+									Status(http.StatusBadGateway).JSON().Object().Value("description").String().Contains(s)
+							})
+						})
+						When("parameters are valid", func() {
+							BeforeEach(func() {
+								brokerServer.ServiceInstanceHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
+									"parameters":    map[string]string{
+										"cat": "Freddy",
+										"dog": "Lucy",
+									},
+									"dashboard_url": "http://dashboard.com",
+								}))
+							})
+							It("should return parameters", func() {
+								response := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect()
+								response.Status(http.StatusOK)
+								jsonObject := response.JSON().Object()
+								jsonObject.Value("cat").String().Equal("Freddy")
+								jsonObject.Value("dog").String().Equal("Lucy")
+
+							})
+						})
+
 					})
 
-					When("service instance is retrievable and params are ok ", func() {
-						BeforeEach(func() {
-							serviceID = service1CatalogID
-							postInstanceRequest["parameters"] = map[string]string{
-								"cat": "Freddy",
-								"dog": "Lucy",
-							}
 
-							brokerServer.ServiceInstanceHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
-								"parameters":    map[string]string{
-									"cat": "Freddy",
-									"dog": "Lucy",
-								},
-								"dashboard_url": "http://dashboard.com",
-							}))
-						})
-
-						It("Should return parameters", func() {
-							response := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect()
-							response.Status(http.StatusOK)
-							jsonObject := response.JSON().Object()
-							jsonObject.Value("cat").String().Equal("Freddy")
-							jsonObject.Value("dog").String().Equal("Lucy")
-
-						})
-
-					})
 				})
-
-
+			})
 
 			Describe("GET", func() {
 				var instanceName string
