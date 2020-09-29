@@ -114,8 +114,7 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 		serviceBindingBytes, err := osb.Get(util.ClientRequest, c.osbVersion, ctx,
 			broker,
 			fmt.Sprintf(serviceBindingOSBURL, broker.BrokerURL, serviceBinding.ServiceInstanceID, serviceBindingId),
-			types.ServiceBindingType.String(),
-			serviceBindingId)
+			types.ServiceBindingType.String())
 		if err != nil {
 			return nil, &util.HTTPError{
 				ErrorType:   "ServiceBrokerErr",

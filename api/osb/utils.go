@@ -11,9 +11,9 @@ import (
 	"net/http"
 )
 
-func Get(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion string, ctx context.Context, broker *types.ServiceBroker, url string, resourceType string, resourceId string) ([]byte, error) {
+func Get(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion string, ctx context.Context, broker *types.ServiceBroker, url string, resourceType string) ([]byte, error) {
 
-	log.C(ctx).Debugf("Attempting to fetch %s with id $s from broker with name %s and URL %s", resourceType, resourceId, broker.Name, broker.BrokerURL)
+	log.C(ctx).Debugf("Attempting to fetch %s from URL %s and broker with name %s", resourceType, url, broker.Name)
 	brokerClient, err := client.NewBrokerClient(broker, doRequestWithClient)
 	if err != nil {
 		return nil, err
@@ -32,10 +32,10 @@ func Get(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion stri
 	}
 
 	if response.StatusCode != http.StatusOK {
-		log.C(ctx).WithError(err).Errorf("error fetching %s with id %s from broker with name %s: %s", resourceType, resourceId, broker.Name, util.HandleResponseError(response))
+		log.C(ctx).WithError(err).Errorf("error fetching %s from URL %s and broker with name %s: %s", resourceType, url, broker.Name, util.HandleResponseError(response))
 		return nil, &util.HTTPError{
 			ErrorType:   "ServiceBrokerErr",
-			Description: fmt.Sprintf("error fetching %s with id %s from broker with name %s: %s", resourceType, resourceId, broker.Name, response.Status),
+			Description: fmt.Sprintf("error fetching %s from URL %s and broker with name %s: %s", resourceType, url, broker.Name, response.Status),
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
@@ -43,17 +43,17 @@ func Get(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion stri
 	var responseBytes []byte
 	if responseBytes, err = util.BodyToBytes(response.Body); err != nil {
 		if nErr, ok := err.(net.Error); ok && nErr.Timeout() {
-			log.C(ctx).WithError(err).Errorf("error fetching %s with id %s from broker with name %s: %s: time out", resourceType, resourceId, broker.Name, err)
+			log.C(ctx).WithError(err).Errorf("error fetching %s from URL %s and broker with name %s: %s: time out", resourceType, url, broker.Name, err)
 			return nil, &util.HTTPError{
 				ErrorType:   "ServiceBrokerErr",
-				Description: fmt.Sprintf("error fetching $s with id %s from broker with name %s: timed out", resourceType, resourceId, broker.Name),
+				Description: fmt.Sprintf("error fetching $s from URL %s and broker with name %s: timed out", resourceType, url, broker.Name),
 				StatusCode:  http.StatusGatewayTimeout,
 			}
 		}
-		return nil, fmt.Errorf("error getting content from body of response with status %s: %s", response.Status, err)
+		return nil, fmt.Errorf("error getting content from body of response from %s with status %s: %s", url,response.Status, err)
 	}
 
-	log.C(ctx).Debugf("Successfully fetched $s with id %s from broker with name %s and URL %s", resourceType, resourceId, broker.Name, broker.BrokerURL)
+	log.C(ctx).Debugf("Successfully fetched $s from URL %s and broker with name %s", resourceType, url, broker.Name)
 
 	return responseBytes, nil
 

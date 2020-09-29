@@ -120,8 +120,7 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 		serviceInstanceBytes, err := osb.Get(util.ClientRequest, c.osbVersion, ctx,
 			broker,
 			fmt.Sprintf(serviceInstanceOSBURL, broker.BrokerURL, serviceInstanceId),
-			types.ServiceInstanceType.String(),
-			serviceInstanceId)
+			types.ServiceInstanceType.String())
 
 		if err != nil {
 			return nil, err
