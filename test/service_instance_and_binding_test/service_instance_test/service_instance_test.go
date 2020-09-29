@@ -279,7 +279,7 @@ var _ = DescribeTestsFor(TestCase{
 
 						It("Should return an error", func() {
 							ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect().
-								Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("his operation is not supported")
+								Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("This operation is not supported")
 						})
 
 					})
