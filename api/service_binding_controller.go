@@ -97,7 +97,7 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 	if isAsync == "true" {
 		return nil, &util.HTTPError{
 			ErrorType:   "InvalidRequest",
-			Description: fmt.Sprintf("requested %s api doesn't support asynchronous operations", r.URL.RequestURI()),
+			Description: fmt.Sprintf("requested %s api doesn't support asynchronous operation", r.URL.RequestURI()),
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
