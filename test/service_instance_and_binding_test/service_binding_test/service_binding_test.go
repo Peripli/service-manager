@@ -329,7 +329,7 @@ var _ = DescribeTestsFor(TestCase{
 					})
 				})
 
-				When("When service is retrievable and params are o.k", func() {
+				When("When binding is retrievable and params are o.k", func() {
 					BeforeEach(func() {
 						bindingRetrievable = true
 						postBindingRequest["parameters"] = map[string]string{
