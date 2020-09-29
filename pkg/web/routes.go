@@ -45,6 +45,8 @@ const (
 	// ResourceOperationsURL is the URL path fetch operations for a resource
 	ResourceOperationsURL = "/operations"
 
+	ParametersURL="/parameters"
+
 	// OperationsURL is the operations API base URL path
 	OperationsURL = "/" + apiVersion + "/operations"
 

@@ -19,21 +19,30 @@ package api
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/api/osb"
+	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/storage"
 	"net/http"
 )
 
+const serviceInstanceOSBURL string= "%s/v2/service_instances/%s"
 // ServiceInstanceController implements api.Controller by providing service Instances API logic
 type ServiceInstanceController struct {
 	*BaseController
+	osbVersion string
 }
 
 func NewServiceInstanceController(ctx context.Context, options *Options) *ServiceInstanceController {
+
 	return &ServiceInstanceController{
 		BaseController: NewAsyncController(ctx, options, web.ServiceInstancesURL, types.ServiceInstanceType, true, func() types.Object {
 			return &types.ServiceInstance{}
 		}),
+		osbVersion: options.APISettings.OSBVersion,
 	}
 }
 
@@ -53,6 +62,15 @@ func (c *ServiceInstanceController) Routes() []web.Route {
 			},
 			Handler: c.GetSingleObject,
 		},
+
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodGet,
+				Path:   fmt.Sprintf("%s/{%s}%s", c.resourceBaseURL, web.PathParamResourceID, web.ParametersURL),
+			},
+			Handler: c.GetParameters,
+		},
+
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
@@ -81,5 +99,57 @@ func (c *ServiceInstanceController) Routes() []web.Route {
 			},
 			Handler: c.PatchObject,
 		},
+	}
+}
+
+func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response, error) {
+	isAsync := r.URL.Query().Get(web.QueryParamAsync)
+	if isAsync == "true" {
+		return nil, &util.HTTPError{
+			ErrorType:   "InvalidRequest",
+			Description: fmt.Sprintf("requested %s api doesn't support asynchronous operation", r.URL.RequestURI()),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+	serviceInstanceId := r.PathParams[web.PathParamResourceID]
+	ctx := r.Context()
+	log.C(ctx).Debugf("Getting %s with id %s", c.objectType, serviceInstanceId)
+
+	service, err := storage.GetServiceOfferingByServiceInstanceId(c.repository, ctx, serviceInstanceId)
+	if err != nil {
+		return nil, err
+	}
+	brokerObject, err := c.repository.Get(ctx, types.ServiceBrokerType, query.ByField(query.EqualsOperator, "id", service.BrokerID))
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceBrokerType.String())
+	}
+	broker := brokerObject.(*types.ServiceBroker)
+	if service.InstancesRetrievable {
+		serviceInstanceBytes, err := osb.Get(util.ClientRequest, c.osbVersion, ctx,
+			broker,
+			fmt.Sprintf(serviceInstanceOSBURL, broker.BrokerURL, serviceInstanceId),
+			types.ServiceInstanceType.String())
+
+		if err != nil {
+			return nil, err
+		}
+
+		serviceResponse := &types.ServiceInstance{}
+		if err := util.BytesToObject(serviceInstanceBytes, &serviceResponse); err != nil {
+			return nil, &util.HTTPError{
+				ErrorType:   "ServiceBrokerErr",
+				Description: fmt.Sprintf("Error reading parameters of service instance with id %s from broker broker %s", serviceInstanceId, broker.BrokerURL),
+				StatusCode:  http.StatusInternalServerError,
+			}
+		}
+
+		return util.NewJSONResponse(http.StatusOK, &serviceResponse.Parameters)
+
+	}
+
+	return nil, &util.HTTPError{
+		ErrorType:   "BadRequest",
+		Description: fmt.Sprintf("This operation is not supported"),
+		StatusCode:  http.StatusBadRequest,
 	}
 }
