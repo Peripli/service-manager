@@ -53,7 +53,7 @@ func Get(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion stri
 		return nil, fmt.Errorf("error getting content from body of response from %s with status %s: %s", url,response.Status, err)
 	}
 
-	log.C(ctx).Debugf("Successfully fetched $s from URL %s and broker with name %s", resourceType, url, broker.Name)
+	log.C(ctx).Debugf("Successfully fetched %s from URL %s and broker with name %s", resourceType, url, broker.Name)
 
 	return responseBytes, nil
 

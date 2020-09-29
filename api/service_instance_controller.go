@@ -103,11 +103,19 @@ func (c *ServiceInstanceController) Routes() []web.Route {
 }
 
 func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response, error) {
+	isAsync := r.URL.Query().Get(web.QueryParamAsync)
+	if isAsync == "true" {
+		return nil, &util.HTTPError{
+			ErrorType:   "InvalidRequest",
+			Description: fmt.Sprintf("requested %s api doesn't support asynchronous operations", r.URL.RequestURI()),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
 	serviceInstanceId := r.PathParams[web.PathParamResourceID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting %s with id %s", c.objectType, serviceInstanceId)
 
-	service, err := storage.GetServiceByServiceInstance(c.repository, ctx, serviceInstanceId)
+	service, err := storage.GetServiceOfferingByServiceInstanceId(c.repository, ctx, serviceInstanceId)
 	if err != nil {
 		return nil, err
 	}

@@ -93,6 +93,14 @@ func (c *ServiceBindingController) Routes() []web.Route {
 	}
 }
 func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response, error) {
+	isAsync := r.URL.Query().Get(web.QueryParamAsync)
+	if isAsync == "true" {
+		return nil, &util.HTTPError{
+			ErrorType:   "InvalidRequest",
+			Description: fmt.Sprintf("requested %s api doesn't support asynchronous operations", r.URL.RequestURI()),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
 	ctx := r.Context()
 	serviceBindingId := r.PathParams[web.PathParamResourceID]
 	byID := query.ByField(query.EqualsOperator, "id", serviceBindingId)
@@ -101,7 +109,7 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 		return nil, util.HandleStorageError(err, types.ServiceBindingType.String())
 	}
 	serviceBinding := serviceBindingObject.(*types.ServiceBinding)
-	service, err := storage.GetServiceByServiceInstance(c.repository, ctx, serviceBinding.ServiceInstanceID)
+	service, err := storage.GetServiceOfferingByServiceInstanceId(c.repository, ctx, serviceBinding.ServiceInstanceID)
 	if err != nil {
 		return nil, err
 	}
