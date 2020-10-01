@@ -64,7 +64,7 @@ const (
 	TenantIDValue                      = "tenantID"
 	serviceNotSupportingContextUpdates = "serviceNotSupportingContextUpdatesID"
 	service1CatalogID                  = "service1CatalogID"
-	notRertiavableService              = "notRetrivableService"
+	notRetrievableService				= "notRetrievableService"
 	plan1CatalogID                     = "plan1CatalogID"
 	planNotSupportingSMPlatform        = "planNotSupportingSmID"
 	MaximumPollingDuration             = 2 // seconds
@@ -253,7 +253,7 @@ var _ = DescribeTestsFor(TestCase{
 
 			Describe("get parameters", func() {
 				When("service instance does not exist", func() {
-					It("Should return an error", func() {
+					It("should return an error", func() {
 						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/jkljljk/parameters").Expect().
 							Status(http.StatusNotFound).JSON().Object().Value("error").String().Equal("NotFound")
 					})
@@ -274,12 +274,12 @@ var _ = DescribeTestsFor(TestCase{
 					})
 					Describe("not retrievable service instances", func() {
 						BeforeEach(func() {
-							serviceID = notRertiavableService
+							serviceID = notRetrievableService
 						})
 
 						It("Should return an error", func() {
 							ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect().
-								Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("This operation is not supported")
+								Status(http.StatusBadRequest)
 						})
 
 					})
@@ -295,9 +295,8 @@ var _ = DescribeTestsFor(TestCase{
 						When("async operations is requested", func() {
 							It("Should return an error", func() {
 								url:=web.ServiceInstancesURL + "/" + instanceID + "/parameters"
-								s:=fmt.Sprintf("requested %s?async=true api doesn't support asynchronous operation.", url)
 								ctx.SMWithOAuthForTenant.GET(url).WithQuery("async", true).Expect().
-									Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains(s)
+									Status(http.StatusBadRequest)
 							})
 						})
 						When("parameters are not readable", func() {
@@ -308,9 +307,8 @@ var _ = DescribeTestsFor(TestCase{
 								}))
 							})
 							It("should return an error", func() {
-								s:=fmt.Sprintf("Error reading parameters of service instance with id %s from broker %s", instanceID, brokerServer.URL())
 								ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect().
-									Status(http.StatusBadGateway).JSON().Object().Value("description").String().Contains(s)
+									Status(http.StatusBadGateway)
 							})
 						})
 						When("parameters are valid", func() {
@@ -3592,7 +3590,7 @@ func prepareBrokerWithCatalogAndPollingDuration(ctx *TestContext, auth *SMExpect
 		panic(err)
 	}
 	cPaidPlan4 := GenerateTestPlanWithID(plan1CatalogID)
-	cService3 := GenerateTestServiceWithPlansWithID(notRertiavableService, cPaidPlan4)
+	cService3 := GenerateTestServiceWithPlansWithID(notRetrievableService, cPaidPlan4)
 	cService3, err = sjson.Set(cService3, "instances_retrievable", false)
 	if err != nil {
 		panic(err)

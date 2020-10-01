@@ -97,7 +97,7 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 	if isAsync == "true" {
 		return nil, &util.HTTPError{
 			ErrorType:   "InvalidRequest",
-			Description: fmt.Sprintf("requested %s api doesn't support asynchronous operation.", r.URL.RequestURI()),
+			Description: fmt.Sprintf("Requested %s api doesn't support asynchronous operation.", r.URL.RequestURI()),
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
@@ -124,11 +124,7 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 			fmt.Sprintf(serviceBindingOSBURL, broker.BrokerURL, serviceBinding.ServiceInstanceID, serviceBindingId),
 			types.ServiceBindingType.String())
 		if err != nil {
-			return nil, &util.HTTPError{
-				ErrorType:   "ServiceBrokerErr",
-				Description: fmt.Sprintf("Error sending request to the broker %s.", broker.BrokerURL),
-				StatusCode:  http.StatusInternalServerError,
-			}
+			return nil, err
 		}
 
 		serviceBindingResponse := &types.ServiceBinding{}
