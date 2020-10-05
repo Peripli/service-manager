@@ -119,6 +119,7 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 	if err != nil {
 		return nil, err
 	}
+
 	brokerObject, err := c.repository.Get(ctx, types.ServiceBrokerType, query.ByField(query.EqualsOperator, "id", service.BrokerID))
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceBrokerType.String())
