@@ -294,12 +294,10 @@ var _ = Describe("Service Manager Authentication", func() {
 			{"Missing token in authorization header", "GET", web.ServiceBindingsURL + "/999", emptyBearerAuthHeader},
 			{"Invalid token in authorization header", "GET", web.ServiceBindingsURL + "/999", invalidBearerAuthHeader},
 
-
 			{"Missing authorization header", "GET", web.ServiceBindingsURL + "/999/parameters", emptyAuthHeader},
 			{"Invalid authorization schema", "GET", web.ServiceBindingsURL + "/999/parameters", invalidBasicAuthHeader},
 			{"Missing token in authorization header", "GET", web.ServiceBindingsURL + "/999/parameters", emptyBearerAuthHeader},
 			{"Invalid token in authorization header", "GET", web.ServiceBindingsURL + "/999/parameters", invalidBearerAuthHeader},
-
 
 			{"Missing authorization header", "GET", web.ServiceBindingsURL + "/999/operations/999", emptyAuthHeader},
 			{"Invalid authorization schema", "GET", web.ServiceBindingsURL + "/999/operations/999", invalidBasicAuthHeader},

@@ -29,7 +29,8 @@ import (
 	"net/http"
 )
 
-const serviceInstanceOSBURL string= "%s/v2/service_instances/%s"
+const serviceInstanceOSBURL string = "%s/v2/service_instances/%s"
+
 // ServiceInstanceController implements api.Controller by providing service Instances API logic
 type ServiceInstanceController struct {
 	*BaseController

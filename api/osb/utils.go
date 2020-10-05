@@ -1,15 +1,14 @@
-
 package osb
 
 import (
-"context"
-"fmt"
-"github.com/Peripli/service-manager/pkg/client"
-"github.com/Peripli/service-manager/pkg/log"
-"github.com/Peripli/service-manager/pkg/types"
-"github.com/Peripli/service-manager/pkg/util"
-"net"
-"net/http"
+	"context"
+	"fmt"
+	"github.com/Peripli/service-manager/pkg/client"
+	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
+	"net"
+	"net/http"
 )
 
 func Get(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion string, ctx context.Context, broker *types.ServiceBroker, url string, resourceType string) ([]byte, error) {
@@ -51,7 +50,7 @@ func Get(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion stri
 				StatusCode:  http.StatusGatewayTimeout,
 			}
 		}
-		return nil, fmt.Errorf("Error getting content from body of response from %s with status %s: %s", url,response.Status, err)
+		return nil, fmt.Errorf("Error getting content from body of response from %s with status %s: %s", url, response.Status, err)
 	}
 
 	log.C(ctx).Debugf("Successfully fetched %s from URL %s and broker with name %s", resourceType, url, broker.Name)

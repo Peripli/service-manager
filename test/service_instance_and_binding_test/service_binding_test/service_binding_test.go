@@ -239,11 +239,10 @@ var _ = DescribeTestsFor(TestCase{
 				ctx.CleanupAdditionalResources()
 			})
 
-
 			Describe("get parameters", func() {
 				When("service binding does not exist", func() {
-					It("should return an error", func(){
-						ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + bindingID+"/parameters").Expect().
+					It("should return an error", func() {
+						ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + bindingID + "/parameters").Expect().
 							Status(http.StatusNotFound).JSON().Object().Value("error").String().Equal("NotFound")
 
 					})
@@ -282,7 +281,6 @@ var _ = DescribeTestsFor(TestCase{
 						brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusCreated, syncBindingResponse))
 						createBinding(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
 
-
 					})
 
 					Describe("not retrievable binding", func() {
@@ -302,14 +300,14 @@ var _ = DescribeTestsFor(TestCase{
 						})
 						When("async is requested", func() {
 							It("Should return an error", func() {
-								url:=web.ServiceBindingsURL + "/" + bindingID + "/parameters"
+								url := web.ServiceBindingsURL + "/" + bindingID + "/parameters"
 								ctx.SMWithOAuthForTenant.GET(url).WithQuery("async", true).Expect().
 									Status(http.StatusBadRequest)
 							})
 
 						})
 
-						When("params are not readable",func(){
+						When("params are not readable", func() {
 							BeforeEach(func() {
 								bindingRetrievable = true
 								postBindingRequest["parameters"] = map[string]string{
@@ -318,7 +316,7 @@ var _ = DescribeTestsFor(TestCase{
 								}
 
 								brokerServer.BindingHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
-									"parameters": "fdafds:fdasfd.f",
+									"parameters":    "fdafds:fdasfd.f",
 									"dashboard_url": "http://dashboard.com",
 								}))
 							})
@@ -336,7 +334,7 @@ var _ = DescribeTestsFor(TestCase{
 								}
 
 								brokerServer.BindingHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
-									"parameters":    map[string]string{
+									"parameters": map[string]string{
 										"cat": "Freddy",
 										"dog": "Lucy",
 									},

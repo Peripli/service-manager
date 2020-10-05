@@ -5,11 +5,9 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
-
 )
 
-
-func GetServiceOfferingByServiceInstanceId(repository Repository,ctx context.Context, serviceInstanceId  string) (*types.ServiceOffering, error){
+func GetServiceOfferingByServiceInstanceId(repository Repository, ctx context.Context, serviceInstanceId string) (*types.ServiceOffering, error) {
 	byID := query.ByField(query.EqualsOperator, "id", serviceInstanceId)
 	criteria := query.CriteriaForContext(ctx)
 	obj, err := repository.Get(ctx, types.ServiceInstanceType, append(criteria, byID)...)
@@ -27,5 +25,5 @@ func GetServiceOfferingByServiceInstanceId(repository Repository,ctx context.Con
 		return nil, util.HandleStorageError(err, types.ServiceOfferingType.String())
 	}
 	service := serviceObject.(*types.ServiceOffering)
-	return service , nil
+	return service, nil
 }

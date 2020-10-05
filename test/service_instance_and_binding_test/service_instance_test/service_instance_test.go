@@ -64,7 +64,7 @@ const (
 	TenantIDValue                      = "tenantID"
 	serviceNotSupportingContextUpdates = "serviceNotSupportingContextUpdatesID"
 	service1CatalogID                  = "service1CatalogID"
-	notRetrievableService				= "notRetrievableService"
+	notRetrievableService              = "notRetrievableService"
 	plan1CatalogID                     = "plan1CatalogID"
 	planNotSupportingSMPlatform        = "planNotSupportingSmID"
 	MaximumPollingDuration             = 2 // seconds
@@ -294,7 +294,7 @@ var _ = DescribeTestsFor(TestCase{
 						})
 						When("async operations is requested", func() {
 							It("Should return an error", func() {
-								url:=web.ServiceInstancesURL + "/" + instanceID + "/parameters"
+								url := web.ServiceInstancesURL + "/" + instanceID + "/parameters"
 								ctx.SMWithOAuthForTenant.GET(url).WithQuery("async", true).Expect().
 									Status(http.StatusBadRequest)
 							})
@@ -302,7 +302,7 @@ var _ = DescribeTestsFor(TestCase{
 						When("parameters are not readable", func() {
 							BeforeEach(func() {
 								brokerServer.ServiceInstanceHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
-									"parameters":   "mayamayamay:s",
+									"parameters":    "mayamayamay:s",
 									"dashboard_url": "http://dashboard.com",
 								}))
 							})
@@ -314,7 +314,7 @@ var _ = DescribeTestsFor(TestCase{
 						When("parameters are valid", func() {
 							BeforeEach(func() {
 								brokerServer.ServiceInstanceHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
-									"parameters":    map[string]string{
+									"parameters": map[string]string{
 										"cat": "Freddy",
 										"dog": "Lucy",
 									},
@@ -332,7 +332,6 @@ var _ = DescribeTestsFor(TestCase{
 						})
 
 					})
-
 
 				})
 			})
