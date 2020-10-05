@@ -34,16 +34,19 @@ const (
 )
 
 type publicPlanProcessor func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (bool, error)
+type supportedPlatformsProcessor func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error)
 
 type PublicPlanCreateInterceptorProvider struct {
 	IsCatalogPlanPublicFunc publicPlanProcessor
-	SupportedPlatforms      func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error)
+	SupportedPlatformsFunc  supportedPlatformsProcessor
+	TenantKey               string
 }
 
 func (p *PublicPlanCreateInterceptorProvider) Provide() storage.CreateInterceptor {
 	return &publicPlanCreateInterceptor{
 		isCatalogPlanPublicFunc: p.IsCatalogPlanPublicFunc,
-		supportedPlatforms:      p.SupportedPlatforms,
+		supportedPlatformsFunc:  p.SupportedPlatformsFunc,
+		tenantKey:               p.TenantKey,
 	}
 }
 
@@ -53,7 +56,8 @@ func (p *PublicPlanCreateInterceptorProvider) Name() string {
 
 type PublicPlanUpdateInterceptorProvider struct {
 	IsCatalogPlanPublicFunc publicPlanProcessor
-	SupportedPlatforms      func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error)
+	SupportedPlatformsFunc  supportedPlatformsProcessor
+	TenantKey               string
 }
 
 func (p *PublicPlanUpdateInterceptorProvider) Name() string {
@@ -63,13 +67,15 @@ func (p *PublicPlanUpdateInterceptorProvider) Name() string {
 func (p *PublicPlanUpdateInterceptorProvider) Provide() storage.UpdateInterceptor {
 	return &publicPlanUpdateInterceptor{
 		isCatalogPlanPublicFunc: p.IsCatalogPlanPublicFunc,
-		supportedPlatforms:      p.SupportedPlatforms,
+		supportedPlatformsFunc:  p.SupportedPlatformsFunc,
+		tenantKey:               p.TenantKey,
 	}
 }
 
 type publicPlanCreateInterceptor struct {
 	isCatalogPlanPublicFunc publicPlanProcessor
-	supportedPlatforms      func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error)
+	supportedPlatformsFunc  supportedPlatformsProcessor
+	tenantKey               string
 }
 
 func (p *publicPlanCreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
@@ -82,13 +88,14 @@ func (p *publicPlanCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFu
 		if err != nil {
 			return nil, err
 		}
-		return newObject, resync(ctx, obj.(*types.ServiceBroker), txStorage, p.isCatalogPlanPublicFunc, p.supportedPlatforms)
+		return newObject, resync(ctx, obj.(*types.ServiceBroker), txStorage, p.isCatalogPlanPublicFunc, p.supportedPlatformsFunc, p.tenantKey)
 	}
 }
 
 type publicPlanUpdateInterceptor struct {
 	isCatalogPlanPublicFunc publicPlanProcessor
-	supportedPlatforms      func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error)
+	supportedPlatformsFunc  func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error)
+	tenantKey               string
 }
 
 func (p *publicPlanUpdateInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
@@ -101,11 +108,11 @@ func (p *publicPlanUpdateInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFu
 		if err != nil {
 			return nil, err
 		}
-		return result, resync(ctx, result.(*types.ServiceBroker), txStorage, p.isCatalogPlanPublicFunc, p.supportedPlatforms)
+		return result, resync(ctx, result.(*types.ServiceBroker), txStorage, p.isCatalogPlanPublicFunc, p.supportedPlatformsFunc, p.tenantKey)
 	}
 }
 
-func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.Repository, isCatalogPlanPublicFunc publicPlanProcessor, supportedPlatforms func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) ([]string, error)) error {
+func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.Repository, isCatalogPlanPublicFunc publicPlanProcessor, supportedPlatforms supportedPlatformsProcessor, tenantKey string) error {
 	for _, serviceOffering := range broker.Services {
 		for _, servicePlan := range serviceOffering.Plans {
 			planID := servicePlan.ID
@@ -123,16 +130,19 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 
 			if servicePlan.SupportsAllPlatforms() {
 				err = resyncPublicPlanVisibilities(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker)
-			} else { // not all platforms are supported -> create single visibility for each supported platform
-				var supportedPlatformIDs []string
-				supportedPlatformIDs, err = supportedPlatforms(ctx, servicePlan, txStorage)
 				if err != nil {
 					return err
 				}
-
-				err = resyncPlanVisibilitiesWithSupportedPlatforms(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker, supportedPlatformIDs)
+				continue
 			}
 
+			// not all platforms are supported -> create single visibility for each supported platform
+			supportedPlatformIDs, err := supportedPlatforms(ctx, servicePlan, txStorage)
+			if err != nil {
+				return err
+			}
+
+			err = resyncPlanVisibilitiesWithSupportedPlatforms(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker, supportedPlatformIDs, tenantKey)
 			if err != nil {
 				return err
 			}
@@ -176,20 +186,21 @@ func resyncPublicPlanVisibilities(ctx context.Context, txStorage storage.Reposit
 	return nil
 }
 
-func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage storage.Repository, planVisibilities types.ObjectList, isPlanPublic bool, planID string, broker *types.ServiceBroker, supportedPlatformIDs []string) error {
+func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage storage.Repository, planVisibilities types.ObjectList, isPlanPublic bool, planID string, broker *types.ServiceBroker, supportedPlatforms map[string]*types.Platform, tenantKey string) error {
 	for i := 0; i < planVisibilities.Len(); i++ {
 		visibility := planVisibilities.ItemAt(i).(*types.Visibility)
 
 		shouldDeleteVisibility := true
 
-		idx, matches := platformsAnyMatchesVisibility(supportedPlatformIDs, visibility)
-		if isPlanPublic { // trying to match the current visibility to one of the supported platforms that should have visibilities
-			if matches && len(visibility.Labels) == 0 { // visibility is present, no need to create a new one or delete this one
-				supportedPlatformIDs = append(supportedPlatformIDs[:idx], supportedPlatformIDs[idx+1:]...)
+		platform := findPlatformByVisibility(supportedPlatforms, visibility)
+		if isPlanPublic || platform != nil && isTenantScoped(platform, tenantKey) { // trying to match the current visibility to one of the supported platforms that should have visibilities
+			if platform != nil && len(visibility.Labels) == 0 { // visibility is present, no need to create a new one or delete this one
+				delete(supportedPlatforms, platform.ID)
 				shouldDeleteVisibility = false
 			}
-		} else { // trying to match the current visibility to one of the supported platforms - if match is found and it has no labels - it's a public visibility and it has to be deleted
-			if matches && len(visibility.Labels) != 0 { // visibility is present, but has labels -> visibility for paid so don't delete it
+		} else {
+			// trying to match the current visibility to one of the supported platforms - if match is found and it has no labels - it's a public visibility and it has to be deleted
+			if platform != nil && len(visibility.Labels) != 0 { // visibility is present, but has labels -> visibility for paid so don't delete it
 				shouldDeleteVisibility = false
 			}
 		}
@@ -203,7 +214,7 @@ func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage
 	}
 
 	if isPlanPublic {
-		for _, platformID := range supportedPlatformIDs {
+		for platformID := range supportedPlatforms {
 			if err := persistVisibility(ctx, txStorage, platformID, planID, broker); err != nil {
 				return err
 			}
@@ -213,14 +224,13 @@ func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage
 	return nil
 }
 
-// platformsAnyMatchesVisibility checks whether any of the platform IDs matches the provided visibility
-func platformsAnyMatchesVisibility(platformIDs []string, visibility *types.Visibility) (int, bool) {
-	for i, platformID := range platformIDs {
-		if visibility.PlatformID == platformID {
-			return i, true
+func findPlatformByVisibility(supportedPlatforms map[string]*types.Platform, visibility *types.Visibility) *types.Platform {
+	for id, platform := range supportedPlatforms {
+		if visibility.PlatformID == id {
+			return platform
 		}
 	}
-	return -1, false
+	return nil
 }
 
 func persistVisibility(ctx context.Context, txStorage storage.Repository, platformID, planID string, broker *types.ServiceBroker) error {
@@ -248,4 +258,12 @@ func persistVisibility(ctx context.Context, txStorage storage.Repository, platfo
 
 	log.C(ctx).Debugf("Created new public visibility for broker with id (%s), plan with id (%s) and platform with id (%s)", broker.ID, planID, platformID)
 	return nil
+}
+
+func isTenantScoped(platform *types.Platform, tenantKey string) bool {
+	if _, ok := platform.GetLabels()[tenantKey]; ok {
+		return true
+	}
+
+	return false
 }
