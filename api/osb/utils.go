@@ -47,7 +47,7 @@ func Get(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion stri
 			log.C(ctx).WithError(err).Errorf("Error fetching %s from URL %s and broker with name %s: %s: time out", resourceType, url, broker.Name, err)
 			return nil, &util.HTTPError{
 				ErrorType:   "ServiceBrokerErr",
-				Description: fmt.Sprintf("Error fetching $s from URL %s and broker with name %s: timed out", resourceType, url, broker.Name),
+				Description: fmt.Sprintf("Error fetching %s from URL %s and broker with name %s: timed out", resourceType, url, broker.Name),
 				StatusCode:  http.StatusGatewayTimeout,
 			}
 		}

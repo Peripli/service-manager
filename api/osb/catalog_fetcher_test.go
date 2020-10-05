@@ -178,7 +178,7 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 				Body:   simpleCatalog,
 				Err:    nil,
 			},
-			expectedErr:      fmt.Errorf("error fetching catalog for broker with name %s", name),
+			expectedErr:      fmt.Errorf("error fetching catalog URL url/v2/catalog and broker with name %s", name),
 			expectedResponse: nil,
 		}),
 		Entry("returns error if sending request fails with error", testCase{
