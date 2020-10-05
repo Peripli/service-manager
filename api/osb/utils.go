@@ -14,7 +14,7 @@ import (
 
 func Get(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion string, ctx context.Context, broker *types.ServiceBroker, url string, resourceType string) ([]byte, error) {
 
-	log.C(ctx).Debugf("Attempting to fetch %s from URL %s and broker with name %s", resourceType, url, broker.Name)
+	log.C(ctx).Debugf("attempting to fetch %s from URL %s and broker with name %s", resourceType, url, broker.Name)
 	brokerClient, err := client.NewBrokerClient(broker, doRequestWithClient)
 	if err != nil {
 		return nil, err
@@ -24,19 +24,19 @@ func Get(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion stri
 			brokerAPIVersionHeader: brokerAPIVersion,
 		})
 	if err != nil {
-		log.C(ctx).WithError(err).Errorf("Error while forwarding request to service broker %s", broker.Name)
+		log.C(ctx).WithError(err).Errorf("error while forwarding request to service broker %s", broker.Name)
 		return nil, &util.HTTPError{
 			ErrorType:   "ServiceBrokerErr",
-			Description: fmt.Sprintf("Could not reach service broker %s at %s", broker.Name, broker.BrokerURL),
+			Description: fmt.Sprintf("could not reach service broker %s at %s", broker.Name, broker.BrokerURL),
 			StatusCode:  http.StatusBadGateway,
 		}
 	}
 
 	if response.StatusCode != http.StatusOK {
-		log.C(ctx).WithError(err).Errorf("Error fetching %s from URL %s and broker with name %s: %s", resourceType, url, broker.Name, util.HandleResponseError(response))
+		log.C(ctx).WithError(err).Errorf("error fetching %s from URL %s and broker with name %s: %s", resourceType, url, broker.Name, util.HandleResponseError(response))
 		return nil, &util.HTTPError{
 			ErrorType:   "ServiceBrokerErr",
-			Description: fmt.Sprintf("Error fetching %s from URL %s and broker with name %s: %s", resourceType, url, broker.Name, response.Status),
+			Description: fmt.Sprintf("error fetching %s from URL %s and broker with name %s: %s", resourceType, url, broker.Name, response.Status),
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
