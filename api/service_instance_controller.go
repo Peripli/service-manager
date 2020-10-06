@@ -108,13 +108,13 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 	if isAsync == "true" {
 		return nil, &util.HTTPError{
 			ErrorType:   "InvalidRequest",
-			Description: fmt.Sprintf("Requested %s api doesn't support asynchronous operation.", r.URL.RequestURI()),
+			Description: fmt.Sprintf("requested %s api doesn't support asynchronous operation.", r.URL.RequestURI()),
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
 	serviceInstanceId := r.PathParams[web.PathParamResourceID]
 	ctx := r.Context()
-	log.C(ctx).Debugf("Getting %s with id %s", c.objectType, serviceInstanceId)
+	log.C(ctx).Debugf("getting %s with id %s", c.objectType, serviceInstanceId)
 
 	service, err := storage.GetServiceOfferingByServiceInstanceId(c.repository, ctx, serviceInstanceId)
 	if err != nil {
@@ -129,7 +129,7 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 	if !service.InstancesRetrievable {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("This operation is not supported."),
+			Description: fmt.Sprintf("this operation is not supported."),
 			StatusCode:  http.StatusBadRequest,
 		}
 
@@ -148,7 +148,7 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 	if err := util.BytesToObject(serviceInstanceBytes, &serviceResponse); err != nil {
 		return nil, &util.HTTPError{
 			ErrorType:   "ServiceBrokerErr",
-			Description: fmt.Sprintf("Error reading parameters of service instance with id %s from broker %s", serviceInstanceId, broker.BrokerURL),
+			Description: fmt.Sprintf("error reading parameters of service instance with id %s from broker %s", serviceInstanceId, broker.BrokerURL),
 			StatusCode:  http.StatusBadGateway,
 		}
 	}
