@@ -43,17 +43,17 @@ func Get(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion stri
 	var responseBytes []byte
 	if responseBytes, err = util.BodyToBytes(response.Body); err != nil {
 		if nErr, ok := err.(net.Error); ok && nErr.Timeout() {
-			log.C(ctx).WithError(err).Errorf("Error fetching %s from URL %s and broker with name %s: %s: time out", resourceType, url, broker.Name, err)
+			log.C(ctx).WithError(err).Errorf("error fetching %s from URL %s and broker with name %s: %s: time out", resourceType, url, broker.Name, err)
 			return nil, &util.HTTPError{
 				ErrorType:   "ServiceBrokerErr",
-				Description: fmt.Sprintf("Error fetching %s from URL %s and broker with name %s: timed out", resourceType, url, broker.Name),
+				Description: fmt.Sprintf("error fetching %s from URL %s and broker with name %s: timed out", resourceType, url, broker.Name),
 				StatusCode:  http.StatusGatewayTimeout,
 			}
 		}
-		return nil, fmt.Errorf("Error getting content from body of response from %s with status %s: %s", url, response.Status, err)
+		return nil, fmt.Errorf("error getting content from body of response from %s with status %s: %s", url, response.Status, err)
 	}
 
-	log.C(ctx).Debugf("Successfully fetched %s from URL %s and broker with name %s", resourceType, url, broker.Name)
+	log.C(ctx).Debugf("successfully fetched %s from URL %s and broker with name %s", resourceType, url, broker.Name)
 
 	return responseBytes, nil
 
