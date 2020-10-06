@@ -239,6 +239,102 @@ var _ = DescribeTestsFor(TestCase{
 				ctx.CleanupAdditionalResources()
 			})
 
+			Describe("get parameters", func() {
+				When("service binding does not exist", func() {
+					It("should return an error", func() {
+						ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + bindingID + web.ParametersURL).Expect().
+							Status(http.StatusNotFound)
+
+					})
+				})
+				When("service binding exists", func() {
+					var bindingRetrievable bool
+					JustBeforeEach(func() {
+						brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut, func(req *http.Request) (int, map[string]interface{}) {
+							return http.StatusCreated, Object{}
+						})
+						servicePlanID = findPlanIDForBrokerIDAndBindingRetrievable(ctx, brokerID, bindingRetrievable)
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+						createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+						postBindingRequest["name"] = "test-binding-retrievable-name"
+						postBindingRequest["service_instance_id"] = instanceID
+						brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusCreated, syncBindingResponse))
+						createBinding(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
+
+					})
+
+					Describe("not retrievable binding", func() {
+						BeforeEach(func() {
+							bindingRetrievable = false
+						})
+						It("should return an error", func() {
+							ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + bindingID + web.ParametersURL).Expect().
+								Status(http.StatusBadRequest)
+						})
+
+					})
+
+					Describe("retrievable binding", func() {
+						BeforeEach(func() {
+							bindingRetrievable = true
+						})
+						When("async is requested", func() {
+							It("Should return an error", func() {
+								url := web.ServiceBindingsURL + "/" + bindingID + web.ParametersURL
+								ctx.SMWithOAuthForTenant.GET(url).WithQuery("async", true).Expect().
+									Status(http.StatusBadRequest)
+							})
+
+						})
+
+						When("params are not readable", func() {
+							BeforeEach(func() {
+								bindingRetrievable = true
+								postBindingRequest["parameters"] = map[string]string{
+									"cat": "Freddy",
+									"dog": "Lucy",
+								}
+
+								brokerServer.BindingHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
+									"parameters":    "fdafds:fdasfd.f",
+									"dashboard_url": "http://dashboard.com",
+								}))
+							})
+							It("Should return an error", func() {
+								ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + bindingID + web.ParametersURL).Expect().
+									Status(http.StatusBadGateway)
+							})
+						})
+						When("params are readable", func() {
+							BeforeEach(func() {
+								bindingRetrievable = true
+								postBindingRequest["parameters"] = map[string]string{
+									"cat": "Freddy",
+									"dog": "Lucy",
+								}
+
+								brokerServer.BindingHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
+									"parameters": map[string]string{
+										"cat": "Freddy",
+										"dog": "Lucy",
+									},
+									"dashboard_url": "http://dashboard.com",
+								}))
+							})
+
+							It("Should return parameters", func() {
+								response := ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + bindingID + web.ParametersURL).Expect()
+								response.Status(http.StatusOK)
+								jsonObject := response.JSON().Object()
+								jsonObject.Value("cat").String().Equal("Freddy")
+								jsonObject.Value("dog").String().Equal("Lucy")
+
+							})
+						})
+					})
+				})
+			})
+
 			Describe("GET", func() {
 				When("service binding contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
