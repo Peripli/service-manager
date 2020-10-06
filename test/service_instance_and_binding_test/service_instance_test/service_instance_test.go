@@ -255,7 +255,7 @@ var _ = DescribeTestsFor(TestCase{
 				When("service instance does not exist", func() {
 					It("should return an error", func() {
 						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/jkljljk/parameters").Expect().
-							Status(http.StatusNotFound).JSON().Object().Value("error").String().Equal("NotFound")
+							Status(http.StatusNotFound)
 					})
 				})
 
@@ -267,7 +267,7 @@ var _ = DescribeTestsFor(TestCase{
 						planId := findPlanIDForCatalogID(ctx, brokerID, serviceID, plan1CatalogID)
 						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, planId, TenantIDValue)
 						postInstanceRequest["service_plan_id"] = planId
-						resp := createInstance(ctx.SMWithOAuthForTenant, "", http.StatusCreated)
+						resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
 						instanceName = resp.JSON().Object().Value("name").String().Raw()
 						Expect(instanceName).ToNot(BeEmpty())
 

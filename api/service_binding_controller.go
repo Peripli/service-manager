@@ -118,31 +118,31 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 		return nil, util.HandleStorageError(err, types.ServiceBrokerType.String())
 	}
 	broker := brokerObject.(*types.ServiceBroker)
-	if service.BindingsRetrievable {
-		serviceBindingBytes, err := osb.Get(util.ClientRequest, c.osbVersion, ctx,
-			broker,
-			fmt.Sprintf(serviceBindingOSBURL, broker.BrokerURL, serviceBinding.ServiceInstanceID, serviceBindingId),
-			types.ServiceBindingType.String())
-		if err != nil {
-			return nil, err
+	if !service.BindingsRetrievable {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("This operation is not supported"),
+			StatusCode:  http.StatusBadRequest,
 		}
-
-		serviceBindingResponse := &types.ServiceBinding{}
-		if err := util.BytesToObject(serviceBindingBytes, &serviceBindingResponse); err != nil {
-			return nil, &util.HTTPError{
-				ErrorType:   "ServiceBrokerErr",
-				Description: fmt.Sprintf("Error reading parameters of service binding with id %s from broker %s", serviceBindingId, broker.BrokerURL),
-				StatusCode:  http.StatusBadGateway,
-			}
-		}
-
-		return util.NewJSONResponse(http.StatusOK, &serviceBindingResponse.Parameters)
-
 	}
 
-	return nil, &util.HTTPError{
-		ErrorType:   "BadRequest",
-		Description: fmt.Sprintf("This operation is not supported"),
-		StatusCode:  http.StatusBadRequest,
+	serviceBindingBytes, err := osb.Get(util.ClientRequest, c.osbVersion, ctx,
+		broker,
+		fmt.Sprintf(serviceBindingOSBURL, broker.BrokerURL, serviceBinding.ServiceInstanceID, serviceBindingId),
+		types.ServiceBindingType.String())
+	if err != nil {
+		return nil, err
 	}
+
+	serviceBindingResponse := &types.ServiceBinding{}
+	if err := util.BytesToObject(serviceBindingBytes, &serviceBindingResponse); err != nil {
+		return nil, &util.HTTPError{
+			ErrorType:   "ServiceBrokerErr",
+			Description: fmt.Sprintf("Error reading parameters of service binding with id %s from broker %s", serviceBindingId, broker.BrokerURL),
+			StatusCode:  http.StatusBadGateway,
+		}
+	}
+
+	return util.NewJSONResponse(http.StatusOK, &serviceBindingResponse.Parameters)
+
 }

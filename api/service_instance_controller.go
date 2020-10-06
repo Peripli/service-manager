@@ -126,32 +126,32 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 		return nil, util.HandleStorageError(err, types.ServiceBrokerType.String())
 	}
 	broker := brokerObject.(*types.ServiceBroker)
-	if service.InstancesRetrievable {
-		serviceInstanceBytes, err := osb.Get(util.ClientRequest, c.osbVersion, ctx,
-			broker,
-			fmt.Sprintf(serviceInstanceOSBURL, broker.BrokerURL, serviceInstanceId),
-			types.ServiceInstanceType.String())
-
-		if err != nil {
-			return nil, err
+	if !service.InstancesRetrievable {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("This operation is not supported."),
+			StatusCode:  http.StatusBadRequest,
 		}
-
-		serviceResponse := &types.ServiceInstance{}
-		if err := util.BytesToObject(serviceInstanceBytes, &serviceResponse); err != nil {
-			return nil, &util.HTTPError{
-				ErrorType:   "ServiceBrokerErr",
-				Description: fmt.Sprintf("Error reading parameters of service instance with id %s from broker %s", serviceInstanceId, broker.BrokerURL),
-				StatusCode:  http.StatusBadGateway,
-			}
-		}
-
-		return util.NewJSONResponse(http.StatusOK, &serviceResponse.Parameters)
 
 	}
 
-	return nil, &util.HTTPError{
-		ErrorType:   "BadRequest",
-		Description: fmt.Sprintf("This operation is not supported."),
-		StatusCode:  http.StatusBadRequest,
+	serviceInstanceBytes, err := osb.Get(util.ClientRequest, c.osbVersion, ctx,
+		broker,
+		fmt.Sprintf(serviceInstanceOSBURL, broker.BrokerURL, serviceInstanceId),
+		types.ServiceInstanceType.String())
+
+	if err != nil {
+		return nil, err
 	}
+
+	serviceResponse := &types.ServiceInstance{}
+	if err := util.BytesToObject(serviceInstanceBytes, &serviceResponse); err != nil {
+		return nil, &util.HTTPError{
+			ErrorType:   "ServiceBrokerErr",
+			Description: fmt.Sprintf("Error reading parameters of service instance with id %s from broker %s", serviceInstanceId, broker.BrokerURL),
+			StatusCode:  http.StatusBadGateway,
+		}
+	}
+
+	return util.NewJSONResponse(http.StatusOK, &serviceResponse.Parameters)
 }
