@@ -8,6 +8,23 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
+func brokersCriteria(ctx context.Context, repository storage.Repository, servicesQuery *query.Criterion) (*query.Criterion, error) {
+	objectList, err := repository.List(ctx, types.ServiceOfferingType, *servicesQuery)
+	if err != nil {
+		return nil, err
+	}
+	services := objectList.(*types.ServiceOfferings)
+	if services.Len() < 1 {
+		return nil, nil
+	}
+	brokerIDs := make([]string, 0, services.Len())
+	for _, p := range services.ServiceOfferings {
+		brokerIDs = append(brokerIDs, p.BrokerID)
+	}
+	c := query.ByField(query.InOperator, "id", brokerIDs...)
+	return &c, nil
+}
+
 func servicesCriteria(ctx context.Context, repository storage.Repository, planQuery *query.Criterion) (*query.Criterion, error) {
 	objectList, err := repository.List(ctx, types.ServicePlanType, *planQuery)
 	if err != nil {
