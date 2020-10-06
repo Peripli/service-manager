@@ -254,7 +254,7 @@ var _ = DescribeTestsFor(TestCase{
 			Describe("get parameters", func() {
 				When("service instance does not exist", func() {
 					It("should return an error", func() {
-						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/jkljljk/parameters").Expect().
+						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/jkljlj"+web.ParametersURL).Expect().
 							Status(http.StatusNotFound)
 					})
 				})
@@ -278,7 +278,7 @@ var _ = DescribeTestsFor(TestCase{
 						})
 
 						It("Should return an error", func() {
-							ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect().
+							ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + web.ParametersURL).Expect().
 								Status(http.StatusBadRequest)
 						})
 
@@ -294,7 +294,7 @@ var _ = DescribeTestsFor(TestCase{
 						})
 						When("async operations is requested", func() {
 							It("Should return an error", func() {
-								url := web.ServiceInstancesURL + "/" + instanceID + "/parameters"
+								url := web.ServiceInstancesURL + "/" + instanceID + web.ParametersURL
 								ctx.SMWithOAuthForTenant.GET(url).WithQuery("async", true).Expect().
 									Status(http.StatusBadRequest)
 							})
@@ -307,7 +307,7 @@ var _ = DescribeTestsFor(TestCase{
 								}))
 							})
 							It("should return an error", func() {
-								ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect().
+								ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + web.ParametersURL).Expect().
 									Status(http.StatusBadGateway)
 							})
 						})
@@ -322,7 +322,7 @@ var _ = DescribeTestsFor(TestCase{
 								}))
 							})
 							It("should return parameters", func() {
-								response := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + "/parameters").Expect()
+								response := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + web.ParametersURL).Expect()
 								response.Status(http.StatusOK)
 								jsonObject := response.JSON().Object()
 								jsonObject.Value("cat").String().Equal("Freddy")
