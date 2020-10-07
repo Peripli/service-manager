@@ -214,8 +214,8 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		WithUpdateOnTxInterceptorProvider(types.VisibilityType, &interceptors.VisibilityUpdateNotificationsInterceptorProvider{}).Register().
 		WithDeleteOnTxInterceptorProvider(types.VisibilityType, &interceptors.VisibilityDeleteNotificationsInterceptorProvider{}).Register().
 		WithCreateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsCreateInterceptorProvider{cfg.Multitenancy.LabelKey}).Before(interceptors.BrokerCreateCatalogInterceptorName).Register().
-		WithUpdateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsUpdateInterceptorProvider{}).Before(interceptors.BrokerUpdateCatalogInterceptorName).Register().
-		WithDeleteOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register()
+		WithUpdateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsUpdateInterceptorProvider{cfg.Multitenancy.LabelKey}).Before(interceptors.BrokerUpdateCatalogInterceptorName).Register().
+		WithDeleteOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{cfg.Multitenancy.LabelKey}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register()
 
 	baseSMAAPInterceptorProvider := &interceptors.BaseSMAAPInterceptorProvider{
 		OSBClientCreateFunc: osbClientProvider,

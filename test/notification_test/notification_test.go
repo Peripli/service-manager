@@ -48,6 +48,8 @@ func TestNotifications(t *testing.T) {
 type notificationTypeEntry struct {
 	// ResourceType is the resource object type
 	ResourceType types.ObjectType
+	// ResourceTenantScoped whether the resource should be created as tenant-scoped
+	ResourceTenantScoped bool
 	// ResourceCreateFunc is blueprint for resource creation
 	ResourceCreateFunc func() common.Object
 	// ResourceUpdateFunc is blueprint for resource update
@@ -92,17 +94,28 @@ var _ = Describe("Notifications Suite", func() {
 		return services
 	}
 
-	entries := []notificationTypeEntry{
-		{
-			ResourceType: types.ServiceBrokerType,
+	brokersNotificationEntry := func(tenantScoped bool) notificationTypeEntry {
+		var smAuth = func(tenantScoped bool) *common.SMExpect {
+			var smAuth *common.SMExpect
+			if tenantScoped {
+				smAuth = ctx.SMWithOAuthForTenant
+			} else {
+				smAuth = ctx.SMWithOAuth
+			}
+			return smAuth
+		}
+		return notificationTypeEntry{
+			ResourceType:         types.ServiceBrokerType,
+			ResourceTenantScoped: tenantScoped,
 			ResourceCreateFunc: func() common.Object {
-				obj := ctx.RegisterBrokerWithCatalogAndLabelsExpect(common.NewRandomSBCatalog(), common.Object{}, ctx.SMWithOAuthForTenant).Broker.JSON
+
+				obj := ctx.RegisterBrokerWithCatalogAndLabelsExpect(common.NewRandomSBCatalog(), common.Object{}, smAuth(tenantScoped)).Broker.JSON
 				delete(obj, "credentials")
 				delete(obj, "last_operation")
 				return obj
 			},
 			ResourceUpdateFunc: func(obj common.Object, update common.Object) common.Object {
-				patchedObj := ctx.SMWithOAuthForTenant.PATCH(web.ServiceBrokersURL + "/" + obj["id"].(string)).
+				patchedObj := smAuth(tenantScoped).PATCH(web.ServiceBrokersURL + "/" + obj["id"].(string)).
 					WithJSON(update).
 					Expect().
 					Status(http.StatusOK).JSON().Object().Raw()
@@ -120,7 +133,7 @@ var _ = Describe("Notifications Suite", func() {
 					}
 				},
 				func() common.Object {
-					anotherPlatformID := ctx.SMWithOAuthForTenant.POST(web.PlatformsURL).WithJSON(common.Object{
+					anotherPlatformID := smAuth(tenantScoped).POST(web.PlatformsURL).WithJSON(common.Object{
 						"id":          "cluster1",
 						"name":        "k8s1",
 						"type":        "kubernetes",
@@ -160,23 +173,25 @@ var _ = Describe("Notifications Suite", func() {
 				objList, err := ctx.SMRepository.List(context.TODO(), types.PlatformType, query.ByField(query.NotEqualsOperator, "id", types.SMPlatform))
 				Expect(err).ToNot(HaveOccurred())
 
-				//var brokerTenantID string
-				//brokerTenantLabel, found := object["labels"].(common.Object)[tenantLabelKey]
-				//if found {
-				//	 brokerTenantID = brokerTenantLabel.(common.Array)[0].(string)
-				//}
+				var brokerTenantID string
+
+				if object["labels"] != nil {
+					brokerTenantLabel, found := object["labels"].(common.Object)[tenantLabelKey]
+					if found {
+						brokerTenantID = brokerTenantLabel.(common.Array)[0].(string)
+					}
+				}
+
 				platformIDs := make([]string, 0)
 				for i := 0; i < objList.Len(); i++ {
 					platform := objList.ItemAt(i)
-					//if platformTenantLabel, found := objList.ItemAt(i).GetLabels()[tenantLabelKey]; found && brokerTenantID != "" {
-					//	if len(platformTenantLabel) > 0 && brokerTenantID == platformTenantLabel[0] {
-					//		platformIDs = append(platformIDs, platform.GetID())
-					//	}
-					//} else {
-					//	platformIDs = append(platformIDs, platform.GetID())
-					//}
-
-					platformIDs = append(platformIDs, platform.GetID())
+					if platformTenantLabel, found := objList.ItemAt(i).GetLabels()[tenantLabelKey]; found && brokerTenantID != "" {
+						if len(platformTenantLabel) > 0 && brokerTenantID == platformTenantLabel[0] {
+							platformIDs = append(platformIDs, platform.GetID())
+						}
+					} else {
+						platformIDs = append(platformIDs, platform.GetID())
+					}
 				}
 
 				return platformIDs
@@ -198,19 +213,13 @@ var _ = Describe("Notifications Suite", func() {
 			AdditionalVerificationNotificationsFunc: func(expected common.Object, repository storage.Repository, notificationsAfterOp *types.Notifications) {
 				serviceOfferings, err := catalog.Load(c, expected["id"].(string), ctx.SMRepository)
 				Expect(err).ShouldNot(HaveOccurred())
-				for _, notification := range notificationsAfterOp.Notifications {
-					if notification.Resource == types.ServiceBrokerType {
-						platformID := notification.PlatformID
-						Expect(platformID).ToNot(BeEmpty())
 
-						if platformID == otherTenantPlatformID {
-							Fail("Notification of tenant scoped broker was created for another tenant's platform")
-						}
-					}
-					for _, serviceOffering := range serviceOfferings.ServiceOfferings {
-						for _, servicePlan := range serviceOffering.Plans {
+				// visibility notifications
+				for _, serviceOffering := range serviceOfferings.ServiceOfferings {
+					for _, servicePlan := range serviceOffering.Plans {
+						if *servicePlan.Free {
 							found := false
-							if *servicePlan.Free {
+							for _, notification := range notificationsAfterOp.Notifications {
 								if notification.Resource == types.VisibilityType && notification.Type == types.CREATED {
 									catalogID := gjson.GetBytes(notification.Payload, "new.additional.service_plan.catalog_id").Str
 									Expect(catalogID).ToNot(BeEmpty())
@@ -228,8 +237,26 @@ var _ = Describe("Notifications Suite", func() {
 					}
 				}
 
+				// broker notifications
+				for _, notification := range notificationsAfterOp.Notifications {
+					if notification.Resource == types.ServiceBrokerType {
+						if tenantScoped {
+							platformID := notification.PlatformID
+							Expect(platformID).ToNot(BeEmpty())
+
+							if platformID == otherTenantPlatformID {
+								Fail("Notification of tenant scoped broker was created for another tenant's platform")
+							}
+						}
+					}
+				}
 			},
-		},
+		}
+	}
+
+	entries := []notificationTypeEntry{
+		brokersNotificationEntry(true),
+		brokersNotificationEntry(false),
 		{
 			ResourceType: types.VisibilityType,
 			ResourceCreateFunc: func() common.Object {
@@ -418,9 +445,15 @@ var _ = Describe("Notifications Suite", func() {
 		ctx.Cleanup()
 	})
 
+	AfterEach(func() {
+		ctx.CleanupPlatforms()
+	})
 	BeforeEach(func() {
 		c = context.TODO()
 		objAfterOp = nil
+
+		// register platform for test tenant
+		ctx.RegisterTenantPlatform()
 
 		// register platform for another tenant
 		platform := ctx.RegisterPlatform()
@@ -606,7 +639,7 @@ var _ = Describe("Notifications Suite", func() {
 				entry.ResourceDeleteFunc(objAfterOp)
 			})
 
-			FIt("also creates a CREATED notification", func() {
+			It("also creates a CREATED notification", func() {
 				_, ids := getNotifications()
 				objAfterOp = entry.ResourceCreateFunc()
 				notificationsAfterOp, _ := getNotifications(ids...)
