@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/storage/service_plans"
+	"github.com/Peripli/service-manager/test"
 	"net/http"
 	"testing"
 
@@ -37,6 +38,8 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 )
 
+const tenantLabelKey = "tenant"
+
 func TestNotifications(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Notifications Suite")
@@ -45,6 +48,8 @@ func TestNotifications(t *testing.T) {
 type notificationTypeEntry struct {
 	// ResourceType is the resource object type
 	ResourceType types.ObjectType
+	// ResourceTenantScoped whether the resource should be created as tenant-scoped
+	ResourceTenantScoped bool
 	// ResourceCreateFunc is blueprint for resource creation
 	ResourceCreateFunc func() common.Object
 	// ResourceUpdateFunc is blueprint for resource update
@@ -66,6 +71,7 @@ var _ = Describe("Notifications Suite", func() {
 	var ctx *common.TestContext
 	var c context.Context
 	var objAfterOp common.Object
+	var otherTenantPlatformID string
 
 	processBrokersPayload := func(payload string) string {
 		var err error
@@ -88,17 +94,29 @@ var _ = Describe("Notifications Suite", func() {
 		return services
 	}
 
-	entries := []notificationTypeEntry{
-		{
-			ResourceType: types.ServiceBrokerType,
+	brokersNotificationEntry := func(tenantScoped bool) notificationTypeEntry {
+		var smAuth = func(tenantScoped bool) *common.SMExpect {
+			var smAuth *common.SMExpect
+			if tenantScoped {
+				smAuth = ctx.SMWithOAuthForTenant
+			} else {
+				smAuth = ctx.SMWithOAuth
+			}
+			return smAuth
+		}
+
+		return notificationTypeEntry{
+			ResourceType:         types.ServiceBrokerType,
+			ResourceTenantScoped: tenantScoped,
 			ResourceCreateFunc: func() common.Object {
-				obj := ctx.RegisterBroker().Broker.JSON
+
+				obj := ctx.RegisterBrokerWithCatalogAndLabelsExpect(common.NewRandomSBCatalog(), common.Object{}, smAuth(tenantScoped)).Broker.JSON
 				delete(obj, "credentials")
 				delete(obj, "last_operation")
 				return obj
 			},
 			ResourceUpdateFunc: func(obj common.Object, update common.Object) common.Object {
-				patchedObj := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + obj["id"].(string)).
+				patchedObj := smAuth(tenantScoped).PATCH(web.ServiceBrokersURL + "/" + obj["id"].(string)).
 					WithJSON(update).
 					Expect().
 					Status(http.StatusOK).JSON().Object().Raw()
@@ -116,7 +134,7 @@ var _ = Describe("Notifications Suite", func() {
 					}
 				},
 				func() common.Object {
-					anotherPlatformID := ctx.SMWithOAuth.POST(web.PlatformsURL).WithJSON(common.Object{
+					anotherPlatformID := smAuth(tenantScoped).POST(web.PlatformsURL).WithJSON(common.Object{
 						"id":          "cluster1",
 						"name":        "k8s1",
 						"type":        "kubernetes",
@@ -156,9 +174,26 @@ var _ = Describe("Notifications Suite", func() {
 				objList, err := ctx.SMRepository.List(context.TODO(), types.PlatformType, query.ByField(query.NotEqualsOperator, "id", types.SMPlatform))
 				Expect(err).ToNot(HaveOccurred())
 
+				var brokerTenantID string
+
+				if object["labels"] != nil {
+					brokerTenantLabel, found := object["labels"].(common.Object)[tenantLabelKey]
+					if found {
+						// tenant scoped broker
+						brokerTenantID = brokerTenantLabel.(common.Array)[0].(string)
+					}
+				}
+
 				platformIDs := make([]string, 0)
 				for i := 0; i < objList.Len(); i++ {
-					platformIDs = append(platformIDs, objList.ItemAt(i).GetID())
+					platform := objList.ItemAt(i)
+					if platformTenantLabel, found := objList.ItemAt(i).GetLabels()[tenantLabelKey]; found && brokerTenantID != "" {
+						if len(platformTenantLabel) > 0 && brokerTenantID == platformTenantLabel[0] {
+							platformIDs = append(platformIDs, platform.GetID())
+						}
+					} else {
+						platformIDs = append(platformIDs, platform.GetID())
+					}
 				}
 
 				return platformIDs
@@ -181,6 +216,7 @@ var _ = Describe("Notifications Suite", func() {
 				serviceOfferings, err := catalog.Load(c, expected["id"].(string), ctx.SMRepository)
 				Expect(err).ShouldNot(HaveOccurred())
 
+				// visibility notifications
 				for _, serviceOffering := range serviceOfferings.ServiceOfferings {
 					for _, servicePlan := range serviceOffering.Plans {
 						if *servicePlan.Free {
@@ -203,10 +239,31 @@ var _ = Describe("Notifications Suite", func() {
 					}
 				}
 
+				// broker notifications
+				if tenantScoped {
+					// broker notifications
+					for _, notification := range notificationsAfterOp.Notifications {
+						if notification.Resource == types.ServiceBrokerType {
+
+							platformID := notification.PlatformID
+							Expect(platformID).ToNot(BeEmpty())
+
+							if platformID == otherTenantPlatformID {
+								Fail("Notification of tenant scoped broker was created for another tenant's platform")
+							}
+						}
+					}
+				}
 			},
-		},
+		}
+	}
+
+	entries := []notificationTypeEntry{
+		brokersNotificationEntry(true),
+		brokersNotificationEntry(false),
 		{
-			ResourceType: types.VisibilityType,
+			ResourceType:         types.VisibilityType,
+			ResourceTenantScoped: false,
 			ResourceCreateFunc: func() common.Object {
 				visReqBody := make(common.Object)
 				cPaidPlan := common.GeneratePaidTestPlan()
@@ -343,39 +400,77 @@ var _ = Describe("Notifications Suite", func() {
 		},
 	}
 
+	multitenancySettings := &test.MultitenancySettings{
+		ClientID:           "tenancyClient",
+		ClientIDTokenClaim: "cid",
+		TenantTokenClaim:   "zid",
+		LabelKey:           tenantLabelKey,
+		TokenClaims: map[string]interface{}{
+			"cid": "tenancyClient",
+			"zid": "tenantID",
+		},
+	}
+
 	BeforeSuite(func() {
 		// Register the public plans interceptor with default public plans function that uses the catalog plan free value
 		// so that we can verify that notifications for public plans are also created
-		ctx = common.NewTestContextBuilderWithSecurity().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-			smb.WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanCreateInterceptorProvider{
-				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
-					return *catalogPlan.Free, nil
-				},
-				SupportedPlatformsFunc: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
-					return service_plans.ResolveSupportedPlatformsForPlans(ctx, []*types.ServicePlan{plan}, repository)
-				},
-			}).OnTxBefore(interceptors.BrokerCreateNotificationInterceptorName).Register()
+		ctx = common.NewTestContextBuilderWithSecurity().
+			WithTenantTokenClaims(multitenancySettings.TokenClaims).
+			WithEnvPostExtensions(func(e env.Environment, servers map[string]common.FakeServer) {
+				e.Set("api.protected_labels", multitenancySettings.LabelKey)
+			}).
+			WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+				_, err := smb.EnableMultitenancy(multitenancySettings.LabelKey, common.ExtractTenantFunc)
+				return err
+			}).
+			WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+				smb.WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanCreateInterceptorProvider{
+					IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
+						return *catalogPlan.Free, nil
+					},
+					SupportedPlatformsFunc: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
+						return service_plans.ResolveSupportedPlatformsForPlans(ctx, []*types.ServicePlan{plan}, repository)
+					},
+				}).OnTxBefore(interceptors.BrokerCreateNotificationInterceptorName).Register()
 
-			smb.WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanUpdateInterceptorProvider{
-				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
-					return *catalogPlan.Free, nil
-				},
-				SupportedPlatformsFunc: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
-					return service_plans.ResolveSupportedPlatformsForPlans(ctx, []*types.ServicePlan{plan}, repository)
-				},
-			}).OnTxBefore(interceptors.BrokerUpdateNotificationInterceptorName).Register()
+				smb.WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanUpdateInterceptorProvider{
+					IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
+						return *catalogPlan.Free, nil
+					},
+					SupportedPlatformsFunc: func(ctx context.Context, plan *types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
+						return service_plans.ResolveSupportedPlatformsForPlans(ctx, []*types.ServicePlan{plan}, repository)
+					},
+				}).OnTxBefore(interceptors.BrokerUpdateNotificationInterceptorName).Register()
 
-			return nil
-		}).Build()
+				return nil
+			}).Build()
 	})
 
 	AfterSuite(func() {
 		ctx.Cleanup()
 	})
 
+	AfterEach(func() {
+		ctx.CleanupPlatforms()
+	})
 	BeforeEach(func() {
 		c = context.TODO()
 		objAfterOp = nil
+
+		// register platform for test tenant
+		ctx.RegisterTenantPlatform()
+
+		// register platform for another tenant
+		platform := ctx.RegisterPlatform()
+		err := ctx.SMRepository.UpdateLabels(context.Background(), types.PlatformType, platform.GetID(), types.LabelChanges{
+			{
+				Operation: types.AddLabelOperation,
+				Key:       tenantLabelKey,
+				Values:    []string{"anotherTenant"},
+			},
+		})
+		Expect(err).ShouldNot(HaveOccurred())
+		otherTenantPlatformID = platform.ID
 	})
 
 	for _, entry := range entries {
@@ -573,6 +668,7 @@ var _ = Describe("Notifications Suite", func() {
 
 				verifyDeletionNotificationCreated(objAfterOp, notificationsAfterOp, oldPayload)
 			})
+
 		})
 
 		Context(fmt.Sprintf("ON %s resource UPDATE", entry.ResourceType), func() {

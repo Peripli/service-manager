@@ -20,6 +20,29 @@ func ResolveSupportedPlatformIDsForPlans(ctx context.Context, plans []*types.Ser
 	return platformIDs, nil
 }
 
+func ResolveSupportedPlatformIDsForTenant(ctx context.Context, plans []*types.ServicePlan, repository storage.Repository, tenantKey string, tenantValue string) ([]string, error) {
+	isGlobal := func(platform *types.Platform) bool {
+		return platform.Labels == nil || len(platform.Labels[tenantKey]) == 0
+	}
+
+	isTenantScoped := func(platform *types.Platform) bool {
+		return platform.Labels != nil && len(platform.Labels[tenantKey]) > 0 && platform.Labels[tenantKey][0] == tenantValue
+	}
+
+	platforms, err := ResolveSupportedPlatformsForPlans(ctx, plans, repository)
+	if err != nil {
+		return nil, err
+	}
+
+	platformIDs := make([]string, 0)
+	for _, platform := range platforms {
+		if isGlobal(platform) || isTenantScoped(platform) {
+			platformIDs = append(platformIDs, platform.ID)
+		}
+	}
+	return platformIDs, nil
+}
+
 func ResolveSupportedPlatformsForPlans(ctx context.Context, plans []*types.ServicePlan, repository storage.Repository) (map[string]*types.Platform, error) {
 	platformsMap := make(map[string]*types.Platform)
 
