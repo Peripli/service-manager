@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS notifications_revision_index ON notifications (revision);

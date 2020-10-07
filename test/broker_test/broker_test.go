@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -220,6 +221,93 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				RemoveAllBrokers(ctx.SMRepository)
 
 				repository = ctx.SMRepository
+			})
+
+			Describe("GET", func() {
+				var (
+					k8sPlatform   *types.Platform
+					k8sAgent      *common.SMExpect
+					brokerID      string
+					planCatalogID string
+				)
+
+				assertBrokerForPlatformByID := func(agent *common.SMExpect, brokerID interface{}, status int) {
+					k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceBrokersURL, brokerID.(string))).
+						Expect().
+						Status(status)
+				}
+
+				assertBrokersForPlatformWithQuery := func(agent *common.SMExpect, query map[string]interface{}, brokers ...interface{}) {
+					q := url.Values{}
+					for k, v := range query {
+						q.Set(k, fmt.Sprint(v))
+					}
+					queryString := q.Encode()
+					result := agent.ListWithQuery(web.ServiceBrokersURL, queryString).Path("$[*].id").Array()
+					result.Length().Equal(len(brokers))
+					if len(brokers) > 0 {
+						result.ContainsOnly(brokers...)
+					}
+				}
+
+				assertBrokersForPlatform := func(agent *common.SMExpect, brokers ...interface{}) {
+					assertBrokersForPlatformWithQuery(agent, nil, brokers...)
+				}
+
+				BeforeEach(func() {
+					k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+					k8sPlatform = common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
+					k8sAgent = &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+						username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
+						req.WithBasicAuth(username, password)
+					})}
+
+					plan := common.GeneratePaidTestPlan()
+					planCatalogID = gjson.Get(plan, "id").String()
+					service := common.GenerateTestServiceWithPlans(plan)
+					catalog := common.NewEmptySBCatalog()
+					catalog.AddService(service)
+					brokerID = ctx.RegisterBrokerWithCatalog(catalog).Broker.ID
+				})
+
+				AfterEach(func() {
+					ctx.CleanupAdditionalResources()
+				})
+
+				Context("with no visibilities for any of the broker's plans", func() {
+					It("should return not found", func() {
+						assertBrokersForPlatform(k8sAgent, nil...)
+						assertBrokerForPlatformByID(k8sAgent, brokerID, http.StatusNotFound)
+					})
+
+					It("should not list broker with field query broker id", func() {
+						assertBrokersForPlatformWithQuery(k8sAgent,
+							map[string]interface{}{
+								"fieldQuery": fmt.Sprintf("broker_id eq '%s'", brokerID),
+							}, nil...)
+					})
+				})
+
+				Context("with public visibility for broker's plan", func() {
+					BeforeEach(func() {
+						ctx.TestContextData.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(planCatalogID, "", "")
+					})
+					It("should return one broker", func() {
+						assertBrokersForPlatform(k8sAgent, brokerID)
+						assertBrokerForPlatformByID(k8sAgent, brokerID, http.StatusOK)
+					})
+				})
+
+				Context("with visibility for platform and one of the broker's plans", func() {
+					BeforeEach(func() {
+						ctx.TestContextData.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(planCatalogID, k8sPlatform.ID, "")
+					})
+
+					It("should return the broker", func() {
+						assertBrokersForPlatform(k8sAgent, brokerID)
+						assertBrokerForPlatformByID(k8sAgent, brokerID, http.StatusOK)
+					})
+				})
 			})
 
 			Describe("POST", func() {
@@ -687,10 +775,19 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								WithJSON(postBrokerRequestWithLabels).
 								Expect().Status(http.StatusCreated).JSON().Object().Keys().Contains("id", "labels")
 						})
+
+						When("When creating labeled broker containing a separator not as a standalone word", func() {
+							It("should return 201", func() {
+								labels[fmt.Sprintf("containing_%s_separator", query.Separator)] = Array{"val"}
+								ctx.SMWithOAuth.POST(web.ServiceBrokersURL).
+									WithJSON(postBrokerRequestWithLabels).
+									Expect().Status(http.StatusCreated).JSON().Object().Keys().Contains("id", "labels")
+							})
+						})
 					})
 
-					Context("When creating labeled broker with key containing forbidden character", func() {
-						It("Should return 400", func() {
+					Context("When creating labeled broker with a forbidden separator", func() {
+						It("Should return 400 if the separator is a standalone word", func() {
 							labels[fmt.Sprintf("containing %s separator", query.Separator)] = Array{"val"}
 							ctx.SMWithOAuth.POST(web.ServiceBrokersURL).
 								WithJSON(postBrokerRequestWithLabels).

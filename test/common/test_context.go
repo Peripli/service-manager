@@ -164,18 +164,21 @@ func (ctx *BrokerUtils) AddPlanVisibilityForPlatform(planCatalogID string, platf
 		First().Object().Value("id").String().Raw()
 
 	visibilityID := RegisterVisibilityForPlanAndPlatform(ctx.authContext, smPlanID, platformID)
-	patchLabelsBody := make(map[string]interface{})
-	patchLabels := []types.LabelChange{{
-		Operation: types.AddLabelOperation,
-		Key:       "organization_guid",
-		Values:    []string{orgID},
-	}}
-	patchLabelsBody["labels"] = patchLabels
+	if orgID != "" {
+		patchLabelsBody := make(map[string]interface{})
+		patchLabels := []types.LabelChange{{
+			Operation: types.AddLabelOperation,
+			Key:       "organization_guid",
+			Values:    []string{orgID},
+		}}
+		patchLabelsBody["labels"] = patchLabels
 
-	ctx.authContext.PATCH(web.VisibilitiesURL + "/" + visibilityID).
-		WithJSON(patchLabelsBody).
-		Expect().
-		Status(http.StatusOK)
+		ctx.authContext.PATCH(web.VisibilitiesURL + "/" + visibilityID).
+			WithJSON(patchLabelsBody).
+			Expect().
+			Status(http.StatusOK)
+	}
+
 	return ctx
 }
 
@@ -752,6 +755,10 @@ func (ctx *TestContext) RegisterBroker() *BrokerUtils {
 
 func (ctx *TestContext) RegisterPlatform() *types.Platform {
 	return ctx.RegisterPlatformWithType("test-type")
+}
+
+func (ctx *TestContext) RegisterTenantPlatform() *types.Platform {
+	return RegisterPlatformInSM(GenerateRandomPlatform(), ctx.SMWithOAuthForTenant, map[string]string{})
 }
 
 func (ctx *TestContext) RegisterPlatformWithType(platformType string) *types.Platform {
