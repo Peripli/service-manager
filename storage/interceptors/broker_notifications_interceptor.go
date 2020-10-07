@@ -7,12 +7,13 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/catalog"
 	"github.com/Peripli/service-manager/storage/service_plans"
 )
 
-func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
+func NewBrokerNotificationsInterceptor(tenantKey string) *NotificationsInterceptor {
 	return &NotificationsInterceptor{
 		PlatformIDsProviderFunc: func(ctx context.Context, obj types.Object, repository storage.Repository) ([]string, error) {
 			broker := obj.(*types.ServiceBroker)
@@ -30,12 +31,30 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 				}
 			}
 
-			supportedPlatforms, err := service_plans.ResolveSupportedPlatformIDsForPlans(ctx, plans, repository)
+			supportedPlatformIDs, err := service_plans.ResolveSupportedPlatformIDsForPlans(ctx, plans, repository)
 			if err != nil {
 				return nil, err
 			}
 
-			return removeSMPlatform(supportedPlatforms), nil
+			if tenantID, found := broker.Labels[tenantKey]; found && len(tenantID) > 0 {
+				// tenant-scoped broker - filter out platforms of other tenants
+
+				tenantPlatformIDs, err := getTenantScopedPlatformIDs(ctx, repository, tenantKey, tenantID[0])
+				if err != nil {
+					return nil, err
+				}
+
+				globalPlatformIDs, err := getGlobalPlatformIDs(ctx, repository, tenantKey)
+				if err != nil {
+					return nil, err
+				}
+
+				allowedPlatformIDs := append(globalPlatformIDs, tenantPlatformIDs...)
+
+				supportedPlatformIDs = slice.StringsIntersection(supportedPlatformIDs, allowedPlatformIDs)
+			}
+
+			return removeSMPlatform(supportedPlatformIDs), nil
 		},
 		AdditionalDetailsFunc: func(ctx context.Context, objects types.ObjectList, repository storage.Repository) (objectDetails, error) {
 			details := make(objectDetails, objects.Len())
@@ -102,36 +121,39 @@ const (
 )
 
 type BrokerNotificationsCreateInterceptorProvider struct {
+	TenantKey string
 }
 
 func (*BrokerNotificationsCreateInterceptorProvider) Name() string {
 	return BrokerCreateNotificationInterceptorName
 }
 
-func (*BrokerNotificationsCreateInterceptorProvider) Provide() storage.CreateOnTxInterceptor {
-	return NewBrokerNotificationsInterceptor()
+func (b *BrokerNotificationsCreateInterceptorProvider) Provide() storage.CreateOnTxInterceptor {
+	return NewBrokerNotificationsInterceptor(b.TenantKey)
 }
 
 type BrokerNotificationsUpdateInterceptorProvider struct {
+	TenantKey string
 }
 
 func (*BrokerNotificationsUpdateInterceptorProvider) Name() string {
 	return BrokerUpdateNotificationInterceptorName
 }
 
-func (*BrokerNotificationsUpdateInterceptorProvider) Provide() storage.UpdateOnTxInterceptor {
-	return NewBrokerNotificationsInterceptor()
+func (b *BrokerNotificationsUpdateInterceptorProvider) Provide() storage.UpdateOnTxInterceptor {
+	return NewBrokerNotificationsInterceptor(b.TenantKey)
 }
 
 type BrokerNotificationsDeleteInterceptorProvider struct {
+	TenantKey string
 }
 
 func (*BrokerNotificationsDeleteInterceptorProvider) Name() string {
 	return BrokerDeleteNotificationInterceptorName
 }
 
-func (*BrokerNotificationsDeleteInterceptorProvider) Provide() storage.DeleteOnTxInterceptor {
-	return NewBrokerNotificationsInterceptor()
+func (b *BrokerNotificationsDeleteInterceptorProvider) Provide() storage.DeleteOnTxInterceptor {
+	return NewBrokerNotificationsInterceptor(b.TenantKey)
 }
 
 func fetchBrokerPlans(ctx context.Context, brokerID string, repository storage.Repository) ([]*types.ServicePlan, error) {
@@ -157,4 +179,40 @@ func fetchBrokerPlans(ctx context.Context, brokerID string, repository storage.R
 	}
 
 	return objList.(*types.ServicePlans).ServicePlans, nil
+}
+
+func getGlobalPlatformIDs(ctx context.Context, txStorage storage.Repository, tenantKey string) ([]string, error) {
+	params := map[string]interface{}{
+		"key": tenantKey,
+	}
+
+	platforms, err := txStorage.QueryForList(ctx, types.PlatformType, storage.QueryByMissingLabel, params)
+	if err != nil {
+		return nil, err
+	}
+
+	globalPlatformIDs := make([]string, 0, platforms.Len())
+	for _, platform := range platforms.(*types.Platforms).Platforms {
+		globalPlatformIDs = append(globalPlatformIDs, platform.ID)
+	}
+	return globalPlatformIDs, nil
+}
+
+func getTenantScopedPlatformIDs(ctx context.Context, txStorage storage.Repository, tenantKey string, tenantValue string) ([]string, error) {
+	if len(tenantValue) == 0 {
+		return nil, nil
+	}
+
+	criterion := query.ByLabel(query.EqualsOperator, tenantKey, tenantValue)
+	platforms, err := txStorage.List(ctx, types.PlatformType, criterion)
+	if err != nil {
+		return nil, util.HandleStorageError(err, "platforms")
+	}
+
+	tenantScopedPlatformIDs := make([]string, 0, platforms.Len())
+	for i := 0; i < platforms.Len(); i++ {
+		platform := platforms.ItemAt(i).(*types.Platform)
+		tenantScopedPlatformIDs = append(tenantScopedPlatformIDs, platform.ID)
+	}
+	return tenantScopedPlatformIDs, nil
 }

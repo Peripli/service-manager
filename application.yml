@@ -1,5 +1,5 @@
 server:
-  request_timeout: 4000ms
+  request_timeout: 40000ms
   shutdown_timeout: 4000ms
   port: 8085
   # max_body_bytes: 4000
