@@ -104,6 +104,7 @@ var _ = Describe("Notifications Suite", func() {
 			}
 			return smAuth
 		}
+
 		return notificationTypeEntry{
 			ResourceType:         types.ServiceBrokerType,
 			ResourceTenantScoped: tenantScoped,
@@ -178,6 +179,7 @@ var _ = Describe("Notifications Suite", func() {
 				if object["labels"] != nil {
 					brokerTenantLabel, found := object["labels"].(common.Object)[tenantLabelKey]
 					if found {
+						// tenant scoped broker
 						brokerTenantID = brokerTenantLabel.(common.Array)[0].(string)
 					}
 				}
@@ -238,9 +240,11 @@ var _ = Describe("Notifications Suite", func() {
 				}
 
 				// broker notifications
-				for _, notification := range notificationsAfterOp.Notifications {
-					if notification.Resource == types.ServiceBrokerType {
-						if tenantScoped {
+				if tenantScoped {
+					// broker notifications
+					for _, notification := range notificationsAfterOp.Notifications {
+						if notification.Resource == types.ServiceBrokerType {
+
 							platformID := notification.PlatformID
 							Expect(platformID).ToNot(BeEmpty())
 
@@ -258,7 +262,8 @@ var _ = Describe("Notifications Suite", func() {
 		brokersNotificationEntry(true),
 		brokersNotificationEntry(false),
 		{
-			ResourceType: types.VisibilityType,
+			ResourceType:         types.VisibilityType,
+			ResourceTenantScoped: false,
 			ResourceCreateFunc: func() common.Object {
 				visReqBody := make(common.Object)
 				cPaidPlan := common.GeneratePaidTestPlan()
