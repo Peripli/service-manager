@@ -33,7 +33,7 @@ func NewServiceInstanceController(ctx context.Context, options *Options) *Servic
 	return &ServiceInstanceController{
 		BaseController: NewAsyncController(ctx, options, web.ServiceInstancesURL, types.ServiceInstanceType, true, func() types.Object {
 			return &types.ServiceInstance{}
-		}),
+		}, false),
 	}
 }
 

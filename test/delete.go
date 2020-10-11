@@ -28,7 +28,7 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode ResponseMode) bool {
+func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode ResponseMode, cascadeDeleteMode bool) bool {
 	return Describe(fmt.Sprintf("DELETE %s", t.API), func() {
 		const notFoundMsg = "could not find"
 
@@ -54,7 +54,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 		})
 
 		Context("Existing resource", func() {
-			createResourceFunc := func(auth *common.SMExpect) {
+			createResourceFunc := func(auth *common.SMExpect) common.Object {
 				By(fmt.Sprintf("[SETUP]: Creating test resource of type %s", t.API))
 				testResource = t.ResourceBlueprint(ctx, auth, bool(responseMode))
 				Expect(testResource).ToNot(BeEmpty())
@@ -63,6 +63,12 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 				testResourceID = testResource["id"].(string)
 				Expect(testResourceID).ToNot(BeEmpty())
 				stripObject(testResource, t.ResourcePropertiesToIgnore...)
+				return testResource
+			}
+
+			createSubResourcesFunc := func(auth *common.SMExpect, testResource common.Object) {
+				By(fmt.Sprintf("[SETUP]: Creating test sub resources for type %s", t.API))
+				t.SubResourcesBlueprint(ctx, auth, bool(responseMode), testResource["id"].(string), types.ObjectType(t.API))
 			}
 
 			verifyResourceDeletionWithErrorMsg := func(auth *common.SMExpect, deletionRequestResponseCode, resourceCountAfterDeletion int, expectedOpState types.OperationState, expectedErrMsg string) {
@@ -157,6 +163,13 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 					})
 				})
 			}
+/*
+			if t.SupportsCascadeDeleteOperations {
+				Context("Cascade delete supported and nested resources exists", func() {
+
+				})
+			}
+ */
 		})
 
 		Context("Not existing resource", func() {

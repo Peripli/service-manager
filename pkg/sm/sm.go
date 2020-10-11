@@ -250,6 +250,8 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		}).Register().
 		WithDeleteAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingDeleteInterceptorProvider{
 			BaseSMAAPInterceptorProvider: baseSMAAPInterceptorProvider,
+		}).Register().
+		WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.CascadeOperationCreateInterceptorProvider{
 		}).Register()
 
 	return smb, nil
@@ -543,7 +545,7 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.OperationsCreateInsterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).Register()
-	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.CascadeOperationCreateInterceptorProvider{
+	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.TenantAwareCascadeOperationCreateInterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).Register()
 

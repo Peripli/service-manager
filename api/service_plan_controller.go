@@ -34,7 +34,7 @@ func NewServicePlanController(ctx context.Context, options *Options) *ServicePla
 	return &ServicePlanController{
 		BaseController: NewController(ctx, options, web.ServicePlansURL, types.ServicePlanType, func() types.Object {
 			return &types.ServicePlan{}
-		}),
+		}, false),
 	}
 }
 

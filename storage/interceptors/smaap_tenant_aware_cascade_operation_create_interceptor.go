@@ -19,43 +19,48 @@ package interceptors
 import (
 	"context"
 	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"time"
 )
 
-const CascadeOperationCreateInterceptorProviderName = "CascadeOperationCreateInterceptorProvider"
+const TenantAwareCascadeOperationCreateInterceptorProviderName = "TenantAwareCascadeOperationCreateInterceptorProvider"
 
-type cascadeOperationCreateInterceptor struct {
+type tenantAwareCascadeOperationCreateInterceptor struct {
+	TenantIdentifier string
 }
 
-type CascadeOperationCreateInterceptorProvider struct {
+type TenantAwareCascadeOperationCreateInterceptorProvider struct {
+	TenantIdentifier string
 }
 
-func (c *CascadeOperationCreateInterceptorProvider) Provide() storage.CreateOnTxInterceptor {
-	return &cascadeOperationCreateInterceptor{
+func (c *TenantAwareCascadeOperationCreateInterceptorProvider) Provide() storage.CreateOnTxInterceptor {
+	return &tenantAwareCascadeOperationCreateInterceptor{
+		TenantIdentifier: c.TenantIdentifier,
 	}
 }
 
-func (c *CascadeOperationCreateInterceptorProvider) Name() string {
-	return CascadeOperationCreateInterceptorProviderName
+func (c *TenantAwareCascadeOperationCreateInterceptorProvider) Name() string {
+	return TenantAwareCascadeOperationCreateInterceptorProviderName
 }
 
-func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+func (co *tenantAwareCascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 	return func(ctx context.Context, storage storage.Repository, obj types.Object) (types.Object, error) {
 		operation := obj.(*types.Operation)
+		// currently we have only one virtual object: tenant
 		isVirtual := types.IsVirtualType(operation.ResourceType)
-		if isVirtual || operation.CascadeRootID == "" || operation.Type != types.DELETE {
+		if !isVirtual || operation.CascadeRootID == "" || operation.Type != types.DELETE {
 			return f(ctx, storage, operation)
 		}
+
 		// init operation properties
 		operation.PlatformID = types.SMPlatform
 		operation.State = types.PENDING
 		operation.Base.CreatedAt = time.Now()
 		operation.Base.UpdatedAt = time.Now()
 		operation.Base.Ready = true
+
 		if err := operation.Validate(); err != nil {
 			return nil, err
 		}
@@ -63,13 +68,14 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 			// in case cascade operation does exists for this resource
 			return duplicate, err
 		}
-		cascadeResource, err := storage.Get(ctx, operation.ResourceType, query.ByField(query.EqualsOperator, "id", operation.ResourceID))
-		if err != nil {
-			return nil, err
-		}
+
+		cascadeResource := types.NewTenant(operation.ResourceID, co.TenantIdentifier)
 		ops, err := operations.GetAllLevelsCascadeOperations(ctx, cascadeResource, operation, storage)
 		if err != nil {
 			return nil, err
+		}
+		if len(ops) == 0 {
+			operation.State = types.SUCCEEDED
 		}
 		for _, op := range ops {
 			if _, err := storage.Create(ctx, op); err != nil {
@@ -78,22 +84,4 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 		}
 		return f(ctx, storage, operation)
 	}
-}
-
-func doesExistCascadeOperationForResource(ctx context.Context, storage storage.Repository, operation *types.Operation) (*types.Operation, error) {
-	// if same resource exists in other cascade tree the existing tree/subtree root will be returned
-	// in case of service instance deletion failure errors might be lost but will be available in the original tree
-	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
-		query.ByField(query.InOperator, "state", string(types.IN_PROGRESS), string(types.PENDING)),
-		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
-	}
-	op, err := storage.Get(ctx, types.OperationType, criteria...)
-	if err != nil {
-		if err == util.ErrNotFoundInStorage {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return op.(*types.Operation), nil
 }

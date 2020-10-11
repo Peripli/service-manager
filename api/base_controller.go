@@ -58,10 +58,13 @@ type BaseController struct {
 
 	supportsAsync  bool
 	isAsyncDefault bool
+
+	supportsCascadeDelete bool
+
 }
 
 // NewController returns a new base controller
-func NewController(ctx context.Context, options *Options, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object) *BaseController {
+func NewController(ctx context.Context, options *Options, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, supportsCascadeDelete bool) *BaseController {
 	poolSize := options.OperationSettings.DefaultPoolSize
 	for _, pool := range options.OperationSettings.Pools {
 		if pool.Resource == objectType.String() {
@@ -77,14 +80,15 @@ func NewController(ctx context.Context, options *Options, resourceBaseURL string
 		DefaultPageSize: options.APISettings.DefaultPageSize,
 		MaxPageSize:     options.APISettings.MaxPageSize,
 		scheduler:       operations.NewScheduler(ctx, options.Repository, options.OperationSettings, poolSize, options.WaitGroup),
+		supportsCascadeDelete: supportsCascadeDelete,
 	}
 
 	return controller
 }
 
 // NewAsyncController returns a new base controller with a scheduler making it effectively an async controller
-func NewAsyncController(ctx context.Context, options *Options, resourceBaseURL string, objectType types.ObjectType, isAsyncDefault bool, objectBlueprint func() types.Object) *BaseController {
-	controller := NewController(ctx, options, resourceBaseURL, objectType, objectBlueprint)
+func NewAsyncController(ctx context.Context, options *Options, resourceBaseURL string, objectType types.ObjectType, isAsyncDefault bool, objectBlueprint func() types.Object, supportsCascadeDelete bool) *BaseController {
+	controller := NewController(ctx, options, resourceBaseURL, objectType, objectBlueprint, supportsCascadeDelete)
 	controller.supportsAsync = true
 	controller.isAsyncDefault = isAsyncDefault
 
@@ -250,8 +254,12 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 	}
 	r.Request = r.WithContext(ctx)
 	criteria := query.CriteriaForContext(ctx)
-
+	opCtx := c.prepareOperationContextByRequest(r)
 	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+		// At this point, the resource will be already deleted if cascade operation requested.
+		if c.supportsCascadeDelete && opCtx.Cascade {
+			return nil, nil
+		}
 		err := repository.Delete(ctx, c.objectType, criteria...)
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
@@ -259,6 +267,10 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
+	}
+	var cascadeRootId = ""
+	if c.supportsCascadeDelete && opCtx.Cascade {
+		cascadeRootId = UUID.String()
 	}
 	operation := &types.Operation{
 		Base: types.Base{
@@ -274,7 +286,8 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		ResourceType:  c.objectType,
 		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
-		Context:       c.prepareOperationContextByRequest(r),
+		Context:       opCtx,
+		CascadeRootID: cascadeRootId,
 	}
 
 	_, isAsync, err := c.scheduler.ScheduleStorageAction(ctx, operation, action, c.supportsAsync)
@@ -630,6 +643,7 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types.OperationContext {
 	operationContext := &types.OperationContext{}
 	async := r.URL.Query().Get(web.QueryParamAsync)
+	cascade := r.URL.Query().Get(web.QueryParamCascade)
 
 	if async == "" {
 		operationContext.Async = false
@@ -640,6 +654,12 @@ func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types
 	} else {
 		operationContext.Async = true
 		operationContext.IsAsyncNotDefined = false
+	}
+
+	if cascade == "true" {
+		operationContext.Cascade = true
+	} else {
+		operationContext.Cascade = false
 	}
 
 	return operationContext

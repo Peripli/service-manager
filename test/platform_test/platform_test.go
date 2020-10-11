@@ -57,7 +57,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 		},
 	},
 	SupportsAsyncOperations:                false,
+	SupportsCascadeDeleteOperations:        true,
 	ResourceBlueprint:                      blueprint(true),
+	SubResourcesBlueprint:               	subResourcesBlueprint(),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
 	ResourcePropertiesToIgnore:             []string{"last_operation"},
 	PatchResource:                          test.APIResourcePatch,
@@ -376,11 +378,37 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							JSON().Object().
 							Value("error").String().Contains("ExistingReferenceEntity")
 					})
+					It("should delete instances when cascade requested", func() {
+						ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + platformID).
+							WithQuery("cascade", "true").
+							Expect().
+							Status(http.StatusOK)
+					})
 				})
 			})
 		})
 	},
 })
+
+func subResourcesBlueprint() func(ctx *common.TestContext, auth *common.SMExpect, async bool, objID string, resourceType types.ObjectType) {
+	return func(ctx *common.TestContext, auth *common.SMExpect, async bool, platformID string, resourceType types.ObjectType) {
+		/*
+		brokerData := broker_data.New(true)
+		service1 := common.GenerateTestServiceWithPlans(common.GenerateFreeTestPlan())
+		brokerData.AddServices(service1)
+		brokerData.CreateBrokerInSM(ctx)
+		log.D().Warn("Test broker", brokerData.GetRegisteredBrokerID())
+		brokerID := brokerData.GetRegisteredBrokerID()
+		log.D().Warn("Test broker", brokerID)
+		common.CreateVisibilitiesForAllBrokerPlans(auth, brokerID)
+		planID := brokerData.GetComplementaryPlanIDs()[0]
+		common.RegisterVisibilityForPlanAndPlatform(auth, planID, platformID)
+
+		log.D().Warn("Test broker visibilities ready")
+
+		 */
+	}
+}
 
 func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
 	return func(_ *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
