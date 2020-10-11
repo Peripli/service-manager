@@ -225,7 +225,7 @@ var _ = Describe("Interceptors", func() {
 	Describe("Calling other intereceptors", func() {
 		Context("when interceptor fails", func() {
 			It("should cancel the transaction", func() {
-				platform1 := ctx.RegisterPlatform()
+				platform1 := ctx.RegisterPlatformAndActivate(false)
 
 				createModificationInterceptors[types.PlatformType].OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 					return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
@@ -259,8 +259,8 @@ var _ = Describe("Interceptors", func() {
 
 		Context("when creating platform", func() {
 			It("should call all interceptors", func() {
-				platform1 := ctx.RegisterPlatform()
-				platform2 := ctx.RegisterPlatform()
+				platform1 := ctx.RegisterPlatformAndActivate(false)
+				platform2 := ctx.RegisterPlatformAndActivate(false)
 
 				createModificationInterceptors[types.PlatformType].OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 					return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
@@ -307,7 +307,7 @@ var _ = Describe("Interceptors", func() {
 				}
 
 				txDeleteCallCount := deleteModificationInterceptors[types.PlatformType].OnTxDeleteCallCount()
-				ctx.RegisterPlatform()
+				ctx.RegisterPlatformAndActivate(false)
 				Expect(deleteModificationInterceptors[types.PlatformType].OnTxDeleteCallCount()).To(Equal(txDeleteCallCount + 1))
 
 				deleteModificationInterceptors[types.PlatformType].OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
@@ -372,7 +372,7 @@ var _ = Describe("Interceptors", func() {
 
 		Context("Platform", func() {
 			It("Should call interceptors in right order", func() {
-				platform := ctx.RegisterPlatform() // Post /v1/platforms
+				platform := ctx.RegisterPlatformAndActivate(false) // Post /v1/platforms
 				checkCreateStack(types.PlatformType)
 
 				ctx.SMWithOAuth.PATCH(web.PlatformsURL + "/" + platform.ID).WithJSON(common.Object{}).Expect().Status(http.StatusOK)

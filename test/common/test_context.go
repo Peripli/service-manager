@@ -757,7 +757,11 @@ func (ctx *TestContext) RegisterBroker() *BrokerUtils {
 }
 
 func (ctx *TestContext) RegisterPlatform() *types.Platform {
-	return ctx.RegisterPlatformWithType("test-type")
+	return ctx.RegisterPlatformAndActivate(true)
+}
+
+func (ctx *TestContext) RegisterPlatformAndActivate(activate bool) *types.Platform {
+	return ctx.RegisterPlatformWithTypeAndActivate("test-type", activate)
 }
 
 func (ctx *TestContext) RegisterTenantPlatform() *types.Platform {
@@ -765,6 +769,10 @@ func (ctx *TestContext) RegisterTenantPlatform() *types.Platform {
 }
 
 func (ctx *TestContext) RegisterPlatformWithType(platformType string) *types.Platform {
+	return ctx.RegisterPlatformWithTypeAndActivate(platformType, true)
+}
+
+func (ctx *TestContext) RegisterPlatformWithTypeAndActivate(platformType string, activate bool) *types.Platform {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
@@ -775,9 +783,16 @@ func (ctx *TestContext) RegisterPlatformWithType(platformType string) *types.Pla
 		"description": "testDescrption",
 	}
 	platform := RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
-	platform.Active = true
-	platformObj, err := ctx.SMRepository.Update(context.Background(), platform, nil)
-	return platformObj.(*types.Platform)
+	if activate {
+		platform.Active = true
+		platformObj, err := ctx.SMRepository.Update(context.Background(), platform, nil)
+		if err != nil {
+			panic(err)
+		}
+		platform = platformObj.(*types.Platform)
+	}
+
+	return platform
 }
 
 func (ctx *TestContext) NewTenantExpect(clientID, tenantIdentifier string, scopes ...string) *SMExpect {
