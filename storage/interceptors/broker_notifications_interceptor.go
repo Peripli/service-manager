@@ -30,18 +30,26 @@ func NewBrokerNotificationsInterceptor(tenantKey string) *NotificationsIntercept
 				}
 			}
 
-			var supportedPlatformIDs []string
+			var supportedPlatforms map[string]*types.Platform
 
 			if tenantIDValues, found := broker.Labels[tenantKey]; found && len(tenantIDValues) > 0 {
 				// tenant-scoped broker
-				supportedPlatformIDs, err = service_plans.ResolveSupportedPlatformIDsForTenant(ctx, plans, repository, tenantKey, tenantIDValues[0])
+				supportedPlatforms, err = service_plans.ResolveSupportedPlatformsForTenant(ctx, plans, repository, tenantKey, tenantIDValues[0])
 			} else {
 				// global broker
-				supportedPlatformIDs, err = service_plans.ResolveSupportedPlatformIDsForPlans(ctx, plans, repository)
+				supportedPlatforms, err = service_plans.ResolveSupportedPlatformsForPlans(ctx, plans, repository)
 			}
 
 			if err != nil {
 				return nil, err
+			}
+
+			supportedPlatformIDs := make([]string, 0)
+			for id, platform := range supportedPlatforms {
+				if platform.Active || !platform.LastActive.IsZero() {
+					// only platforms that were active at least once will get notificatied
+					supportedPlatformIDs = append(supportedPlatformIDs, id)
+				}
 			}
 
 			return removeSMPlatform(supportedPlatformIDs), nil

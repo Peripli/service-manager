@@ -526,7 +526,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 	}
 
 	if !tcb.shouldSkipBasicAuthClient {
-		platform, err := tcb.prepareTestPlatform(testContext.SMWithOAuth)
+		platform, err := tcb.prepareTestPlatform(testContext.SMWithOAuth, smRepository)
 		if err != nil {
 			panic(err)
 		}
@@ -541,14 +541,17 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 	return testContext
 }
 
-func (tcb *TestContextBuilder) prepareTestPlatform(smClient *SMExpect) (*types.Platform, error) {
+func (tcb *TestContextBuilder) prepareTestPlatform(smClient *SMExpect, repository storage.TransactionalRepository) (*types.Platform, error) {
 	if tcb.basicAuthPlatformName == "" {
 		tcb.basicAuthPlatformName = "basic-auth-default-test-platform"
 		resp := smClient.GET(web.PlatformsURL + "/" + tcb.basicAuthPlatformName).Expect()
 		if resp.Raw().StatusCode == http.StatusNotFound {
 			platformJSON := MakePlatform(tcb.basicAuthPlatformName, tcb.basicAuthPlatformName, "platform-type", "test-platform")
 			platform := RegisterPlatformInSM(platformJSON, smClient, map[string]string{})
-			return platform, nil
+			platform.Active = true
+			platformObj, err := repository.Update(context.Background(), platform, nil)
+
+			return platformObj.(*types.Platform), err
 		}
 
 		if resp.Raw().StatusCode != http.StatusOK {
@@ -754,7 +757,11 @@ func (ctx *TestContext) RegisterBroker() *BrokerUtils {
 }
 
 func (ctx *TestContext) RegisterPlatform() *types.Platform {
-	return ctx.RegisterPlatformWithType("test-type")
+	return ctx.RegisterPlatformAndActivate(true)
+}
+
+func (ctx *TestContext) RegisterPlatformAndActivate(activate bool) *types.Platform {
+	return ctx.RegisterPlatformWithTypeAndActivate("test-type", activate)
 }
 
 func (ctx *TestContext) RegisterTenantPlatform() *types.Platform {
@@ -762,6 +769,10 @@ func (ctx *TestContext) RegisterTenantPlatform() *types.Platform {
 }
 
 func (ctx *TestContext) RegisterPlatformWithType(platformType string) *types.Platform {
+	return ctx.RegisterPlatformWithTypeAndActivate(platformType, true)
+}
+
+func (ctx *TestContext) RegisterPlatformWithTypeAndActivate(platformType string, activate bool) *types.Platform {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
@@ -771,7 +782,17 @@ func (ctx *TestContext) RegisterPlatformWithType(platformType string) *types.Pla
 		"type":        platformType,
 		"description": "testDescrption",
 	}
-	return RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
+	platform := RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
+	if activate {
+		platform.Active = true
+		platformObj, err := ctx.SMRepository.Update(context.Background(), platform, nil)
+		if err != nil {
+			panic(err)
+		}
+		platform = platformObj.(*types.Platform)
+	}
+
+	return platform
 }
 
 func (ctx *TestContext) NewTenantExpect(clientID, tenantIdentifier string, scopes ...string) *SMExpect {

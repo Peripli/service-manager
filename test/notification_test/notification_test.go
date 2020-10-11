@@ -9,6 +9,7 @@ import (
 	"github.com/Peripli/service-manager/test"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/gofrs/uuid"
@@ -50,6 +51,8 @@ type notificationTypeEntry struct {
 	ResourceType types.ObjectType
 	// ResourceTenantScoped whether the resource should be created as tenant-scoped
 	ResourceTenantScoped bool
+	// ResourceNotifyInactivePlatforms whether notifications for the resource are created for inactive platforms
+	ResourceNotifyInactivePlatforms bool
 	// ResourceCreateFunc is blueprint for resource creation
 	ResourceCreateFunc func() common.Object
 	// ResourceUpdateFunc is blueprint for resource update
@@ -71,7 +74,7 @@ var _ = Describe("Notifications Suite", func() {
 	var ctx *common.TestContext
 	var c context.Context
 	var objAfterOp common.Object
-	var otherTenantPlatformID string
+	var otherTenantPlatform *types.Platform
 
 	processBrokersPayload := func(payload string) string {
 		var err error
@@ -248,7 +251,7 @@ var _ = Describe("Notifications Suite", func() {
 							platformID := notification.PlatformID
 							Expect(platformID).ToNot(BeEmpty())
 
-							if platformID == otherTenantPlatformID {
+							if platformID == otherTenantPlatform.ID {
 								Fail("Notification of tenant scoped broker was created for another tenant's platform")
 							}
 						}
@@ -262,8 +265,9 @@ var _ = Describe("Notifications Suite", func() {
 		brokersNotificationEntry(true),
 		brokersNotificationEntry(false),
 		{
-			ResourceType:         types.VisibilityType,
-			ResourceTenantScoped: false,
+			ResourceType:                    types.VisibilityType,
+			ResourceTenantScoped:            false,
+			ResourceNotifyInactivePlatforms: true,
 			ResourceCreateFunc: func() common.Object {
 				visReqBody := make(common.Object)
 				cPaidPlan := common.GeneratePaidTestPlan()
@@ -461,8 +465,8 @@ var _ = Describe("Notifications Suite", func() {
 		ctx.RegisterTenantPlatform()
 
 		// register platform for another tenant
-		platform := ctx.RegisterPlatform()
-		err := ctx.SMRepository.UpdateLabels(context.Background(), types.PlatformType, platform.GetID(), types.LabelChanges{
+		otherTenantPlatform = ctx.RegisterPlatform()
+		err := ctx.SMRepository.UpdateLabels(context.Background(), types.PlatformType, otherTenantPlatform.GetID(), types.LabelChanges{
 			{
 				Operation: types.AddLabelOperation,
 				Key:       tenantLabelKey,
@@ -470,7 +474,8 @@ var _ = Describe("Notifications Suite", func() {
 			},
 		})
 		Expect(err).ShouldNot(HaveOccurred())
-		otherTenantPlatformID = platform.ID
+
+		setAllPlatformsActive(ctx, true, time.Now())
 	})
 
 	for _, entry := range entries {
@@ -639,6 +644,14 @@ var _ = Describe("Notifications Suite", func() {
 			}
 		}
 
+		verifyNoNotificationCreatedForType := func(objectType types.ObjectType, notifications *types.Notifications) {
+			for _, notification := range notifications.Notifications {
+				if notification.Resource == objectType {
+					Fail(fmt.Sprintf("Found unexpected notification for object type %s", objectType))
+				}
+			}
+		}
+
 		Context(fmt.Sprintf("ON %s resource CREATE", entry.ResourceType), func() {
 			AfterEach(func() {
 				entry.ResourceDeleteFunc(objAfterOp)
@@ -652,6 +665,36 @@ var _ = Describe("Notifications Suite", func() {
 				verifyCreationNotificationCreated(objAfterOp, notificationsAfterOp)
 				entry.AdditionalVerificationNotificationsFunc(objAfterOp, ctx.SMRepository, notificationsAfterOp)
 			})
+
+			if !entry.ResourceNotifyInactivePlatforms {
+				When("platforms are not active but have last_active set", func() {
+					BeforeEach(func() {
+						setAllPlatformsActive(ctx, false, time.Now())
+					})
+					It("should create a CREATED notification", func() {
+						_, ids := getNotifications()
+						objAfterOp = entry.ResourceCreateFunc()
+						notificationsAfterOp, _ := getNotifications(ids...)
+
+						verifyCreationNotificationCreated(objAfterOp, notificationsAfterOp)
+						entry.AdditionalVerificationNotificationsFunc(objAfterOp, ctx.SMRepository, notificationsAfterOp)
+					})
+				})
+
+				When("there are no active platforms", func() {
+					BeforeEach(func() {
+						setAllPlatformsActive(ctx, false, time.Time{})
+					})
+					It(fmt.Sprintf("should not create any notifications for resource type %s", entry.ResourceType), func() {
+						_, ids := getNotifications()
+						objAfterOp = entry.ResourceCreateFunc()
+						notificationsAfterOp, _ := getNotifications(ids...)
+
+						verifyNoNotificationCreatedForType(entry.ResourceType, notificationsAfterOp)
+
+					})
+				})
+			}
 		})
 
 		Context(fmt.Sprintf("ON %s resource DELETE", entry.ResourceType), func() {
@@ -668,6 +711,21 @@ var _ = Describe("Notifications Suite", func() {
 
 				verifyDeletionNotificationCreated(objAfterOp, notificationsAfterOp, oldPayload)
 			})
+
+			if !entry.ResourceNotifyInactivePlatforms {
+				When("there are no active platforms", func() {
+					BeforeEach(func() {
+						setAllPlatformsActive(ctx, false, time.Time{})
+					})
+					It(fmt.Sprintf("should not create any notifications for resource type %s", entry.ResourceType), func() {
+						_, ids := getNotifications()
+						entry.ResourceDeleteFunc(objAfterOp)
+						notificationsAfterOp, _ := getNotifications(ids...)
+
+						verifyNoNotificationCreatedForType(entry.ResourceType, notificationsAfterOp)
+					})
+				})
+			}
 
 		})
 
@@ -701,6 +759,23 @@ var _ = Describe("Notifications Suite", func() {
 				verifyModificationNotificationsCreated(createdObj, objAfterOp, updateBody, notificationsAfterOp)
 
 			}, updateOpEntries(entry.ResourceUpdates)...)
+
+			if !entry.ResourceNotifyInactivePlatforms {
+				When("there are no active platforms", func() {
+					BeforeEach(func() {
+						setAllPlatformsActive(ctx, false, time.Time{})
+					})
+
+					DescribeTable(fmt.Sprintf("does not create any notifications for resource type %s", entry.ResourceType), func(update func() common.Object) {
+						_, ids := getNotifications()
+						updateBody := update()
+						objAfterOp = entry.ResourceUpdateFunc(createdObj, updateBody)
+						notificationsAfterOp, _ := getNotifications(ids...)
+
+						verifyNoNotificationCreatedForType(entry.ResourceType, notificationsAfterOp)
+					}, updateOpEntries(entry.ResourceUpdates)...)
+				})
+			}
 		})
 
 	}
@@ -735,6 +810,22 @@ var _ = Describe("Notifications Suite", func() {
 		})
 	})
 })
+
+func setAllPlatformsActive(ctx *common.TestContext, active bool, lastActive time.Time) {
+	platforms, err := ctx.SMRepository.List(context.Background(), types.PlatformType)
+	Expect(err).ToNot(HaveOccurred())
+	for i := 0; i < platforms.Len(); i++ {
+		platform := platforms.ItemAt(i).(*types.Platform)
+		setPlatformActive(ctx, platform, active, lastActive)
+	}
+}
+
+func setPlatformActive(ctx *common.TestContext, platform *types.Platform, active bool, lastActive time.Time) {
+	platform.Active = active
+	platform.LastActive = lastActive
+	_, err := ctx.SMRepository.Update(context.Background(), platform, nil)
+	Expect(err).ToNot(HaveOccurred())
+}
 
 func regBroker(ctx *common.TestContext) {
 	brokerServer := common.NewBrokerServerWithCatalog(common.NewRandomSBCatalog())
