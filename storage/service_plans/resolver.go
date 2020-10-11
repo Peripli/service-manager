@@ -34,7 +34,7 @@ func ResolveSupportedPlatformsForTenant(ctx context.Context, plans []*types.Serv
 		return nil, err
 	}
 
-	platformsForTenant := make(map[string]*types.Platform, 0)
+	platformsForTenant := make(map[string]*types.Platform)
 	for _, platform := range platforms {
 		if isGlobal(platform) || isTenantScoped(platform) {
 			platformsForTenant[platform.ID] = platform
