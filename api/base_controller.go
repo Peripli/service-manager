@@ -60,7 +60,6 @@ type BaseController struct {
 	isAsyncDefault bool
 
 	supportsCascadeDelete bool
-
 }
 
 // NewController returns a new base controller
@@ -73,13 +72,13 @@ func NewController(ctx context.Context, options *Options, resourceBaseURL string
 		}
 	}
 	controller := &BaseController{
-		repository:      options.Repository,
-		resourceBaseURL: resourceBaseURL,
-		objectBlueprint: objectBlueprint,
-		objectType:      objectType,
-		DefaultPageSize: options.APISettings.DefaultPageSize,
-		MaxPageSize:     options.APISettings.MaxPageSize,
-		scheduler:       operations.NewScheduler(ctx, options.Repository, options.OperationSettings, poolSize, options.WaitGroup),
+		repository:            options.Repository,
+		resourceBaseURL:       resourceBaseURL,
+		objectBlueprint:       objectBlueprint,
+		objectType:            objectType,
+		DefaultPageSize:       options.APISettings.DefaultPageSize,
+		MaxPageSize:           options.APISettings.MaxPageSize,
+		scheduler:             operations.NewScheduler(ctx, options.Repository, options.OperationSettings, poolSize, options.WaitGroup),
 		supportsCascadeDelete: supportsCascadeDelete,
 	}
 
@@ -232,13 +231,70 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 	}
 
 	criteria := query.CriteriaForContext(ctx)
+	UUID, err := uuid.NewV4()
 
-	log.C(ctx).Debugf("Request will be executed synchronously")
-	if err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
+	if err != nil {
+		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
+	}
+
+	opCtx := c.prepareOperationContextByRequest(r)
+
+	if ! (c.supportsCascadeDelete && opCtx.Cascade) {
+		log.C(ctx).Debugf("Request will be executed synchronously")
+		if err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
+			return nil, util.HandleStorageError(err, c.objectType.String())
+		}
+
+		return util.NewJSONResponse(http.StatusOK, map[string]string{})
+	}
+
+	log.C(ctx).Debugf("Request will be executed asynchronously cascade delete")
+	var objList types.ObjectList
+	if objList, err = c.repository.List(ctx, c.objectType, criteria...); err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	return util.NewJSONResponse(http.StatusOK, map[string]string{})
+	if objList.Len() > 1 {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "Only one resource can be cascade deleted  at a time",
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
+	if objList.Len() == 0 {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "Resource not found can't cascade delete",
+			StatusCode:  http.StatusNotFound,
+		}
+	}
+
+	resourceToDelete := objList.ItemAt(0)
+
+	operation := &types.Operation{
+		Base: types.Base{
+			ID:        UUID.String(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Labels:    make(map[string][]string),
+			Ready:     true,
+		},
+		Type:          types.DELETE,
+		State:         types.IN_PROGRESS,
+		ResourceID:    resourceToDelete.GetID(),
+		ResourceType:  c.objectType,
+		PlatformID:    types.SMPlatform,
+		CorrelationID: log.CorrelationIDFromContext(ctx),
+		Context:       opCtx,
+		CascadeRootID: UUID.String(),
+	}
+
+	if _, err := c.repository.Create(ctx, operation); err != nil {
+		return nil, util.HandleStorageError(err, c.objectType.String())
+	}
+
+	return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
 }
 
 // DeleteSingleObject handles the deletion of the object with the id specified in the request
