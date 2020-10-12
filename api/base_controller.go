@@ -281,7 +281,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 			Ready:     true,
 		},
 		Type:          types.DELETE,
-		State:         types.IN_PROGRESS,
+		State:         types.PENDING,
 		ResourceID:    resourceToDelete.GetID(),
 		ResourceType:  c.objectType,
 		PlatformID:    types.SMPlatform,
@@ -290,8 +290,14 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 		CascadeRootID: UUID.String(),
 	}
 
-	if _, err := c.repository.Create(ctx, operation); err != nil {
-		return nil, util.HandleStorageError(err, c.objectType.String())
+	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+		return nil, nil
+	}
+
+	_, err = c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
+
+	if err != nil {
+		return nil, err;
 	}
 
 	return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
