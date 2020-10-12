@@ -355,7 +355,7 @@ func (ir *queryScopedInterceptableRepository) UpdateLabels(ctx context.Context, 
 	if err != nil {
 		return err
 	}
-	if result.Len() == 0 {
+	if result == nil || result.Len() == 0 {
 		return util.ErrNotFoundInStorage
 	}
 	obj := result.ItemAt(0)
