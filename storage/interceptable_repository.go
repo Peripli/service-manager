@@ -19,6 +19,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/operations/opcontext"
 
@@ -350,11 +351,14 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 
 func (ir *queryScopedInterceptableRepository) UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, criteria ...query.Criterion) error {
 	byID := query.ByField(query.EqualsOperator, "id", objectID)
-	obj, err := ir.repositoryInTransaction.Get(ctx, objectType, byID)
+	result, err := ir.repositoryInTransaction.ListNoLabels(ctx, objectType, byID)
 	if err != nil {
 		return err
 	}
-
+	if result.Len() == 0 {
+		return util.ErrNotFoundInStorage
+	}
+	obj := result.ItemAt(0)
 	updateObjFunc := func(ctx context.Context, _ Repository, _, _ types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
 		err := ir.repositoryInTransaction.UpdateLabels(ctx, objectType, objectID, labelChanges, criteria...)
 		if err != nil {
