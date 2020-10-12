@@ -231,12 +231,6 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 	}
 
 	criteria := query.CriteriaForContext(ctx)
-	UUID, err := uuid.NewV4()
-
-	if err != nil {
-		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
-	}
-
 	opCtx := c.prepareOperationContextByRequest(r)
 
 	if ! (c.supportsCascadeDelete && opCtx.Cascade) {
@@ -248,16 +242,20 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 		return util.NewJSONResponse(http.StatusOK, map[string]string{})
 	}
 
-	log.C(ctx).Debugf("Request will be executed asynchronously cascade delete")
-	var objList types.ObjectList
-	if objList, err = c.repository.List(ctx, c.objectType, criteria...); err != nil {
+	return c.cascadeDelete(ctx, criteria, opCtx)
+}
+
+func (c *BaseController) cascadeDelete(ctx context.Context, criteria []query.Criterion, opCtx *types.OperationContext) (*web.Response, error) {
+	log.C(ctx).Debugf("Cascade delete request will be executed asynchronously")
+	objList, err := c.repository.List(ctx, c.objectType, criteria...)
+	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
 	if objList.Len() > 1 {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
-			Description: "Only one resource can be cascade deleted  at a time",
+			Description: "Only one resource can be cascade deleted at a time, because it's async flow",
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
@@ -265,13 +263,17 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 	if objList.Len() == 0 {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
-			Description: "Resource not found can't cascade delete",
+			Description: "Resource not found",
 			StatusCode:  http.StatusNotFound,
 		}
 	}
 
 	resourceToDelete := objList.ItemAt(0)
+	UUID, err := uuid.NewV4()
 
+	if err != nil {
+		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
+	}
 	operation := &types.Operation{
 		Base: types.Base{
 			ID:        UUID.String(),
@@ -297,7 +299,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 	_, err = c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
 
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
