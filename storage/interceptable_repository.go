@@ -19,6 +19,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/operations/opcontext"
 
@@ -215,6 +216,10 @@ func (ir *queryScopedInterceptableRepository) Count(ctx context.Context, objectT
 	return ir.repositoryInTransaction.Count(ctx, objectType, criteria...)
 }
 
+func (ir *queryScopedInterceptableRepository) CountLabelValues(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error) {
+	return ir.repositoryInTransaction.CountLabelValues(ctx, objectType, criteria...)
+}
+
 func (ir *queryScopedInterceptableRepository) DeleteReturning(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	var resultList types.ObjectList
 	deleteObjectFunc := func(ctx context.Context, _ Repository, _ types.ObjectList, deletionCriteria ...query.Criterion) error {
@@ -350,11 +355,17 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 
 func (ir *queryScopedInterceptableRepository) UpdateLabels(ctx context.Context, objectType types.ObjectType, objectID string, labelChanges types.LabelChanges, criteria ...query.Criterion) error {
 	byID := query.ByField(query.EqualsOperator, "id", objectID)
-	obj, err := ir.repositoryInTransaction.Get(ctx, objectType, byID)
+	result, err := ir.repositoryInTransaction.ListNoLabels(ctx, objectType, byID)
 	if err != nil {
 		return err
 	}
-
+	if result == nil || result.Len() == 0 {
+		return util.ErrNotFoundInStorage
+	}
+	if result.Len() > 1 {
+		return fmt.Errorf("found %v %s with same id %s", result.Len(), objectType, objectID)
+	}
+	obj := result.ItemAt(0)
 	updateObjFunc := func(ctx context.Context, _ Repository, _, _ types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
 		err := ir.repositoryInTransaction.UpdateLabels(ctx, objectType, objectID, labelChanges, criteria...)
 		if err != nil {
@@ -598,6 +609,10 @@ func (itr *InterceptableTransactionalRepository) list(ctx context.Context, objec
 
 func (itr *InterceptableTransactionalRepository) Count(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error) {
 	return itr.RawRepository.Count(ctx, objectType, criteria...)
+}
+
+func (itr *InterceptableTransactionalRepository) CountLabelValues(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error) {
+	return itr.RawRepository.CountLabelValues(ctx, objectType, criteria...)
 }
 
 func (itr *InterceptableTransactionalRepository) DeleteReturning(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {

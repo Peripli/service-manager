@@ -197,6 +197,10 @@ func (er *encryptingRepository) Count(ctx context.Context, objectType types.Obje
 	return er.repository.Count(ctx, objectType, criteria...)
 }
 
+func (er *encryptingRepository) CountLabelValues(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error) {
+	return er.repository.CountLabelValues(ctx, objectType, criteria...)
+}
+
 func (er *encryptingRepository) Update(ctx context.Context, obj types.Object, labelChanges types.LabelChanges, _ ...query.Criterion) (types.Object, error) {
 	if err := er.encrypt(ctx, obj); err != nil {
 		return nil, err
