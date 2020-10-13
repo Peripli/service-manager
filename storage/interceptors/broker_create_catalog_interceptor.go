@@ -104,6 +104,7 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 		service.CreatedAt = broker.UpdatedAt
 		service.UpdatedAt = broker.UpdatedAt
 		service.Ready = broker.GetReady()
+		service.Labels = broker.GetLabels()
 		UUID, err := uuid.NewV4()
 		if err != nil {
 			return err
@@ -123,6 +124,7 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 			servicePlan.CreatedAt = broker.UpdatedAt
 			servicePlan.UpdatedAt = broker.UpdatedAt
 			servicePlan.Ready = broker.GetReady()
+			servicePlan.Labels = broker.GetLabels()
 			UUID, err := uuid.NewV4()
 			if err != nil {
 				return err
