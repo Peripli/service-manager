@@ -182,6 +182,13 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			},
 		}, nil)
 
+		fakeStorage.ListNoLabelsReturns(types.NewObjectArray(&types.ServiceBroker{
+			Base: types.Base{
+				UpdatedAt: updateTime,
+				Ready:     true,
+			},
+		}), nil)
+
 		fakeStorage.GetForUpdateReturns(&types.ServiceBroker{
 			Base: types.Base{
 				UpdatedAt: updateTime,
