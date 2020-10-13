@@ -10,9 +10,10 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/catalog"
 	"github.com/Peripli/service-manager/storage/service_plans"
+	"time"
 )
 
-func NewBrokerNotificationsInterceptor(tenantKey string) *NotificationsInterceptor {
+func NewBrokerNotificationsInterceptor(tenantKey string, notificationsKeepFor time.Duration) *NotificationsInterceptor {
 	return &NotificationsInterceptor{
 		PlatformIDsProviderFunc: func(ctx context.Context, obj types.Object, repository storage.Repository) ([]string, error) {
 			broker := obj.(*types.ServiceBroker)
@@ -46,8 +47,8 @@ func NewBrokerNotificationsInterceptor(tenantKey string) *NotificationsIntercept
 
 			supportedPlatformIDs := make([]string, 0)
 			for id, platform := range supportedPlatforms {
-				if platform.Active || !platform.LastActive.IsZero() {
-					// only platforms that were active at least once will get notificatied
+				if platform.Active || platform.LastActive.After(time.Now().Add(-notificationsKeepFor)) {
+					// only platforms that are active or were active in the time period we keep notifications for are notified
 					supportedPlatformIDs = append(supportedPlatformIDs, id)
 				}
 			}
@@ -119,7 +120,8 @@ const (
 )
 
 type BrokerNotificationsCreateInterceptorProvider struct {
-	TenantKey string
+	NotificationsKeepFor time.Duration
+	TenantKey            string
 }
 
 func (*BrokerNotificationsCreateInterceptorProvider) Name() string {
@@ -127,11 +129,12 @@ func (*BrokerNotificationsCreateInterceptorProvider) Name() string {
 }
 
 func (b *BrokerNotificationsCreateInterceptorProvider) Provide() storage.CreateOnTxInterceptor {
-	return NewBrokerNotificationsInterceptor(b.TenantKey)
+	return NewBrokerNotificationsInterceptor(b.TenantKey, b.NotificationsKeepFor)
 }
 
 type BrokerNotificationsUpdateInterceptorProvider struct {
-	TenantKey string
+	NotificationsKeepFor time.Duration
+	TenantKey            string
 }
 
 func (*BrokerNotificationsUpdateInterceptorProvider) Name() string {
@@ -139,11 +142,12 @@ func (*BrokerNotificationsUpdateInterceptorProvider) Name() string {
 }
 
 func (b *BrokerNotificationsUpdateInterceptorProvider) Provide() storage.UpdateOnTxInterceptor {
-	return NewBrokerNotificationsInterceptor(b.TenantKey)
+	return NewBrokerNotificationsInterceptor(b.TenantKey, b.NotificationsKeepFor)
 }
 
 type BrokerNotificationsDeleteInterceptorProvider struct {
-	TenantKey string
+	NotificationsKeepFor time.Duration
+	TenantKey            string
 }
 
 func (*BrokerNotificationsDeleteInterceptorProvider) Name() string {
@@ -151,7 +155,7 @@ func (*BrokerNotificationsDeleteInterceptorProvider) Name() string {
 }
 
 func (b *BrokerNotificationsDeleteInterceptorProvider) Provide() storage.DeleteOnTxInterceptor {
-	return NewBrokerNotificationsInterceptor(b.TenantKey)
+	return NewBrokerNotificationsInterceptor(b.TenantKey, b.NotificationsKeepFor)
 }
 
 func fetchBrokerPlans(ctx context.Context, brokerID string, repository storage.Repository) ([]*types.ServicePlan, error) {
