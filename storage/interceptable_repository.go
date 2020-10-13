@@ -362,6 +362,9 @@ func (ir *queryScopedInterceptableRepository) UpdateLabels(ctx context.Context, 
 	if result == nil || result.Len() == 0 {
 		return util.ErrNotFoundInStorage
 	}
+	if result.Len() > 1 {
+		return fmt.Errorf("pfound to %s with same id %s", objectType, objectID)
+	}
 	obj := result.ItemAt(0)
 	updateObjFunc := func(ctx context.Context, _ Repository, _, _ types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
 		err := ir.repositoryInTransaction.UpdateLabels(ctx, objectType, objectID, labelChanges, criteria...)
