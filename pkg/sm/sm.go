@@ -213,9 +213,18 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		WithCreateOnTxInterceptorProvider(types.VisibilityType, &interceptors.VisibilityCreateNotificationsInterceptorProvider{}).Register().
 		WithUpdateOnTxInterceptorProvider(types.VisibilityType, &interceptors.VisibilityUpdateNotificationsInterceptorProvider{}).Register().
 		WithDeleteOnTxInterceptorProvider(types.VisibilityType, &interceptors.VisibilityDeleteNotificationsInterceptorProvider{}).Register().
-		WithCreateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsCreateInterceptorProvider{TenantKey: cfg.Multitenancy.LabelKey}).Before(interceptors.BrokerCreateCatalogInterceptorName).Register().
-		WithUpdateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsUpdateInterceptorProvider{TenantKey: cfg.Multitenancy.LabelKey}).Before(interceptors.BrokerUpdateCatalogInterceptorName).Register().
-		WithDeleteOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{TenantKey: cfg.Multitenancy.LabelKey}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register()
+		WithCreateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsCreateInterceptorProvider{
+			TenantKey:            cfg.Multitenancy.LabelKey,
+			NotificationsKeepFor: cfg.Storage.Notification.KeepFor,
+		}).Before(interceptors.BrokerCreateCatalogInterceptorName).Register().
+		WithUpdateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsUpdateInterceptorProvider{
+			TenantKey:            cfg.Multitenancy.LabelKey,
+			NotificationsKeepFor: cfg.Storage.Notification.KeepFor,
+		}).Before(interceptors.BrokerUpdateCatalogInterceptorName).Register().
+		WithDeleteOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{
+			TenantKey:            cfg.Multitenancy.LabelKey,
+			NotificationsKeepFor: cfg.Storage.Notification.KeepFor,
+		}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register()
 
 	baseSMAAPInterceptorProvider := &interceptors.BaseSMAAPInterceptorProvider{
 		OSBClientCreateFunc: osbClientProvider,
