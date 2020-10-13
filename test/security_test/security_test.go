@@ -78,7 +78,7 @@ var _ = Describe("Service Manager Security Tests", func() {
 				bearerAuthRequestExpectedStatus: http.StatusUnauthorized,
 			}),
 			Entry("should return 200 for path without authentication", testCase{
-				path:                            web.ServiceBrokersURL,
+				path:                            web.PlatformsURL,
 				method:                          http.MethodGet,
 				noAuthRequestExpectedStatus:     http.StatusOK,
 				basicAuthRequestExpectedStatus:  http.StatusOK,
@@ -102,7 +102,7 @@ var _ = Describe("Service Manager Security Tests", func() {
 					bearerAuthRequestExpectedStatus: http.StatusUnauthorized,
 				}),
 				Entry("should return 200 for path without authentication", testCase{
-					path:                            web.ServiceBrokersURL,
+					path:                            web.PlatformsURL,
 					method:                          http.MethodGet,
 					noAuthRequestExpectedStatus:     http.StatusOK,
 					basicAuthRequestExpectedStatus:  http.StatusOK,
@@ -127,7 +127,7 @@ var _ = Describe("Service Manager Security Tests", func() {
 					bearerAuthRequestExpectedStatus: http.StatusOK,
 				}),
 				Entry("should return 200 for path without authentication", testCase{
-					path:                            web.ServiceBrokersURL,
+					path:                            web.PlatformsURL,
 					method:                          http.MethodGet,
 					noAuthRequestExpectedStatus:     http.StatusOK,
 					basicAuthRequestExpectedStatus:  http.StatusOK,
@@ -139,14 +139,14 @@ var _ = Describe("Service Manager Security Tests", func() {
 
 			Context("with authorization", func() {
 				BeforeEach(func() {
-					attachRequiredBearer(contextBuilder, []string{web.ServiceBrokersURL}, []string{http.MethodGet})
+					attachRequiredBearer(contextBuilder, []string{web.PlatformsURL}, []string{http.MethodGet})
 
 					contextBuilder.WithSMExtensions(func(_ context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 						smb.Security().
 							Path(web.MonitorHealthURL).Method(http.MethodGet).
 							WithScopes("read_health").Required()
 
-						smb.Security().Path(web.ServiceBrokersURL).Method(http.MethodGet).
+						smb.Security().Path(web.PlatformsURL).Method(http.MethodGet).
 							WithClientIDSuffixes([]string{"trustedsuffix", "anothertrustedsfx"}).Required()
 						return nil
 					})
@@ -168,7 +168,7 @@ var _ = Describe("Service Manager Security Tests", func() {
 					})
 
 					It("should NOT allow access", func() {
-						ctx.SMWithOAuth.GET(web.ServiceBrokersURL).Expect().
+						ctx.SMWithOAuth.GET(web.PlatformsURL).Expect().
 							Status(http.StatusForbidden).
 							JSON().Path("$.description").String().Contains("client id \"not_trusted_id\" from user token does not have the required suffix")
 					})
@@ -181,7 +181,7 @@ var _ = Describe("Service Manager Security Tests", func() {
 						})
 					})
 					It("should allow access", func() {
-						ctx.SMWithOAuth.GET(web.ServiceBrokersURL).Expect().
+						ctx.SMWithOAuth.GET(web.PlatformsURL).Expect().
 							Status(http.StatusOK)
 					})
 				})
@@ -193,7 +193,7 @@ var _ = Describe("Service Manager Security Tests", func() {
 						})
 					})
 					It("should allow access", func() {
-						ctx.SMWithOAuth.GET(web.ServiceBrokersURL).Expect().
+						ctx.SMWithOAuth.GET(web.PlatformsURL).Expect().
 							Status(http.StatusOK)
 					})
 				})
@@ -318,7 +318,7 @@ var _ = Describe("Service Manager Security Tests", func() {
 					bearerAuthRequestExpectedStatus: http.StatusOK,
 				}),
 				Entry("should return 200 for path without authentication", testCase{
-					path:                            web.ServiceBrokersURL,
+					path:                            web.PlatformsURL,
 					method:                          http.MethodGet,
 					noAuthRequestExpectedStatus:     http.StatusOK,
 					basicAuthRequestExpectedStatus:  http.StatusOK,
@@ -348,7 +348,7 @@ var _ = Describe("Service Manager Security Tests", func() {
 				bearerAuthRequestExpectedStatus: http.StatusOK,
 			}),
 			Entry("should return for path without authentication", testCase{
-				path:                            web.ServiceBrokersURL,
+				path:                            web.PlatformsURL,
 				method:                          http.MethodGet,
 				noAuthRequestExpectedStatus:     http.StatusOK,
 				basicAuthRequestExpectedStatus:  http.StatusOK,
@@ -372,7 +372,7 @@ var _ = Describe("Service Manager Security Tests", func() {
 					bearerAuthRequestExpectedStatus: http.StatusOK,
 				}),
 				Entry("should return 200 for path without authentication", testCase{
-					path:                            web.ServiceBrokersURL,
+					path:                            web.PlatformsURL,
 					method:                          http.MethodGet,
 					noAuthRequestExpectedStatus:     http.StatusOK,
 					basicAuthRequestExpectedStatus:  http.StatusOK,
@@ -424,11 +424,11 @@ var _ = Describe("Service Manager Security Tests", func() {
 
 				Context("when requesting required subpath", func() {
 					It("should return 401 for no auth", func() {
-						ctx.SM.GET(web.ServiceBrokersURL).Expect().Status(http.StatusUnauthorized)
+						ctx.SM.GET(web.PlatformsURL).Expect().Status(http.StatusUnauthorized)
 					})
 
 					It("should return 200 for basic", func() {
-						ctx.SMWithBasic.GET(web.ServiceBrokersURL).Expect().Status(http.StatusOK)
+						ctx.SMWithBasic.GET(web.PlatformsURL).Expect().Status(http.StatusOK)
 					})
 				})
 
@@ -462,20 +462,20 @@ var _ = Describe("Service Manager Security Tests", func() {
 
 			Context("with authenticator for GET and POST", func() {
 				BeforeEach(func() {
-					attachRequiredBasic(contextBuilder, []string{web.ServiceBrokersURL}, []string{http.MethodPost}, authenticators.BasicPlatformAuthenticator)
-					attachOptionalBasic(contextBuilder, []string{web.ServiceBrokersURL}, []string{http.MethodGet}, authenticators.BasicPlatformAuthenticator)
+					attachRequiredBasic(contextBuilder, []string{web.ServiceInstancesURL}, []string{http.MethodPost}, authenticators.BasicPlatformAuthenticator)
+					attachOptionalBasic(contextBuilder, []string{web.ServiceInstancesURL}, []string{http.MethodGet}, authenticators.BasicPlatformAuthenticator)
 				})
 
 				It("should return 401 for POST with no auth", func() {
-					ctx.SM.POST(web.ServiceBrokersURL).WithJSON("").Expect().Status(http.StatusUnauthorized)
+					ctx.SM.POST(web.ServiceInstancesURL).WithJSON("").Expect().Status(http.StatusUnauthorized)
 				})
 
 				It("should NOT return 401 for POST with auth", func() {
-					Expect(ctx.SM.POST(web.ServiceBrokersURL).Expect().Raw().StatusCode).NotTo(Equal(http.StatusUnauthorized))
+					Expect(ctx.SM.POST(web.ServiceInstancesURL).Expect().Raw().StatusCode).NotTo(Equal(http.StatusUnauthorized))
 				})
 
 				It("should return 200 for GET", func() {
-					ctx.SM.GET(web.ServiceBrokersURL).Expect().Status(http.StatusOK)
+					ctx.SM.GET(web.ServiceInstancesURL).Expect().Status(http.StatusOK)
 				})
 			})
 

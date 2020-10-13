@@ -12,7 +12,7 @@ import (
 	"github.com/Peripli/service-manager/storage/service_plans"
 )
 
-func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
+func NewBrokerNotificationsInterceptor(tenantKey string) *NotificationsInterceptor {
 	return &NotificationsInterceptor{
 		PlatformIDsProviderFunc: func(ctx context.Context, obj types.Object, repository storage.Repository) ([]string, error) {
 			broker := obj.(*types.ServiceBroker)
@@ -30,12 +30,29 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 				}
 			}
 
-			supportedPlatforms, err := service_plans.ResolveSupportedPlatformIDsForPlans(ctx, plans, repository)
+			var supportedPlatforms map[string]*types.Platform
+
+			if tenantIDValues, found := broker.Labels[tenantKey]; found && len(tenantIDValues) > 0 {
+				// tenant-scoped broker
+				supportedPlatforms, err = service_plans.ResolveSupportedPlatformsForTenant(ctx, plans, repository, tenantKey, tenantIDValues[0])
+			} else {
+				// global broker
+				supportedPlatforms, err = service_plans.ResolveSupportedPlatformsForPlans(ctx, plans, repository)
+			}
+
 			if err != nil {
 				return nil, err
 			}
 
-			return removeSMPlatform(supportedPlatforms), nil
+			supportedPlatformIDs := make([]string, 0)
+			for id, platform := range supportedPlatforms {
+				if platform.Active || !platform.LastActive.IsZero() {
+					// only platforms that were active at least once will get notificatied
+					supportedPlatformIDs = append(supportedPlatformIDs, id)
+				}
+			}
+
+			return removeSMPlatform(supportedPlatformIDs), nil
 		},
 		AdditionalDetailsFunc: func(ctx context.Context, objects types.ObjectList, repository storage.Repository) (objectDetails, error) {
 			details := make(objectDetails, objects.Len())
@@ -102,36 +119,39 @@ const (
 )
 
 type BrokerNotificationsCreateInterceptorProvider struct {
+	TenantKey string
 }
 
 func (*BrokerNotificationsCreateInterceptorProvider) Name() string {
 	return BrokerCreateNotificationInterceptorName
 }
 
-func (*BrokerNotificationsCreateInterceptorProvider) Provide() storage.CreateOnTxInterceptor {
-	return NewBrokerNotificationsInterceptor()
+func (b *BrokerNotificationsCreateInterceptorProvider) Provide() storage.CreateOnTxInterceptor {
+	return NewBrokerNotificationsInterceptor(b.TenantKey)
 }
 
 type BrokerNotificationsUpdateInterceptorProvider struct {
+	TenantKey string
 }
 
 func (*BrokerNotificationsUpdateInterceptorProvider) Name() string {
 	return BrokerUpdateNotificationInterceptorName
 }
 
-func (*BrokerNotificationsUpdateInterceptorProvider) Provide() storage.UpdateOnTxInterceptor {
-	return NewBrokerNotificationsInterceptor()
+func (b *BrokerNotificationsUpdateInterceptorProvider) Provide() storage.UpdateOnTxInterceptor {
+	return NewBrokerNotificationsInterceptor(b.TenantKey)
 }
 
 type BrokerNotificationsDeleteInterceptorProvider struct {
+	TenantKey string
 }
 
 func (*BrokerNotificationsDeleteInterceptorProvider) Name() string {
 	return BrokerDeleteNotificationInterceptorName
 }
 
-func (*BrokerNotificationsDeleteInterceptorProvider) Provide() storage.DeleteOnTxInterceptor {
-	return NewBrokerNotificationsInterceptor()
+func (b *BrokerNotificationsDeleteInterceptorProvider) Provide() storage.DeleteOnTxInterceptor {
+	return NewBrokerNotificationsInterceptor(b.TenantKey)
 }
 
 func fetchBrokerPlans(ctx context.Context, brokerID string, repository storage.Repository) ([]*types.ServicePlan, error) {
