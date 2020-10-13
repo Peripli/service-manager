@@ -201,10 +201,12 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	smb.
 		WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerCreateCatalogInterceptorProvider{
 			CatalogFetcher: osb.CatalogFetcher(util.ClientRequest, cfg.API.OSBVersion),
+			TenantKey:      cfg.Multitenancy.LabelKey,
 		}).Register().
 		WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerUpdateCatalogInterceptorProvider{
 			CatalogFetcher: osb.CatalogFetcher(util.ClientRequest, cfg.API.OSBVersion),
 			CatalogLoader:  catalog.Load,
+			TenantKey:      cfg.Multitenancy.LabelKey,
 		}).Register().
 		WithDeleteInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerDeleteCatalogInterceptorProvider{
 			CatalogLoader: catalog.Load,

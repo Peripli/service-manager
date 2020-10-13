@@ -31,6 +31,7 @@ const BrokerCreateCatalogInterceptorName = "BrokerCreateCatalogInterceptor"
 
 type BrokerCreateCatalogInterceptorProvider struct {
 	CatalogFetcher func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error)
+	TenantKey      string
 }
 
 func (c *BrokerCreateCatalogInterceptorProvider) Name() string {
@@ -40,18 +41,20 @@ func (c *BrokerCreateCatalogInterceptorProvider) Name() string {
 func (c *BrokerCreateCatalogInterceptorProvider) Provide() storage.CreateInterceptor {
 	return &brokerCreateCatalogInterceptor{
 		CatalogFetcher: c.CatalogFetcher,
+		TenantKey:      c.TenantKey,
 	}
 
 }
 
 type brokerCreateCatalogInterceptor struct {
 	CatalogFetcher func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error)
+	TenantKey      string
 }
 
 func (c *brokerCreateCatalogInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		broker := obj.(*types.ServiceBroker)
-		if err := brokerCatalogAroundTx(ctx, broker, c.CatalogFetcher); err != nil {
+		if err := brokerCatalogAroundTx(ctx, broker, c.CatalogFetcher, c.TenantKey); err != nil {
 			return nil, err
 		}
 
@@ -83,7 +86,7 @@ func (c *brokerCreateCatalogInterceptor) OnTxCreate(f storage.InterceptCreateOnT
 	}
 }
 
-func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fetcher func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error)) error {
+func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fetcher func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error), tenantKey string) error {
 	catalogBytes, err := fetcher(ctx, broker)
 	if err != nil {
 		return err
@@ -98,12 +101,24 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 	}
 
 	for _, service := range catalogResponse.Services {
+		var tenantValue []string
+		var labels types.Labels
+
 		service.CatalogID = service.ID
 		service.CatalogName = service.Name
 		service.BrokerID = broker.ID
 		service.CreatedAt = broker.UpdatedAt
 		service.UpdatedAt = broker.UpdatedAt
 		service.Ready = broker.GetReady()
+
+		if tenantValue = broker.ExtractTenantLabelValue(tenantKey); tenantValue != nil {
+			if labels = service.GetLabels(); labels == nil {
+				labels = make(map[string][]string)
+			}
+			labels[tenantKey] = tenantValue
+			service.Labels = labels
+		}
+
 		UUID, err := uuid.NewV4()
 		if err != nil {
 			return err
@@ -123,6 +138,15 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 			servicePlan.CreatedAt = broker.UpdatedAt
 			servicePlan.UpdatedAt = broker.UpdatedAt
 			servicePlan.Ready = broker.GetReady()
+
+			if tenantValue != nil {
+				if labels = servicePlan.GetLabels(); labels == nil {
+					labels = make(map[string][]string)
+				}
+				labels[tenantKey] = tenantValue
+				servicePlan.Labels = labels
+			}
+
 			UUID, err := uuid.NewV4()
 			if err != nil {
 				return err

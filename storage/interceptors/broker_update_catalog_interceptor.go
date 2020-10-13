@@ -36,12 +36,14 @@ const BrokerUpdateCatalogInterceptorName = "BrokerUpdateCatalogInterceptor"
 type BrokerUpdateCatalogInterceptorProvider struct {
 	CatalogFetcher func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error)
 	CatalogLoader  func(ctx context.Context, brokerID string, repository storage.Repository) (*types.ServiceOfferings, error)
+	TenantKey      string
 }
 
 func (c *BrokerUpdateCatalogInterceptorProvider) Provide() storage.UpdateInterceptor {
 	return &brokerUpdateCatalogInterceptor{
 		CatalogFetcher: c.CatalogFetcher,
 		CatalogLoader:  c.CatalogLoader,
+		TenantKey:      c.TenantKey,
 	}
 }
 
@@ -52,13 +54,14 @@ func (c *BrokerUpdateCatalogInterceptorProvider) Name() string {
 type brokerUpdateCatalogInterceptor struct {
 	CatalogFetcher func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error)
 	CatalogLoader  func(ctx context.Context, brokerID string, repository storage.Repository) (*types.ServiceOfferings, error)
+	TenantKey      string
 }
 
 // AroundTxUpdate fetches the broker catalog before the transaction, so it can be stored later on in the transaction
 func (c *brokerUpdateCatalogInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
 		broker := obj.(*types.ServiceBroker)
-		if err := brokerCatalogAroundTx(ctx, broker, c.CatalogFetcher); err != nil {
+		if err := brokerCatalogAroundTx(ctx, broker, c.CatalogFetcher, c.TenantKey); err != nil {
 			return nil, err
 		}
 
