@@ -657,20 +657,27 @@ var _ = Describe("Notifications Suite", func() {
 				entry.ResourceDeleteFunc(objAfterOp)
 			})
 
-			It("also creates a CREATED notification", func() {
-				_, ids := getNotifications()
-				objAfterOp = entry.ResourceCreateFunc()
-				notificationsAfterOp, _ := getNotifications(ids...)
+			When("platforms are active", func() {
+				BeforeEach(func() {
+					setAllPlatformsActive(ctx, true, time.Now())
+				})
 
-				verifyCreationNotificationCreated(objAfterOp, notificationsAfterOp)
-				entry.AdditionalVerificationNotificationsFunc(objAfterOp, ctx.SMRepository, notificationsAfterOp)
+				It("also creates a CREATED notification", func() {
+					_, ids := getNotifications()
+					objAfterOp = entry.ResourceCreateFunc()
+					notificationsAfterOp, _ := getNotifications(ids...)
+
+					verifyCreationNotificationCreated(objAfterOp, notificationsAfterOp)
+					entry.AdditionalVerificationNotificationsFunc(objAfterOp, ctx.SMRepository, notificationsAfterOp)
+				})
 			})
 
 			if !entry.ResourceNotifyInactivePlatforms {
-				When("platforms are not active but have last_active set", func() {
+				When("platforms are not active but were active recently", func() {
 					BeforeEach(func() {
-						setAllPlatformsActive(ctx, false, time.Now())
+						setAllPlatformsActive(ctx, false, time.Now().Add(-ctx.Config.Storage.Notification.KeepFor/2))
 					})
+
 					It("should create a CREATED notification", func() {
 						_, ids := getNotifications()
 						objAfterOp = entry.ResourceCreateFunc()
@@ -681,17 +688,32 @@ var _ = Describe("Notifications Suite", func() {
 					})
 				})
 
-				When("there are no active platforms", func() {
+				When("platforms are not active and were not active for more than the time we keep notifications for", func() {
 					BeforeEach(func() {
-						setAllPlatformsActive(ctx, false, time.Time{})
+						setAllPlatformsActive(ctx, false, time.Now().Add(-ctx.Config.Storage.Notification.KeepFor))
 					})
+
 					It(fmt.Sprintf("should not create any notifications for resource type %s", entry.ResourceType), func() {
 						_, ids := getNotifications()
 						objAfterOp = entry.ResourceCreateFunc()
 						notificationsAfterOp, _ := getNotifications(ids...)
 
 						verifyNoNotificationCreatedForType(entry.ResourceType, notificationsAfterOp)
+					})
+				})
+			} else {
+				When("platforms are not active and were not active for more than the time we keep notifications for", func() {
+					BeforeEach(func() {
+						setAllPlatformsActive(ctx, false, time.Now().Add(-ctx.Config.Storage.Notification.KeepFor))
+					})
 
+					It("should create a CREATED notification", func() {
+						_, ids := getNotifications()
+						objAfterOp = entry.ResourceCreateFunc()
+						notificationsAfterOp, _ := getNotifications(ids...)
+
+						verifyCreationNotificationCreated(objAfterOp, notificationsAfterOp)
+						entry.AdditionalVerificationNotificationsFunc(objAfterOp, ctx.SMRepository, notificationsAfterOp)
 					})
 				})
 			}
@@ -713,9 +735,24 @@ var _ = Describe("Notifications Suite", func() {
 			})
 
 			if !entry.ResourceNotifyInactivePlatforms {
-				When("there are no active platforms", func() {
+				When("platforms are not active but were active recently", func() {
 					BeforeEach(func() {
-						setAllPlatformsActive(ctx, false, time.Time{})
+						setAllPlatformsActive(ctx, false, time.Now().Add(-ctx.Config.Storage.Notification.KeepFor/2))
+					})
+					It("should create a DELETED notification", func() {
+						_, ids := getNotifications()
+						oldPayload := entry.ExpectedAdditionalPayloadFunc(objAfterOp, ctx.SMRepository)
+
+						entry.ResourceDeleteFunc(objAfterOp)
+						notificationsAfterOp, _ := getNotifications(ids...)
+
+						verifyDeletionNotificationCreated(objAfterOp, notificationsAfterOp, oldPayload)
+					})
+				})
+
+				When("platforms are not active and were not active for more than the time we keep notifications for", func() {
+					BeforeEach(func() {
+						setAllPlatformsActive(ctx, false, time.Now().Add(-ctx.Config.Storage.Notification.KeepFor))
 					})
 					It(fmt.Sprintf("should not create any notifications for resource type %s", entry.ResourceType), func() {
 						_, ids := getNotifications()
@@ -723,6 +760,21 @@ var _ = Describe("Notifications Suite", func() {
 						notificationsAfterOp, _ := getNotifications(ids...)
 
 						verifyNoNotificationCreatedForType(entry.ResourceType, notificationsAfterOp)
+					})
+				})
+			} else {
+				When("platforms are not active and were not active for more than the time we keep notifications for", func() {
+					BeforeEach(func() {
+						setAllPlatformsActive(ctx, false, time.Now().Add(-ctx.Config.Storage.Notification.KeepFor))
+					})
+					It("should create a DELETED notification", func() {
+						_, ids := getNotifications()
+						oldPayload := entry.ExpectedAdditionalPayloadFunc(objAfterOp, ctx.SMRepository)
+
+						entry.ResourceDeleteFunc(objAfterOp)
+						notificationsAfterOp, _ := getNotifications(ids...)
+
+						verifyDeletionNotificationCreated(objAfterOp, notificationsAfterOp, oldPayload)
 					})
 				})
 			}
@@ -761,9 +813,25 @@ var _ = Describe("Notifications Suite", func() {
 			}, updateOpEntries(entry.ResourceUpdates)...)
 
 			if !entry.ResourceNotifyInactivePlatforms {
-				When("there are no active platforms", func() {
+				When("platforms are not active but were active recently", func() {
 					BeforeEach(func() {
-						setAllPlatformsActive(ctx, false, time.Time{})
+						setAllPlatformsActive(ctx, false, time.Now().Add(-ctx.Config.Storage.Notification.KeepFor/2))
+					})
+
+					DescribeTable("also creates one or more notifications", func(update func() common.Object) {
+						_, ids := getNotifications()
+						updateBody := update()
+						objAfterOp = entry.ResourceUpdateFunc(createdObj, updateBody)
+						notificationsAfterOp, _ := getNotifications(ids...)
+
+						verifyModificationNotificationsCreated(createdObj, objAfterOp, updateBody, notificationsAfterOp)
+
+					}, updateOpEntries(entry.ResourceUpdates)...)
+				})
+
+				When("platforms are not active and were last active more than the notification keep for duration ago", func() {
+					BeforeEach(func() {
+						setAllPlatformsActive(ctx, false, time.Now().Add(-ctx.Config.Storage.Notification.KeepFor))
 					})
 
 					DescribeTable(fmt.Sprintf("does not create any notifications for resource type %s", entry.ResourceType), func(update func() common.Object) {
@@ -775,9 +843,25 @@ var _ = Describe("Notifications Suite", func() {
 						verifyNoNotificationCreatedForType(entry.ResourceType, notificationsAfterOp)
 					}, updateOpEntries(entry.ResourceUpdates)...)
 				})
-			}
-		})
+			} else {
+				When("platforms are not active and were last active more than the notification keep for duration ago", func() {
+					BeforeEach(func() {
+						setAllPlatformsActive(ctx, false, time.Now().Add(-ctx.Config.Storage.Notification.KeepFor))
+					})
 
+					DescribeTable("also creates one or more notifications", func(update func() common.Object) {
+						_, ids := getNotifications()
+						updateBody := update()
+						objAfterOp = entry.ResourceUpdateFunc(createdObj, updateBody)
+						notificationsAfterOp, _ := getNotifications(ids...)
+
+						verifyModificationNotificationsCreated(createdObj, objAfterOp, updateBody, notificationsAfterOp)
+
+					}, updateOpEntries(entry.ResourceUpdates)...)
+				})
+			}
+
+		})
 	}
 
 	Context("When resource creation fails after the transaction is commited", func() {
