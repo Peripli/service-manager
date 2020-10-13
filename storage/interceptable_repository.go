@@ -216,6 +216,10 @@ func (ir *queryScopedInterceptableRepository) Count(ctx context.Context, objectT
 	return ir.repositoryInTransaction.Count(ctx, objectType, criteria...)
 }
 
+func (ir *queryScopedInterceptableRepository) CountLabelValues(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error) {
+	return ir.repositoryInTransaction.CountLabelValues(ctx, objectType, criteria...)
+}
+
 func (ir *queryScopedInterceptableRepository) DeleteReturning(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	var resultList types.ObjectList
 	deleteObjectFunc := func(ctx context.Context, _ Repository, _ types.ObjectList, deletionCriteria ...query.Criterion) error {
@@ -602,6 +606,10 @@ func (itr *InterceptableTransactionalRepository) list(ctx context.Context, objec
 
 func (itr *InterceptableTransactionalRepository) Count(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error) {
 	return itr.RawRepository.Count(ctx, objectType, criteria...)
+}
+
+func (itr *InterceptableTransactionalRepository) CountLabelValues(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error) {
+	return itr.RawRepository.CountLabelValues(ctx, objectType, criteria...)
 }
 
 func (itr *InterceptableTransactionalRepository) DeleteReturning(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
