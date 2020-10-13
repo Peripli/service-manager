@@ -405,7 +405,7 @@ func (ps *Storage) CountLabelValues(ctx context.Context, objType types.ObjectTyp
 	if err != nil {
 		return 0, err
 	}
-	return ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).Count(ctx)
+	return ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).CountLabelValues(ctx)
 }
 
 func (ps *Storage) DeleteReturning(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
