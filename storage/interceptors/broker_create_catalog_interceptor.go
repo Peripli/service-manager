@@ -100,8 +100,8 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 		return err
 	}
 
+	tenantValue := broker.ExtractTenantLabelValue(tenantKey)
 	for _, service := range catalogResponse.Services {
-		var tenantValue []string
 		var labels types.Labels
 
 		service.CatalogID = service.ID
@@ -111,7 +111,7 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 		service.UpdatedAt = broker.UpdatedAt
 		service.Ready = broker.GetReady()
 
-		if tenantValue = broker.ExtractTenantLabelValue(tenantKey); tenantValue != nil {
+		if tenantValue != nil {
 			if labels = service.GetLabels(); labels == nil {
 				labels = make(map[string][]string)
 			}
