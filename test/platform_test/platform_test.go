@@ -18,6 +18,8 @@ package platform_test
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/test/common/broker_data"
 	"net/http"
 	"sort"
 	"testing"
@@ -392,7 +394,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 func subResourcesBlueprint() func(ctx *common.TestContext, auth *common.SMExpect, async bool, objID string, resourceType types.ObjectType) {
 	return func(ctx *common.TestContext, auth *common.SMExpect, async bool, platformID string, resourceType types.ObjectType) {
-		/*
 		brokerData := broker_data.New(true)
 		service1 := common.GenerateTestServiceWithPlans(common.GenerateFreeTestPlan())
 		brokerData.AddServices(service1)
@@ -401,12 +402,11 @@ func subResourcesBlueprint() func(ctx *common.TestContext, auth *common.SMExpect
 		brokerID := brokerData.GetRegisteredBrokerID()
 		log.D().Warn("Test broker", brokerID)
 		common.CreateVisibilitiesForAllBrokerPlans(auth, brokerID)
-		planID := brokerData.GetComplementaryPlanIDs()[0]
+		planID := brokerData.GetPlanIDs()[0]
 		common.RegisterVisibilityForPlanAndPlatform(auth, planID, platformID)
 
 		log.D().Warn("Test broker visibilities ready")
 
-		 */
 	}
 }
 
