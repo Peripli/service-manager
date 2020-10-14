@@ -100,25 +100,16 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 		return err
 	}
 
-	tenantValue := broker.ExtractTenantLabelValue(tenantKey)
-	for _, service := range catalogResponse.Services {
-		var labels types.Labels
+	tenantValue, _ := broker.GetLabels()[tenantKey]
 
+	for _, service := range catalogResponse.Services {
 		service.CatalogID = service.ID
 		service.CatalogName = service.Name
 		service.BrokerID = broker.ID
 		service.CreatedAt = broker.UpdatedAt
 		service.UpdatedAt = broker.UpdatedAt
 		service.Ready = broker.GetReady()
-
-		if tenantValue != nil {
-			if labels = service.GetLabels(); labels == nil {
-				labels = make(map[string][]string)
-			}
-			labels[tenantKey] = tenantValue
-			service.Labels = labels
-		}
-
+		service.Labels = addTenantToLabels(tenantKey, tenantValue, service.GetLabels())
 		UUID, err := uuid.NewV4()
 		if err != nil {
 			return err
@@ -138,15 +129,7 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 			servicePlan.CreatedAt = broker.UpdatedAt
 			servicePlan.UpdatedAt = broker.UpdatedAt
 			servicePlan.Ready = broker.GetReady()
-
-			if tenantValue != nil {
-				if labels = servicePlan.GetLabels(); labels == nil {
-					labels = make(map[string][]string)
-				}
-				labels[tenantKey] = tenantValue
-				servicePlan.Labels = labels
-			}
-
+			servicePlan.Labels = addTenantToLabels(tenantKey, tenantValue, servicePlan.GetLabels())
 			UUID, err := uuid.NewV4()
 			if err != nil {
 				return err
@@ -164,4 +147,14 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 	broker.Services = catalogResponse.Services
 
 	return nil
+}
+
+func addTenantToLabels(tenantKey string, tenantValue []string, labels types.Labels) types.Labels {
+	if tenantValue != nil {
+		if labels == nil {
+			labels = make(map[string][]string)
+		}
+		labels[tenantKey] = tenantValue
+	}
+	return labels
 }

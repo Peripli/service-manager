@@ -80,11 +80,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	AdditionalTests: func(ctx *TestContext, t *test.TestCase) {
 		Context("additional non-generic tests", func() {
 			var (
-				brokerServer           *BrokerServer
-				brokerWithLabelsServer *BrokerServer
-				brokerServerWithTLS    *BrokerServer
+				brokerServer             *BrokerServer
+				brokerWithLabelsServer   *BrokerServer
+				brokerServerWithTLS      *BrokerServer
+				tenantScopedBrokerServer *BrokerServer
 
 				postBrokerRequestWithNoLabels    Object
+				postTenantScopedBrokerRequest    Object
 				expectedBrokerResponse           Object
 				postBrokerRequestWithTLS         Object
 				postBrokerRequestWithTLSandBasic Object
@@ -112,18 +114,25 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				if brokerServerWithTLS != nil {
 					brokerServerWithTLS.Close()
 				}
+
+				if tenantScopedBrokerServer != nil {
+					tenantScopedBrokerServer.Close()
+				}
 			})
 
 			BeforeEach(func() {
 				brokerServer = NewBrokerServer()
 				brokerWithLabelsServer = NewBrokerServer()
 				brokerServerWithTLS = NewBrokerServerTLS()
+				tenantScopedBrokerServer = NewBrokerServer()
+				tenantScopedBrokerServer.Reset()
 				brokerServerWithTLS.Reset()
 				brokerServer.Reset()
 				brokerWithLabelsServer.Reset()
 				brokerName := "brokerName"
 				brokerNameWithTLS := "brokerNameTLS"
 				brokerWithLabelsName := "brokerWithLabelsName"
+				tenantScopedbrokerName := "tenantScopedbrokerName"
 				brokerDescription := "description"
 				brokerWithLabelsDescription := "descriptionWithLabels"
 
@@ -138,6 +147,19 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						},
 					},
 				}
+
+				postTenantScopedBrokerRequest = Object{
+					"name":        tenantScopedbrokerName,
+					"broker_url":  tenantScopedBrokerServer.URL(),
+					"description": brokerDescription,
+					"credentials": Object{
+						"basic": Object{
+							"username": tenantScopedBrokerServer.Username,
+							"password": tenantScopedBrokerServer.Password,
+						},
+					},
+				}
+
 				expectedBrokerResponse = Object{
 					"name":        brokerName,
 					"broker_url":  brokerServer.URL(),
@@ -892,10 +914,37 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Status(http.StatusGatewayTimeout)
 					})
 				})
+
+				Context("When broker is tenant scoped", func() {
+					var brokerID string
+					BeforeEach(func() {
+						brokerID = ctx.SMWithOAuthForTenant.POST(web.ServiceBrokersURL).
+							WithJSON(postTenantScopedBrokerRequest).
+							Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+					})
+					It("should add tenant key label to service offerings and plans", func() {
+						expectedTenantValue, _ := t.MultitenancySettings.TokenClaims["zid"]
+						offerings, err := ctx.SMRepository.List(context.Background(), types.ServiceOfferingType, query.ByField(query.EqualsOperator, "broker_id", brokerID))
+						Expect(err).ShouldNot(HaveOccurred())
+
+						offeringIDs := make([]string, 0, offerings.Len())
+						for i := 0; i < offerings.Len(); i++ {
+							labels := offerings.ItemAt(i).GetLabels()
+							Expect(labels[TenantLabelKey]).To(ContainElement(expectedTenantValue))
+							offeringIDs = append(offeringIDs, offerings.ItemAt(i).GetID())
+						}
+						plans, err := ctx.SMRepository.List(context.Background(), types.ServicePlanType, query.ByField(query.InOperator, "service_offering_id", offeringIDs...))
+						Expect(err).ShouldNot(HaveOccurred())
+						for i := 0; i < plans.Len(); i++ {
+							labels := plans.ItemAt(i).GetLabels()
+							Expect(labels[TenantLabelKey]).To(ContainElement(expectedTenantValue))
+						}
+					})
+				})
 			})
 
 			Describe("PATCH", func() {
-				var brokerID, brokerIDWithTLS string
+				var brokerID, brokerIDWithTLS, tenantScopedBrokerID string
 
 				assertRepositoryReturnsExpectedCatalogAfterPatching := func(brokerID, expectedCatalog string) {
 					ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
@@ -921,12 +970,18 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						Status(http.StatusCreated).
 						JSON().Object()
 
+					replyForTenantScope := ctx.SMWithOAuthForTenant.POST(web.ServiceBrokersURL).
+						WithJSON(postTenantScopedBrokerRequest).
+						Expect().Status(http.StatusCreated).JSON().Object()
+
 					brokerIDWithTLS = replyWithTLS.Value("id").String().Raw()
 					brokerID = reply.Value("id").String().Raw()
+					tenantScopedBrokerID = replyForTenantScope.Value("id").String().Raw()
 
 					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 					brokerServer.ResetCallHistory()
 					brokerServerWithTLS.ResetCallHistory()
+					tenantScopedBrokerServer.ResetCallHistory()
 				})
 
 				Context("when content type is not JSON", func() {
@@ -1448,14 +1503,16 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("when a new service offering with new plans is added", func() {
 						var anotherServiceID string
 						var anotherPlanID string
+						var anotherPlan map[string]interface{}
+						var anotherService map[string]interface{}
 
 						BeforeEach(func() {
-							anotherPlan := JSONToMap(GeneratePaidTestPlan())
+							anotherPlan = JSONToMap(GeneratePaidTestPlan())
 							anotherPlanID = anotherPlan["id"].(string)
 							anotherServiceWithAnotherPlan, err := sjson.Set(GenerateTestServiceWithPlans(), "plans.-1", anotherPlan)
 							Expect(err).ShouldNot(HaveOccurred())
 
-							anotherService := JSONToMap(anotherServiceWithAnotherPlan)
+							anotherService = JSONToMap(anotherServiceWithAnotherPlan)
 							anotherServiceID = anotherService["id"].(string)
 							Expect(anotherServiceID).ToNot(BeEmpty())
 
@@ -1539,6 +1596,63 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								CreatedNotifications: 1,
 							})
 						})
+
+						Context("When broker is tenant scoped", func() {
+							var numServiceOfferings int
+							var numPlans int
+
+							BeforeEach(func() {
+								offerings, err := ctx.SMRepository.List(context.Background(),
+									types.ServiceOfferingType,
+									query.ByField(query.EqualsOperator, "broker_id", tenantScopedBrokerID))
+								Expect(err).ShouldNot(HaveOccurred())
+								numServiceOfferings = offerings.Len()
+								offeringIds := make([]string, 0, offerings.Len())
+								for i := 0; i < offerings.Len(); i++ {
+									offeringIds = append(offeringIds, offerings.ItemAt(i).GetID())
+								}
+
+								plans, err := ctx.SMRepository.List(context.Background(),
+									types.ServicePlanType,
+									query.ByField(query.InOperator, "service_offering_id", offeringIds...))
+								Expect(err).ShouldNot(HaveOccurred())
+								numPlans = plans.Len()
+
+								currServices, err := sjson.Set(string(tenantScopedBrokerServer.Catalog), "services.-1", anotherService)
+								Expect(err).ShouldNot(HaveOccurred())
+								tenantScopedBrokerServer.Catalog = SBCatalog(currServices)
+
+								ctx.SMWithOAuthForTenant.PATCH(web.ServiceBrokersURL + "/" + tenantScopedBrokerID).
+									WithJSON(Object{}).
+									Expect().
+									Status(http.StatusOK)
+							})
+							It("should add tenant key label to the new service offering and plans", func() {
+								expectedTenantValue, _ := t.MultitenancySettings.TokenClaims["zid"]
+								offerings, err := ctx.SMRepository.List(
+									context.Background(),
+									types.ServiceOfferingType,
+									query.ByField(query.EqualsOperator, "broker_id", tenantScopedBrokerID))
+
+								Expect(err).ShouldNot(HaveOccurred())
+								Expect(offerings.Len()).To(Equal(numServiceOfferings + 1))
+
+								offeringIDs := make([]string, 0, offerings.Len())
+								for i := 0; i < offerings.Len(); i++ {
+									labels := offerings.ItemAt(i).GetLabels()
+									Expect(labels[TenantLabelKey]).To(ContainElement(expectedTenantValue))
+									offeringIDs = append(offeringIDs, offerings.ItemAt(i).GetID())
+								}
+
+								plans, err := ctx.SMRepository.List(context.Background(), types.ServicePlanType, query.ByField(query.InOperator, "service_offering_id", offeringIDs...))
+								Expect(err).ShouldNot(HaveOccurred())
+								Expect(plans.Len()).To(Equal(numPlans + 1))
+								for i := 0; i < plans.Len(); i++ {
+									labels := plans.ItemAt(i).GetLabels()
+									Expect(labels[TenantLabelKey]).To(ContainElement(expectedTenantValue))
+								}
+							})
+						})
 					})
 
 					verifyPATCHWhenCatalogFieldIsMissing := func(responseVerifier func(r *httpexpect.Response), shouldUpdateCatalog bool, fieldPath string) {
@@ -1593,10 +1707,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					}
 
 					Context("when a new service offering is added", func() {
+						var anotherService map[string]interface{}
 						var anotherServiceID string
 
 						BeforeEach(func() {
-							anotherService := JSONToMap(GenerateTestServiceWithPlans())
+							anotherService = JSONToMap(GenerateTestServiceWithPlans())
 							anotherServiceID = anotherService["id"].(string)
 							Expect(anotherServiceID).ToNot(BeEmpty())
 
@@ -1625,6 +1740,41 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						It("is returned from the repository as part of the brokers catalog field", func() {
 							assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, string(brokerServer.Catalog))
 
+						})
+
+						Context("When broker is tenant scoped", func() {
+							var numServiceOfferings int
+							BeforeEach(func() {
+								offerings, err := ctx.SMRepository.List(context.Background(),
+									types.ServiceOfferingType,
+									query.ByField(query.EqualsOperator, "broker_id", tenantScopedBrokerID))
+								Expect(err).ShouldNot(HaveOccurred())
+								numServiceOfferings = offerings.Len()
+
+								currServices, err := sjson.Set(string(tenantScopedBrokerServer.Catalog), "services.-1", anotherService)
+								Expect(err).ShouldNot(HaveOccurred())
+								tenantScopedBrokerServer.Catalog = SBCatalog(currServices)
+
+								ctx.SMWithOAuthForTenant.PATCH(web.ServiceBrokersURL + "/" + tenantScopedBrokerID).
+									WithJSON(Object{}).
+									Expect().
+									Status(http.StatusOK)
+							})
+							It("should add tenant key label to the new service offering", func() {
+								expectedTenantValue, _ := t.MultitenancySettings.TokenClaims["zid"]
+								offerings, err := ctx.SMRepository.List(
+									context.Background(),
+									types.ServiceOfferingType,
+									query.ByField(query.EqualsOperator, "broker_id", tenantScopedBrokerID))
+
+								Expect(err).ShouldNot(HaveOccurred())
+								Expect(offerings.Len()).To(Equal(numServiceOfferings + 1))
+
+								for i := 0; i < offerings.Len(); i++ {
+									labels := offerings.ItemAt(i).GetLabels()
+									Expect(labels[TenantLabelKey]).To(ContainElement(expectedTenantValue))
+								}
+							})
 						})
 					})
 
@@ -1800,59 +1950,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							verifyPATCHWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
 								r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
 							}, false, "services.0.metadata", "{invalid")
-						})
-					})
-
-					Context("when a new service plan is added", func() {
-						var anotherPlanID string
-						var serviceOfferingID string
-
-						BeforeEach(func() {
-							anotherPlan := JSONToMap(GeneratePaidTestPlan())
-							anotherPlanID = anotherPlan["id"].(string)
-							Expect(anotherPlan).ToNot(BeEmpty())
-							catalogServiceID := gjson.Get(string(brokerServer.Catalog), "services.0.id").Str
-							Expect(catalogServiceID).ToNot(BeEmpty())
-
-							serviceOfferings := ctx.SMWithOAuth.List(web.ServiceOfferingsURL).Iter()
-
-							for _, so := range serviceOfferings {
-								sbID := so.Object().Value("broker_id").String().Raw()
-								Expect(sbID).ToNot(BeEmpty())
-
-								catalogID := so.Object().Value("catalog_id").String().Raw()
-								Expect(catalogID).ToNot(BeEmpty())
-
-								if catalogID == catalogServiceID && sbID == brokerID {
-									serviceOfferingID = so.Object().Value("id").String().Raw()
-									Expect(catalogServiceID).ToNot(BeEmpty())
-									break
-								}
-							}
-							s, err := sjson.Set(string(brokerServer.Catalog), "services.0.plans.2", anotherPlan)
-							Expect(err).ShouldNot(HaveOccurred())
-							brokerServer.Catalog = SBCatalog(s)
-						})
-
-						It("is returned from the Plans API associated with the correct service offering", func() {
-							ctx.SMWithOAuth.List(web.ServicePlansURL).
-								Path("$[*].catalog_id").Array().NotContains(anotherPlanID)
-
-							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
-								WithJSON(Object{}).
-								Expect().
-								Status(http.StatusOK)
-
-							jsonResp := ctx.SMWithOAuth.List(web.ServicePlansURL)
-							jsonResp.Path("$[*].catalog_id").Array().Contains(anotherPlanID)
-							jsonResp.Path("$[*].service_offering_id").Array().Contains(serviceOfferingID)
-
-							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
-						})
-
-						It("is returned from the repository as part of the brokers catalog field", func() {
-							assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, string(brokerServer.Catalog))
-
 						})
 					})
 
