@@ -221,15 +221,6 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting %ss...", c.objectType)
 
-	isAsync := r.URL.Query().Get(web.QueryParamAsync)
-	if isAsync == "true" {
-		return nil, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: "Only one resource can be deleted asynchronously at a time",
-			StatusCode:  http.StatusBadRequest,
-		}
-	}
-
 	criteria := query.CriteriaForContext(ctx)
 	opCtx := c.prepareOperationContextByRequest(r)
 
@@ -243,6 +234,15 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 
 	if c.supportsCascadeDelete && opCtx.Cascade {
 		return c.cascadeDelete(ctx, criteria, opCtx)
+	}
+
+	isAsync := r.URL.Query().Get(web.QueryParamAsync)
+	if isAsync == "true" {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "Only one resource can be deleted asynchronously at a time",
+			StatusCode:  http.StatusBadRequest,
+		}
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
