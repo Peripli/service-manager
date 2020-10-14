@@ -27,6 +27,15 @@ FROM {{.ENTITY_TABLE}}
 {{.FOR_UPDATE_OF}}
 {{.LIMIT}};`
 
+const CountLabelValuesQueryTemplate = `
+SELECT COUNT(DISTINCT {{.LABELS_TABLE}}.{{.PRIMARY_KEY}})
+FROM {{.ENTITY_TABLE}}
+	INNER JOIN {{.LABELS_TABLE}}
+		ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
+{{.WHERE}}
+{{.FOR_UPDATE_OF}}
+{{.LIMIT}};`
+
 const SelectQueryTemplate = `
 {{if or .hasFieldCriteria .hasLabelCriteria}}
 WITH matching_resources as (SELECT DISTINCT {{.ENTITY_TABLE}}.paging_sequence
@@ -185,6 +194,18 @@ func (pq *pgQuery) Query(ctx context.Context, queryName storage.NamedQuery, quer
 
 func (pq *pgQuery) Count(ctx context.Context) (int, error) {
 	q, err := pq.resolveQueryTemplate(ctx, CountQueryTemplate)
+	if err != nil {
+		return 0, err
+	}
+	var count int
+	if err := pq.db.GetContext(ctx, &count, q, pq.queryParams...); err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (pq *pgQuery) CountLabelValues(ctx context.Context) (int, error) {
+	q, err := pq.resolveQueryTemplate(ctx, CountLabelValuesQueryTemplate)
 	if err != nil {
 		return 0, err
 	}
