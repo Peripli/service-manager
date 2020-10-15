@@ -109,7 +109,7 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 		service.CreatedAt = broker.UpdatedAt
 		service.UpdatedAt = broker.UpdatedAt
 		service.Ready = broker.GetReady()
-		service.Labels = addTenantToLabels(service.GetLabels(), tenantKey, tenantValue)
+		service.Labels = setLabelValue(service.GetLabels(), tenantKey, tenantValue)
 		UUID, err := uuid.NewV4()
 		if err != nil {
 			return err
@@ -129,7 +129,7 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 			servicePlan.CreatedAt = broker.UpdatedAt
 			servicePlan.UpdatedAt = broker.UpdatedAt
 			servicePlan.Ready = broker.GetReady()
-			servicePlan.Labels = addTenantToLabels(servicePlan.GetLabels(), tenantKey, tenantValue)
+			servicePlan.Labels = setLabelValue(servicePlan.GetLabels(), tenantKey, tenantValue)
 			UUID, err := uuid.NewV4()
 			if err != nil {
 				return err
@@ -149,12 +149,12 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 	return nil
 }
 
-func addTenantToLabels(labels types.Labels, tenantKey string, tenantValue []string) types.Labels {
-	if tenantValue != nil {
+func setLabelValue(labels types.Labels, key string, value []string) types.Labels {
+	if value != nil {
 		if labels == nil {
 			labels = make(map[string][]string)
 		}
-		labels[tenantKey] = tenantValue
+		labels[key] = value
 	}
 	return labels
 }

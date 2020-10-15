@@ -61,14 +61,6 @@ func (b *Base) GetLabels() Labels {
 	return b.Labels
 }
 
-func (b *Base) ExtractTenantLabelValue(tenantLabelKey string) []string {
-	tenant, ok := b.Labels[tenantLabelKey]
-	if !ok {
-		return nil
-	}
-	return tenant
-}
-
 func (b *Base) GetPagingSequence() int64 {
 	return b.PagingSequence
 }
