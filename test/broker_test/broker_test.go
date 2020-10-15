@@ -936,7 +936,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 			})
 
-			FDescribe("PATCH", func() {
+			Describe("PATCH", func() {
 				var brokerID, brokerIDWithTLS, tenantScopedBrokerID string
 
 				assertRepositoryReturnsExpectedCatalogAfterPatching := func(brokerID, expectedCatalog string) {
