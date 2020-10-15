@@ -221,6 +221,21 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting %ss...", c.objectType)
 
+	criteria := query.CriteriaForContext(ctx)
+	opCtx := c.prepareOperationContextByRequest(r)
+
+	if !c.supportsCascadeDelete && opCtx.Cascade {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "The resource does not support cascade delete",
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
+	if c.supportsCascadeDelete && opCtx.Cascade {
+		return c.cascadeDelete(ctx, criteria, opCtx)
+	}
+
 	isAsync := r.URL.Query().Get(web.QueryParamAsync)
 	if isAsync == "true" {
 		return nil, &util.HTTPError{
@@ -230,19 +245,13 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 		}
 	}
 
-	criteria := query.CriteriaForContext(ctx)
-	opCtx := c.prepareOperationContextByRequest(r)
-
-	if ! (c.supportsCascadeDelete && opCtx.Cascade) {
-		log.C(ctx).Debugf("Request will be executed synchronously")
-		if err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
-			return nil, util.HandleStorageError(err, c.objectType.String())
-		}
-
-		return util.NewJSONResponse(http.StatusOK, map[string]string{})
+	log.C(ctx).Debugf("Request will be executed synchronously")
+	if err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
+		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	return c.cascadeDelete(ctx, criteria, opCtx)
+	return util.NewJSONResponse(http.StatusOK, map[string]string{})
+
 }
 
 func (c *BaseController) cascadeDelete(ctx context.Context, criteria []query.Criterion, opCtx *types.OperationContext) (*web.Response, error) {
@@ -255,7 +264,7 @@ func (c *BaseController) cascadeDelete(ctx context.Context, criteria []query.Cri
 	if objList.Len() > 1 {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
-			Description: "Only one resource can be cascade deleted at a time, because it's async flow",
+			Description: "Only one resource can be cascade deleted at a time (async flow)",
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
