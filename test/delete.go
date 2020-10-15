@@ -18,6 +18,7 @@ package test
 
 import (
 	"fmt"
+	"github.com/gavv/httpexpect"
 	"net/http"
 	"strconv"
 
@@ -51,6 +52,9 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 				successfulDeletionRequestResponseCode = http.StatusOK
 				failedDeletionRequestResponseCode = http.StatusNotFound
 			}
+			if cascadeDeleteMode {
+				successfulDeletionRequestResponseCode = http.StatusAccepted
+			}
 		})
 
 		Context("Existing resource", func() {
@@ -68,7 +72,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 
 			createSubResourcesFunc := func(auth *common.SMExpect, testResource common.Object) {
 				By(fmt.Sprintf("[SETUP]: Creating test sub resources for type %s", t.API))
-				t.SubResourcesBlueprint(ctx, auth, bool(responseMode), testResource["id"].(string), types.ObjectType(t.API))
+				t.SubResourcesBlueprint(ctx, auth, bool(responseMode), testResource["id"].(string), types.ObjectType(t.API), testResource)
 			}
 
 			verifyResourceDeletionWithErrorMsg := func(auth *common.SMExpect, deletionRequestResponseCode, resourceCountAfterDeletion int, expectedOpState types.OperationState, expectedErrMsg string, cascade bool) {
@@ -76,11 +80,18 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 				ctx.SMWithOAuth.ListWithQuery(t.API, fmt.Sprintf("fieldQuery=id eq '%s'", testResourceID)).First().Object().ContainsMap(testResource)
 
 				By("[TEST]: Verify resource of type %s is deleted successfully")
-				resp := auth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-					WithQuery("async", asyncParam).
-					WithQuery("cascade", cascade).
-					Expect().
-					Status(deletionRequestResponseCode)
+				var resp *httpexpect.Response
+				if cascade {
+					resp = auth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+						WithQuery("cascade", cascade).
+						Expect().
+						Status(deletionRequestResponseCode)
+				} else {
+					resp = auth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+						WithQuery("async", asyncParam).
+						Expect().
+						Status(deletionRequestResponseCode)
+				}
 
 				common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
 					Category:          types.DELETE,
@@ -220,7 +231,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 						Context("when the resource is global", func() {
 							BeforeEach(func() {
 								resource := createResourceFunc(ctx.SMWithOAuth)
-								createSubResourcesFunc(ctx.SMWithOAuth, resource)
+								createSubResourcesFunc(ctx.SMWithOAuthForTenant, resource)
 							})
 
 							Context("when authenticating with global token", func() {

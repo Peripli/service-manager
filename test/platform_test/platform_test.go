@@ -17,14 +17,14 @@
 package platform_test
 
 import (
-	"context"
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/test/common/broker_data"
+	"fmt"
+	"github.com/gavv/httpexpect"
+	"github.com/gofrs/uuid"
+	"github.com/tidwall/gjson"
+	"golang.org/x/crypto/bcrypt"
 	"net/http"
-	"sort"
 	"testing"
-
-	"github.com/Peripli/service-manager/pkg/query"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/web"
 
@@ -392,35 +392,106 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func subResourcesBlueprint() func(ctx *common.TestContext, auth *common.SMExpect, async bool, objID string, resourceType types.ObjectType) {
-	return func(ctx *common.TestContext, auth *common.SMExpect, async bool, platformID string, resourceType types.ObjectType) {
-		brokerData := broker_data.New(true)
-		service1 := common.GenerateTestServiceWithPlans(common.GenerateFreeTestPlan())
-		brokerData.AddServices(service1)
-		brokerData.CreateBrokerInSM(ctx)
-		log.D().Warn("Test broker", brokerData.GetRegisteredBrokerID())
-		brokerID := brokerData.GetRegisteredBrokerID()
-		log.D().Warn("Test broker", brokerID)
-		common.CreateVisibilitiesForAllBrokerPlans(auth, brokerID)
-		planID := brokerData.GetPlanIDs()[0]
-		common.RegisterVisibilityForPlanAndPlatform(auth, planID, platformID)
+func hashPassword(password string) string {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		panic(err)
+	}
 
-		log.D().Warn("Test broker visibilities ready")
+	return string(passwordHash)
+}
+
+func subResourcesBlueprint() func(ctx *common.TestContext, auth *common.SMExpect, async bool, platformID string, resourceType types.ObjectType, platform common.Object) {
+	return func(ctx *common.TestContext, auth *common.SMExpect, async bool, platformID string, resourceType types.ObjectType, platform common.Object) {
+		var planID, serviceID, brokerID string
+		var origBrokerExpect *httpexpect.Expect
+
+		plan := common.GenerateFreeTestPlan()
+		planID = gjson.Get(plan, "id").String()
+
+		service := common.GenerateTestServiceWithPlans(plan)
+		serviceID = gjson.Get(service, "id").String()
+
+		catalog := common.NewEmptySBCatalog()
+		catalog.AddService(service)
+
+		brokerUtils := ctx.RegisterBrokerWithCatalog(catalog)
+		brokerID = brokerUtils.Broker.ID
+
+		SMPlatformExpect := ctx.SM.Builder(func(req *httpexpect.Request) {
+			username := ctx.TestPlatform.Credentials.Basic.Username
+			password := ctx.TestPlatform.Credentials.Basic.Password
+			req.WithBasicAuth(username, password)
+		})
+
+		SMPlatformExpect.PUT(web.BrokerPlatformCredentialsURL).
+			WithJSON(common.Object{
+				"broker_id":     brokerID,
+				"username":      "admin",
+				"password_hash": hashPassword("admin"),
+			}).Expect().Status(http.StatusOK)
+
+		common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
+
+		origBrokerExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
+			req.WithBasicAuth("admin", "admin")
+		})
+
+		instanceID, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+
+		origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/%s", web.OSBURL, brokerID, instanceID)).
+			WithJSON(common.Object{
+				"service_id": serviceID,
+				"plan_id":    planID,
+				"context": common.Object{
+					"platform": "kubernetes",
+				},
+			}).Expect().Status(http.StatusCreated)
 
 	}
 }
 
 func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
-	return func(_ *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
+	return func(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
 		randomPlatform := common.GenerateRandomPlatform()
 		if !setNullFieldsValues {
 			delete(randomPlatform, "description")
 		}
-		platform := auth.POST(web.PlatformsURL).WithJSON(randomPlatform).
+		reply := auth.POST(web.PlatformsURL).WithJSON(randomPlatform).
 			Expect().
 			Status(http.StatusCreated).JSON().Object().Raw()
-		delete(platform, "credentials")
-
-		return platform
+		createdAtString := reply["created_at"].(string)
+		updatedAtString := reply["updated_at"].(string)
+		createdAt, err := time.Parse(time.RFC3339Nano, createdAtString)
+		if err != nil {
+			panic(err)
+		}
+		updatedAt, err := time.Parse(time.RFC3339Nano, updatedAtString)
+		if err != nil {
+			panic(err)
+		}
+		platform := &types.Platform{
+			Base: types.Base{
+				ID:        reply["id"].(string),
+				CreatedAt: createdAt,
+				UpdatedAt: updatedAt,
+				Ready:     true,
+			},
+			Credentials: &types.Credentials{
+				Basic: &types.Basic{
+					Username: reply["credentials"].(map[string]interface{})["basic"].(map[string]interface{})["username"].(string),
+					Password: reply["credentials"].(map[string]interface{})["basic"].(map[string]interface{})["password"].(string),
+				},
+			},
+			Type:        reply["type"].(string),
+			Description: reply["description"].(string),
+			Name:        reply["name"].(string),
+		}
+		ctx.TestPlatform = platform
+		delete(reply, "credentials")
+		return reply
 	}
 }

@@ -343,6 +343,13 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 	}
 	var cascadeRootId = ""
 	if c.supportsCascadeDelete && opCtx.Cascade {
+		if !opCtx.Async {
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: fmt.Sprintf("Non-async request is not supported for cascade delete"),
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
 		cascadeRootId = UUID.String()
 	}
 	operation := &types.Operation{
@@ -362,7 +369,13 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		Context:       opCtx,
 		CascadeRootID: cascadeRootId,
 	}
-
+	if c.supportsCascadeDelete && opCtx.Cascade {
+		_, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
+		if err != nil {
+			return nil, err
+		}
+		return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
+	}
 	_, isAsync, err := c.scheduler.ScheduleStorageAction(ctx, operation, action, c.supportsAsync)
 	if err != nil {
 		return nil, err
@@ -731,6 +744,9 @@ func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types
 
 	if cascade == "true" {
 		operationContext.Cascade = true
+		if operationContext.IsAsyncNotDefined {
+			operationContext.Async = true
+		}
 	} else {
 		operationContext.Cascade = false
 	}

@@ -85,7 +85,7 @@ type TestCase struct {
 	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
 	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
 	PatchResource                          func(ctx *common.TestContext, tenantScoped bool, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*types.LabelChange, async bool)
-	SubResourcesBlueprint                  func(ctx *common.TestContext, smClient *common.SMExpect, async bool, objID string, resourceType types.ObjectType)
+	SubResourcesBlueprint                  func(ctx *common.TestContext, smClient *common.SMExpect, async bool, resourceID string, resourceType types.ObjectType, resource common.Object)
 
 	AdditionalTests func(ctx *common.TestContext, t *TestCase)
 	ContextBuilder  *common.TestContextBuilder
