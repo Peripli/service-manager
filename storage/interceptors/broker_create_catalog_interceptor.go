@@ -100,7 +100,7 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 		return err
 	}
 
-	tenantValue, _ := broker.GetLabels()[tenantKey]
+	tenantValue := broker.GetLabels()[tenantKey]
 
 	for _, service := range catalogResponse.Services {
 		service.CatalogID = service.ID
