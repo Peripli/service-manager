@@ -923,22 +923,15 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 					})
 					It("should add tenant key label to service offerings and plans", func() {
-						expectedTenantValue, _ := t.MultitenancySettings.TokenClaims["zid"]
+						expectedTenantValue := t.MultitenancySettings.TokenClaims["zid"].(string)
+
 						offerings, err := ctx.SMRepository.List(context.Background(), types.ServiceOfferingType, query.ByField(query.EqualsOperator, "broker_id", brokerID))
 						Expect(err).ShouldNot(HaveOccurred())
+						offeringIDs := validateTenantKeyInLabels(offerings, expectedTenantValue)
 
-						offeringIDs := make([]string, 0, offerings.Len())
-						for i := 0; i < offerings.Len(); i++ {
-							labels := offerings.ItemAt(i).GetLabels()
-							Expect(labels[TenantLabelKey]).To(ContainElement(expectedTenantValue))
-							offeringIDs = append(offeringIDs, offerings.ItemAt(i).GetID())
-						}
 						plans, err := ctx.SMRepository.List(context.Background(), types.ServicePlanType, query.ByField(query.InOperator, "service_offering_id", offeringIDs...))
 						Expect(err).ShouldNot(HaveOccurred())
-						for i := 0; i < plans.Len(); i++ {
-							labels := plans.ItemAt(i).GetLabels()
-							Expect(labels[TenantLabelKey]).To(ContainElement(expectedTenantValue))
-						}
+						validateTenantKeyInLabels(plans, expectedTenantValue)
 					})
 				})
 			})
@@ -1515,11 +1508,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							anotherService = JSONToMap(anotherServiceWithAnotherPlan)
 							anotherServiceID = anotherService["id"].(string)
 							Expect(anotherServiceID).ToNot(BeEmpty())
-
-							catalog, err := sjson.Set(string(brokerServer.Catalog), "services.-1", anotherService)
-							Expect(err).ShouldNot(HaveOccurred())
-
-							brokerServer.Catalog = SBCatalog(catalog)
+							addServiceToBrokerCatalog(brokerServer, anotherService)
 						})
 
 						It("is returned from the Services API associated with the correct broker", func() {
@@ -1607,6 +1596,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									query.ByField(query.EqualsOperator, "broker_id", tenantScopedBrokerID))
 								Expect(err).ShouldNot(HaveOccurred())
 								numServiceOfferings = offerings.Len()
+
 								offeringIds := make([]string, 0, offerings.Len())
 								for i := 0; i < offerings.Len(); i++ {
 									offeringIds = append(offeringIds, offerings.ItemAt(i).GetID())
@@ -1618,10 +1608,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect(err).ShouldNot(HaveOccurred())
 								numPlans = plans.Len()
 
-								currServices, err := sjson.Set(string(tenantScopedBrokerServer.Catalog), "services.-1", anotherService)
-								Expect(err).ShouldNot(HaveOccurred())
-								tenantScopedBrokerServer.Catalog = SBCatalog(currServices)
-
+								addServiceToBrokerCatalog(tenantScopedBrokerServer, anotherService)
 								ctx.SMWithOAuthForTenant.PATCH(web.ServiceBrokersURL + "/" + tenantScopedBrokerID).
 									WithJSON(Object{}).
 									Expect().
@@ -1714,11 +1701,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							anotherService = JSONToMap(GenerateTestServiceWithPlans())
 							anotherServiceID = anotherService["id"].(string)
 							Expect(anotherServiceID).ToNot(BeEmpty())
-
-							currServices, err := sjson.Set(string(brokerServer.Catalog), "services.-1", anotherService)
-							Expect(err).ShouldNot(HaveOccurred())
-
-							brokerServer.Catalog = SBCatalog(currServices)
+							addServiceToBrokerCatalog(brokerServer, anotherService)
 						})
 
 						It("is returned from the Services API associated with the correct broker", func() {
@@ -1745,23 +1728,19 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						Context("When broker is tenant scoped", func() {
 							var numServiceOfferings int
 							BeforeEach(func() {
-								offerings, err := ctx.SMRepository.List(context.Background(),
-									types.ServiceOfferingType,
+								offerings, err := ctx.SMRepository.List(context.Background(), types.ServiceOfferingType,
 									query.ByField(query.EqualsOperator, "broker_id", tenantScopedBrokerID))
 								Expect(err).ShouldNot(HaveOccurred())
 								numServiceOfferings = offerings.Len()
 
-								currServices, err := sjson.Set(string(tenantScopedBrokerServer.Catalog), "services.-1", anotherService)
-								Expect(err).ShouldNot(HaveOccurred())
-								tenantScopedBrokerServer.Catalog = SBCatalog(currServices)
-
+								addServiceToBrokerCatalog(tenantScopedBrokerServer, anotherService)
 								ctx.SMWithOAuthForTenant.PATCH(web.ServiceBrokersURL + "/" + tenantScopedBrokerID).
 									WithJSON(Object{}).
 									Expect().
 									Status(http.StatusOK)
 							})
 							It("should add tenant key label to the new service offering", func() {
-								expectedTenantValue, _ := t.MultitenancySettings.TokenClaims["zid"]
+								expectedTenantValue := t.MultitenancySettings.TokenClaims["zid"].(string)
 								offerings, err := ctx.SMRepository.List(
 									context.Background(),
 									types.ServiceOfferingType,
@@ -1769,11 +1748,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 								Expect(err).ShouldNot(HaveOccurred())
 								Expect(offerings.Len()).To(Equal(numServiceOfferings + 1))
-
-								for i := 0; i < offerings.Len(); i++ {
-									labels := offerings.ItemAt(i).GetLabels()
-									Expect(labels[TenantLabelKey]).To(ContainElement(expectedTenantValue))
-								}
+								validateTenantKeyInLabels(offerings, expectedTenantValue)
 							})
 						})
 					})
@@ -2459,6 +2434,22 @@ var _ = test.DescribeTestsFor(test.TestCase{
 		})
 	},
 })
+
+func addServiceToBrokerCatalog(server *BrokerServer, service map[string]interface{}) {
+	catalog, err := sjson.Set(string(server.Catalog), "services.-1", service)
+	Expect(err).ShouldNot(HaveOccurred())
+	server.Catalog = SBCatalog(catalog)
+}
+
+func validateTenantKeyInLabels(objectList types.ObjectList, expectedTenantValue string) []string {
+	objectIDs := make([]string, 0, objectList.Len())
+	for i := 0; i < objectList.Len(); i++ {
+		labels := objectList.ItemAt(i).GetLabels()
+		Expect(labels[TenantLabelKey]).To(ContainElement(expectedTenantValue))
+		objectIDs = append(objectIDs, objectList.ItemAt(i).GetID())
+	}
+	return objectIDs
+}
 
 func blueprint(setNullFieldsValues bool) func(ctx *TestContext, auth *SMExpect, async bool) Object {
 	return func(ctx *TestContext, auth *SMExpect, async bool) Object {
