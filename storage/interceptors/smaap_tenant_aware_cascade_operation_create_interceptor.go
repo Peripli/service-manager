@@ -64,6 +64,7 @@ func (co *tenantAwareCascadeOperationCreateInterceptor) OnTxCreate(f storage.Int
 		if err := operation.Validate(); err != nil {
 			return nil, err
 		}
+
 		if duplicate, err := doesExistCascadeOperationForResource(ctx, storage, operation); err != nil || duplicate != nil {
 			// in case cascade operation does exists for this resource
 			return duplicate, err
@@ -71,17 +72,21 @@ func (co *tenantAwareCascadeOperationCreateInterceptor) OnTxCreate(f storage.Int
 
 		cascadeResource := types.NewTenant(operation.ResourceID, co.TenantIdentifier)
 		ops, err := operations.GetAllLevelsCascadeOperations(ctx, cascadeResource, operation, storage)
+
 		if err != nil {
 			return nil, err
 		}
+
 		if len(ops) == 0 {
 			operation.State = types.SUCCEEDED
 		}
+
 		for _, op := range ops {
 			if _, err := storage.Create(ctx, op); err != nil {
 				return nil, util.HandleStorageError(err, string(op.GetType()))
 			}
 		}
+
 		return f(ctx, storage, operation)
 	}
 }

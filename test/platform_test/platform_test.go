@@ -17,12 +17,15 @@
 package platform_test
 
 import (
+	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/gavv/httpexpect"
 	"github.com/gofrs/uuid"
 	"github.com/tidwall/gjson"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
+	"sort"
 	"testing"
 	"time"
 
@@ -384,7 +387,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + platformID).
 							WithQuery("cascade", "true").
 							Expect().
-							Status(http.StatusOK)
+							Status(http.StatusAccepted)
 					})
 				})
 			})

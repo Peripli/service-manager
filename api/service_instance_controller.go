@@ -63,6 +63,7 @@ func (c *ServiceInstanceController) Routes() []web.Route {
 			},
 			Handler: c.GetSingleObject,
 		},
+
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,

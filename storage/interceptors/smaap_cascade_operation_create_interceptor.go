@@ -50,32 +50,39 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 		if isVirtual || operation.CascadeRootID == "" || operation.Type != types.DELETE {
 			return f(ctx, storage, operation)
 		}
+
 		// init operation properties
 		operation.PlatformID = types.SMPlatform
 		operation.State = types.PENDING
 		operation.Base.CreatedAt = time.Now()
 		operation.Base.UpdatedAt = time.Now()
 		operation.Base.Ready = true
+
 		if err := operation.Validate(); err != nil {
 			return nil, err
 		}
+
 		if duplicate, err := doesExistCascadeOperationForResource(ctx, storage, operation); err != nil || duplicate != nil {
 			// in case cascade operation does exists for this resource
 			return duplicate, err
 		}
+
 		cascadeResource, err := storage.Get(ctx, operation.ResourceType, query.ByField(query.EqualsOperator, "id", operation.ResourceID))
 		if err != nil {
 			return nil, err
 		}
+
 		ops, err := operations.GetAllLevelsCascadeOperations(ctx, cascadeResource, operation, storage)
 		if err != nil {
 			return nil, err
 		}
+
 		for _, op := range ops {
 			if _, err := storage.Create(ctx, op); err != nil {
 				return nil, util.HandleStorageError(err, string(op.GetType()))
 			}
 		}
+
 		return f(ctx, storage, operation)
 	}
 }

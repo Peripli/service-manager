@@ -29,7 +29,7 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode ResponseMode, cascadeDeleteMode bool) bool {
+func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode ResponseMode, supportedCascadeDelete bool) bool {
 	return Describe(fmt.Sprintf("DELETE %s", t.API), func() {
 		const notFoundMsg = "could not find"
 
@@ -38,6 +38,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 			testResourceID string
 
 			successfulDeletionRequestResponseCode int
+			successfulCascadeDeletionRequestResponseCode int
 			failedDeletionRequestResponseCode     int
 
 			asyncParam = strconv.FormatBool(bool(responseMode))
@@ -52,9 +53,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 				successfulDeletionRequestResponseCode = http.StatusOK
 				failedDeletionRequestResponseCode = http.StatusNotFound
 			}
-			if cascadeDeleteMode {
-				successfulDeletionRequestResponseCode = http.StatusAccepted
-			}
+			successfulCascadeDeletionRequestResponseCode = http.StatusAccepted
 		})
 
 		Context("Existing resource", func() {
@@ -231,12 +230,12 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 						Context("when the resource is global", func() {
 							BeforeEach(func() {
 								resource := createResourceFunc(ctx.SMWithOAuth)
-								createSubResourcesFunc(ctx.SMWithOAuthForTenant, resource)
+								createSubResourcesFunc(ctx.SMWithOAuth, resource)
 							})
 
 							Context("when authenticating with global token", func() {
 								It("returns 200", func() {
-									verifyCascadeResourceDeletion(ctx.SMWithOAuth, successfulDeletionRequestResponseCode, 0, types.SUCCEEDED)
+									verifyCascadeResourceDeletion(ctx.SMWithOAuth, successfulCascadeDeletionRequestResponseCode, 0, types.SUCCEEDED)
 								})
 							})
 
@@ -259,8 +258,8 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 
 							Context("when authenticating with global token", func() {
 								if !t.StrictlyTenantScoped {
-									It("returns 200", func() {
-										verifyCascadeResourceDeletion(ctx.SMWithOAuth, successfulDeletionRequestResponseCode, 0, types.SUCCEEDED)
+									It("returns 202", func() {
+										verifyCascadeResourceDeletion(ctx.SMWithOAuth, successfulCascadeDeletionRequestResponseCode, 0, types.SUCCEEDED)
 									})
 								} else {
 									It("returns 400", func() {
@@ -271,8 +270,8 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 							})
 
 							Context("when authenticating with tenant scoped token", func() {
-								It("returns 200", func() {
-									verifyCascadeResourceDeletion(ctx.SMWithOAuthForTenant, successfulDeletionRequestResponseCode, 0, types.SUCCEEDED)
+								It("returns 202", func() {
+									verifyCascadeResourceDeletion(ctx.SMWithOAuthForTenant, successfulCascadeDeletionRequestResponseCode, 0, types.SUCCEEDED)
 								})
 							})
 						})
@@ -301,7 +300,6 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 					Context("when authenticating with global token", func() {
 						It("returns error", func() {
 							resp := ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-								WithQuery("async", asyncParam).
 								WithQuery("cascade", true).
 								Expect()
 							statusCode := resp.Raw().StatusCode
