@@ -38,7 +38,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 			testResourceID string
 
 			successfulDeletionRequestResponseCode int
-			successfulCascadeDeletionRequestResponseCode int
+			successfulCascadeDeletionRequestResponseCode = http.StatusAccepted
 			failedDeletionRequestResponseCode     int
 
 			asyncParam = strconv.FormatBool(bool(responseMode))
@@ -53,7 +53,6 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 				successfulDeletionRequestResponseCode = http.StatusOK
 				failedDeletionRequestResponseCode = http.StatusNotFound
 			}
-			successfulCascadeDeletionRequestResponseCode = http.StatusAccepted
 		})
 
 		Context("Existing resource", func() {
@@ -74,23 +73,27 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 				t.SubResourcesBlueprint(ctx, auth, bool(responseMode), testResource["id"].(string), types.ObjectType(t.API), testResource)
 			}
 
-			verifyResourceDeletionWithErrorMsg := func(auth *common.SMExpect, deletionRequestResponseCode, resourceCountAfterDeletion int, expectedOpState types.OperationState, expectedErrMsg string, cascade bool) {
+
+
+			verifyResourceDeletionWithErrorMsg := func(auth *common.SMExpect, deletionRequestResponseCode, resourceCountAfterDeletion int, expectedOpState types.OperationState, expectedErrMsg string, cascade bool, useDeleteObjectsQueryField string) {
 				By("[TEST]: Verify resource of type %s exists before delete")
 				ctx.SMWithOAuth.ListWithQuery(t.API, fmt.Sprintf("fieldQuery=id eq '%s'", testResourceID)).First().Object().ContainsMap(testResource)
 
 				By("[TEST]: Verify resource of type %s is deleted successfully")
 				var resp *httpexpect.Response
-				if cascade {
-					resp = auth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-						WithQuery("cascade", cascade).
-						Expect().
-						Status(deletionRequestResponseCode)
+				var req *httpexpect.Request
+				if len(useDeleteObjectsQueryField) > 0 {
+					req = auth.DELETE(t.API).WithQueryString(fmt.Sprintf("fieldQuery=%s eq '%s'", useDeleteObjectsQueryField, testResource[useDeleteObjectsQueryField]))
 				} else {
-					resp = auth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-						WithQuery("async", asyncParam).
-						Expect().
-						Status(deletionRequestResponseCode)
+					req = auth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID))
 				}
+				if cascade {
+					req = req.WithQuery("cascade", cascade)
+				} else {
+					req = req.WithQuery("async", asyncParam)
+				}
+
+				resp = req.Expect().Status(deletionRequestResponseCode)
 
 				common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
 					Category:          types.DELETE,
@@ -108,11 +111,15 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 			}
 
 			verifyResourceDeletion := func(auth *common.SMExpect, deletionRequestResponseCode, resourceCountAfterDeletion int, expectedOpState types.OperationState) {
-				verifyResourceDeletionWithErrorMsg(auth, deletionRequestResponseCode, resourceCountAfterDeletion, expectedOpState, "", false)
+				verifyResourceDeletionWithErrorMsg(auth, deletionRequestResponseCode, resourceCountAfterDeletion, expectedOpState, "", false, "")
 			}
 
 			verifyCascadeResourceDeletion := func(auth *common.SMExpect, deletionRequestResponseCode, resourceCountAfterDeletion int, expectedOpState types.OperationState) {
-				verifyResourceDeletionWithErrorMsg(auth, deletionRequestResponseCode, resourceCountAfterDeletion, expectedOpState, "", true)
+				verifyResourceDeletionWithErrorMsg(auth, deletionRequestResponseCode, resourceCountAfterDeletion, expectedOpState, "", true, "")
+			}
+
+			verifyCascadeResourceDeletionWithDeleteObjectsQueryField := func(field string, auth *common.SMExpect, deletionRequestResponseCode, resourceCountAfterDeletion int, expectedOpState types.OperationState) {
+				verifyResourceDeletionWithErrorMsg(auth, deletionRequestResponseCode, resourceCountAfterDeletion, expectedOpState, "", true, field)
 			}
 
 			if !t.StrictlyTenantScoped {
@@ -138,7 +145,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 					if !t.DisableTenantResources {
 						Context("when authenticating with tenant scoped token", func() {
 							It("returns 404", func() {
-								verifyResourceDeletionWithErrorMsg(ctx.SMWithOAuthForTenant, failedDeletionRequestResponseCode, 1, types.FAILED, notFoundMsg, false)
+								verifyResourceDeletionWithErrorMsg(ctx.SMWithOAuthForTenant, failedDeletionRequestResponseCode, 1, types.FAILED, notFoundMsg, false, "")
 							})
 						})
 					}
@@ -234,15 +241,21 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 							})
 
 							Context("when authenticating with global token", func() {
-								It("returns 200", func() {
+								It("by id returns 202", func() {
 									verifyCascadeResourceDeletion(ctx.SMWithOAuth, successfulCascadeDeletionRequestResponseCode, 0, types.SUCCEEDED)
+								})
+								It("objects by name returns 202", func() {
+									verifyCascadeResourceDeletionWithDeleteObjectsQueryField("name", ctx.SMWithOAuth, successfulCascadeDeletionRequestResponseCode, 0, types.SUCCEEDED)
 								})
 							})
 
 							if !t.DisableTenantResources {
 								Context("when authenticating with tenant scoped token", func() {
-									It("returns 404", func() {
-										verifyResourceDeletionWithErrorMsg(ctx.SMWithOAuthForTenant, failedDeletionRequestResponseCode, 1, types.FAILED, notFoundMsg, true)
+									It("by id returns 404", func() {
+										verifyResourceDeletionWithErrorMsg(ctx.SMWithOAuthForTenant, failedDeletionRequestResponseCode, 1, types.FAILED, notFoundMsg, true, "")
+									})
+									It("objects by name returns 404", func() {
+										verifyResourceDeletionWithErrorMsg(ctx.SMWithOAuthForTenant, failedDeletionRequestResponseCode, 1, types.FAILED, notFoundMsg, true, "name")
 									})
 								})
 							}
@@ -258,20 +271,30 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 
 							Context("when authenticating with global token", func() {
 								if !t.StrictlyTenantScoped {
-									It("returns 202", func() {
+									It("by id returns 202", func() {
 										verifyCascadeResourceDeletion(ctx.SMWithOAuth, successfulCascadeDeletionRequestResponseCode, 0, types.SUCCEEDED)
 									})
+									It("objects by name returns 202", func() {
+										verifyCascadeResourceDeletionWithDeleteObjectsQueryField("name", ctx.SMWithOAuth, successfulCascadeDeletionRequestResponseCode, 0, types.SUCCEEDED)
+									})
 								} else {
-									It("returns 400", func() {
-										ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).WithQuery("cascade", true).Expect().
+									It("by id returns 400", func() {
+										ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("cascade", true).Expect().
+											Status(http.StatusBadRequest)
+									})
+									It("objects by name returns 400", func() {
+										ctx.SMWithOAuth.DELETE(t.API).WithQueryString(fmt.Sprintf("fieldQuery=%s eq '%s'", "name", testResource["name"])).WithQuery("cascade", true).Expect().
 											Status(http.StatusBadRequest)
 									})
 								}
 							})
 
 							Context("when authenticating with tenant scoped token", func() {
-								It("returns 202", func() {
+								It("by id returns 202", func() {
 									verifyCascadeResourceDeletion(ctx.SMWithOAuthForTenant, successfulCascadeDeletionRequestResponseCode, 0, types.SUCCEEDED)
+								})
+								It("objects by name returns 202", func() {
+									verifyCascadeResourceDeletionWithDeleteObjectsQueryField("name", ctx.SMWithOAuthForTenant, successfulCascadeDeletionRequestResponseCode, 0, types.SUCCEEDED)
 								})
 							})
 						})
@@ -285,21 +308,52 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 
 					Context("when authenticating with basic auth", func() {
 						if t.StrictlyTenantScoped {
-							It("returns 401", func() {
-								resp := ctx.SMWithBasic.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).Expect()
+							It("by id returns 401", func() {
+								resp := ctx.SMWithBasic.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("cascade", true).Expect()
+								resp.Status(http.StatusUnauthorized)
+							})
+							It("objects by name returns 401", func() {
+								resp := ctx.SMWithBasic.DELETE(t.API).WithQueryString(fmt.Sprintf("fieldQuery=%s eq '%s'", "name", testResource["name"])).WithQuery("cascade", true).Expect()
 								resp.Status(http.StatusUnauthorized)
 							})
 						} else {
 							It("returns 401", func() {
-								resp := ctx.SMWithBasic.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).Expect()
+								resp := ctx.SMWithBasic.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("cascade", true).Expect()
+								resp.Status(http.StatusUnauthorized)
+							})
+							It("returns 401", func() {
+								resp := ctx.SMWithBasic.DELETE(t.API).WithQueryString(fmt.Sprintf("fieldQuery=%s eq '%s'", "name", testResource["name"])).WithQuery("cascade", true).Expect()
 								resp.Status(http.StatusUnauthorized)
 							})
 						}
 					})
 
 					Context("when authenticating with global token", func() {
-						It("returns error", func() {
+						It("by id returns error", func() {
 							resp := ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+								WithQuery("cascade", true).
+								Expect()
+							statusCode := resp.Raw().StatusCode
+							if statusCode == http.StatusAccepted {
+								common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
+									Category:          types.DELETE,
+									State:             types.FAILED,
+									ResourceType:      types.ObjectType(t.API),
+									Reschedulable:     false,
+									DeletionScheduled: false,
+									Error:             notFoundMsg,
+								})
+							} else {
+								if !t.StrictlyTenantScoped {
+									Expect(statusCode).To(Equal(http.StatusNotFound))
+								} else {
+									Expect(statusCode).To(Equal(http.StatusBadRequest))
+								}
+							}
+						})
+						It("objects by name returns error", func() {
+							resp := ctx.SMWithOAuth.DELETE(t.API).
+								WithQueryString(fmt.Sprintf("fieldQuery=%s eq '%s'", "name", testResource["name"])).
 								WithQuery("cascade", true).
 								Expect()
 							statusCode := resp.Raw().StatusCode
