@@ -64,7 +64,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	SupportsAsyncOperations:                false,
 	SupportsCascadeDeleteOperations:        true,
 	ResourceBlueprint:                      blueprint(true),
-	SubResourcesBlueprint:               	subResourcesBlueprint(),
+	SubResourcesBlueprint:                  subResourcesBlueprint(),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
 	ResourcePropertiesToIgnore:             []string{"last_operation"},
 	PatchResource:                          test.APIResourcePatch,
@@ -384,7 +384,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Value("error").String().Contains("ExistingReferenceEntity")
 					})
 					It("should delete instances when cascade requested", func() {
-						ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + platformID).
+						ctx.SMWithOAuth.DELETE(web.PlatformsURL+"/"+platformID).
 							WithQuery("cascade", "true").
 							Expect().
 							Status(http.StatusAccepted)
@@ -440,12 +440,17 @@ func subResourcesBlueprint() func(ctx *common.TestContext, auth *common.SMExpect
 			req.WithBasicAuth("admin", "admin")
 		})
 
-		instanceID, err := uuid.NewV4()
+		instanceID1, err := uuid.NewV4()
 		if err != nil {
 			panic(err)
 		}
 
-		origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/%s", web.OSBURL, brokerID, instanceID)).
+		instanceID2, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+
+		origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/%s", web.OSBURL, brokerID, instanceID1)).
 			WithJSON(common.Object{
 				"service_id": serviceID,
 				"plan_id":    planID,
@@ -453,6 +458,67 @@ func subResourcesBlueprint() func(ctx *common.TestContext, auth *common.SMExpect
 					"platform": "kubernetes",
 				},
 			}).Expect().Status(http.StatusCreated)
+
+		origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/%s", web.OSBURL, brokerID, instanceID2)).
+			WithJSON(common.Object{
+				"service_id": serviceID,
+				"plan_id":    planID,
+				"context": common.Object{
+					"platform": "cloudfoundry",
+				},
+			}).Expect().Status(http.StatusCreated)
+
+		bindingID1, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+
+		bindingID2, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+
+		origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/%s/service_bindings/%s", web.OSBURL, brokerID, instanceID1, bindingID1)).
+			WithJSON(common.Object{
+				"context":          common.Object{},
+				"maintenance_info": common.Object{"version": "old"},
+				"parameters":       common.Object{},
+				"plan_id":          planID,
+				"service_id":       serviceID,
+			}).
+			Expect().
+			Status(http.StatusCreated)
+
+		ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, bindingID1)).
+			Expect().
+			Status(http.StatusOK).
+			JSON().
+			Object().
+			ContainsMap(map[string]interface{}{
+				"id":                  bindingID1,
+				"service_instance_id": instanceID1,
+			})
+
+		origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/%s/service_bindings/%s", web.OSBURL, brokerID, instanceID1, bindingID2)).
+			WithJSON(common.Object{
+				"context":          common.Object{},
+				"maintenance_info": common.Object{"version": "old"},
+				"parameters":       common.Object{},
+				"plan_id":          planID,
+				"service_id":       serviceID,
+			}).
+			Expect().
+			Status(http.StatusCreated)
+
+		ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, bindingID2)).
+			Expect().
+			Status(http.StatusOK).
+			JSON().
+			Object().
+			ContainsMap(map[string]interface{}{
+				"id":                  bindingID2,
+				"service_instance_id": instanceID1,
+			})
 
 	}
 }

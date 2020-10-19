@@ -37,9 +37,9 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 			testResource   common.Object
 			testResourceID string
 
-			successfulDeletionRequestResponseCode int
+			successfulDeletionRequestResponseCode        int
 			successfulCascadeDeletionRequestResponseCode = http.StatusAccepted
-			failedDeletionRequestResponseCode     int
+			failedDeletionRequestResponseCode            int
 
 			asyncParam = strconv.FormatBool(bool(responseMode))
 		)
@@ -72,8 +72,6 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 				By(fmt.Sprintf("[SETUP]: Creating test sub resources for type %s", t.API))
 				t.SubResourcesBlueprint(ctx, auth, bool(responseMode), testResource["id"].(string), types.ObjectType(t.API), testResource)
 			}
-
-
 
 			verifyResourceDeletionWithErrorMsg := func(auth *common.SMExpect, deletionRequestResponseCode, resourceCountAfterDeletion int, expectedOpState types.OperationState, expectedErrMsg string, cascade bool, useDeleteObjectsQueryField string) {
 				By("[TEST]: Verify resource of type %s exists before delete")

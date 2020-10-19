@@ -35,8 +35,7 @@ type CascadeOperationCreateInterceptorProvider struct {
 }
 
 func (c *CascadeOperationCreateInterceptorProvider) Provide() storage.CreateOnTxInterceptor {
-	return &cascadeOperationCreateInterceptor{
-	}
+	return &cascadeOperationCreateInterceptor{}
 }
 
 func (c *CascadeOperationCreateInterceptorProvider) Name() string {

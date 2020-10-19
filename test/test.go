@@ -70,12 +70,12 @@ type MultitenancySettings struct {
 }
 
 type TestCase struct {
-	API                        string
-	SupportsAsyncOperations    bool
-	SupportsCascadeDeleteOperations  bool
-	SupportedOps               []Op
-	ResourceType               types.ObjectType
-	ResourcePropertiesToIgnore []string
+	API                             string
+	SupportsAsyncOperations         bool
+	SupportsCascadeDeleteOperations bool
+	SupportedOps                    []Op
+	ResourceType                    types.ObjectType
+	ResourcePropertiesToIgnore      []string
 
 	MultitenancySettings   *MultitenancySettings
 	DisableTenantResources bool
