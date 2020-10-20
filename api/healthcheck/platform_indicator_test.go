@@ -44,7 +44,7 @@ var _ = Describe("Platforms Indicator", func() {
 			LastActive: time.Now().Add(-61 * 24 * time.Hour),
 		}
 		indicator = NewPlatformIndicator(ctx, repository, func(p *types.Platform) bool {
-			hours := time.Now().Sub(p.LastActive).Hours()
+			hours := time.Since(p.LastActive).Hours()
 			return hours > platformMaxInactive.Hours()
 		})
 	})
