@@ -161,6 +161,7 @@ func handleDuplicateOperations(ctx context.Context, storage storage.Repository, 
 		query.ByField(query.EqualsOperator, "resource_type", string(operation.ResourceType)),
 		query.ByField(query.EqualsOperator, "type", string(operation.Type)),
 		query.ByField(query.EqualsOperator, "cascade_root_id", operation.CascadeRootID),
+		query.ByField(query.NotEqualsOperator, "operation_id", operation.ID),
 		query.OrderResultBy("updated_at", query.DescOrder),
 	}
 	sameResourceOperations, err := storage.List(ctx, types.OperationType, criteria...)
