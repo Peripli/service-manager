@@ -79,7 +79,7 @@ var _ = Describe("Platforms Indicator", func() {
 			objectList := &types.Platforms{[]*types.Platform{platform}}
 			repository.ListReturns(objectList, nil)
 		})
-		It("should return error", func() {
+		It("should not return error", func() {
 			_, err := indicator.Status()
 			Expect(err).ShouldNot(HaveOccurred())
 		})
