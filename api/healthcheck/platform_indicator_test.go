@@ -32,6 +32,7 @@ var _ = Describe("Platforms Indicator", func() {
 	var repository *storagefakes2.FakeStorage
 	var ctx context.Context
 	var platform *types.Platform
+	const platformMaxInactive = 60 * 24 * time.Hour
 
 	BeforeEach(func() {
 		ctx = context.TODO()
@@ -40,11 +41,11 @@ var _ = Describe("Platforms Indicator", func() {
 			Name:       "test-platform",
 			Type:       "kubernetes",
 			Active:     false,
-			LastActive: time.Now().Add(- 61 * 24 * time.Hour),
+			LastActive: time.Now().Add(-61 * 24 * time.Hour),
 		}
-		indicator = NewPlatformIndicator(ctx, repository, func(p *types.Platform)bool {
-			days := time.Now().Sub(p.LastActive).Hours()/24
-			return days > 60
+		indicator = NewPlatformIndicator(ctx, repository, func(p *types.Platform) bool {
+			hours := time.Now().Sub(p.LastActive).Hours()
+			return hours > platformMaxInactive.Hours()
 		})
 	})
 
@@ -54,7 +55,7 @@ var _ = Describe("Platforms Indicator", func() {
 		})
 	})
 
-	Context("There are inactive platforms", func() {
+	Context("There are inactive platforms longer than max inactive allowed", func() {
 		BeforeEach(func() {
 			objectList := &types.Platforms{[]*types.Platform{platform}}
 			repository.ListReturns(objectList, nil)
@@ -64,6 +65,23 @@ var _ = Describe("Platforms Indicator", func() {
 			health := details.(map[string]*health.Health)[platform.Name]
 			Expect(err).Should(HaveOccurred())
 			Expect(health.Details["since"]).ShouldNot(BeNil())
+		})
+	})
+
+	Context("There are inactive platforms less than max inactive allowed", func() {
+		BeforeEach(func() {
+			platform := &types.Platform{
+				Name:       "test-platform",
+				Type:       "kubernetes",
+				Active:     false,
+				LastActive: time.Now().Add(-59 * 24 * time.Hour),
+			}
+			objectList := &types.Platforms{[]*types.Platform{platform}}
+			repository.ListReturns(objectList, nil)
+		})
+		It("should return error", func() {
+			_, err := indicator.Status()
+			Expect(err).ShouldNot(HaveOccurred())
 		})
 	})
 
