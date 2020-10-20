@@ -158,7 +158,10 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	API.SetIndicator(storageHealthIndicator)
-	API.SetIndicator(healthcheck.NewPlatformIndicator(ctx, interceptableRepository, nil))
+	API.SetIndicator(healthcheck.NewPlatformIndicator(ctx, interceptableRepository, func(p *types.Platform)bool {
+		days := time.Now().Sub(p.LastActive).Hours()/24
+		return days > 60
+	}))
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,

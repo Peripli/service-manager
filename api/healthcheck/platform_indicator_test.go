@@ -40,9 +40,12 @@ var _ = Describe("Platforms Indicator", func() {
 			Name:       "test-platform",
 			Type:       "kubernetes",
 			Active:     false,
-			LastActive: time.Now(),
+			LastActive: time.Now().Add(- 61 * 24 * time.Hour),
 		}
-		indicator = NewPlatformIndicator(ctx, repository, nil)
+		indicator = NewPlatformIndicator(ctx, repository, func(p *types.Platform)bool {
+			days := time.Now().Sub(p.LastActive).Hours()/24
+			return days > 60
+		})
 	})
 
 	Context("Name", func() {
