@@ -48,7 +48,8 @@ var indicatorNames = [...]string{
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	Indicators map[string]*IndicatorSettings `mapstructure:"indicators"`
+	Indicators          map[string]*IndicatorSettings `mapstructure:"indicators"`
+	PlatformMaxInactive time.Duration                 `mapstructure:"platform_max_inactive"`
 }
 
 // DefaultSettings returns default values for health settings
@@ -58,7 +59,8 @@ func DefaultSettings() *Settings {
 		defaultIndicatorSettings[name] = DefaultIndicatorSettings()
 	}
 	return &Settings{
-		Indicators: defaultIndicatorSettings,
+		Indicators:          defaultIndicatorSettings,
+		PlatformMaxInactive: 60 * 24 * time.Hour,
 	}
 }
 
