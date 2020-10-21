@@ -221,21 +221,6 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting %ss...", c.objectType)
 
-	criteria := query.CriteriaForContext(ctx)
-	opCtx := c.prepareOperationContextByRequest(r)
-
-	if !c.supportsCascadeDelete && opCtx.Cascade {
-		return nil, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: "The resource does not support cascade delete",
-			StatusCode:  http.StatusBadRequest,
-		}
-	}
-
-	if c.supportsCascadeDelete && opCtx.Cascade {
-		return c.cascadeDeleteObjects(ctx, criteria, opCtx)
-	}
-
 	isAsync := r.URL.Query().Get(web.QueryParamAsync)
 	if isAsync == "true" {
 		return nil, &util.HTTPError{
@@ -245,73 +230,14 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 		}
 	}
 
+	criteria := query.CriteriaForContext(ctx)
+
 	log.C(ctx).Debugf("Request will be executed synchronously")
 	if err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
-
-}
-
-func (c *BaseController) cascadeDeleteObjects(ctx context.Context, criteria []query.Criterion, opCtx *types.OperationContext) (*web.Response, error) {
-	log.C(ctx).Debugf("Cascade delete request will be executed asynchronously")
-	objList, err := c.repository.List(ctx, c.objectType, criteria...)
-	if err != nil {
-		return nil, util.HandleStorageError(err, c.objectType.String())
-	}
-
-	if objList.Len() > 1 {
-		return nil, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: "Only one resource can be cascade deleted at a time (async flow)",
-			StatusCode:  http.StatusBadRequest,
-		}
-	}
-
-	if objList.Len() == 0 {
-		return nil, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: "Resource not found",
-			StatusCode:  http.StatusNotFound,
-		}
-	}
-
-	resourceToDelete := objList.ItemAt(0)
-	resourceID := resourceToDelete.GetID()
-
-	log.C(ctx).Debugf("Deleting (cascade) %s with id %s", c.objectType, resourceID)
-	// Action is intentionally blank as cascade delete operation will remove the root resource
-	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-		return nil, nil
-	}
-	UUID, err := uuid.NewV4()
-	if err != nil {
-		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
-	}
-	var cascadeRootId = UUID.String()
-	operation := &types.Operation{
-		Base: types.Base{
-			ID:        UUID.String(),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-			Labels:    make(map[string][]string),
-			Ready:     true,
-		},
-		Type:          types.DELETE,
-		State:         types.IN_PROGRESS,
-		ResourceID:    resourceID,
-		ResourceType:  c.objectType,
-		PlatformID:    types.SMPlatform,
-		CorrelationID: log.CorrelationIDFromContext(ctx),
-		Context:       opCtx,
-		CascadeRootID: cascadeRootId,
-	}
-	_, err = c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
-	if err != nil {
-		return nil, err
-	}
-	return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
 }
 
 // DeleteSingleObject handles the deletion of the object with the id specified in the request
