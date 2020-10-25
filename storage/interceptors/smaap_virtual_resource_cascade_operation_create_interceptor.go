@@ -25,27 +25,27 @@ import (
 	"time"
 )
 
-const TenantAwareCascadeOperationCreateInterceptorProviderName = "TenantAwareCascadeOperationCreateInterceptorProvider"
+const VirtualResourceCascadeOperationCreateInterceptorProviderName = "VirtualResourceCascadeOperationCreateInterceptorProvider"
 
-type tenantAwareCascadeOperationCreateInterceptor struct {
+type VirtualResourceCascadeOperationCreateInterceptor struct {
 	TenantIdentifier string
 }
 
-type TenantAwareCascadeOperationCreateInterceptorProvider struct {
+type VirtualResourceCascadeOperationCreateInterceptorProvider struct {
 	TenantIdentifier string
 }
 
-func (c *TenantAwareCascadeOperationCreateInterceptorProvider) Provide() storage.CreateOnTxInterceptor {
-	return &tenantAwareCascadeOperationCreateInterceptor{
+func (c *VirtualResourceCascadeOperationCreateInterceptorProvider) Provide() storage.CreateOnTxInterceptor {
+	return &VirtualResourceCascadeOperationCreateInterceptor{
 		TenantIdentifier: c.TenantIdentifier,
 	}
 }
 
-func (c *TenantAwareCascadeOperationCreateInterceptorProvider) Name() string {
-	return TenantAwareCascadeOperationCreateInterceptorProviderName
+func (c *VirtualResourceCascadeOperationCreateInterceptorProvider) Name() string {
+	return VirtualResourceCascadeOperationCreateInterceptorProviderName
 }
 
-func (co *tenantAwareCascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+func (co *VirtualResourceCascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 	return func(ctx context.Context, storage storage.Repository, obj types.Object) (types.Object, error) {
 		operation := obj.(*types.Operation)
 		// currently we have only one virtual object: tenant

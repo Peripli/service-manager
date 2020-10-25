@@ -269,20 +269,28 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
 	}
 	var cascadeRootId = ""
-	if c.supportsCascadeDelete && opCtx.Cascade {
-		// Scan if requested resource really exists
-		resources, err := c.repository.List(ctx, c.objectType, criteria...)
-		if err != nil {
-			return nil, util.HandleStorageError(err, c.objectType.String())
-		}
-		if resources.Len() == 0 {
+	if opCtx.Cascade {
+		if c.supportsCascadeDelete {
+			// Scan if requested resource really exists
+			resources, err := c.repository.List(ctx, c.objectType, criteria...)
+			if err != nil {
+				return nil, util.HandleStorageError(err, c.objectType.String())
+			}
+			if resources.Len() == 0 {
+				return nil, &util.HTTPError{
+					ErrorType:   "NotFound",
+					Description: "Resource not found",
+					StatusCode:  http.StatusNotFound,
+				}
+			}
+			cascadeRootId = UUID.String()
+		} else {
 			return nil, &util.HTTPError{
 				ErrorType:   "BadRequest",
-				Description: "Resource not found",
-				StatusCode:  http.StatusNotFound,
+				Description: "Cascade delete is not supported for this API",
+				StatusCode:  http.StatusBadRequest,
 			}
 		}
-		cascadeRootId = UUID.String()
 	}
 	operation := &types.Operation{
 		Base: types.Base{
@@ -302,7 +310,14 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		CascadeRootID: cascadeRootId,
 	}
 	if c.supportsCascadeDelete && opCtx.Cascade {
-		_, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
+		concurrentOp, err := c.scheduler.FindConcurrentOperation(ctx, operation)
+		if err != nil {
+			return nil, err
+		}
+		if concurrentOp != nil {
+			return util.NewLocationResponse(concurrentOp.GetID(), operation.ResourceID, c.resourceBaseURL)
+		}
+		_, err = c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
 		if err != nil {
 			return nil, err
 		}

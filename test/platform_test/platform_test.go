@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/storage"
 	"github.com/gavv/httpexpect"
 	"github.com/gofrs/uuid"
 	"github.com/tidwall/gjson"
@@ -390,6 +391,30 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Status(http.StatusAccepted)
 					})
 				})
+
+				Context("with active platform", func() {
+					It("should return 422 - unprocessable entity", func() {
+						err := ctx.SMRepository.InTransaction(context.TODO(), func(ctx context.Context, storage storage.Repository) error {
+							var updatedPlatform types.Object
+							byID := query.ByField(query.EqualsOperator, "id", platformID)
+							platformFromStorage, err := storage.Get(ctx, types.PlatformType, byID)
+							Expect(err).ToNot(HaveOccurred())
+
+							platformFromStorage.(*types.Platform).Active = true
+							if updatedPlatform, err = storage.Update(ctx, platformFromStorage, types.LabelChanges{}); err != nil {
+								return err
+							}
+							Expect(updatedPlatform.(*types.Platform).Active).To(Equal(true))
+							return nil
+						})
+						Expect(err).ToNot(HaveOccurred())
+						ctx.SMWithOAuth.DELETE(web.PlatformsURL+"/"+platformID).
+							WithQuery("cascade", "true").
+							Expect().
+							Status(http.StatusUnprocessableEntity)
+					})
+				})
+
 			})
 		})
 	},

@@ -556,7 +556,7 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.OperationsCreateInsterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).Register()
-	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.TenantAwareCascadeOperationCreateInterceptorProvider{
+	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.VirtualResourceCascadeOperationCreateInterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).Register()
 
