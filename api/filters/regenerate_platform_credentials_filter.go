@@ -7,9 +7,8 @@ import (
 
 const (
 	RegeneratePlatformCredentialsFilterName = "RegeneratePlatformCredentialsFilter"
-    RegenerateCredentialsQueryParam = "regenerateCredentials"
+	RegenerateCredentialsQueryParam         = "regenerateCredentials"
 )
-
 
 // RegeneratePlatformCredentialsFilter checks if regenerate credentials for platform was required
 type RegeneratePlatformCredentialsFilter struct {

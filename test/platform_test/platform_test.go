@@ -358,7 +358,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("With regenerate credentials query param", func() {
 					It("should return new credentials", func() {
-						reply := ctx.SMWithOAuth.PATCH(web.PlatformsURL + "/" + id).
+						reply := ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
 							WithJSON(common.Object{}).
 							WithQuery(filters.RegenerateCredentialsQueryParam, "true").
 							Expect().

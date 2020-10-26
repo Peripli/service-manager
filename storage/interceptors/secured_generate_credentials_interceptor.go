@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	generatePlatformCredentialsInterceptorName = "CreatePlatformCredentialsInterceptor"
+	generatePlatformCredentialsInterceptorName   = "CreatePlatformCredentialsInterceptor"
 	regeneratePlatformCredentialsInterceptorName = "UpdatePlatformCredentialsInterceptor"
 )
 
@@ -70,7 +70,6 @@ func (c *generatePlatformCredentialsInterceptor) AroundTxCreate(h storage.Interc
 	}
 }
 
-
 func (c *generatePlatformCredentialsInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
 		platform, ok := obj.(*types.Platform)
@@ -87,7 +86,7 @@ func (c *generatePlatformCredentialsInterceptor) AroundTxUpdate(h storage.Interc
 	}
 }
 
-func generateCredentials(ctx context.Context, platform *types.Platform) error{
+func generateCredentials(ctx context.Context, platform *types.Platform) error {
 	credentials, err := types.GenerateCredentials()
 	if err != nil {
 		log.C(ctx).Error("Could not generate credentials for platform")
