@@ -7,7 +7,7 @@ import (
 
 const (
 	RegeneratePlatformCredentialsFilterName = "RegeneratePlatformCredentialsFilter"
-    RegenerateCredentialsQueryParam = "regenerate_credentials"
+    RegenerateCredentialsQueryParam = "regenerateCredentials"
 )
 
 
