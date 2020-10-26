@@ -18,6 +18,7 @@ package platform_test
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/api/filters"
 	"net/http"
 	"sort"
 	"testing"
@@ -347,6 +348,18 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							WithJSON(platform2).
 							Expect().
 							Status(http.StatusConflict)
+					})
+				})
+
+				Context("With regenerate credentials flag", func() {
+					It("should return new credentials", func() {
+						reply := ctx.SMWithOAuth.PATCH(web.PlatformsURL + "/" + id).
+							WithJSON(common.Object{}).
+							WithQuery(filters.RegenerateCredentialsQueryParam, "true").
+							Expect().
+							Status(http.StatusOK).JSON().Object()
+
+						reply.ContainsKey("credentials")
 					})
 				})
 			})

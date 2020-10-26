@@ -35,7 +35,7 @@ func (ot ObjectType) String() string {
 
 // Strip interface indicates that an object needs to be sanitized before it is returned to the client
 type Strip interface {
-	Sanitize()
+	Sanitize(context.Context)
 }
 
 // Secured interface indicates that an object needs to be processed before stored/retrieved to/from storage

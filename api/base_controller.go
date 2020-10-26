@@ -209,7 +209,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	cleanObject(createdObj.GetLastOperation())
+	cleanObject(ctx, createdObj.GetLastOperation())
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
 }
 
@@ -302,13 +302,13 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	cleanObject(object)
+	cleanObject(ctx, object)
 
 	if err := attachLastOperation(ctx, objectID, object, c.repository); err != nil {
 		return nil, err
 	}
 
-	cleanObject(object.GetLastOperation())
+	cleanObject(ctx, object.GetLastOperation())
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
@@ -333,7 +333,7 @@ func GetResourceOperation(r *web.Request, repository storage.Repository, objectT
 	}
 	criteria := query.CriteriaForContext(ctx)
 	operation, err := repository.Get(ctx, types.OperationType, criteria...)
-	cleanObject(operation)
+	cleanObject(ctx, operation)
 	if err != nil {
 		return nil, util.HandleStorageError(err, objectType.String())
 	}
@@ -486,14 +486,14 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	cleanObject(object.GetLastOperation())
-	cleanObject(object)
+	cleanObject(ctx, object.GetLastOperation())
+	cleanObject(ctx, object)
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
-func cleanObject(object types.Object) {
+func cleanObject(ctx context.Context, object types.Object) {
 	if secured, ok := object.(types.Strip); ok {
-		secured.Sanitize()
+		secured.Sanitize(ctx)
 	}
 }
 func getResourceIds(resources types.ObjectList) []string {
@@ -658,7 +658,7 @@ func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count,
 
 	for i := 0; i < objectList.Len(); i++ {
 		obj := objectList.ItemAt(i)
-		cleanObject(obj)
+		cleanObject(ctx, obj)
 		page.Items = append(page.Items, obj)
 	}
 

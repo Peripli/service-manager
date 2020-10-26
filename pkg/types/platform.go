@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/web"
 	"reflect"
 	"time"
 
@@ -72,8 +73,10 @@ func (e *Platform) Equals(obj Object) bool {
 	return true
 }
 
-func (e *Platform) Sanitize() {
-	e.Credentials = nil
+func (e *Platform) Sanitize(ctx context.Context) {
+	if !web.IsGeberatePlatformCredentialsRequired(ctx) {
+		e.Credentials = nil
+	}
 }
 
 func (e *Platform) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {

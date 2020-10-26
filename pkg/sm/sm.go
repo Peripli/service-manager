@@ -151,6 +151,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 	securityBuilder, securityFilters := NewSecurityBuilder()
 	API.RegisterFiltersAfter(filters.LoggingFilterName, securityFilters...)
+	API.RegisterFilters(&filters.RegeneratePlatformCredentialsFilter{})
 
 	storageHealthIndicator, err := storage.NewSQLHealthIndicator(storage.PingFunc(smStorage.PingContext))
 	if err != nil {
@@ -213,6 +214,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 			CatalogLoader: catalog.Load,
 		}).Register().
 		WithCreateAroundTxInterceptorProvider(types.PlatformType, &interceptors.GeneratePlatformCredentialsInterceptorProvider{}).Register().
+		WithUpdateAroundTxInterceptorProvider(types.PlatformType, &interceptors.RegeneratePlatformCredentialsInterceptorProvider{}).Register().
 		WithCreateOnTxInterceptorProvider(types.VisibilityType, &interceptors.VisibilityCreateNotificationsInterceptorProvider{}).Register().
 		WithUpdateOnTxInterceptorProvider(types.VisibilityType, &interceptors.VisibilityUpdateNotificationsInterceptorProvider{}).Register().
 		WithDeleteOnTxInterceptorProvider(types.VisibilityType, &interceptors.VisibilityDeleteNotificationsInterceptorProvider{}).Register().

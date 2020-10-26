@@ -19,8 +19,8 @@ package interceptors
 import (
 	"context"
 	"errors"
-
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -28,9 +28,13 @@ import (
 
 const (
 	generatePlatformCredentialsInterceptorName = "CreatePlatformCredentialsInterceptor"
+	regeneratePlatformCredentialsInterceptorName = "UpdatePlatformCredentialsInterceptor"
 )
 
 type GeneratePlatformCredentialsInterceptorProvider struct {
+}
+
+type RegeneratePlatformCredentialsInterceptorProvider struct {
 }
 
 func (c *GeneratePlatformCredentialsInterceptorProvider) Provide() storage.CreateAroundTxInterceptor {
@@ -39,6 +43,14 @@ func (c *GeneratePlatformCredentialsInterceptorProvider) Provide() storage.Creat
 
 func (c *GeneratePlatformCredentialsInterceptorProvider) Name() string {
 	return generatePlatformCredentialsInterceptorName
+}
+
+func (c *RegeneratePlatformCredentialsInterceptorProvider) Provide() storage.UpdateAroundTxInterceptor {
+	return &generatePlatformCredentialsInterceptor{}
+}
+
+func (c *RegeneratePlatformCredentialsInterceptorProvider) Name() string {
+	return regeneratePlatformCredentialsInterceptorName
 }
 
 type generatePlatformCredentialsInterceptor struct{}
@@ -50,13 +62,37 @@ func (c *generatePlatformCredentialsInterceptor) AroundTxCreate(h storage.Interc
 		if !ok {
 			return nil, errors.New("created object is not a platform")
 		}
-		credentials, err := types.GenerateCredentials()
-		if err != nil {
-			log.C(ctx).Error("Could not generate credentials for platform")
+
+		if err := generateCredentials(ctx, platform); err != nil {
 			return nil, err
 		}
-		platform.Credentials = credentials
-
 		return h(ctx, obj)
 	}
+}
+
+
+func (c *generatePlatformCredentialsInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
+	return func(ctx context.Context, obj types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
+		platform, ok := obj.(*types.Platform)
+		if !ok {
+			return nil, errors.New("created object is not a platform")
+		}
+
+		if web.IsGeberatePlatformCredentialsRequired(ctx) {
+			if err := generateCredentials(ctx, platform); err != nil {
+				return nil, err
+			}
+		}
+		return h(ctx, platform, labelChanges...)
+	}
+}
+
+func generateCredentials(ctx context.Context, platform *types.Platform) error{
+	credentials, err := types.GenerateCredentials()
+	if err != nil {
+		log.C(ctx).Error("Could not generate credentials for platform")
+		return err
+	}
+	platform.Credentials = credentials
+	return nil
 }
