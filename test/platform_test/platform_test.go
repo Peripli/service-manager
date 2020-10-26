@@ -222,15 +222,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 			Describe("PATCH", func() {
 				var platform common.Object
+				var user string
+				var password string
 				const id = "p1"
 
 				BeforeEach(func() {
 					By("Create new platform")
 
 					platform = common.MakePlatform(id, "cf-10", "cf", "descr")
-					ctx.SMWithOAuth.POST(web.PlatformsURL).
+					reply := ctx.SMWithOAuth.POST(web.PlatformsURL).
 						WithJSON(platform).
-						Expect().Status(http.StatusCreated)
+						Expect().Status(http.StatusCreated).JSON().Object()
+					basic := reply.Value("credentials").Object().Value("basic").Object()
+					user = basic.Value("username").String().Raw()
+					password = basic.Value("password").String().Raw()
 				})
 
 				Context("With all properties updated", func() {
@@ -351,7 +356,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				Context("With regenerate credentials flag", func() {
+				Context("With regenerate credentials query param", func() {
 					It("should return new credentials", func() {
 						reply := ctx.SMWithOAuth.PATCH(web.PlatformsURL + "/" + id).
 							WithJSON(common.Object{}).
@@ -360,6 +365,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Status(http.StatusOK).JSON().Object()
 
 						reply.ContainsKey("credentials")
+						basic := reply.Value("credentials").Object().Value("basic").Object()
+						newUser := basic.Value("username").String().Raw()
+						newPassword := basic.Value("password").String().Raw()
+						Expect(newUser).NotTo(Equal(user))
+						Expect(newPassword).NotTo(Equal(password))
 					})
 				})
 			})
