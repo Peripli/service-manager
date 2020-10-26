@@ -74,7 +74,7 @@ func (e *Platform) Equals(obj Object) bool {
 }
 
 func (e *Platform) Sanitize(ctx context.Context) {
-	if !web.IsGeberatePlatformCredentialsRequired(ctx) {
+	if !web.IsGeneratePlatformCredentialsRequired(ctx) {
 		e.Credentials = nil
 	}
 }

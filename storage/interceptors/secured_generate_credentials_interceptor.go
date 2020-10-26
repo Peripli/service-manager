@@ -78,7 +78,7 @@ func (c *generatePlatformCredentialsInterceptor) AroundTxUpdate(h storage.Interc
 			return nil, errors.New("created object is not a platform")
 		}
 
-		if web.IsGeberatePlatformCredentialsRequired(ctx) {
+		if web.IsGeneratePlatformCredentialsRequired(ctx) {
 			if err := generateCredentials(ctx, platform); err != nil {
 				return nil, err
 			}

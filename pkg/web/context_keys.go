@@ -16,7 +16,7 @@ const (
 	generatePlatformCredentialsKey
 )
 
-func IsGeberatePlatformCredentialsRequired(ctx context.Context) bool {
+func IsGeneratePlatformCredentialsRequired(ctx context.Context) bool {
 	generateRequired := ctx.Value(generatePlatformCredentialsKey)
 	return generateRequired != nil && generateRequired.(bool)
 }
