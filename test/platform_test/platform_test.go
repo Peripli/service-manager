@@ -223,8 +223,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 			Describe("PATCH", func() {
 				var platform common.Object
-				var user string
-				var password string
+				var platformUser string
+				var platformPassword string
 				const id = "p1"
 
 				BeforeEach(func() {
@@ -235,8 +235,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						WithJSON(platform).
 						Expect().Status(http.StatusCreated).JSON().Object()
 					basic := reply.Value("credentials").Object().Value("basic").Object()
-					user = basic.Value("username").String().Raw()
-					password = basic.Value("password").String().Raw()
+					platformUser = basic.Value("username").String().Raw()
+					platformPassword = basic.Value("password").String().Raw()
 				})
 
 				Context("With all properties updated", func() {
@@ -358,29 +358,71 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("With regenerate credentials query param", func() {
-					When("credentials not active", func() {
-						It("should return new credentials", func() {
-							reply := ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
-								WithJSON(common.Object{}).
-								WithQuery(filters.RegenerateCredentialsQueryParam, "true").
-								Expect().
-								Status(http.StatusOK).JSON().Object()
+					var basicPlatformAuth *common.SMExpect
+					validateNewCredentialsGenerated := func(reply *httpexpect.Object, oldUser string, oldPassword string) {
+						reply.ContainsKey("credentials")
+						basic := reply.Value("credentials").Object().Value("basic").Object()
+						newUser := basic.Value("username").String().Raw()
+						newPassword := basic.Value("password").String().Raw()
+						Expect(newUser).NotTo(Equal(platformUser))
+						Expect(newPassword).NotTo(Equal(platformPassword))
+					}
 
-							reply.ContainsKey("credentials")
-							basic := reply.Value("credentials").Object().Value("basic").Object()
-							newUser := basic.Value("username").String().Raw()
-							newPassword := basic.Value("password").String().Raw()
-							Expect(newUser).NotTo(Equal(user))
-							Expect(newPassword).NotTo(Equal(password))
+					getPlatformFromDB := func() *types.Platform {
+						platformObj, err := ctx.SMRepository.Get(context.Background(), types.PlatformType, query.ByField(query.EqualsOperator, "id", id))
+						Expect(err).NotTo(HaveOccurred())
+						return platformObj.(*types.Platform)
+					}
+
+					BeforeEach(func() {
+						basicPlatformAuth = &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+							req.WithBasicAuth(platformUser, platformPassword).WithClient(ctx.HttpClient)
+						})}
+					})
+
+					When("credentials are inactive", func() {
+						Context("no old credentials", func() {
+							It("should return new credentials", func() {
+								reply := ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
+									WithJSON(common.Object{}).
+									WithQuery(filters.RegenerateCredentialsQueryParam, "true").
+									Expect().
+									Status(http.StatusOK).JSON().Object()
+
+								validateNewCredentialsGenerated(reply, platformUser, platformPassword)
+							})
+						})
+
+						Context("old credentials exist", func() {
+							BeforeEach(func() {
+								basicPlatformAuth.GET(web.PlatformsURL + "/" + id).Expect().Status(http.StatusOK)
+								ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
+									WithJSON(common.Object{}).
+									WithQuery(filters.RegenerateCredentialsQueryParam, "true").
+									Expect().
+									Status(http.StatusOK)
+								dbPlatform := getPlatformFromDB()
+								Expect(platformUser).To(Equal(dbPlatform.OldCredentials.Basic.Username))
+								Expect(platformPassword).To(Equal(dbPlatform.OldCredentials.Basic.Password))
+							})
+
+							It("should not override old credentials", func() {
+								ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
+									WithJSON(common.Object{}).
+									WithQuery(filters.RegenerateCredentialsQueryParam, "true").
+									Expect().
+									Status(http.StatusOK)
+
+								dbPlatform := getPlatformFromDB()
+								Expect(platformUser).To(Equal(dbPlatform.OldCredentials.Basic.Username))
+								Expect(platformPassword).To(Equal(dbPlatform.OldCredentials.Basic.Password))
+							})
 						})
 					})
 
 					When("credentials are active", func() {
 						BeforeEach(func() {
-							basicAuth := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
-								req.WithBasicAuth(user, password).WithClient(ctx.HttpClient)
-							})}
-							basicAuth.GET(web.PlatformsURL + "/" + id).Expect().Status(http.StatusOK)
+							basicPlatformAuth.GET(web.PlatformsURL + "/" + id).Expect().Status(http.StatusOK)
 						})
 
 						It("should return new credentials and keep old", func() {
@@ -389,25 +431,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								WithQuery(filters.RegenerateCredentialsQueryParam, "true").
 								Expect().
 								Status(http.StatusOK).JSON().Object()
+							validateNewCredentialsGenerated(reply, platformUser, platformPassword)
+							dbPlatform := getPlatformFromDB()
 
-							platformObj, err := ctx.SMRepository.Get(context.Background(), types.PlatformType, query.ByField(query.EqualsOperator, "id", id))
-							Expect(err).NotTo(HaveOccurred())
-							platform := platformObj.(*types.Platform)
-
-							reply.ContainsKey("credentials")
-							reply.NotContainsKey("old_credentials")
-							basic := reply.Value("credentials").Object().Value("basic").Object()
-							newUser := basic.Value("username").String().Raw()
-							newPassword := basic.Value("password").String().Raw()
-							Expect(newUser).NotTo(Equal(user))
-							Expect(newPassword).NotTo(Equal(password))
-							Expect(platform.OldCredentials.Basic.Username).To(Equal(user))
-							Expect(platform.OldCredentials.Basic.Password).To(Equal(password))
-							Expect(platform.CredentialsActive).To(BeFalse())
-
+							Expect(dbPlatform.OldCredentials.Basic.Username).To(Equal(platformUser))
+							Expect(dbPlatform.OldCredentials.Basic.Password).To(Equal(platformPassword))
+							Expect(dbPlatform.CredentialsActive).To(BeFalse())
 						})
 					})
-
 				})
 			})
 
