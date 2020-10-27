@@ -398,7 +398,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						Context("old credentials exist", func() {
 							BeforeEach(func() {
-								//generate new credentials and keep the old
+								By("generate new credentials and keep the old")
 								basicPlatformAuth.GET(web.PlatformsURL + "/" + id).Expect().Status(http.StatusOK)
 								ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
 									WithJSON(common.Object{}).
