@@ -380,7 +380,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							basicAuth := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
 								req.WithBasicAuth(user, password).WithClient(ctx.HttpClient)
 							})}
-							basicAuth.GET(web.PlatformsURL+"/"+id).Expect().Status(http.StatusOK)
+							basicAuth.GET(web.PlatformsURL + "/" + id).Expect().Status(http.StatusOK)
 						})
 
 						It("should return new credentials and keep old", func() {
