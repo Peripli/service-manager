@@ -77,7 +77,12 @@ func BasicPlatformAuthenticator(request *web.Request, repository storage.Reposit
 	}
 
 	platform := platformList.ItemAt(0).(*types.Platform)
-	if platform.Credentials.Basic.Password != password {
+	platformPassword := platform.Credentials.Basic.Password
+	if useOldCredentials {
+		platformPassword = platform.OldCredentials.Basic.Password
+	}
+
+	if platformPassword != password {
 		return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
 	}
 
