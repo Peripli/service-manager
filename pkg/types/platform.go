@@ -96,11 +96,9 @@ func (e *Platform) transform(ctx context.Context, transformationFunc func(contex
 	var oldCredentialsExist bool
 	if e.Credentials != nil && e.Credentials.Basic != nil {
 		credentialsExist = true
-
 	}
 	if e.OldCredentials != nil && e.OldCredentials.Basic != nil {
 		oldCredentialsExist = true
-
 	}
 
 	if credentialsExist {
