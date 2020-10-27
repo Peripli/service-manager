@@ -78,6 +78,15 @@ func (c *generatePlatformCredentialsInterceptor) AroundTxUpdate(h storage.Interc
 		}
 
 		if web.IsGeneratePlatformCredentialsRequired(ctx) {
+			if platform.CredentialsActive {
+				platform.OldCredentials = &types.Credentials{
+					Basic: &types.Basic{
+						Username: platform.Credentials.Basic.Username,
+						Password: platform.Credentials.Basic.Password,
+					},
+				}
+				platform.CredentialsActive = false
+			}
 			if err := generateCredentials(ctx, platform); err != nil {
 				return nil, err
 			}

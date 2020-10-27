@@ -60,9 +60,20 @@ func BasicPlatformAuthenticator(request *web.Request, repository storage.Reposit
 	if err != nil {
 		return nil, httpsec.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
 	}
-
+	useOldCredentials := false
 	if platformList.Len() != 1 {
-		return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
+		log.C(ctx).Debugf("Authenticating platform credentials failed - will try to find old credentials")
+
+		byUsername.LeftOp = "old_username"
+		platformList, err = repository.List(ctx, types.PlatformType, byUsername)
+		if err != nil {
+			return nil, httpsec.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
+		}
+
+		if platformList.Len() != 1 {
+			return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
+		}
+		useOldCredentials = true
 	}
 
 	platform := platformList.ItemAt(0).(*types.Platform)
@@ -70,6 +81,14 @@ func BasicPlatformAuthenticator(request *web.Request, repository storage.Reposit
 		return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
 	}
 
+	if !useOldCredentials && !platform.CredentialsActive {
+		platform.CredentialsActive = true
+		platform.OldCredentials = nil
+		_, err = repository.Update(ctx, platform, nil)
+		if err != nil {
+			return nil, httpsec.Abstain, fmt.Errorf("could not activate credentials: %s", err)
+		}
+	}
 	return buildResponse(username, platform)
 }
 

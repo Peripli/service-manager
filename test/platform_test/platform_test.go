@@ -19,6 +19,7 @@ package platform_test
 import (
 	"context"
 	"github.com/Peripli/service-manager/api/filters"
+	"github.com/gavv/httpexpect"
 	"net/http"
 	"sort"
 	"testing"
@@ -357,20 +358,56 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("With regenerate credentials query param", func() {
-					It("should return new credentials", func() {
-						reply := ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
-							WithJSON(common.Object{}).
-							WithQuery(filters.RegenerateCredentialsQueryParam, "true").
-							Expect().
-							Status(http.StatusOK).JSON().Object()
+					When("credentials not active", func() {
+						It("should return new credentials", func() {
+							reply := ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
+								WithJSON(common.Object{}).
+								WithQuery(filters.RegenerateCredentialsQueryParam, "true").
+								Expect().
+								Status(http.StatusOK).JSON().Object()
 
-						reply.ContainsKey("credentials")
-						basic := reply.Value("credentials").Object().Value("basic").Object()
-						newUser := basic.Value("username").String().Raw()
-						newPassword := basic.Value("password").String().Raw()
-						Expect(newUser).NotTo(Equal(user))
-						Expect(newPassword).NotTo(Equal(password))
+							reply.ContainsKey("credentials")
+							basic := reply.Value("credentials").Object().Value("basic").Object()
+							newUser := basic.Value("username").String().Raw()
+							newPassword := basic.Value("password").String().Raw()
+							Expect(newUser).NotTo(Equal(user))
+							Expect(newPassword).NotTo(Equal(password))
+						})
 					})
+
+					When("credentials are active", func() {
+						BeforeEach(func() {
+							basicAuth := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+								req.WithBasicAuth(user, password).WithClient(ctx.HttpClient)
+							})}
+							basicAuth.GET(web.PlatformsURL+"/"+id).Expect().Status(http.StatusOK)
+						})
+
+						It("should return new credentials and keep old", func() {
+							reply := ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
+								WithJSON(common.Object{}).
+								WithQuery(filters.RegenerateCredentialsQueryParam, "true").
+								Expect().
+								Status(http.StatusOK).JSON().Object()
+
+							platformObj, err := ctx.SMRepository.Get(context.Background(), types.PlatformType, query.ByField(query.EqualsOperator, "id", id))
+							Expect(err).NotTo(HaveOccurred())
+							platform := platformObj.(*types.Platform)
+
+							reply.ContainsKey("credentials")
+							reply.NotContainsKey("old_credentials")
+							basic := reply.Value("credentials").Object().Value("basic").Object()
+							newUser := basic.Value("username").String().Raw()
+							newPassword := basic.Value("password").String().Raw()
+							Expect(newUser).NotTo(Equal(user))
+							Expect(newPassword).NotTo(Equal(password))
+							Expect(platform.OldCredentials.Basic.Username).To(Equal(user))
+							Expect(platform.OldCredentials.Basic.Password).To(Equal(password))
+							Expect(platform.CredentialsActive).To(BeFalse())
+
+						})
+					})
+
 				})
 			})
 

@@ -45,14 +45,17 @@ func SetSMSupportedPlatformType(typee string) {
 // Platform platform struct
 type Platform struct {
 	Base
-	Secured     `json:"-"`
-	Strip       `json:"-"`
-	Type        string       `json:"type"`
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	Credentials *Credentials `json:"credentials,omitempty"`
-	Active      bool         `json:"-"`
-	LastActive  time.Time    `json:"-"`
+	Secured           `json:"-"`
+	Strip             `json:"-"`
+	Type              string       `json:"type"`
+	Name              string       `json:"name"`
+	Description       string       `json:"description"`
+	Credentials       *Credentials `json:"credentials,omitempty"`
+	OldCredentials    *Credentials `json:"old_credentials,omitempty"`
+	Active            bool         `json:"-"`
+	LastActive        time.Time    `json:"-"`
+	Integrity         []byte       `json:"-"`
+	CredentialsActive bool         `json:"-"`
 }
 
 func (e *Platform) Equals(obj Object) bool {
@@ -77,6 +80,7 @@ func (e *Platform) Sanitize(ctx context.Context) {
 	if !web.IsGeneratePlatformCredentialsRequired(ctx) {
 		e.Credentials = nil
 	}
+	e.OldCredentials = nil
 }
 
 func (e *Platform) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {
@@ -88,27 +92,40 @@ func (e *Platform) Decrypt(ctx context.Context, decryptionFunc func(context.Cont
 }
 
 func (e *Platform) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
-	if e.Credentials == nil || e.Credentials.Basic == nil {
+	if (e.Credentials == nil || e.Credentials.Basic == nil) && (e.OldCredentials == nil || e.OldCredentials.Basic == nil) {
 		return nil
 	}
 	transformedPassword, err := transformationFunc(ctx, []byte(e.Credentials.Basic.Password))
 	if err != nil {
 		return err
 	}
+	if e.OldCredentials != nil && e.OldCredentials.Basic != nil {
+		transformedOldPassword, err := transformationFunc(ctx, []byte(e.OldCredentials.Basic.Password))
+		if err != nil {
+			return err
+		}
+		e.OldCredentials.Basic.Password = string(transformedOldPassword)
+	}
 	e.Credentials.Basic.Password = string(transformedPassword)
 	return nil
 }
 
 func (e *Platform) IntegralData() []byte {
-	return []byte(fmt.Sprintf("%s:%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password))
+	oldUser := ""
+	oldPassword := ""
+	if e.OldCredentials != nil && e.OldCredentials.Basic != nil {
+		oldUser = e.OldCredentials.Basic.Username
+		oldPassword = e.OldCredentials.Basic.Password
+	}
+	return []byte(fmt.Sprintf("%s:%s:%s:%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, oldUser, oldPassword))
 }
 
 func (e *Platform) SetIntegrity(integrity []byte) {
-	e.Credentials.Integrity = integrity
+	e.Integrity = integrity
 }
 
 func (e *Platform) GetIntegrity() []byte {
-	return e.Credentials.Integrity
+	return e.Integrity
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
