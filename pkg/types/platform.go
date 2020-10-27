@@ -92,21 +92,31 @@ func (e *Platform) Decrypt(ctx context.Context, decryptionFunc func(context.Cont
 }
 
 func (e *Platform) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
-	if (e.Credentials == nil || e.Credentials.Basic == nil) && (e.OldCredentials == nil || e.OldCredentials.Basic == nil) {
-		return nil
-	}
-	transformedPassword, err := transformationFunc(ctx, []byte(e.Credentials.Basic.Password))
-	if err != nil {
-		return err
+	var credentialsExist bool
+	var oldCredentialsExist bool
+	if e.Credentials != nil && e.Credentials.Basic != nil {
+		credentialsExist = true
+
 	}
 	if e.OldCredentials != nil && e.OldCredentials.Basic != nil {
+		oldCredentialsExist = true
+
+	}
+
+	if credentialsExist {
+		transformedPassword, err := transformationFunc(ctx, []byte(e.Credentials.Basic.Password))
+		if err != nil {
+			return err
+		}
+		e.Credentials.Basic.Password = string(transformedPassword)
+	}
+	if oldCredentialsExist {
 		transformedOldPassword, err := transformationFunc(ctx, []byte(e.OldCredentials.Basic.Password))
 		if err != nil {
 			return err
 		}
 		e.OldCredentials.Basic.Password = string(transformedOldPassword)
 	}
-	e.Credentials.Basic.Password = string(transformedPassword)
 	return nil
 }
 
