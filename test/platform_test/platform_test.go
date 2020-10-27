@@ -454,13 +454,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("old credentials are not usable", func() {
-							//move new to old
+							By("move new credentials to be old")
 							reply := ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
 								WithJSON(common.Object{}).
 								WithQuery(filters.RegenerateCredentialsQueryParam, "true").
 								Expect().
 								Status(http.StatusOK).JSON().Object()
-							//activate and remove old credentials
+
+							By("activate and remove old credentials")
 							basic := reply.Value("credentials").Object().Value("basic").Object()
 							newUser := basic.Value("username").String().Raw()
 							newPassword := basic.Value("password").String().Raw()
@@ -468,7 +469,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								req.WithBasicAuth(newUser, newPassword).WithClient(ctx.HttpClient)
 							})}
 							basicAuth.GET(web.PlatformsURL + "/" + id).Expect().Status(http.StatusOK)
-							// validate old unusable
+
+							By("validate old unusable")
 							basicPlatformAuth.GET(web.PlatformsURL + "/" + id).Expect().Status(http.StatusUnauthorized)
 						})
 					})
