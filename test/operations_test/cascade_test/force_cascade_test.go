@@ -163,7 +163,7 @@ var _ = Describe("force cascade delete", func() {
 								Ready: true,
 							},
 							ServiceInstanceID: osbInstanceID,
-							Name: "name",
+							Name:              "name",
 						})
 
 						waitCascadingProcessToFinish(actionTimeout+pollCascade, subaccountResourcesCount(), 1, queryForRoot(rootID), queryFailures)

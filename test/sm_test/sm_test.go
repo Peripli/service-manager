@@ -19,6 +19,7 @@ package sm_test
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/query"
 	"net/http/httptest"
 	"testing"
 
@@ -191,6 +192,17 @@ var _ = Describe("SM", func() {
 			BeforeEach(func() {
 				ctx = common.NewTestContextBuilder().Build()
 				smPlatformID = verifySMPlatformExists()
+				var updatedPlatform types.Object
+				byID := query.ByField(query.EqualsOperator, "name", types.SMPlatform)
+				platformFromStorage, err := ctx.SMRepository.Get(context.Background(), types.PlatformType, byID)
+				Expect(err).ToNot(HaveOccurred())
+
+				platformFromStorage.(*types.Platform).Active = false
+				if updatedPlatform, err = ctx.SMRepository.Update(context.Background(), platformFromStorage, types.LabelChanges{}); err != nil {
+					Expect(err).ToNot(HaveOccurred())
+				}
+				Expect(updatedPlatform.(*types.Platform).Active).To(Equal(false))
+
 			})
 
 			AfterEach(func() {
@@ -215,6 +227,7 @@ var _ = Describe("SM", func() {
 			for _, auth := range auths {
 				auth := auth
 				It("disallows bulk deleting of service manager platform", func() {
+
 					auth().DELETE(web.PlatformsURL).WithQueryString(fmt.Sprintf("fieldQuery=name eq '%s'", types.SMPlatform)).
 						Expect().Status(http.StatusNotFound)
 				})

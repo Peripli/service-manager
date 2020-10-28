@@ -26,25 +26,25 @@ import (
 )
 
 const (
-	PlatformDeleteValidationFilterName = "PlatformDeleteValidationFilter"
+	PlatformTerminationFilterName = "PlatformTerminationFilter"
 )
 
-func NewPlatformDeleteValidationFilter(repository storage.Repository) *platformDeleteValidationFilter {
-	return &platformDeleteValidationFilter{
+func NewPlatformTerminationFilter(repository storage.Repository) *platformTerminationFilter {
+	return &platformTerminationFilter{
 		repository: repository,
 	}
 }
 
-// platformDeleteValidationFilter ensures that platform provided is considered as not active and only then deletion is possible.
-type platformDeleteValidationFilter struct {
+// platformTerminationFilter ensures that platform provided is considered as not active and only then deletion is possible.
+type platformTerminationFilter struct {
 	repository storage.Repository
 }
 
-func (*platformDeleteValidationFilter) Name() string {
-	return PlatformDeleteValidationFilterName
+func (*platformTerminationFilter) Name() string {
+	return PlatformTerminationFilterName
 }
 
-func (f *platformDeleteValidationFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+func (f *platformTerminationFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	platformID := req.PathParams[web.PathParamResourceID]
 
 	switch req.Request.Method {
@@ -60,7 +60,7 @@ func (f *platformDeleteValidationFilter) Run(req *web.Request, next web.Handler)
 			if platform.Active {
 				return nil, &util.HTTPError{
 					ErrorType:   "UnprocessableEntity",
-					Description: "Deletion of active platform is prohibited",
+					Description: "Active platform cannot be deleted",
 					StatusCode:  http.StatusUnprocessableEntity,
 				}
 			}
@@ -70,7 +70,7 @@ func (f *platformDeleteValidationFilter) Run(req *web.Request, next web.Handler)
 	return next.Handle(req)
 }
 
-func (*platformDeleteValidationFilter) FilterMatchers() []web.FilterMatcher {
+func (*platformTerminationFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{

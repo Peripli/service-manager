@@ -153,7 +153,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			filters.NewBrokersFilterByVisibility(options.Repository),
 			&filters.CheckBrokerCredentialsFilter{},
 			filters.NewServiceInstanceTransferFilter(options.Repository, options.APISettings.EnableInstanceTransfer),
-			filters.NewPlatformDeleteValidationFilter(options.Repository),
+			filters.NewPlatformTerminationFilter(options.Repository),
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil
