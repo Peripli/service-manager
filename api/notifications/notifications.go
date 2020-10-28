@@ -38,6 +38,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	}
 
 	if user.Name == platform.Credentials.Basic.Username && !platform.CredentialsActive {
+		logger.Debugf("activating credentials for platform %s", platform.ID)
 		platform.CredentialsActive = true
 		platform.OldCredentials = nil
 		_, err = c.repository.Update(ctx, platform, nil)
