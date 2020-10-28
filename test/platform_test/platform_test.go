@@ -375,6 +375,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						return platformObj.(*types.Platform)
 					}
 
+					activatePlatformCredentials := func(user string, password string) {
+						platform := &types.Platform{
+							Credentials: &types.Credentials{
+								Basic: &types.Basic{
+									Username: user,
+									Password: password,
+								},
+							},
+						}
+
+						_, _, err := ctx.ConnectWebSocket(platform, nil)
+						Expect(err).To(Not(HaveOccurred()))
+					}
+
 					BeforeEach(func() {
 						basicPlatformAuth = &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
 							req.WithBasicAuth(platformUser, platformPassword).WithClient(ctx.HttpClient)
@@ -399,7 +413,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						Context("old credentials exist", func() {
 							BeforeEach(func() {
 								By("generate new credentials and keep the old")
-								basicPlatformAuth.GET(web.PlatformsURL + "/" + id).Expect().Status(http.StatusOK)
+								activatePlatformCredentials(platformUser, platformPassword)
 								ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
 									WithJSON(common.Object{}).
 									WithQuery(filters.RegenerateCredentialsQueryParam, "true").
@@ -433,7 +447,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					When("credentials are active", func() {
 						BeforeEach(func() {
-							basicPlatformAuth.GET(web.PlatformsURL + "/" + id).Expect().Status(http.StatusOK)
+							activatePlatformCredentials(platformUser, platformPassword)
 							dbPlatform := getPlatformFromDB()
 							Expect(dbPlatform.OldCredentials).To(BeNil())
 							Expect(dbPlatform.CredentialsActive).To(BeTrue())
@@ -465,10 +479,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							basic := reply.Value("credentials").Object().Value("basic").Object()
 							newUser := basic.Value("username").String().Raw()
 							newPassword := basic.Value("password").String().Raw()
-							basicAuth := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
-								req.WithBasicAuth(newUser, newPassword).WithClient(ctx.HttpClient)
-							})}
-							basicAuth.GET(web.PlatformsURL + "/" + id).Expect().Status(http.StatusOK)
+							activatePlatformCredentials(newUser, newPassword)
 
 							By("validate old unusable")
 							basicPlatformAuth.GET(web.PlatformsURL + "/" + id).Expect().Status(http.StatusUnauthorized)

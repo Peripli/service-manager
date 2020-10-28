@@ -86,14 +86,6 @@ func BasicPlatformAuthenticator(request *web.Request, repository storage.Reposit
 		return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
 	}
 
-	if !useOldCredentials && !platform.CredentialsActive {
-		platform.CredentialsActive = true
-		platform.OldCredentials = nil
-		_, err = repository.Update(ctx, platform, nil)
-		if err != nil {
-			return nil, httpsec.Abstain, fmt.Errorf("could not activate credentials: %s", err)
-		}
-	}
 	return buildResponse(username, platform)
 }
 
