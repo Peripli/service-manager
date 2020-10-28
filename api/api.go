@@ -60,8 +60,8 @@ type Settings struct {
 	DefaultPageSize        int      `mapstructure:"default_page_size" description:"default number of items returned in a single page if not specified in request"`
 	EnableInstanceTransfer bool     `mapstructure:"enable_instance_transfer" description:"whether service instance transfer is enabled or not"`
 	RateLimit              string   `mapstructure:"rate_limit" description:"the number of allowed requests to any endpoints per client or IP for anonymous requests"`
-	RateLimitEnabled       bool     `mapstructure:"rate_limit_enabled" description:"enable rate limiting"`
-	RateLimitNodes         int      `mapstructure:"rate_limit_enabled" description:"the number of service manager instances"`
+	RateLimitingEnabled    bool     `mapstructure:"rate_limiting_enabled" description:"enable rate limiting"`
+	RateLimitingNodes      int      `mapstructure:"rate_limiting_nodes" description:"the number of service manager instances"`
 }
 
 // DefaultSettings returns default values for API settings
@@ -76,8 +76,8 @@ func DefaultSettings() *Settings {
 		DefaultPageSize:        50,
 		EnableInstanceTransfer: false,
 		RateLimit:              "10000-H",
-		RateLimitEnabled:       true,
-		RateLimitNodes:         1,
+		RateLimitingEnabled:    true,
+		RateLimitingNodes:      1,
 	}
 }
 
@@ -99,7 +99,7 @@ type Options struct {
 }
 
 func initRateLimiter(options *Options) (*stdlib.Middleware, error) {
-	if !options.APISettings.RateLimitEnabled {
+	if !options.APISettings.RateLimitingEnabled {
 		return nil, nil
 	}
 	rate, err := limiter.NewRateFromFormatted(options.APISettings.RateLimit)
@@ -185,7 +185,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 	}
 
 	if rateLimiter != nil {
-		api.RegisterFiltersAfter(filters.LoggingFilterName, filters.NewRequestLimiterFilter(rateLimiter, options.APISettings.RateLimitNodes))
+		api.RegisterFiltersAfter(filters.LoggingFilterName, filters.NewRequestLimiterFilter(rateLimiter, options.APISettings.RateLimitingNodes))
 	}
 
 	return api, nil
