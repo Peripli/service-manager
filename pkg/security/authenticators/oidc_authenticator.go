@@ -38,6 +38,7 @@ import (
 type claims struct {
 	UserID   string `json:"user_id"`
 	Username string `json:"user_name"`
+	Subject  string `json:"sub"`
 	Email    string `json:"email"`
 	Verified bool   `json:"email_verified"`
 }
@@ -129,7 +130,7 @@ func (a *OauthAuthenticator) Authenticate(request *web.Request) (*web.UserContex
 	return &web.UserContext{
 		Data:               idToken.Claims,
 		AuthenticationType: web.Bearer,
-		Name:               claims.Username,
+		Name:               claims.Subject,
 		AccessLevel:        web.NoAccess,
 	}, httpsec.Allow, nil
 }
