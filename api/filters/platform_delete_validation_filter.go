@@ -31,13 +31,13 @@ const (
 
 func NewPlatformDeleteValidationFilter(repository storage.Repository) *platformDeleteValidationFilter {
 	return &platformDeleteValidationFilter{
-		repository:                    repository,
+		repository: repository,
 	}
 }
 
 // platformDeleteValidationFilter ensures that platform provided is considered as not active and only then deletion is possible.
 type platformDeleteValidationFilter struct {
-	repository                    storage.Repository
+	repository storage.Repository
 }
 
 func (*platformDeleteValidationFilter) Name() string {

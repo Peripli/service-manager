@@ -79,12 +79,11 @@ var _ = Describe("Service Manager Platform Termination Plugin Tests", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 
-			ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" +testPlatformID).
+			ctx.SMWithOAuth.DELETE(web.PlatformsURL+"/"+testPlatformID).
 				WithQuery("cascade", "true").
 				Expect().
 				Status(http.StatusAccepted)
 		})
-
 
 		osbOperations := []struct {
 			name           string
