@@ -156,10 +156,14 @@ var _ = Describe("force cascade delete", func() {
 					It("should marked as failed", func() {
 						registerBindingLastOPHandlers(tenantBrokerServer, http.StatusInternalServerError, types.FAILED)
 						rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
-						createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, "binding3", map[string]interface{}{
-							"service_id":        "test-service",
-							"plan_id":           "plan-service",
-							"organization_guid": "my-org",
+
+						ctx.SMRepository.Create(context.Background(), &types.ServiceBinding{
+							Base: types.Base{
+								ID:    "binding3",
+								Ready: true,
+							},
+							ServiceInstanceID: osbInstanceID,
+							Name: "name",
 						})
 
 						waitCascadingProcessToFinish(actionTimeout+pollCascade, subaccountResourcesCount(), 1, queryForRoot(rootID), queryFailures)
