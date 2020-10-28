@@ -119,13 +119,12 @@ func (e *Platform) transform(ctx context.Context, transformationFunc func(contex
 }
 
 func (e *Platform) IntegralData() []byte {
-	oldUser := ""
-	oldPassword := ""
+	oldCredentials := ""
 	if e.OldCredentials != nil && e.OldCredentials.Basic != nil {
-		oldUser = e.OldCredentials.Basic.Username
-		oldPassword = e.OldCredentials.Basic.Password
+		oldCredentials = fmt.Sprintf(":%s:%s", e.OldCredentials.Basic.Username, e.OldCredentials.Basic.Password)
 	}
-	return []byte(fmt.Sprintf("%s:%s:%s:%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, oldUser, oldPassword))
+	integrity := fmt.Sprintf("%s:%s%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, oldCredentials)
+	return []byte(integrity)
 }
 
 func (e *Platform) SetIntegrity(integrity []byte) {
