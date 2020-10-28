@@ -373,7 +373,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								},
 							},
 						}
-
 						_, _, err := ctx.ConnectWebSocket(platform, nil)
 						Expect(err).To(Not(HaveOccurred()))
 					}
@@ -385,7 +384,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						basicAuth.GET(web.PlatformsURL + "/" + id).Expect().Status(status)
 					}
 
-					When("credentials generated with additional params", func() {
+					When("credentials generated with additional properties", func() {
 						It("should succeed", func() {
 							updatedPlatform := common.MakePlatform("", "bla", "cf", "descr2")
 							delete(updatedPlatform, "id")

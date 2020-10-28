@@ -43,7 +43,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		platform.OldCredentials = nil
 		_, err = c.repository.Update(ctx, platform, nil)
 		if err != nil {
-			logger.Errorf("could not activate platform %s credentials: %v", platform.ID, err)
+			logger.Errorf("could not activate credentials for platform %s: %v", platform.ID, err)
 			return nil, err
 		}
 	}
