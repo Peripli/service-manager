@@ -20,10 +20,12 @@ package api
 import (
 	"context"
 	"fmt"
-	"sync"
-
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/ulule/limiter"
+	"github.com/ulule/limiter/drivers/middleware/stdlib"
+	"github.com/ulule/limiter/drivers/store/memory"
+	"sync"
 
 	"github.com/Peripli/service-manager/api/configuration"
 	"github.com/Peripli/service-manager/api/profile"
@@ -57,6 +59,9 @@ type Settings struct {
 	MaxPageSize            int      `mapstructure:"max_page_size" description:"maximum number of items that could be returned in a single page"`
 	DefaultPageSize        int      `mapstructure:"default_page_size" description:"default number of items returned in a single page if not specified in request"`
 	EnableInstanceTransfer bool     `mapstructure:"enable_instance_transfer" description:"whether service instance transfer is enabled or not"`
+	RateLimit              string   `mapstructure:"rate_limit" description:"the number of allowed requests to any endpoints per client or IP for anonymous requests"`
+	RateLimitEnabled       bool     `mapstructure:"rate_limit_enabled" description:"enable rate limiting"`
+	RateLimitNodes         int      `mapstructure:"rate_limit_enabled" description:"the number of service manager instances"`
 }
 
 // DefaultSettings returns default values for API settings
@@ -70,6 +75,9 @@ func DefaultSettings() *Settings {
 		MaxPageSize:            200,
 		DefaultPageSize:        50,
 		EnableInstanceTransfer: false,
+		RateLimit:              "10000-H",
+		RateLimitEnabled:       true,
+		RateLimitNodes:         1,
 	}
 }
 
@@ -90,9 +98,28 @@ type Options struct {
 	WaitGroup         *sync.WaitGroup
 }
 
+func initRateLimiter(options *Options) (*stdlib.Middleware, error) {
+	if !options.APISettings.RateLimitEnabled {
+		return nil, nil
+	}
+	rate, err := limiter.NewRateFromFormatted(options.APISettings.RateLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	store := memory.NewStore()
+	instance := limiter.New(store, rate)
+	return stdlib.NewMiddleware(instance), nil
+}
+
 // New returns the minimum set of REST APIs needed for the Service Manager
 func New(ctx context.Context, e env.Environment, options *Options) (*web.API, error) {
-	return &web.API{
+
+	rateLimiter, err := initRateLimiter(options)
+	if err != nil {
+		return nil, err
+	}
+	api := &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
 			NewAsyncController(ctx, options, web.ServiceBrokersURL, types.ServiceBrokerType, false, func() types.Object {
@@ -155,5 +182,11 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			filters.NewServiceInstanceTransferFilter(options.Repository, options.APISettings.EnableInstanceTransfer),
 		},
 		Registry: health.NewDefaultRegistry(),
-	}, nil
+	}
+
+	if rateLimiter != nil {
+		api.RegisterFiltersAfter(filters.LoggingFilterName, filters.NewRequestLimiterFilter(rateLimiter, options.APISettings.RateLimitNodes))
+	}
+
+	return api, nil
 }
