@@ -11,7 +11,8 @@ import (
 
 const (
 	CheckBrokerCredentialsFilterName = "CheckBrokerCredentialsFilter"
-	credentialsPath                  = "credentials.basic.%s"
+	basicCredentialsPath             = "credentials.basic.%s"
+	tlsCredentialsPath               = "credentials.tls.%s"
 )
 
 // CheckBrokerCredentialsFilter checks patch request for the broker basic credentials
@@ -23,16 +24,25 @@ func (*CheckBrokerCredentialsFilter) Name() string {
 }
 
 func (*CheckBrokerCredentialsFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	fields := gjson.GetManyBytes(req.Body, "broker_url", fmt.Sprintf(credentialsPath, "username"), fmt.Sprintf(credentialsPath, "password"))
+	brokerUrl := gjson.GetBytes(req.Body, "broker_url")
+	basicFields := gjson.GetManyBytes(req.Body, fmt.Sprintf(basicCredentialsPath, "username"), fmt.Sprintf(basicCredentialsPath, "password"))
+	tlsFields := gjson.GetManyBytes(req.Body, fmt.Sprintf(tlsCredentialsPath, "client_certificate"), fmt.Sprintf(tlsCredentialsPath, "client_key"))
 
-	if fields[0].Exists() && (!fields[1].Exists() || !fields[2].Exists()) {
+	if brokerUrl.Exists() && credentialsMissing(basicFields, tlsFields) {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
-			Description: "Updating an URL of a broker requires its basic credentials",
+			Description: "Updating an URL of a broker requires its credentials",
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
 	return next.Handle(req)
+}
+
+func credentialsMissing(basicFields []gjson.Result, tlsFields []gjson.Result) bool {
+	if (basicFields[0].Exists() && basicFields[1].Exists()) || (tlsFields[0].Exists() && tlsFields[1].Exists()) {
+		return false
+	}
+	return true
 }
 
 func (*CheckBrokerCredentialsFilter) FilterMatchers() []web.FilterMatcher {
