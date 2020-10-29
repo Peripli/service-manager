@@ -30,14 +30,17 @@ import (
 // Platform entity
 type Platform struct {
 	BaseEntity
-	Type        string         `db:"type"`
-	Name        string         `db:"name"`
-	Description sql.NullString `db:"description"`
-	Username    string         `db:"username"`
-	Password    string         `db:"password"`
-	Integrity   []byte         `db:"integrity"`
-	Active      bool           `db:"active"`
-	LastActive  time.Time      `db:"last_active"`
+	Type              string         `db:"type"`
+	Name              string         `db:"name"`
+	Description       sql.NullString `db:"description"`
+	Username          string         `db:"username"`
+	OldUsername       string         `db:"old_username"`
+	Password          string         `db:"password"`
+	OldPassword       string         `db:"old_password"`
+	Integrity         []byte         `db:"integrity"`
+	Active            bool           `db:"active"`
+	CredentialsActive bool           `db:"credentials_active"`
+	LastActive        time.Time      `db:"last_active"`
 }
 
 func (p *Platform) FromObject(object types.Object) (storage.Entity, error) {
@@ -53,26 +56,36 @@ func (p *Platform) FromObject(object types.Object) (storage.Entity, error) {
 			PagingSequence: platform.PagingSequence,
 			Ready:          platform.Ready,
 		},
-		Type:        platform.Type,
-		Name:        platform.Name,
-		Description: toNullString(platform.Description),
-		Active:      platform.Active,
-		LastActive:  platform.LastActive,
+		Type:              platform.Type,
+		Name:              platform.Name,
+		Description:       toNullString(platform.Description),
+		Active:            platform.Active,
+		CredentialsActive: platform.CredentialsActive,
+		LastActive:        platform.LastActive,
 	}
 
 	if platform.Description != "" {
 		result.Description.Valid = true
 	}
+
+	if platform.GetIntegrity() != nil {
+		result.Integrity = platform.Integrity
+	}
+
 	if platform.Credentials != nil && platform.Credentials.Basic != nil {
 		result.Username = platform.Credentials.Basic.Username
 		result.Password = platform.Credentials.Basic.Password
-		result.Integrity = platform.Credentials.Integrity
+	}
+
+	if platform.OldCredentials != nil && platform.OldCredentials.Basic != nil {
+		result.OldUsername = platform.OldCredentials.Basic.Username
+		result.OldPassword = platform.OldCredentials.Basic.Password
 	}
 	return result, nil
 }
 
 func (p *Platform) ToObject() (types.Object, error) {
-	return &types.Platform{
+	platform := &types.Platform{
 		Base: types.Base{
 			ID:             p.ID,
 			CreatedAt:      p.CreatedAt,
@@ -88,9 +101,19 @@ func (p *Platform) ToObject() (types.Object, error) {
 				Username: p.Username,
 				Password: p.Password,
 			},
-			Integrity: p.Integrity,
 		},
-		Active:     p.Active,
-		LastActive: p.LastActive,
-	}, nil
+		Active:            p.Active,
+		CredentialsActive: p.CredentialsActive,
+		LastActive:        p.LastActive,
+		Integrity:         p.Integrity,
+	}
+	if len(p.OldUsername) > 0 || len(p.OldPassword) > 0 {
+		platform.OldCredentials = &types.Credentials{
+			Basic: &types.Basic{
+				Username: p.OldUsername,
+				Password: p.OldPassword,
+			},
+		}
+	}
+	return platform, nil
 }

@@ -17,6 +17,7 @@
 package types
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -156,7 +157,7 @@ func (e *Operation) InOrphanMitigationState() bool {
 	return !e.DeletionScheduled.IsZero()
 }
 
-func (e *Operation) Sanitize() {
+func (e *Operation) Sanitize(context.Context) {
 	if e != nil {
 		e.Context = nil
 	}

@@ -13,7 +13,17 @@ const (
 	authenticationErrorKey
 	authorizationErrorKey
 	shouldStoreBindingsKey
+	generatePlatformCredentialsKey
 )
+
+func IsGeneratePlatformCredentialsRequired(ctx context.Context) bool {
+	generateRequired := ctx.Value(generatePlatformCredentialsKey)
+	return generateRequired != nil && generateRequired.(bool)
+}
+
+func ContextWithGeneratePlatformCredentialsFlag(ctx context.Context, generate bool) context.Context {
+	return context.WithValue(ctx, generatePlatformCredentialsKey, generate)
+}
 
 // ShouldStoreBindings returns whether the request has to store bindings
 func ShouldStoreBindings(ctx context.Context) bool {
