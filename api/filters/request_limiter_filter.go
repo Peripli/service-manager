@@ -74,6 +74,10 @@ func (rl *RequestLimiterFilter) Run(request *web.Request, next web.Handler) (*we
 	requestsLimit := strconv.FormatInt(limiterContext.Limit, 10)
 	remainingRequests := strconv.FormatInt(limiterContext.Remaining/int64(rl.nodes), 10)
 
+	if resp.Header == nil {
+		resp.Header = http.Header{}
+	}
+
 	resp.Header.Add("X-RateLimit-Limit", requestsLimit)
 	resp.Header.Add("X-RateLimit-Remaining", remainingRequests)
 	resp.Header.Add("X-RateLimit-Reset", resetTimestamp)
