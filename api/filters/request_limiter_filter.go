@@ -49,8 +49,9 @@ func (rl *RequestLimiterFilter) Run(request *web.Request, next web.Handler) (*we
 	if limiterContext.Reached {
 		resetTime, err := strconv.ParseInt(resetTimestamp, 10, 64)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
+
 		tm := time.Unix(resetTime, 0)
 
 		return nil, &util.HTTPError{
@@ -66,13 +67,16 @@ func (rl *RequestLimiterFilter) Run(request *web.Request, next web.Handler) (*we
 		return nil, err
 	}
 
+	if request.IsResponseWriterHijacked() {
+		return resp, err
+	}
+
 	requestsLimit := strconv.FormatInt(limiterContext.Limit, 10)
 	remainingRequests := strconv.FormatInt(limiterContext.Remaining/int64(rl.nodes), 10)
 
 	resp.Header.Add("X-RateLimit-Limit", requestsLimit)
 	resp.Header.Add("X-RateLimit-Remaining", remainingRequests)
 	resp.Header.Add("X-RateLimit-Reset", resetTimestamp)
-
 	return resp, err
 }
 

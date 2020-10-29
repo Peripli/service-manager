@@ -107,9 +107,7 @@ func initRateLimiter(options *Options) (*stdlib.Middleware, error) {
 		return nil, err
 	}
 
-	store := memory.NewStore()
-	instance := limiter.New(store, rate)
-	return stdlib.NewMiddleware(instance), nil
+	return stdlib.NewMiddleware(limiter.New(memory.NewStore(), rate)), nil
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
