@@ -53,10 +53,9 @@ func (rl *RequestLimiterFilter) Run(request *web.Request, next web.Handler) (*we
 		}
 
 		tm := time.Unix(resetTime, 0)
-
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("The allowed request limit has been reached, please try again in %s", tm.Sub(time.Now())),
+			Description: fmt.Sprintf("The allowed request limit has been reached, please try again in %s", time.Until(tm)),
 			StatusCode:  http.StatusTooManyRequests,
 		}
 	}
