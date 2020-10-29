@@ -27,6 +27,26 @@ const (
 func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	ctx := req.Context()
 	logger := log.C(ctx)
+	user, ok := web.UserFromContext(req.Context())
+	if !ok {
+		return nil, errors.New("user details not found in request context")
+	}
+
+	platform, err := extractPlatformFromContext(user)
+	if err != nil {
+		return nil, err
+	}
+
+	if user.Name == platform.Credentials.Basic.Username && !platform.CredentialsActive {
+		logger.Debugf("Activating credentials for platform %s", platform.ID)
+		platform.CredentialsActive = true
+		platform.OldCredentials = nil
+		_, err = c.repository.Update(ctx, platform, nil)
+		if err != nil {
+			logger.Errorf("Could not activate credentials for platform %s: %v", platform.ID, err)
+			return nil, err
+		}
+	}
 
 	revisionKnownToProxy := types.InvalidRevision
 	revisionKnownToProxyStr := req.URL.Query().Get(LastKnownRevisionQueryParam)
@@ -43,15 +63,6 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		}
 	}
 
-	user, ok := web.UserFromContext(req.Context())
-	if !ok {
-		return nil, errors.New("user details not found in request context")
-	}
-
-	platform, err := extractPlatformFromContext(user)
-	if err != nil {
-		return nil, err
-	}
 	notificationQueue, lastKnownToSMRevision, err := c.notificator.RegisterConsumer(platform, revisionKnownToProxy)
 	if err != nil {
 		if err == util.ErrInvalidNotificationRevision {

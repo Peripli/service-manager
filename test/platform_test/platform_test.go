@@ -18,6 +18,8 @@ package platform_test
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/api/filters"
+	"github.com/gavv/httpexpect"
 	"net/http"
 	"sort"
 	"testing"
@@ -221,15 +223,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 			Describe("PATCH", func() {
 				var platform common.Object
+				var platformUser string
+				var platformPassword string
 				const id = "p1"
 
 				BeforeEach(func() {
 					By("Create new platform")
 
 					platform = common.MakePlatform(id, "cf-10", "cf", "descr")
-					ctx.SMWithOAuth.POST(web.PlatformsURL).
+					reply := ctx.SMWithOAuth.POST(web.PlatformsURL).
 						WithJSON(platform).
-						Expect().Status(http.StatusCreated)
+						Expect().Status(http.StatusCreated).JSON().Object()
+					basic := reply.Value("credentials").Object().Value("basic").Object()
+					platformUser = basic.Value("username").String().Raw()
+					platformPassword = basic.Value("password").String().Raw()
 				})
 
 				Context("With all properties updated", func() {
@@ -347,6 +354,146 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							WithJSON(platform2).
 							Expect().
 							Status(http.StatusConflict)
+					})
+				})
+
+				Context("With regenerate credentials query param", func() {
+					getPlatformFromDB := func() *types.Platform {
+						platformObj, err := ctx.SMRepository.Get(context.Background(), types.PlatformType, query.ByField(query.EqualsOperator, "id", id))
+						Expect(err).NotTo(HaveOccurred())
+						return platformObj.(*types.Platform)
+					}
+
+					activatePlatformCredentials := func(user string, password string) {
+						platform := &types.Platform{
+							Credentials: &types.Credentials{
+								Basic: &types.Basic{
+									Username: user,
+									Password: password,
+								},
+							},
+						}
+						_, _, err := ctx.ConnectWebSocket(platform, nil)
+						Expect(err).To(Not(HaveOccurred()))
+					}
+
+					tryCredentials := func(user string, password string, status int) {
+						basicAuth := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+							req.WithBasicAuth(user, password).WithClient(ctx.HttpClient)
+						})}
+						basicAuth.GET(web.PlatformsURL + "/" + id).Expect().Status(status)
+					}
+
+					When("credentials generated with additional properties", func() {
+						It("should succeed", func() {
+							updatedPlatform := common.MakePlatform("", "bla", "cf", "descr2")
+							delete(updatedPlatform, "id")
+
+							ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
+								WithJSON(updatedPlatform).
+								WithQuery(filters.RegenerateCredentialsQueryParam, "true").
+								Expect().
+								Status(http.StatusOK)
+
+							dbPlatform := getPlatformFromDB()
+							Expect(dbPlatform.Credentials.Basic.Username).NotTo(Equal(platformUser))
+							Expect(dbPlatform.Credentials.Basic.Password).NotTo(Equal(platformPassword))
+							Expect(dbPlatform.Name).To(Equal("bla"))
+						})
+					})
+
+					When("credentials are inactive", func() {
+						Context("no old credentials", func() {
+							It("should return new credentials", func() {
+								ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
+									WithJSON(common.Object{}).
+									WithQuery(filters.RegenerateCredentialsQueryParam, "true").
+									Expect().
+									Status(http.StatusOK)
+
+								dbPlatform := getPlatformFromDB()
+								Expect(dbPlatform.OldCredentials).To(BeNil())
+								Expect(dbPlatform.Credentials.Basic.Username).NotTo(Equal(platformUser))
+								Expect(dbPlatform.Credentials.Basic.Password).NotTo(Equal(platformPassword))
+								tryCredentials(dbPlatform.Credentials.Basic.Username, dbPlatform.Credentials.Basic.Password, http.StatusOK)
+							})
+						})
+
+						Context("old credentials exist", func() {
+							BeforeEach(func() {
+								By("generate new credentials and keep the old")
+								activatePlatformCredentials(platformUser, platformPassword)
+								ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
+									WithJSON(common.Object{}).
+									WithQuery(filters.RegenerateCredentialsQueryParam, "true").
+									Expect().
+									Status(http.StatusOK)
+								dbPlatform := getPlatformFromDB()
+								Expect(platformUser).To(Equal(dbPlatform.OldCredentials.Basic.Username))
+								Expect(platformPassword).To(Equal(dbPlatform.OldCredentials.Basic.Password))
+								Expect(dbPlatform.CredentialsActive).To(BeFalse())
+								tryCredentials(dbPlatform.Credentials.Basic.Username, dbPlatform.Credentials.Basic.Password, http.StatusOK)
+								tryCredentials(dbPlatform.OldCredentials.Basic.Username, dbPlatform.OldCredentials.Basic.Password, http.StatusOK)
+							})
+
+							It("should not override old credentials", func() {
+								ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
+									WithJSON(common.Object{}).
+									WithQuery(filters.RegenerateCredentialsQueryParam, "true").
+									Expect().
+									Status(http.StatusOK)
+
+								dbPlatform := getPlatformFromDB()
+								Expect(platformUser).To(Equal(dbPlatform.OldCredentials.Basic.Username))
+								Expect(platformPassword).To(Equal(dbPlatform.OldCredentials.Basic.Password))
+								tryCredentials(dbPlatform.Credentials.Basic.Username, dbPlatform.Credentials.Basic.Password, http.StatusOK)
+								tryCredentials(dbPlatform.OldCredentials.Basic.Username, dbPlatform.OldCredentials.Basic.Password, http.StatusOK)
+							})
+						})
+					})
+
+					When("credentials are active", func() {
+						BeforeEach(func() {
+							activatePlatformCredentials(platformUser, platformPassword)
+							dbPlatform := getPlatformFromDB()
+							Expect(dbPlatform.OldCredentials).To(BeNil())
+							Expect(dbPlatform.CredentialsActive).To(BeTrue())
+						})
+
+						It("should return new credentials and keep current as old", func() {
+							ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
+								WithJSON(common.Object{}).
+								WithQuery(filters.RegenerateCredentialsQueryParam, "true").
+								Expect().
+								Status(http.StatusOK)
+							dbPlatform := getPlatformFromDB()
+							Expect(dbPlatform.Credentials.Basic.Username).NotTo(Equal(platformUser))
+							Expect(dbPlatform.Credentials.Basic.Password).NotTo(Equal(platformPassword))
+							Expect(dbPlatform.OldCredentials.Basic.Username).To(Equal(platformUser))
+							Expect(dbPlatform.OldCredentials.Basic.Password).To(Equal(platformPassword))
+							Expect(dbPlatform.CredentialsActive).To(BeFalse())
+							tryCredentials(dbPlatform.Credentials.Basic.Username, dbPlatform.Credentials.Basic.Password, http.StatusOK)
+							tryCredentials(dbPlatform.OldCredentials.Basic.Username, dbPlatform.OldCredentials.Basic.Password, http.StatusOK)
+						})
+
+						It("old credentials are not usable", func() {
+							By("move new credentials to be old")
+							reply := ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
+								WithJSON(common.Object{}).
+								WithQuery(filters.RegenerateCredentialsQueryParam, "true").
+								Expect().
+								Status(http.StatusOK).JSON().Object()
+
+							By("activate and remove old credentials")
+							basic := reply.Value("credentials").Object().Value("basic").Object()
+							newUser := basic.Value("username").String().Raw()
+							newPassword := basic.Value("password").String().Raw()
+							activatePlatformCredentials(newUser, newPassword)
+							tryCredentials(newUser, newPassword, http.StatusOK)
+
+							By("validate old unusable")
+							tryCredentials(platformUser, platformPassword, http.StatusUnauthorized)
+						})
 					})
 				})
 			})
