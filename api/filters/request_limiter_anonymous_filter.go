@@ -24,7 +24,6 @@ func NewAnonymousRequestLimiterFilter(middleware *stdlib.Middleware, nodes int64
 }
 
 func (rl *AnonymousRequestLimiterFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
-
 	limiterContext, err := rl.middleware.Limiter.Peek(request.Context(), getLimiterKey(request))
 
 	if err != nil {
