@@ -8,7 +8,6 @@ import (
 
 type AnonymousRequestLimiterFilter struct {
 	middleware *stdlib.Middleware
-	preAuth    bool
 	nodes      int64
 }
 

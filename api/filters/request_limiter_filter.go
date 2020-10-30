@@ -13,7 +13,6 @@ import (
 
 type RequestLimiterFilter struct {
 	middleware *stdlib.Middleware
-	preAuth    bool
 	nodes      int64
 }
 
