@@ -13,23 +13,33 @@ import (
 
 type RequestLimiterFilter struct {
 	middleware *stdlib.Middleware
-	nodes      int
+	preAuth    bool
+	nodes      int64
 }
 
-func NewRequestLimiterFilter(middleware *stdlib.Middleware, nodes int) *RequestLimiterFilter {
+func NewRequestLimiterFilter(middleware *stdlib.Middleware, nodes int64) *RequestLimiterFilter {
 	return &RequestLimiterFilter{
 		middleware: middleware,
 		nodes:      nodes,
 	}
 }
 
-func (rl *RequestLimiterFilter) getLimiterKey(webReq *web.Request) string {
+func handleLimitIsReached(resetTime int64) (*web.Response, error) {
+	restAsTime := time.Unix(resetTime, 0)
+	return nil, &util.HTTPError{
+		ErrorType:   "BadRequest",
+		Description: fmt.Sprintf("The allowed request limit has been reached, please try again in %s", time.Until(restAsTime)),
+		StatusCode:  http.StatusTooManyRequests,
+	}
+}
+
+func getLimiterKey(webReq *web.Request) string {
 	user, ok := web.UserFromContext(webReq.Context())
-	if ok && len(user.Name) > 0 {
+	if ok {
 		return user.Name
 	}
 
-	return limiter.GetIPKey(webReq.Request, rl.middleware.TrustForwardHeader)
+	return limiter.GetIPKey(webReq.Request, true)
 }
 
 func (rl *RequestLimiterFilter) Name() string {
@@ -38,30 +48,17 @@ func (rl *RequestLimiterFilter) Name() string {
 
 func (rl *RequestLimiterFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
 
-	key := rl.getLimiterKey(request)
-	limiterContext, err := rl.middleware.Limiter.Get(request.Context(), key)
+	limiterContext, err := rl.middleware.Limiter.Get(request.Context(), getLimiterKey(request))
+
 	if err != nil {
 		return nil, err
 	}
 
-	resetTimestamp := strconv.FormatInt(limiterContext.Reset, 10)
-
 	if limiterContext.Reached {
-		resetTime, err := strconv.ParseInt(resetTimestamp, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-
-		tm := time.Unix(resetTime, 0)
-		return nil, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("The allowed request limit has been reached, please try again in %s", time.Until(tm)),
-			StatusCode:  http.StatusTooManyRequests,
-		}
+		return handleLimitIsReached(limiterContext.Reset)
 	}
 
 	resp, err := next.Handle(request)
-
 	if err != nil {
 		return nil, err
 	}
@@ -70,16 +67,13 @@ func (rl *RequestLimiterFilter) Run(request *web.Request, next web.Handler) (*we
 		return resp, err
 	}
 
-	requestsLimit := strconv.FormatInt(limiterContext.Limit, 10)
-	remainingRequests := strconv.FormatInt(limiterContext.Remaining/int64(rl.nodes), 10)
-
 	if resp.Header == nil {
 		resp.Header = http.Header{}
 	}
 
-	resp.Header.Add("X-RateLimit-Limit", requestsLimit)
-	resp.Header.Add("X-RateLimit-Remaining", remainingRequests)
-	resp.Header.Add("X-RateLimit-Reset", resetTimestamp)
+	resp.Header.Add("X-RateLimit-Limit", strconv.FormatInt(limiterContext.Limit, 10))
+	resp.Header.Add("X-RateLimit-Remaining", strconv.FormatInt(limiterContext.Remaining*rl.nodes, 10))
+	resp.Header.Add("X-RateLimit-Reset", strconv.FormatInt(limiterContext.Reset, 10))
 	return resp, err
 }
 

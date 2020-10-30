@@ -57,11 +57,11 @@ type Settings struct {
 	ProtectedLabels        []string `mapstructure:"protected_labels" description:"defines labels which cannot be modified/added by REST API requests"`
 	OSBVersion             string   `mapstructure:"-"`
 	MaxPageSize            int      `mapstructure:"max_page_size" description:"maximum number of items that could be returned in a single page"`
-	DefaultPageSize        int      `mapstructure:"default_page_size" description:"default number of items returned in a single page if not specified in request"`
-	EnableInstanceTransfer bool     `mapstructure:"enable_instance_transfer" description:"whether service instance transfer is enabled or not"`
-	RateLimit              string   `mapstructure:"rate_limit" description:"the number of allowed requests to any endpoints per client or IP for anonymous requests"`
-	RateLimitingEnabled    bool     `mapstructure:"rate_limiting_enabled" description:"enable rate limiting"`
-	RateLimitingNodes      int      `mapstructure:"rate_limiting_nodes" description:"the number of service manager instances"`
+	DefaultPageSize        int    `mapstructure:"default_page_size" description:"default number of items returned in a single page if not specified in request"`
+	EnableInstanceTransfer bool   `mapstructure:"enable_instance_transfer" description:"whether service instance transfer is enabled or not"`
+	RateLimit              string `mapstructure:"rate_limit" description:"the number of allowed requests to any endpoints per client or IP for anonymous requests"`
+	RateLimitingEnabled    bool   `mapstructure:"rate_limiting_enabled" description:"enable rate limiting"`
+	RateLimitingNodes      int64  `mapstructure:"rate_limiting_nodes" description:"the number of service manager instances"`
 }
 
 // DefaultSettings returns default values for API settings
@@ -103,10 +103,11 @@ func initRateLimiter(options *Options) (*stdlib.Middleware, error) {
 		return nil, nil
 	}
 	rate, err := limiter.NewRateFromFormatted(options.APISettings.RateLimit)
+
 	if err != nil {
 		return nil, err
 	}
-
+	rate.Limit = rate.Limit / options.APISettings.RateLimitingNodes
 	return stdlib.NewMiddleware(limiter.New(memory.NewStore(), rate)), nil
 }
 
@@ -163,6 +164,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 		},
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
+			filters.NewAnonymousRequestLimiterFilter(rateLimiter, options.APISettings.RateLimitingNodes),
 			&filters.Logging{},
 			&filters.SupportedEncodingsFilter{},
 			&filters.SelectionCriteria{},
