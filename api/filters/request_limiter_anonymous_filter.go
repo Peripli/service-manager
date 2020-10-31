@@ -2,6 +2,7 @@ package filters
 
 import (
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/middleware/stdlib"
 	"net/http"
 )
@@ -23,7 +24,7 @@ func NewAnonymousRequestLimiterFilter(middleware *stdlib.Middleware, nodes int64
 }
 
 func (rl *AnonymousRequestLimiterFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
-	limiterContext, err := rl.middleware.Limiter.Peek(request.Context(), getLimiterKey(request))
+	limiterContext, err := rl.middleware.Limiter.Peek(request.Context(), limiter.GetIPKey(request.Request, true))
 
 	if err != nil {
 		return nil, err
@@ -39,7 +40,7 @@ func (rl *AnonymousRequestLimiterFilter) Run(request *web.Request, next web.Hand
 	}
 
 	if resp.StatusCode == http.StatusForbidden {
-		_, err := rl.middleware.Limiter.Get(request.Context(), getLimiterKey(request))
+		_, err := rl.middleware.Limiter.Get(request.Context(), limiter.GetIPKey(request.Request, true))
 		if err != nil {
 			return nil, err
 		}
