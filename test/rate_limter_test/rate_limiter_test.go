@@ -55,7 +55,7 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 
 	Describe("rate limiter", func() {
 
-		FWhen("request is authorized ", func() {
+		When("request is authorized ", func() {
 
 			It("authenticate with a JWT token", func() {
 				ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
