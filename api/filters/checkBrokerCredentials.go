@@ -31,7 +31,7 @@ func (*CheckBrokerCredentialsFilter) Run(req *web.Request, next web.Handler) (*w
 	if brokerUrl.Exists() && credentialsMissing(basicFields, tlsFields) {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
-			Description: "Updating an URL of a broker requires its credentials",
+			Description: "Updating a URL of a broker requires its credentials",
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
