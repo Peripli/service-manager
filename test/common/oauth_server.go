@@ -102,12 +102,12 @@ func (os *OAuthServer) RotateTokenKey() {
 func (os *OAuthServer) getToken(w http.ResponseWriter, r *http.Request) {
 	token := os.CreateToken(map[string]interface{}{
 		"user_name": "testUser",
-	}, "testUser")
+	})
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"access_token": "` + token + `"}`))
 }
 
-func (os *OAuthServer) CreateToken(payload map[string]interface{}, sub string) string {
+func (os *OAuthServer) CreateToken(payload map[string]interface{}) string {
 	var issuerURL string
 	if iss, ok := payload["iss"]; ok {
 		issuerURL = iss.(string)
@@ -119,7 +119,7 @@ func (os *OAuthServer) CreateToken(payload map[string]interface{}, sub string) s
 		Issuer:         issuerURL,
 		KeyID:          os.keyID,
 		Audience:       "sm",
-		Subject:        sub,
+		Subject:        "test-user",
 		ExpirationTime: nextYear,
 		Public:         payload,
 	})

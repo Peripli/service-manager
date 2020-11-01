@@ -491,12 +491,12 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 	SM := httpexpect.New(ginkgo.GinkgoT(), smServer.URL())
 	oauthServer := tcb.Servers[OauthServer].(*OAuthServer)
 	tenantOauthServer := tcb.Servers[TenantOauthServer].(*OAuthServer)
-	accessToken := oauthServer.CreateToken(tcb.defaultTokenClaims, "testUser")
+	accessToken := oauthServer.CreateToken(tcb.defaultTokenClaims)
 	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
 		req.WithHeader("Authorization", "Bearer "+accessToken).WithClient(tcb.HttpClient)
 	})
 
-	tenantAccessToken := tenantOauthServer.CreateToken(tcb.tenantTokenClaims, "testUser")
+	tenantAccessToken := tenantOauthServer.CreateToken(tcb.tenantTokenClaims)
 	SMWithOAuthForTenant := SM.Builder(func(req *httpexpect.Request) {
 		req.WithHeader("Authorization", "Bearer "+tenantAccessToken).WithClient(tcb.HttpClient)
 	})
@@ -513,7 +513,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 		SMScheduler:          smScheduler,
 		HttpClient:           tcb.HttpClient,
 		TenantTokenProvider: func() string {
-			return tenantOauthServer.CreateToken(tcb.tenantTokenClaims, "testUser")
+			return tenantOauthServer.CreateToken(tcb.tenantTokenClaims)
 		},
 	}
 
@@ -534,7 +534,6 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 			username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
 			req.WithBasicAuth(username, password).WithClient(tcb.HttpClient)
 		})
-
 		testContext.SMWithBasic = &SMExpect{SMWithBasic}
 		testContext.TestPlatform = platform
 	}
@@ -804,7 +803,7 @@ func (ctx *TestContext) NewTenantExpect(clientID, tenantIdentifier string, scope
 		"zid":        tenantIdentifier,
 		"grant_type": "password",
 		"scope":      scopes,
-	}, "testUser")
+	})
 
 	return &SMExpect{
 		Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
