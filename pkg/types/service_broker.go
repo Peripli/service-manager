@@ -58,7 +58,7 @@ func (e *ServiceBroker) GetTLSConfig() (*tls.Config, error) {
 	return nil, nil
 }
 
-func (e *ServiceBroker) Sanitize() {
+func (e *ServiceBroker) Sanitize(context.Context) {
 	e.Credentials = nil
 }
 
