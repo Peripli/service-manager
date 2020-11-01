@@ -44,7 +44,7 @@ func getLimiterKey(request *web.Request) string {
 }
 
 func (rl *RateLimiterFilter) Name() string {
-	return "RequestLimiterFilter"
+	return "RateLimiterFilter"
 }
 
 func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
