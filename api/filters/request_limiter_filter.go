@@ -1,10 +1,10 @@
 package filters
 
 import (
-	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/middleware/stdlib"
 	"net/http"
 	"strconv"
@@ -32,26 +32,24 @@ func handleLimitIsReached(resetTime int64) (*web.Response, error) {
 	}
 }
 
-func getLimiterKey(webReq *web.Request) (string, error) {
-	user, ok := web.UserFromContext(webReq.Context())
+func getLimiterKey(request *web.Request) string {
+	user, ok := web.UserFromContext(request.Context())
+
 	if !ok {
-		return "", errors.New("unable to find user context")
+		//Limit public endpoint requests by IP
+		return limiter.GetIPKey(request.Request, true)
 	}
 
-	return user.Name, nil
+	return user.Name
 }
 
 func (rl *RequestLimiterFilter) Name() string {
-	return "request_limiter"
+	return "RequestLimiterFilter"
 }
 
 func (rl *RequestLimiterFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
-	limitByKey, err := getLimiterKey(request)
 
-	if err != nil {
-		return nil, err
-	}
-
+	limitByKey := getLimiterKey(request)
 	limiterContext, err := rl.middleware.Limiter.Get(request.Context(), limitByKey)
 
 	if err != nil {

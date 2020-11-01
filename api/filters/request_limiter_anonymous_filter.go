@@ -13,7 +13,7 @@ type AnonymousRequestLimiterFilter struct {
 }
 
 func (rl *AnonymousRequestLimiterFilter) Name() string {
-	return "request_limiter_anonymous"
+	return "RequestLimiterAnonymousFilter"
 }
 
 func NewAnonymousRequestLimiterFilter(middleware *stdlib.Middleware, nodes int64) *AnonymousRequestLimiterFilter {
