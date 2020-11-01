@@ -67,6 +67,11 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 					Expect().Status(http.StatusOK).Header("X-RateLimit-Remaining").Equal("13")
 			})
 
+			It("access a public endpoint", func() {
+				ctx.SMWithBasic.GET("/v1/info").
+					Expect().Status(http.StatusOK).Header("X-RateLimit-Remaining").Equal("19")
+			})
+
 			It("request limit is exceeded", func() {
 
 			})
@@ -77,7 +82,7 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 
 		})
 
-		When("request anonymous request is rejected", func() {
+		When("anonymous request is rejected", func() {
 			It("request limit is not exceeded", func() {
 
 			})
