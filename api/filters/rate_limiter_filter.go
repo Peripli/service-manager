@@ -11,13 +11,13 @@ import (
 	"time"
 )
 
-type RequestLimiterFilter struct {
+type RateLimiterFilter struct {
 	middleware *stdlib.Middleware
 	nodes      int64
 }
 
-func NewRequestLimiterFilter(middleware *stdlib.Middleware, nodes int64) *RequestLimiterFilter {
-	return &RequestLimiterFilter{
+func NewRateLimiterFilter(middleware *stdlib.Middleware, nodes int64) *RateLimiterFilter {
+	return &RateLimiterFilter{
 		middleware: middleware,
 		nodes:      nodes,
 	}
@@ -43,11 +43,11 @@ func getLimiterKey(request *web.Request) string {
 	return user.Name
 }
 
-func (rl *RequestLimiterFilter) Name() string {
+func (rl *RateLimiterFilter) Name() string {
 	return "RequestLimiterFilter"
 }
 
-func (rl *RequestLimiterFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
+func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
 
 	limitByKey := getLimiterKey(request)
 	limiterContext, err := rl.middleware.Limiter.Get(request.Context(), limitByKey)
@@ -79,7 +79,7 @@ func (rl *RequestLimiterFilter) Run(request *web.Request, next web.Handler) (*we
 	return resp, err
 }
 
-func (rl *RequestLimiterFilter) FilterMatchers() []web.FilterMatcher {
+func (rl *RateLimiterFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{

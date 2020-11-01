@@ -164,7 +164,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 		},
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
-			filters.NewAnonymousRequestLimiterFilter(rateLimiter, options.APISettings.RateLimitingNodes),
+			filters.NewRateLimiterAnonymousFilter(rateLimiter, options.APISettings.RateLimitingNodes),
 			&filters.Logging{},
 			&filters.SupportedEncodingsFilter{},
 			&filters.SelectionCriteria{},
@@ -185,7 +185,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 	}
 
 	if rateLimiter != nil {
-		api.RegisterFiltersAfter(filters.LoggingFilterName, filters.NewRequestLimiterFilter(rateLimiter, options.APISettings.RateLimitingNodes))
+		api.RegisterFiltersAfter(filters.LoggingFilterName, filters.NewRateLimiterFilter(rateLimiter, options.APISettings.RateLimitingNodes))
 	}
 
 	return api, nil

@@ -7,23 +7,23 @@ import (
 	"net/http"
 )
 
-type AnonymousRequestLimiterFilter struct {
+type RateLimiterAnonymousFilter struct {
 	middleware *stdlib.Middleware
 	nodes      int64
 }
 
-func (rl *AnonymousRequestLimiterFilter) Name() string {
+func (rl *RateLimiterAnonymousFilter) Name() string {
 	return "RequestLimiterAnonymousFilter"
 }
 
-func NewAnonymousRequestLimiterFilter(middleware *stdlib.Middleware, nodes int64) *AnonymousRequestLimiterFilter {
-	return &AnonymousRequestLimiterFilter{
+func NewRateLimiterAnonymousFilter(middleware *stdlib.Middleware, nodes int64) *RateLimiterAnonymousFilter {
+	return &RateLimiterAnonymousFilter{
 		middleware: middleware,
 		nodes:      nodes,
 	}
 }
 
-func (rl *AnonymousRequestLimiterFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
+func (rl *RateLimiterAnonymousFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
 	limiterContext, err := rl.middleware.Limiter.Peek(request.Context(), limiter.GetIPKey(request.Request, true))
 
 	if err != nil {
@@ -49,7 +49,7 @@ func (rl *AnonymousRequestLimiterFilter) Run(request *web.Request, next web.Hand
 	return resp, err
 }
 
-func (rl *AnonymousRequestLimiterFilter) FilterMatchers() []web.FilterMatcher {
+func (rl *RateLimiterAnonymousFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
