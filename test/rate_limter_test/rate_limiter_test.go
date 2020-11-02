@@ -1,6 +1,9 @@
 package filter_test
 
 import (
+	"context"
+	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/test"
 	"github.com/gofrs/uuid"
 	"github.com/spf13/pflag"
@@ -20,15 +23,49 @@ func TestFilters(t *testing.T) {
 	RunSpecs(t, "Rate Limiter Tests Suite")
 }
 
+type rateLimiterContextHijackFilter struct {
+	ClientIP string
+	UserName string
+}
+
+func (f rateLimiterContextHijackFilter) Name() string {
+	return "RateLimiterContextHijackFilter"
+}
+
+func (f rateLimiterContextHijackFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
+	if f.ClientIP != "" {
+		request.Header.Set("X-Forwarded-For", f.ClientIP)
+	}
+	user, _ := web.UserFromContext(request.Context())
+	if user != nil && f.UserName != "" {
+		user.Name = f.UserName
+	}
+	return next.Handle(request)
+}
+
+func (f rateLimiterContextHijackFilter) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
+		{
+			Matchers: []web.Matcher{
+				web.Path("**/*"),
+			},
+		},
+	}
+}
+
+
 var _ = Describe("Service Manager Rate Limiter", func() {
 	var ctx *common.TestContext
 	var osbURL string
 	var serviceID string
 	var planID string
-
+	var filterContext = &rateLimiterContextHijackFilter{}
 	JustBeforeEach(func() {
 		ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
 			Expect(set.Set("api.rate_limit", "20-M")).ToNot(HaveOccurred())
+		}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+			smb.RegisterFiltersBefore("RateLimiterAnonymousFilter", filterContext)
+			return nil
 		}).Build()
 
 		UUID, err := uuid.NewV4()
@@ -55,9 +92,13 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 
 	Describe("rate limiter", func() {
 
-		When("request is authorized ", func() {
+		FWhen("request is authorized", func() {
 
-			It("authenticate with a JWT token", func() {
+			FIt("authenticate with a JWT token", func() {
+				UUID, err := uuid.NewV4()
+				Expect(err).ToNot(HaveOccurred())
+				userName := UUID.String()
+				filterContext.UserName = userName
 				ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
 					Expect().Status(http.StatusOK).Header("X-RateLimit-Remaining").Equal("19")
 			})
