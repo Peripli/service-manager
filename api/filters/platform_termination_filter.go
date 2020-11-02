@@ -47,22 +47,19 @@ func (*platformTerminationFilter) Name() string {
 func (f *platformTerminationFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	platformID := req.PathParams[web.PathParamResourceID]
 
-	switch req.Request.Method {
-	case http.MethodDelete:
-		if platformID != "" {
-			ctx := req.Context()
-			byID := query.ByField(query.EqualsOperator, "id", platformID)
-			platformObject, err := f.repository.Get(ctx, types.PlatformType, byID)
-			if err != nil {
-				return nil, util.HandleStorageError(err, types.PlatformType.String())
-			}
-			platform := platformObject.(*types.Platform)
-			if platform.Active {
-				return nil, &util.HTTPError{
-					ErrorType:   "UnprocessableEntity",
-					Description: "Active platform cannot be deleted",
-					StatusCode:  http.StatusUnprocessableEntity,
-				}
+	if req.Request.Method == http.MethodDelete && platformID != "" {
+		ctx := req.Context()
+		byID := query.ByField(query.EqualsOperator, "id", platformID)
+		platformObject, err := f.repository.Get(ctx, types.PlatformType, byID)
+		if err != nil {
+			return nil, util.HandleStorageError(err, types.PlatformType.String())
+		}
+		platform := platformObject.(*types.Platform)
+		if platform.Active {
+			return nil, &util.HTTPError{
+				ErrorType:   "UnprocessableEntity",
+				Description: "Active platform cannot be deleted",
+				StatusCode:  http.StatusUnprocessableEntity,
 			}
 		}
 	}
