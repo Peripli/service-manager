@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/middleware/stdlib"
 	"net/http"
 	"strconv"
@@ -14,14 +14,14 @@ import (
 )
 
 type RateLimiterFilter struct {
-	middleware *stdlib.Middleware
-	nodes      int64
+	middleware  *stdlib.Middleware
+	excludeList []string
 }
 
-func NewRateLimiterFilter(middleware *stdlib.Middleware, nodes int64) *RateLimiterFilter {
+func NewRateLimiterFilter(middleware *stdlib.Middleware, excludeList []string) *RateLimiterFilter {
 	return &RateLimiterFilter{
-		middleware: middleware,
-		nodes:      nodes,
+		middleware:  middleware,
+		excludeList: excludeList,
 	}
 }
 
@@ -35,15 +35,24 @@ func handleLimitIsReached(resetTime int64, limitByKey string, context context.Co
 	}
 }
 
-func getLimiterKey(request *web.Request) string {
+func getLimiterKey(request *web.Request, excludeList []string) (string, bool) {
 	user, ok := web.UserFromContext(request.Context())
 
-	if !ok {
-		//Limit public endpoint requests by IP
-		return limiter.GetIPKey(request.Request, true)
+	//don't restrict global users
+	if user.AccessLevel == web.GlobalAccess || user.AccessLevel == web.AllTenantAccess {
+		return "", false
 	}
 
-	return user.Name
+	if !ok {
+		//don't restrict public endpoints
+		return "", false
+	}
+
+	if slice.StringsAnyEquals(excludeList, user.Name) {
+		return "", false
+	}
+
+	return user.Name, true
 }
 
 func (rl *RateLimiterFilter) Name() string {
@@ -51,7 +60,13 @@ func (rl *RateLimiterFilter) Name() string {
 }
 
 func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
-	limitByKey := getLimiterKey(request)
+	limitByKey, shouldRateLimit := getLimiterKey(request, rl.excludeList)
+
+	//we skip exclude list, public endpoints and global or sub-account all scopes
+	if !shouldRateLimit {
+		return next.Handle(request)
+	}
+
 	limiterContext, err := rl.middleware.Limiter.Get(request.Context(), limitByKey)
 
 	if err != nil {
@@ -76,13 +91,11 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 	}
 
 	limit := strconv.FormatInt(limiterContext.Limit, 10)
-	remaining := strconv.FormatInt(limiterContext.Remaining*rl.nodes, 10)
 	reset := strconv.FormatInt(limiterContext.Reset, 10)
 
-	log.C(request.Context()).Debugf("client key:%s, X-RateLimit-Limit=%s,X-RateLimit-Remaining=%s,X-RateLimit-Reset=%n", limitByKey, limit, remaining, reset)
+	log.C(request.Context()).Debugf("client key:%s, X-RateLimit-Limit=%s,X-RateLimit-Remaining=%s,X-RateLimit-Reset=%n", limitByKey, limit, reset)
 
 	resp.Header.Add("X-RateLimit-Limit", limit)
-	resp.Header.Add("X-RateLimit-Remaining", remaining)
 	resp.Header.Add("X-RateLimit-Reset", reset)
 	return resp, err
 }

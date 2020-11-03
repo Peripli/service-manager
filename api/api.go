@@ -62,6 +62,7 @@ type Settings struct {
 	RateLimit              string   `mapstructure:"rate_limit" description:"the number of allowed requests to any endpoints per client or IP for anonymous requests"`
 	RateLimitingEnabled    bool     `mapstructure:"rate_limiting_enabled" description:"enable rate limiting"`
 	RateLimitingNodes      int64    `mapstructure:"rate_limiting_nodes" description:"the number of service manager instances"`
+	RateLimitExcludeList   []string `mapstructure:"rate_limit_exclude_list" description:"define client users that should be excluded from the rate limiter"`
 }
 
 // DefaultSettings returns default values for API settings
@@ -78,6 +79,7 @@ func DefaultSettings() *Settings {
 		RateLimit:              "10000-H",
 		RateLimitingEnabled:    true,
 		RateLimitingNodes:      1,
+		RateLimitExcludeList:   []string{},
 	}
 }
 
@@ -107,7 +109,7 @@ func initRateLimiter(options *Options) (*stdlib.Middleware, error) {
 	if err != nil {
 		return nil, err
 	}
-	rate.Limit = rate.Limit / options.APISettings.RateLimitingNodes
+
 	return stdlib.NewMiddleware(limiter.New(memory.NewStore(), rate)), nil
 }
 
@@ -184,7 +186,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 	}
 
 	if rateLimiter != nil {
-		api.RegisterFiltersAfter(filters.LoggingFilterName, filters.NewRateLimiterFilter(rateLimiter, options.APISettings.RateLimitingNodes))
+		api.RegisterFiltersAfter(filters.LoggingFilterName, filters.NewRateLimiterFilter(rateLimiter, options.APISettings.RateLimitExcludeList))
 	}
 
 	return api, nil
