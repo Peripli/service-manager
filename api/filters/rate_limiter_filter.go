@@ -1,7 +1,9 @@
 package filters
 
 import (
+	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/ulule/limiter"
@@ -23,7 +25,8 @@ func NewRateLimiterFilter(middleware *stdlib.Middleware, nodes int64) *RateLimit
 	}
 }
 
-func handleLimitIsReached(resetTime int64) (*web.Response, error) {
+func handleLimitIsReached(resetTime int64, limitByKey string, context context.Context) (*web.Response, error) {
+	log.C(context).Info("Request limit has been exceeded for client with key", limitByKey)
 	restAsTime := time.Unix(resetTime, 0)
 	return nil, &util.HTTPError{
 		ErrorType:   "BadRequest",
@@ -48,7 +51,6 @@ func (rl *RateLimiterFilter) Name() string {
 }
 
 func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
-
 	limitByKey := getLimiterKey(request)
 	limiterContext, err := rl.middleware.Limiter.Get(request.Context(), limitByKey)
 
@@ -57,7 +59,7 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 	}
 
 	if limiterContext.Reached {
-		return handleLimitIsReached(limiterContext.Reset)
+		return handleLimitIsReached(limiterContext.Reset, limitByKey, request.Context())
 	}
 
 	resp, err := next.Handle(request)
@@ -73,9 +75,15 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 		resp.Header = http.Header{}
 	}
 
-	resp.Header.Add("X-RateLimit-Limit", strconv.FormatInt(limiterContext.Limit, 10))
-	resp.Header.Add("X-RateLimit-Remaining", strconv.FormatInt(limiterContext.Remaining*rl.nodes, 10))
-	resp.Header.Add("X-RateLimit-Reset", strconv.FormatInt(limiterContext.Reset, 10))
+	limit := strconv.FormatInt(limiterContext.Limit, 10)
+	remaining := strconv.FormatInt(limiterContext.Remaining*rl.nodes, 10)
+	reset := strconv.FormatInt(limiterContext.Reset, 10)
+
+	log.C(request.Context()).Debugf("client key:%s, X-RateLimit-Limit=%s,X-RateLimit-Remaining=%s,X-RateLimit-Reset=%n", limitByKey, limit, remaining, reset)
+
+	resp.Header.Add("X-RateLimit-Limit", limit)
+	resp.Header.Add("X-RateLimit-Remaining", remaining)
+	resp.Header.Add("X-RateLimit-Reset", reset)
 	return resp, err
 }
 
