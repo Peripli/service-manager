@@ -93,7 +93,7 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 	limit := strconv.FormatInt(limiterContext.Limit, 10)
 	reset := strconv.FormatInt(limiterContext.Reset, 10)
 
-	log.C(request.Context()).Debugf("client key:%s, X-RateLimit-Limit=%s,X-RateLimit-Remaining=%s,X-RateLimit-Reset=%n", limitByKey, limit, reset)
+	log.C(request.Context()).Debugf("client key:%s, X-RateLimit-Limit=%s,X-RateLimit-Remaining=%s,X-RateLimit-Reset=%s", limitByKey, limit, reset)
 
 	resp.Header.Add("X-RateLimit-Limit", limit)
 	resp.Header.Add("X-RateLimit-Reset", reset)
