@@ -38,13 +38,13 @@ func handleLimitIsReached(resetTime int64, limitByKey string, context context.Co
 func getLimiterKey(request *web.Request, excludeList []string) (string, bool) {
 	user, ok := web.UserFromContext(request.Context())
 
-	//don't restrict global users
-	if user.AccessLevel == web.GlobalAccess || user.AccessLevel == web.AllTenantAccess {
+	if !ok {
+		//don't restrict public endpoints
 		return "", false
 	}
 
-	if !ok {
-		//don't restrict public endpoints
+	//don't restrict global users
+	if user.AccessLevel == web.GlobalAccess || user.AccessLevel == web.AllTenantAccess {
 		return "", false
 	}
 
