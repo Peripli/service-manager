@@ -1,8 +1,12 @@
 package filters
 
 import (
+	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/middleware/stdlib"
@@ -12,35 +16,66 @@ import (
 )
 
 type RateLimiterFilter struct {
-	middleware *stdlib.Middleware
-	nodes      int64
+	middleware  *stdlib.Middleware
+	excludeList []string
 }
 
-func NewRateLimiterFilter(middleware *stdlib.Middleware, nodes int64) *RateLimiterFilter {
+func NewRateLimiterFilter(middleware *stdlib.Middleware, excludeList []string) *RateLimiterFilter {
 	return &RateLimiterFilter{
-		middleware: middleware,
-		nodes:      nodes,
+		middleware:  middleware,
+		excludeList: excludeList,
 	}
 }
 
-func handleLimitIsReached(resetTime int64) (*web.Response, error) {
-	restAsTime := time.Unix(resetTime, 0)
-	return nil, &util.HTTPError{
+func handleLimitIsReached(limiterContext limiter.Context, username string, isLimitedClient bool, context context.Context) error {
+	if !isLimitedClient {
+		return nil
+	}
+
+	log.C(context).Debugf("Request limit has been exceeded for client with key", username)
+	restAsTime := time.Unix(limiterContext.Reset, 0)
+	return &util.HTTPError{
 		ErrorType:   "BadRequest",
 		Description: fmt.Sprintf("The allowed request limit has been reached, please try again in %s", time.Until(restAsTime)),
 		StatusCode:  http.StatusTooManyRequests,
 	}
 }
 
-func getLimiterKey(request *web.Request) string {
-	user, ok := web.UserFromContext(request.Context())
-
-	if !ok {
-		//Limit public endpoint requests by IP
-		return limiter.GetIPKey(request.Request, true)
+func isRateLimitedClient(userContext *web.UserContext, excludeList []string) (bool, error) {
+	//don't restrict global users
+	if userContext.AccessLevel == web.GlobalAccess || userContext.AccessLevel == web.AllTenantAccess {
+		return false, nil
 	}
 
-	return user.Name
+	if userContext.AuthenticationType == web.Basic {
+		platform := types.Platform{}
+		err := userContext.Data(&platform)
+		if err != nil {
+			return false, err
+		}
+
+		//Skip global platforms
+		if platform.Labels == nil {
+			return false, nil
+		}
+	}
+
+	if slice.StringsAnyEquals(excludeList, userContext.Name) {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func getLimiterKey(request *web.Request) (userContext *web.UserContext) {
+	userContext, ok := web.UserFromContext(request.Context())
+
+	if !ok {
+		//public endpoints
+		return nil
+	}
+
+	return userContext
 }
 
 func (rl *RateLimiterFilter) Name() string {
@@ -48,16 +83,33 @@ func (rl *RateLimiterFilter) Name() string {
 }
 
 func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
+	userContext := getLimiterKey(request)
 
-	limitByKey := getLimiterKey(request)
-	limiterContext, err := rl.middleware.Limiter.Get(request.Context(), limitByKey)
+	if userContext == nil {
+		//skip public endpoints - no user context found
+		return next.Handle(request)
+	}
 
+	isLimitedClient, err := isRateLimitedClient(userContext, rl.excludeList)
+	if err != nil {
+		log.C(request.Context()).WithError(err).Errorf("unable to determine if client should be rate limited")
+		return nil, err
+	}
+
+	limiterContext, err := rl.middleware.Limiter.Get(request.Context(), userContext.Name)
 	if err != nil {
 		return nil, err
 	}
 
+	if limiterContext.Remaining == 1 {
+		log.C(request.Context()).Infof("is_limited_client:%s,client key:%s, X-RateLimit-Limit=%s,X-o-Remaining=%s,X-RateLimit-Reset=%s", userContext.Name, limiterContext.Limit, limiterContext.Reset, isLimitedClient)
+	}
+
 	if limiterContext.Reached {
-		return handleLimitIsReached(limiterContext.Reset)
+		err := handleLimitIsReached(limiterContext, userContext.Name, isLimitedClient, request.Context())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	resp, err := next.Handle(request)
@@ -73,9 +125,15 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 		resp.Header = http.Header{}
 	}
 
-	resp.Header.Add("X-RateLimit-Limit", strconv.FormatInt(limiterContext.Limit, 10))
-	resp.Header.Add("X-RateLimit-Remaining", strconv.FormatInt(limiterContext.Remaining*rl.nodes, 10))
-	resp.Header.Add("X-RateLimit-Reset", strconv.FormatInt(limiterContext.Reset, 10))
+	log.C(request.Context()).Debugf("client key:%s, X-RateLimit-Limit=%s,X-o-Remaining=%s,X-RateLimit-Reset=%s", userContext.Name, limit, reset)
+
+	if isLimitedClient {
+		limit := strconv.FormatInt(limiterContext.Limit, 10)
+		reset := strconv.FormatInt(limiterContext.Reset, 10)
+		resp.Header.Add("X-RateLimit-Limit", limit)
+		resp.Header.Add("X-RateLimit-Reset", reset)
+	}
+
 	return resp, err
 }
 
