@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/pflag"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
@@ -23,16 +24,16 @@ func TestFilters(t *testing.T) {
 	RunSpecs(t, "Rate Limiter Tests Suite")
 }
 
-type rateLimiterContextHijackFilter struct {
+type overrideFilter struct {
 	ClientIP string
 	UserName string
 }
 
-func (f rateLimiterContextHijackFilter) Name() string {
-	return "RateLimiterContextHijackFilter"
+func (f overrideFilter) Name() string {
+	return "RateLimiterOverrideFilter"
 }
 
-func (f rateLimiterContextHijackFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
+func (f overrideFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
 	if f.ClientIP != "" {
 		request.Header.Set("X-Forwarded-For", f.ClientIP)
 	}
@@ -43,7 +44,7 @@ func (f rateLimiterContextHijackFilter) Run(request *web.Request, next web.Handl
 	return next.Handle(request)
 }
 
-func (f rateLimiterContextHijackFilter) FilterMatchers() []web.FilterMatcher {
+func (f overrideFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
@@ -59,12 +60,12 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 	var osbURL string
 	var serviceID string
 	var planID string
-	var filterContext = &rateLimiterContextHijackFilter{}
+	var filterContext = &overrideFilter{}
 	JustBeforeEach(func() {
 		ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
 			Expect(set.Set("api.rate_limit", "20-M")).ToNot(HaveOccurred())
 		}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-			smb.RegisterFiltersBefore("RateLimiterAnonymousFilter", filterContext)
+			smb.RegisterFiltersBefore("RateLimiterFilter", filterContext)
 			return nil
 		}).Build()
 
@@ -94,48 +95,62 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 
 		FWhen("request is authorized", func() {
 
-			FIt("authenticate with a JWT token", func() {
+			It("Authenticate with basic auth (Global Platform) - No limit to be applied", func() {
+				ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
+					Expect().Status(http.StatusOK).Header("X-RateLimit-Remaining").Equal("")
+			})
+
+			It("authenticate with JWT auth", func() {
 				UUID, err := uuid.NewV4()
 				Expect(err).ToNot(HaveOccurred())
 				userName := UUID.String()
 				filterContext.UserName = userName
-				ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
-					Expect().Status(http.StatusOK).Header("X-RateLimit-Remaining").Equal("19")
-			})
-
-			It("authenticate with basic auth", func() {
 				ctx.SMWithOAuth.GET(web.ServiceBrokersURL).
-					Expect().Status(http.StatusOK).Header("X-RateLimit-Remaining").Equal("13")
-			})
-
-			It("access a public endpoint", func() {
-				ctx.SMWithBasic.GET("/v1/info").
 					Expect().Status(http.StatusOK).Header("X-RateLimit-Remaining").Equal("19")
+				filterContext.UserName = ""
+			})
+
+			It("access a public endpoint - no limit to be applied", func() {
+				ctx.SMWithBasic.GET("/v1/info").
+					Expect().Status(http.StatusOK).Header("X-RateLimit-Remaining").Equal("")
 			})
 
 			It("request limit is exceeded", func() {
-
+				UUID, err := uuid.NewV4()
+				Expect(err).ToNot(HaveOccurred())
+				userName := UUID.String()
+				filterContext.UserName = userName
+				for {
+					resp := ctx.SMWithOAuth.GET(web.ServiceBrokersURL).Expect().Status(http.StatusOK)
+					remaining := resp.Header("X-RateLimit-Remaining").Raw()
+					if remaining == "0" {
+						break
+					}
+				}
+				ctx.SMWithOAuth.GET(web.ServiceBrokersURL).Expect().Status(http.StatusTooManyRequests)
+				filterContext.UserName = ""
 			})
 
 			It("request limit is reset", func() {
-
+				UUID, err := uuid.NewV4()
+				Expect(err).ToNot(HaveOccurred())
+				userName := UUID.String()
+				filterContext.UserName = userName
+				for {
+					resp := ctx.SMWithOAuth.GET(web.ServiceBrokersURL).Expect().Status(http.StatusOK)
+					remaining := resp.Header("X-RateLimit-Remaining").Raw()
+					if remaining == "0" {
+						break
+					}
+				}
+				ctx.SMWithOAuth.GET(web.ServiceBrokersURL).Expect().Status(http.StatusTooManyRequests)
+				time.Sleep(61 * time.Second)
+				ctx.SMWithOAuth.GET(web.ServiceBrokersURL).
+					Expect().Status(http.StatusOK).Header("X-RateLimit-Remaining").Equal("19")
+				filterContext.UserName = ""
 			})
 
 		})
 
-		When("anonymous request is rejected", func() {
-			It("request limit is not exceeded", func() {
-
-			})
-
-			It("request limit is exceeded", func() {
-
-			})
-
-			It("request limit is reset", func() {
-
-			})
-
-		})
 	})
 })

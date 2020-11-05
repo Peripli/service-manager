@@ -67,25 +67,14 @@ func isRateLimitedClient(userContext *web.UserContext, excludeList []string) (bo
 	return true, nil
 }
 
-func getLimiterKey(request *web.Request) (userContext *web.UserContext) {
-	userContext, ok := web.UserFromContext(request.Context())
-
-	if !ok {
-		//public endpoints
-		return nil
-	}
-
-	return userContext
-}
-
 func (rl *RateLimiterFilter) Name() string {
 	return "RateLimiterFilter"
 }
 
 func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
-	userContext := getLimiterKey(request)
+	userContext, isProtectedEndpoint := web.UserFromContext(request.Context())
 
-	if userContext == nil {
+	if !isProtectedEndpoint {
 		//skip public endpoints - no user context found
 		return next.Handle(request)
 	}
@@ -125,12 +114,13 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 		resp.Header = http.Header{}
 	}
 
-	log.C(request.Context()).Debugf("client key:%s, X-RateLimit-Limit=%s,X-o-Remaining=%s,X-RateLimit-Reset=%s", userContext.Name, limit, reset)
-
 	if isLimitedClient {
 		limit := strconv.FormatInt(limiterContext.Limit, 10)
 		reset := strconv.FormatInt(limiterContext.Reset, 10)
+		remaining := strconv.FormatInt(limiterContext.Remaining, 10)
+		log.C(request.Context()).Debugf("client key:%s, X-RateLimit-Limit=%s,X-o-Remaining=%s,X-RateLimit-Reset=%s", userContext.Name, limit, remaining, reset)
 		resp.Header.Add("X-RateLimit-Limit", limit)
+		resp.Header.Add("X-RateLimit-Remaining", remaining)
 		resp.Header.Add("X-RateLimit-Reset", reset)
 	}
 
