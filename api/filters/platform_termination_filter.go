@@ -46,8 +46,8 @@ func (*platformTerminationFilter) Name() string {
 
 func (f *platformTerminationFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	platformID := req.PathParams[web.PathParamResourceID]
-
-	if req.Request.Method == http.MethodDelete && platformID != "" {
+	cascadeParam := req.URL.Query().Get(web.QueryParamCascade)
+	if req.Request.Method == http.MethodDelete && platformID != "" && cascadeParam == "true" {
 		ctx := req.Context()
 		byID := query.ByField(query.EqualsOperator, "id", platformID)
 		platformObject, err := f.repository.Get(ctx, types.PlatformType, byID)
