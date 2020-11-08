@@ -11,19 +11,19 @@ import (
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/middleware/stdlib"
 	"net/http"
-	"strconv"
-	"time"
 )
 
 type RateLimiterFilter struct {
-	middleware  *stdlib.Middleware
-	excludeList []string
+	rateLimiters   []*stdlib.Middleware
+	excludeList    []string
+	tenantLabelKey string
 }
 
-func NewRateLimiterFilter(middleware *stdlib.Middleware, excludeList []string) *RateLimiterFilter {
+func NewRateLimiterFilter(middleware []*stdlib.Middleware, excludeList []string, tenantLabelKey string) *RateLimiterFilter {
 	return &RateLimiterFilter{
-		middleware:  middleware,
-		excludeList: excludeList,
+		rateLimiters:   middleware,
+		excludeList:    excludeList,
+		tenantLabelKey: tenantLabelKey,
 	}
 }
 
@@ -33,15 +33,14 @@ func handleLimitIsReached(limiterContext limiter.Context, username string, isLim
 	}
 
 	log.C(context).Debugf("Request limit has been exceeded for client with key", username)
-	restAsTime := time.Unix(limiterContext.Reset, 0)
 	return &util.HTTPError{
 		ErrorType:   "BadRequest",
-		Description: fmt.Sprintf("The allowed request limit has been reached, please try again in %s", time.Until(restAsTime)),
+		Description: fmt.Sprintf("The allowed request limit of %s requests has been reached please try again later", limiterContext.Limit),
 		StatusCode:  http.StatusTooManyRequests,
 	}
 }
 
-func isRateLimitedClient(userContext *web.UserContext, excludeList []string) (bool, error) {
+func (rl *RateLimiterFilter) isRateLimitedClient(userContext *web.UserContext) (bool, error) {
 	//don't restrict global users
 	if userContext.AccessLevel == web.GlobalAccess || userContext.AccessLevel == web.AllTenantAccess {
 		return false, nil
@@ -55,12 +54,17 @@ func isRateLimitedClient(userContext *web.UserContext, excludeList []string) (bo
 		}
 
 		//Skip global platforms
-		if platform.Labels == nil {
+		if platform.Labels[rl.tenantLabelKey] == nil {
 			return false, nil
 		}
+
+		if _, isTenantScopedPlatform := platform.Labels[rl.tenantLabelKey]; !isTenantScopedPlatform {
+			return false, nil
+		}
+
 	}
 
-	if slice.StringsAnyEquals(excludeList, userContext.Name) {
+	if slice.StringsAnyEquals(rl.excludeList, userContext.Name) {
 		return false, nil
 	}
 
@@ -79,52 +83,32 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 		return next.Handle(request)
 	}
 
-	isLimitedClient, err := isRateLimitedClient(userContext, rl.excludeList)
+	isLimitedClient, err := rl.isRateLimitedClient(userContext)
 	if err != nil {
 		log.C(request.Context()).WithError(err).Errorf("unable to determine if client should be rate limited")
 		return nil, err
 	}
 
-	limiterContext, err := rl.middleware.Limiter.Get(request.Context(), userContext.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	if limiterContext.Remaining == 1 {
-		log.C(request.Context()).Infof("is_limited_client:%s,client key:%s, X-RateLimit-Limit=%s,X-o-Remaining=%s,X-RateLimit-Reset=%s", userContext.Name, limiterContext.Limit, limiterContext.Reset, isLimitedClient)
-	}
-
-	if limiterContext.Reached {
-		err := handleLimitIsReached(limiterContext, userContext.Name, isLimitedClient, request.Context())
+	for _, rl := range rl.rateLimiters {
+		limiterContext, err := rl.Limiter.Get(request.Context(), userContext.Name)
 		if err != nil {
 			return nil, err
 		}
+
+		// Log the clients that reach half of the allowed limit
+		if limiterContext.Remaining == limiterContext.Limit/10 {
+			log.C(request.Context()).Infof("the client has already used 10% of it's allowed requests, is_limited_client:%s,client key:%s, X-RateLimit-Limit=%s,X-o-Remaining=%s,X-RateLimit-Reset=%s", isLimitedClient, userContext.Name, limiterContext.Limit, limiterContext.Reset)
+		}
+
+		if limiterContext.Reached {
+			err := handleLimitIsReached(limiterContext, userContext.Name, isLimitedClient, request.Context())
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
-	resp, err := next.Handle(request)
-	if err != nil {
-		return nil, err
-	}
-
-	if request.IsResponseWriterHijacked() {
-		return resp, err
-	}
-
-	if resp.Header == nil {
-		resp.Header = http.Header{}
-	}
-
-	if isLimitedClient {
-		limit := strconv.FormatInt(limiterContext.Limit, 10)
-		reset := strconv.FormatInt(limiterContext.Reset, 10)
-		remaining := strconv.FormatInt(limiterContext.Remaining, 10)
-		log.C(request.Context()).Debugf("client key:%s, X-RateLimit-Limit=%s,X-o-Remaining=%s,X-RateLimit-Reset=%s", userContext.Name, limit, remaining, reset)
-		resp.Header.Add("X-RateLimit-Limit", limit)
-		resp.Header.Add("X-RateLimit-Remaining", remaining)
-		resp.Header.Add("X-RateLimit-Reset", reset)
-	}
-
-	return resp, err
+	return next.Handle(request)
 }
 
 func (rl *RateLimiterFilter) FilterMatchers() []web.FilterMatcher {
