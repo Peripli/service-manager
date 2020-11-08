@@ -17,15 +17,13 @@ type RateLimiterFilter struct {
 	rateLimiters   []*stdlib.Middleware
 	excludeList    []string
 	tenantLabelKey string
-	usernameLogKey string
 }
 
-func NewRateLimiterFilter(middleware []*stdlib.Middleware, excludeList []string, tenantLabelKey, usernameLogKey string) *RateLimiterFilter {
+func NewRateLimiterFilter(middleware []*stdlib.Middleware, excludeList []string, tenantLabelKey string) *RateLimiterFilter {
 	return &RateLimiterFilter{
 		rateLimiters:   middleware,
 		excludeList:    excludeList,
 		tenantLabelKey: tenantLabelKey,
-		usernameLogKey: usernameLogKey,
 	}
 }
 
@@ -34,7 +32,7 @@ func (rl *RateLimiterFilter) handleLimitIsReached(limiterContext limiter.Context
 		return nil
 	}
 
-	log.C(context).WithField(rl.usernameLogKey, username).Debugf("Request limit has been exceeded for client with key", username)
+	log.C(context).Debugf("Request limit has been exceeded for client with key", username)
 	return &util.HTTPError{
 		ErrorType:   "BadRequest",
 		Description: fmt.Sprintf("The allowed request limit of %s requests has been reached please try again later", limiterContext.Limit),
@@ -48,6 +46,7 @@ func (rl *RateLimiterFilter) isRateLimitedClient(userContext *web.UserContext) (
 		return false, nil
 	}
 
+	excludeByName := userContext.Name
 	if userContext.AuthenticationType == web.Basic {
 		platform := types.Platform{}
 		err := userContext.Data(&platform)
@@ -55,18 +54,14 @@ func (rl *RateLimiterFilter) isRateLimitedClient(userContext *web.UserContext) (
 			return false, err
 		}
 
-		//Skip global platforms
-		if platform.Labels[rl.tenantLabelKey] == nil {
-			return false, nil
-		}
-
 		if _, isTenantScopedPlatform := platform.Labels[rl.tenantLabelKey]; !isTenantScopedPlatform {
 			return false, nil
 		}
 
+		excludeByName = platform.Name
 	}
 
-	if slice.StringsAnyEquals(rl.excludeList, userContext.Name) {
+	if slice.StringsAnyEquals(rl.excludeList, excludeByName) {
 		return false, nil
 	}
 
@@ -99,11 +94,11 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 
 		// Log the clients that reach half of the allowed limit
 		if limiterContext.Remaining == limiterContext.Limit/10 {
-			log.C(request.Context()).WithField(rl.usernameLogKey, userContext.Name).Infof("the client has already used 10% of it's allowed requests, is_limited_client:%s,client key:%s, X-RateLimit-Limit=%s,X-o-Remaining=%s,X-RateLimit-Reset=%s", isLimitedClient, userContext.Name, limiterContext.Limit, limiterContext.Reset)
+			log.C(request.Context()).Infof("the client has already used 10% of it's allowed requests, is_limited_client:%s,client key:%s, X-RateLimit-Limit=%s,X-o-Remaining=%s,X-RateLimit-Reset=%s", isLimitedClient, userContext.Name, limiterContext.Limit, limiterContext.Reset)
 		}
 
 		if limiterContext.Reached {
-			err := handleLimitIsReached(limiterContext, userContext.Name, isLimitedClient, request.Context())
+			err := rl.handleLimitIsReached(limiterContext, userContext.Name, isLimitedClient, request.Context())
 			if err != nil {
 				return nil, err
 			}

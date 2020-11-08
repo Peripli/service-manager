@@ -62,7 +62,6 @@ type Settings struct {
 	RateLimit              []string `mapstructure:"rate_limit" description:"the number of allowed requests to any protected endpoint"`
 	RateLimitingEnabled    bool     `mapstructure:"rate_limiting_enabled" description:"enable rate limiting"`
 	RateLimitingNodes      int64    `mapstructure:"rate_limiting_nodes" description:"the number of service manager instances"`
-	RateLimitLogClientKey  string   `mapstructure:"rate_limit_log_client_key" description:"custom log field for clientIds"`
 	RateLimitExcludeList   []string `mapstructure:"rate_limit_exclude_list" description:"define client users that should be excluded from the rate limiter"`
 }
 
@@ -78,7 +77,6 @@ func DefaultSettings() *Settings {
 		DefaultPageSize:        50,
 		EnableInstanceTransfer: false,
 		RateLimit:              []string{"10000-H", "1000-M"},
-		RateLimitLogClientKey:  "username",
 		RateLimitingEnabled:    true,
 		RateLimitingNodes:      1,
 		RateLimitExcludeList:   []string{},
@@ -198,7 +196,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 
 	if rateLimiters != nil {
 		api.RegisterFiltersAfter(filters.LoggingFilterName, filters.NewRateLimiterFilter(rateLimiters,
-			options.APISettings.RateLimitExcludeList, options.TenantLabelKey, options.APISettings.RateLimitLogClientKey))
+			options.APISettings.RateLimitExcludeList, options.TenantLabelKey))
 	}
 
 	return api, nil
