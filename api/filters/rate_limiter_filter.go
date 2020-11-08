@@ -17,22 +17,24 @@ type RateLimiterFilter struct {
 	rateLimiters   []*stdlib.Middleware
 	excludeList    []string
 	tenantLabelKey string
+	usernameLogKey string
 }
 
-func NewRateLimiterFilter(middleware []*stdlib.Middleware, excludeList []string, tenantLabelKey string) *RateLimiterFilter {
+func NewRateLimiterFilter(middleware []*stdlib.Middleware, excludeList []string, tenantLabelKey, usernameLogKey string) *RateLimiterFilter {
 	return &RateLimiterFilter{
 		rateLimiters:   middleware,
 		excludeList:    excludeList,
 		tenantLabelKey: tenantLabelKey,
+		usernameLogKey: usernameLogKey,
 	}
 }
 
-func handleLimitIsReached(limiterContext limiter.Context, username string, isLimitedClient bool, context context.Context) error {
+func (rl *RateLimiterFilter) handleLimitIsReached(limiterContext limiter.Context, username string, isLimitedClient bool, context context.Context) error {
 	if !isLimitedClient {
 		return nil
 	}
 
-	log.C(context).Debugf("Request limit has been exceeded for client with key", username)
+	log.C(context).WithField(rl.usernameLogKey, username).Debugf("Request limit has been exceeded for client with key", username)
 	return &util.HTTPError{
 		ErrorType:   "BadRequest",
 		Description: fmt.Sprintf("The allowed request limit of %s requests has been reached please try again later", limiterContext.Limit),
@@ -89,15 +91,15 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 		return nil, err
 	}
 
-	for _, rl := range rl.rateLimiters {
-		limiterContext, err := rl.Limiter.Get(request.Context(), userContext.Name)
+	for _, rlm := range rl.rateLimiters {
+		limiterContext, err := rlm.Limiter.Get(request.Context(), userContext.Name)
 		if err != nil {
 			return nil, err
 		}
 
 		// Log the clients that reach half of the allowed limit
 		if limiterContext.Remaining == limiterContext.Limit/10 {
-			log.C(request.Context()).Infof("the client has already used 10% of it's allowed requests, is_limited_client:%s,client key:%s, X-RateLimit-Limit=%s,X-o-Remaining=%s,X-RateLimit-Reset=%s", isLimitedClient, userContext.Name, limiterContext.Limit, limiterContext.Reset)
+			log.C(request.Context()).WithField(rl.usernameLogKey, userContext.Name).Infof("the client has already used 10% of it's allowed requests, is_limited_client:%s,client key:%s, X-RateLimit-Limit=%s,X-o-Remaining=%s,X-RateLimit-Reset=%s", isLimitedClient, userContext.Name, limiterContext.Limit, limiterContext.Reset)
 		}
 
 		if limiterContext.Reached {
