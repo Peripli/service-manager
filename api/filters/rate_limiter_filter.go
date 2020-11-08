@@ -11,19 +11,22 @@ import (
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/middleware/stdlib"
 	"net/http"
+	"strings"
 )
 
 type RateLimiterFilter struct {
-	rateLimiters   []*stdlib.Middleware
-	excludeList    []string
-	tenantLabelKey string
+	rateLimiters        []*stdlib.Middleware
+	excludeList         []string
+	excludeByPrefixList []string
+	tenantLabelKey      string
 }
 
-func NewRateLimiterFilter(middleware []*stdlib.Middleware, excludeList []string, tenantLabelKey string) *RateLimiterFilter {
+func NewRateLimiterFilter(middleware []*stdlib.Middleware, excludeList, excludeByPrefixList []string, tenantLabelKey string) *RateLimiterFilter {
 	return &RateLimiterFilter{
-		rateLimiters:   middleware,
-		excludeList:    excludeList,
-		tenantLabelKey: tenantLabelKey,
+		rateLimiters:        middleware,
+		excludeList:         excludeList,
+		tenantLabelKey:      tenantLabelKey,
+		excludeByPrefixList: excludeByPrefixList,
 	}
 }
 
@@ -72,11 +75,20 @@ func (rl *RateLimiterFilter) Name() string {
 	return "RateLimiterFilter"
 }
 
+func (rl *RateLimiterFilter) isAllowedPrefix(path string) bool {
+	for _, excludedPathPrefix := range rl.excludeByPrefixList {
+		if strings.HasPrefix(excludedPathPrefix, path) {
+			return false
+		}
+	}
+	return true
+}
+
 func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
 	userContext, isProtectedEndpoint := web.UserFromContext(request.Context())
 
-	if !isProtectedEndpoint {
-		//skip public endpoints - no user context found
+	if !isProtectedEndpoint || rl.isAllowedPrefix(request.URL.Path) {
+		//skip public endpoints or excluded prefix's
 		return next.Handle(request)
 	}
 
