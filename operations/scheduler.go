@@ -697,32 +697,6 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 	return nil
 }
 
-func (s *Scheduler) FindConcurrentOperation(ctx context.Context, operation *types.Operation) (*types.Operation, error) {
-	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
-		query.ByField(query.EqualsOperator, "resource_type", string(operation.ResourceType)),
-		query.ByField(query.EqualsOperator, "type", string(operation.Type)),
-		query.OrderResultBy("updated_at", query.DescOrder),
-	}
-	sameResourceOperations, err := s.repository.List(ctx, types.OperationType, criteria...)
-	if err != nil {
-		return nil, err
-	}
-	if sameResourceOperations.Len() > 0 {
-		same := sameResourceOperations.ItemAt(0).(*types.Operation)
-		if same.InOrphanMitigationState() {
-			return same, nil
-		}
-		switch same.State {
-		case types.PENDING:
-			return same, nil
-		case types.IN_PROGRESS:
-			return same, nil
-		}
-	}
-	return nil, nil
-}
-
 func initialLogMessage(ctx context.Context, operation *types.Operation, async bool) {
 	var logPrefix string
 	if operation.Reschedule {

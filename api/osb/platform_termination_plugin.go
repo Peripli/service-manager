@@ -39,10 +39,6 @@ func (p *platformTerminationPlugin) Bind(req *web.Request, next web.Handler) (*w
 	return p.validateNotPendingTermination(req, next)
 }
 
-func (p *platformTerminationPlugin) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	return p.validateNotPendingTermination(req, next)
-}
-
 func (p *platformTerminationPlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
 	return p.validateNotPendingTermination(req, next)
 }

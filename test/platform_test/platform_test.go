@@ -578,7 +578,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							return nil
 						})
 						Expect(err).ToNot(HaveOccurred())
-						ctx.SMWithOAuth.DELETE(web.PlatformsURL+"/"+testPlatformID).
+						ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + testPlatformID).
 							Expect().
 							Status(http.StatusOK)
 					})

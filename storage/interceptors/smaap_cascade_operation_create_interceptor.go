@@ -50,6 +50,11 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 			return f(ctx, storage, operation)
 		}
 
+		if duplicate, err := operations.FindCascadeOperationForResource(ctx, storage, operation.ResourceID); err != nil || duplicate != nil {
+			// in case cascade operation does exists for this resource
+			return duplicate, err
+		}
+
 		// init operation properties
 		operation.PlatformID = types.SMPlatform
 		operation.State = types.PENDING
@@ -59,11 +64,6 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 
 		if err := operation.Validate(); err != nil {
 			return nil, err
-		}
-
-		if duplicate, err := doesExistCascadeOperationForResource(ctx, storage, operation); err != nil || duplicate != nil {
-			// in case cascade operation does exists for this resource
-			return duplicate, err
 		}
 
 		cascadeResource, err := storage.Get(ctx, operation.ResourceType, query.ByField(query.EqualsOperator, "id", operation.ResourceID))
@@ -84,22 +84,4 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 
 		return f(ctx, storage, operation)
 	}
-}
-
-func doesExistCascadeOperationForResource(ctx context.Context, storage storage.Repository, operation *types.Operation) (*types.Operation, error) {
-	// if same resource exists in other cascade tree the existing tree/subtree root will be returned
-	// in case of service instance deletion failure errors might be lost but will be available in the original tree
-	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID),
-		query.ByField(query.InOperator, "state", string(types.IN_PROGRESS), string(types.PENDING)),
-		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
-	}
-	op, err := storage.Get(ctx, types.OperationType, criteria...)
-	if err != nil {
-		if err == util.ErrNotFoundInStorage {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return op.(*types.Operation), nil
 }

@@ -292,6 +292,15 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 			}
 		}
 	}
+	if c.supportsCascadeDelete && opCtx.Cascade {
+		concurrentOp, err := operations.FindCascadeOperationForResource(ctx, c.repository, resourceID)
+		if err != nil {
+			return nil, err
+		}
+		if concurrentOp != nil {
+			return util.NewLocationResponse(concurrentOp.GetID(), resourceID, c.resourceBaseURL)
+		}
+	}
 	operation := &types.Operation{
 		Base: types.Base{
 			ID:        UUID.String(),
@@ -310,13 +319,6 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		CascadeRootID: cascadeRootId,
 	}
 	if c.supportsCascadeDelete && opCtx.Cascade {
-		concurrentOp, err := c.scheduler.FindConcurrentOperation(ctx, operation)
-		if err != nil {
-			return nil, err
-		}
-		if concurrentOp != nil {
-			return util.NewLocationResponse(concurrentOp.GetID(), operation.ResourceID, c.resourceBaseURL)
-		}
 		_, err = c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
 		if err != nil {
 			return nil, err

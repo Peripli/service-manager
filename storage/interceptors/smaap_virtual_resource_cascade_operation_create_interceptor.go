@@ -54,6 +54,11 @@ func (co *VirtualResourceCascadeOperationCreateInterceptor) OnTxCreate(f storage
 			return f(ctx, storage, operation)
 		}
 
+		if duplicate, err := operations.FindCascadeOperationForResource(ctx, storage, operation.ResourceID); err != nil || duplicate != nil {
+			// in case cascade operation does exists for this resource
+			return duplicate, err
+		}
+
 		// init operation properties
 		operation.PlatformID = types.SMPlatform
 		operation.State = types.PENDING
@@ -63,11 +68,6 @@ func (co *VirtualResourceCascadeOperationCreateInterceptor) OnTxCreate(f storage
 
 		if err := operation.Validate(); err != nil {
 			return nil, err
-		}
-
-		if duplicate, err := doesExistCascadeOperationForResource(ctx, storage, operation); err != nil || duplicate != nil {
-			// in case cascade operation does exists for this resource
-			return duplicate, err
 		}
 
 		cascadeResource := types.NewTenant(operation.ResourceID, co.TenantIdentifier)

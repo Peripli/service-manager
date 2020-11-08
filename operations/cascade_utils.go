@@ -6,11 +6,31 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/types/cascade"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
 	"github.com/tidwall/gjson"
 	"time"
 )
+
+func FindCascadeOperationForResource(ctx context.Context, storage storage.Repository, resourceID string) (*types.Operation, error) {
+	// if same resource exists in other cascade tree the existing tree/subtree root will be returned
+	// in case of service instance deletion failure errors might be lost but will be available in the original tree
+	criteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, "resource_id", resourceID),
+		query.ByField(query.InOperator, "state", string(types.IN_PROGRESS), string(types.PENDING)),
+		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
+		query.OrderResultBy("updated_at", query.DescOrder),
+	}
+	op, err := storage.Get(ctx, types.OperationType, criteria...)
+	if err != nil {
+		if err == util.ErrNotFoundInStorage {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return op.(*types.Operation), nil
+}
 
 func GetAllLevelsCascadeOperations(ctx context.Context, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
 	// if the root is broker we have to enrich his service offerings and plans
