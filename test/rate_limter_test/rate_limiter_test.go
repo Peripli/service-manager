@@ -54,14 +54,13 @@ func (f overrideFilter) FilterMatchers() []web.FilterMatcher {
 	}
 }
 
-
 var _ = Describe("Service Manager Rate Limiter", func() {
 	var ctx *common.TestContext
 	var osbURL string
 	var serviceID string
 	var planID string
 	var filterContext = &overrideFilter{}
-	var changeContextUser = func () {
+	var changeContextUser = func() {
 		UUID, err := uuid.NewV4()
 		Expect(err).ToNot(HaveOccurred())
 		userName := UUID.String()
@@ -70,6 +69,7 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 	var newRateLimiterEnv = func(limit string, excludePaths string) {
 		ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
 			Expect(set.Set("api.rate_limit", limit)).ToNot(HaveOccurred())
+			Expect(set.Set("api.rate_limiting_enabled", "true")).ToNot(HaveOccurred())
 			Expect(set.Set("api.rate_limit_exclude_paths", excludePaths)).ToNot(HaveOccurred())
 		}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 			smb.RegisterFiltersBefore("RateLimiterFilter", filterContext)
@@ -118,7 +118,7 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 		FWhen("request is authorized", func() {
 
 			It("Authenticate with basic auth (Global Platform) - No limit to be applied", func() {
-				bulkRequest(ctx.SMWithBasic, osbURL + "/v2/catalog", 100)
+				bulkRequest(ctx.SMWithBasic, osbURL+"/v2/catalog", 100)
 			})
 
 			It("access a public endpoint - no limit to be applied", func() {
@@ -169,4 +169,3 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 
 	})
 })
-
