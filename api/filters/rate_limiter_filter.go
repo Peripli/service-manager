@@ -15,26 +15,24 @@ import (
 )
 
 type RateLimiterFilter struct {
-	rateLimiters        []*stdlib.Middleware
-	excludeList         []string
-	excludeByPrefixList []string
-	tenantLabelKey      string
+	rateLimiters      []*stdlib.Middleware
+	excludeClients    []string
+	excludePaths      []string
+	tenantLabelKey    string
+	usageLogThreshold int64
 }
 
-func NewRateLimiterFilter(middleware []*stdlib.Middleware, excludeList, excludeByPrefixList []string, tenantLabelKey string) *RateLimiterFilter {
+func NewRateLimiterFilter(middleware []*stdlib.Middleware, excludeClients, excludePaths []string, usageLogThreshold int64, tenantLabelKey string, ) *RateLimiterFilter {
 	return &RateLimiterFilter{
-		rateLimiters:        middleware,
-		excludeList:         excludeList,
-		tenantLabelKey:      tenantLabelKey,
-		excludeByPrefixList: excludeByPrefixList,
+		rateLimiters:      middleware,
+		excludeClients:    excludeClients,
+		excludePaths:      excludePaths,
+		usageLogThreshold: usageLogThreshold,
+		tenantLabelKey:    tenantLabelKey,
 	}
 }
 
-func (rl *RateLimiterFilter) handleLimitIsReached(limiterContext limiter.Context, username string, isLimitedClient bool, context context.Context) error {
-	if !isLimitedClient {
-		return nil
-	}
-
+func (rl *RateLimiterFilter) handleLimitIsReached(limiterContext limiter.Context, username string, context context.Context) error {
 	log.C(context).Debugf("Request limit has been exceeded for client with key", username)
 	return &util.HTTPError{
 		ErrorType:   "BadRequest",
@@ -64,7 +62,7 @@ func (rl *RateLimiterFilter) isRateLimitedClient(userContext *web.UserContext) (
 		excludeByName = platform.Name
 	}
 
-	if slice.StringsAnyEquals(rl.excludeList, excludeByName) {
+	if slice.StringsAnyEquals(rl.excludeClients, excludeByName) {
 		return false, nil
 	}
 
@@ -75,19 +73,19 @@ func (rl *RateLimiterFilter) Name() string {
 	return "RateLimiterFilter"
 }
 
-func (rl *RateLimiterFilter) isAllowedPrefix(path string) bool {
-	for _, excludedPathPrefix := range rl.excludeByPrefixList {
-		if strings.HasPrefix(excludedPathPrefix, path) {
-			return false
+func (rl *RateLimiterFilter) isExcludedPath(path string) bool {
+	for _, prefix := range rl.excludePaths {
+		if strings.HasPrefix(path, prefix) {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
 	userContext, isProtectedEndpoint := web.UserFromContext(request.Context())
 
-	if !isProtectedEndpoint || rl.isAllowedPrefix(request.URL.Path) {
+	if !isProtectedEndpoint || rl.isExcludedPath(request.URL.Path) {
 		//skip public endpoints or excluded prefix's
 		return next.Handle(request)
 	}
@@ -98,21 +96,23 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 		return nil, err
 	}
 
-	for _, rlm := range rl.rateLimiters {
-		limiterContext, err := rlm.Limiter.Get(request.Context(), userContext.Name)
-		if err != nil {
-			return nil, err
-		}
-
-		// Log the clients that reach half of the allowed limit
-		if limiterContext.Remaining == limiterContext.Limit/10 {
-			log.C(request.Context()).Infof("the client has already used 10% of it's allowed requests, is_limited_client:%s,client key:%s, X-RateLimit-Limit=%s,X-o-Remaining=%s,X-RateLimit-Reset=%s", isLimitedClient, userContext.Name, limiterContext.Limit, limiterContext.Reset)
-		}
-
-		if limiterContext.Reached {
-			err := rl.handleLimitIsReached(limiterContext, userContext.Name, isLimitedClient, request.Context())
+	if isLimitedClient {
+		for _, rlm := range rl.rateLimiters {
+			limiterContext, err := rlm.Limiter.Get(request.Context(), userContext.Name)
 			if err != nil {
 				return nil, err
+			}
+
+			// Log the clients that reach half of the allowed limit
+			if limiterContext.Remaining == limiterContext.Limit / rl.usageLogThreshold {
+				log.C(request.Context()).Infof("the client has already used %s percents of its rate limit quota, is_limited_client:%s,client key:%s, X-RateLimit-Limit=%s,X-o-Remaining=%s,X-RateLimit-Reset=%s", rl.usageLogThreshold, isLimitedClient, userContext.Name, limiterContext.Limit, limiterContext.Reset)
+			}
+
+			if limiterContext.Reached {
+				err := rl.handleLimitIsReached(limiterContext, userContext.Name, request.Context())
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}

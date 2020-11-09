@@ -61,14 +61,35 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 	var serviceID string
 	var planID string
 	var filterContext = &overrideFilter{}
-	JustBeforeEach(func() {
+	var changeContextUser = func () {
+		UUID, err := uuid.NewV4()
+		Expect(err).ToNot(HaveOccurred())
+		userName := UUID.String()
+		filterContext.UserName = userName
+	}
+	var newRateLimiterEnv = func(limit string, excludePaths string) {
 		ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-			Expect(set.Set("api.rate_limit", "20-M")).ToNot(HaveOccurred())
+			Expect(set.Set("api.rate_limit", limit)).ToNot(HaveOccurred())
+			Expect(set.Set("api.rate_limit_exclude_paths", excludePaths)).ToNot(HaveOccurred())
 		}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 			smb.RegisterFiltersBefore("RateLimiterFilter", filterContext)
 			return nil
 		}).Build()
+	}
+	var expectLimitedRequest = func(expect *common.SMExpect, path string) {
+		expect.GET(path).Expect().Status(http.StatusTooManyRequests)
+	}
+	var expectNonLimitedRequest = func(expect *common.SMExpect, path string) {
+		expect.GET(path).Expect().Status(http.StatusOK)
+	}
+	var bulkRequest = func(expect *common.SMExpect, path string, times int) {
+		for i := 1; i <= times; i++ {
+			expectNonLimitedRequest(expect, path)
+		}
+	}
 
+	JustBeforeEach(func() {
+		newRateLimiterEnv("20-M,20-M", "")
 		UUID, err := uuid.NewV4()
 		Expect(err).ToNot(HaveOccurred())
 		planID = UUID.String()
@@ -89,6 +110,7 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 
 	AfterEach(func() {
 		ctx.Cleanup()
+		filterContext.UserName = ""
 	})
 
 	Describe("rate limiter", func() {
@@ -96,61 +118,55 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 		FWhen("request is authorized", func() {
 
 			It("Authenticate with basic auth (Global Platform) - No limit to be applied", func() {
-				ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
-					Expect().Status(http.StatusOK).Header("X-RateLimit-Remaining").Equal("")
-			})
-
-			It("authenticate with JWT auth", func() {
-				UUID, err := uuid.NewV4()
-				Expect(err).ToNot(HaveOccurred())
-				userName := UUID.String()
-				filterContext.UserName = userName
-				ctx.SMWithOAuth.GET(web.ServiceBrokersURL).
-					Expect().Status(http.StatusOK).Header("X-RateLimit-Remaining").Equal("19")
-				filterContext.UserName = ""
+				bulkRequest(ctx.SMWithBasic, osbURL + "/v2/catalog", 100)
 			})
 
 			It("access a public endpoint - no limit to be applied", func() {
-				ctx.SMWithBasic.GET("/v1/info").
-					Expect().Status(http.StatusOK).Header("X-RateLimit-Remaining").Equal("")
+				bulkRequest(ctx.SMWithBasic, "/v1/info", 100)
+				bulkRequest(ctx.SMWithOAuth, "/v1/info", 100)
+			})
+
+			It("access a excluded endpoint - no limit to be applied", func() {
+				newRateLimiterEnv("20-M,20-M", web.PlatformsURL)
+				changeContextUser()
+				bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 100)
+				// Call for non excluded path should be limited
+				bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 20)
+				expectLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
 			})
 
 			It("request limit is exceeded", func() {
-				UUID, err := uuid.NewV4()
-				Expect(err).ToNot(HaveOccurred())
-				userName := UUID.String()
-				filterContext.UserName = userName
-				for {
-					resp := ctx.SMWithOAuth.GET(web.ServiceBrokersURL).Expect().Status(http.StatusOK)
-					remaining := resp.Header("X-RateLimit-Remaining").Raw()
-					if remaining == "0" {
-						break
-					}
-				}
-				ctx.SMWithOAuth.GET(web.ServiceBrokersURL).Expect().Status(http.StatusTooManyRequests)
-				filterContext.UserName = ""
+				changeContextUser()
+				bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 20)
+				expectLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
 			})
 
 			It("request limit is reset", func() {
-				UUID, err := uuid.NewV4()
-				Expect(err).ToNot(HaveOccurred())
-				userName := UUID.String()
-				filterContext.UserName = userName
-				for {
-					resp := ctx.SMWithOAuth.GET(web.ServiceBrokersURL).Expect().Status(http.StatusOK)
-					remaining := resp.Header("X-RateLimit-Remaining").Raw()
-					if remaining == "0" {
-						break
-					}
-				}
-				ctx.SMWithOAuth.GET(web.ServiceBrokersURL).Expect().Status(http.StatusTooManyRequests)
+				changeContextUser()
+				bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 20)
+				expectLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
 				time.Sleep(61 * time.Second)
-				ctx.SMWithOAuth.GET(web.ServiceBrokersURL).
-					Expect().Status(http.StatusOK).Header("X-RateLimit-Remaining").Equal("19")
-				filterContext.UserName = ""
+				bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 3)
+			})
+
+			It("secondary limiter test", func() {
+				newRateLimiterEnv("20-S,30-M", "")
+				changeContextUser()
+				// Exhaust seconds limiter, minute limiter drop from 30 to 10
+				bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 20)
+				time.Sleep(1 * time.Second)
+				// Exhaust minute limiter
+				bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 10)
+				// Expecting second limiter will reset, but minute should be still exhausted
+				time.Sleep(3 * time.Second)
+				expectLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
+				// Expecting all limiters will reset
+				time.Sleep(61 * time.Second)
+				expectNonLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
 			})
 
 		})
 
 	})
 })
+
