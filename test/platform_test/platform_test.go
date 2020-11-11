@@ -539,22 +539,25 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("with active platform", func() {
+					var makePlatformActive = func(platformID string) {
+						err := ctx.SMRepository.InTransaction(context.TODO(), func(ctx context.Context, storage storage.Repository) error {
+							var updatedPlatform types.Object
+							byID := query.ByField(query.EqualsOperator, "id", platformID)
+							platformFromStorage, err := storage.Get(ctx, types.PlatformType, byID)
+							Expect(err).ToNot(HaveOccurred())
+
+							platformFromStorage.(*types.Platform).Active = true
+							if updatedPlatform, err = storage.Update(ctx, platformFromStorage, types.LabelChanges{}); err != nil {
+								return err
+							}
+							Expect(updatedPlatform.(*types.Platform).Active).To(Equal(true))
+							return nil
+						})
+						Expect(err).ToNot(HaveOccurred())
+					}
 					When("sub-resources are exists", func() {
 						JustBeforeEach(func() {
-							err := ctx.SMRepository.InTransaction(context.TODO(), func(ctx context.Context, storage storage.Repository) error {
-								var updatedPlatform types.Object
-								byID := query.ByField(query.EqualsOperator, "id", platformID)
-								platformFromStorage, err := storage.Get(ctx, types.PlatformType, byID)
-								Expect(err).ToNot(HaveOccurred())
-
-								platformFromStorage.(*types.Platform).Active = true
-								if updatedPlatform, err = storage.Update(ctx, platformFromStorage, types.LabelChanges{}); err != nil {
-									return err
-								}
-								Expect(updatedPlatform.(*types.Platform).Active).To(Equal(true))
-								return nil
-							})
-							Expect(err).ToNot(HaveOccurred())
+							makePlatformActive(platformID)
 						})
 						It("should return 422 unprocessable entity for cascade delete", func() {
 							ctx.SMWithOAuth.DELETE(web.PlatformsURL+"/"+platformID).
@@ -571,20 +574,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ctx.SMWithOAuth.POST(web.PlatformsURL).
 								WithJSON(common.MakePlatform(testPlatformID, "platform-with-no-resources", "cf", "descr")).
 								Expect().Status(http.StatusCreated)
-							err := ctx.SMRepository.InTransaction(context.TODO(), func(ctx context.Context, storage storage.Repository) error {
-								var updatedPlatform types.Object
-								byID := query.ByField(query.EqualsOperator, "id", testPlatformID)
-								platformFromStorage, err := storage.Get(ctx, types.PlatformType, byID)
-								Expect(err).ToNot(HaveOccurred())
-
-								platformFromStorage.(*types.Platform).Active = true
-								if updatedPlatform, err = storage.Update(ctx, platformFromStorage, types.LabelChanges{}); err != nil {
-									return err
-								}
-								Expect(updatedPlatform.(*types.Platform).Active).To(Equal(true))
-								return nil
-							})
-							Expect(err).ToNot(HaveOccurred())
+							makePlatformActive(testPlatformID)
 						})
 						It("should return ok", func() {
 							ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + testPlatformID).
