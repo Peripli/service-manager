@@ -94,7 +94,7 @@ var _ = Describe("Service Manager Platform Termination Plugin Tests", func() {
 		}{
 			{"fetchCatalog", "GET", "/v2/catalog", []string{""}, http.StatusOK},
 			{"provision", "PUT", "/v2/service_instances/1234", []string{""}, http.StatusUnprocessableEntity},
-			{"provision", "PUT", "/v2/service_instances/1234", []string{"accepts_incomplete=true"}, http.StatusUnprocessableEntity},
+			{"provisionAsync", "PUT", "/v2/service_instances/1234", []string{"accepts_incomplete=true"}, http.StatusUnprocessableEntity},
 			{"deprovision", "DELETE", "/v2/service_instances/1234", []string{""}, http.StatusOK},
 			{"updateService", "PATCH", "/v2/service_instances/1234", []string{""}, http.StatusUnprocessableEntity},
 			{"fetchService", "GET", "/v2/service_instances/1234", []string{""}, http.StatusOK},

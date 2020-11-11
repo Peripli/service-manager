@@ -18,44 +18,58 @@ var _ = Describe("cascade operations", func() {
 			initTenantResources(true)
 		})
 
-		It("Cascade deleting platform during tenant removal should get location to delete operation created by tenant deletion", func() {
+		When("Cascade deleting platform during tenant removal", func() {
 
-			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
+			var platformOperationID string
 
-			platformOperation, err := ctx.SMRepository.Get(
-				context.Background(),
-				types.OperationType,
-				query.ByField(query.EqualsOperator, "resource_id", platformID),
-				query.ByField(query.EqualsOperator, "type", string(types.DELETE)))
+			JustBeforeEach(func() {
+				triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
 
-			Expect(err).NotTo(HaveOccurred())
-			platformOperationId := platformOperation.GetID()
+				platformOperation, err := ctx.SMRepository.Get(
+					context.Background(),
+					types.OperationType,
+					query.ByField(query.EqualsOperator, "resource_id", platformID),
+					query.ByField(query.EqualsOperator, "type", string(types.DELETE)))
 
-			platformDeleteResponse := ctx.SMWithOAuth.DELETE(web.PlatformsURL+"/"+platformID).
-				WithQuery("cascade", "true").
-				Expect().
-				Status(http.StatusAccepted)
+				Expect(err).NotTo(HaveOccurred())
 
-			Expect(platformDeleteResponse.Header("Location").Raw()).To(HaveSuffix(platformOperationId))
+				platformOperationID = platformOperation.GetID()
+			})
+
+			It("Should get location to delete operation created by tenant deletion", func() {
+
+				platformDeleteResponse := ctx.SMWithOAuth.DELETE(web.PlatformsURL+"/"+platformID).
+					WithQuery("cascade", "true").
+					Expect().
+					Status(http.StatusAccepted)
+
+				Expect(platformDeleteResponse.Header("Location").Raw()).To(HaveSuffix(platformOperationID))
+
+			})
 
 		})
 
-		It("Deleting tenant during platform deletion should pass", func() {
+		When("Deleting tenant during platform deletion", func() {
 
-			ctx.SMWithOAuth.DELETE(web.PlatformsURL+"/"+platformID).
-				WithQuery("cascade", "true").
-				Expect().
-				Status(http.StatusAccepted)
+			JustBeforeEach(func() {
 
-			triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
-			common.VerifyOperationExists(ctx, "", common.OperationExpectations{
-				Category:          types.DELETE,
-				State:             types.SUCCEEDED,
-				ResourceType:      types.TenantType,
-				Reschedulable:     false,
-				DeletionScheduled: false,
+				ctx.SMWithOAuth.DELETE(web.PlatformsURL+"/"+platformID).
+					WithQuery("cascade", "true").
+					Expect().
+					Status(http.StatusAccepted)
+
+				triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
 			})
 
+			It("should pass", func() {
+				common.VerifyOperationExists(ctx, "", common.OperationExpectations{
+					Category:          types.DELETE,
+					State:             types.SUCCEEDED,
+					ResourceType:      types.TenantType,
+					Reschedulable:     false,
+					DeletionScheduled: false,
+				})
+			})
 		})
 
 	})
