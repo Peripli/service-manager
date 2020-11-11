@@ -14,7 +14,7 @@ import (
 var _ = Describe("cascade operations", func() {
 	Context("parallel delete", func() {
 
-		JustBeforeEach(func() {
+		BeforeEach(func() {
 			initTenantResources(true)
 		})
 
@@ -22,7 +22,7 @@ var _ = Describe("cascade operations", func() {
 
 			var platformOperationID string
 
-			JustBeforeEach(func() {
+			BeforeEach(func() {
 				triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
 
 				platformOperation, err := ctx.SMRepository.Get(
@@ -51,7 +51,7 @@ var _ = Describe("cascade operations", func() {
 
 		When("Deleting tenant during platform deletion", func() {
 
-			JustBeforeEach(func() {
+			BeforeEach(func() {
 
 				ctx.SMWithOAuth.DELETE(web.PlatformsURL+"/"+platformID).
 					WithQuery("cascade", "true").
