@@ -97,13 +97,13 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 		Controllers: []web.Controller{
 			NewAsyncController(ctx, options, web.ServiceBrokersURL, types.ServiceBrokerType, false, func() types.Object {
 				return &types.ServiceBroker{}
-			}),
+			}, false),
 			NewController(ctx, options, web.PlatformsURL, types.PlatformType, func() types.Object {
 				return &types.Platform{}
-			}),
+			}, true),
 			NewController(ctx, options, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
-			}),
+			}, false),
 			NewTenantController(options.Repository),
 			NewServiceInstanceController(ctx, options),
 			NewServiceBindingController(ctx, options),
@@ -153,6 +153,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			filters.NewBrokersFilterByVisibility(options.Repository),
 			&filters.CheckBrokerCredentialsFilter{},
 			filters.NewServiceInstanceTransferFilter(options.Repository, options.APISettings.EnableInstanceTransfer),
+			filters.NewPlatformTerminationFilter(options.Repository),
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil

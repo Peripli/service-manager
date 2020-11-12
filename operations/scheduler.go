@@ -560,13 +560,16 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 
 func (s *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObject types.Object, opAfterJob *types.Operation) (types.Object, error) {
 	if err := s.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		var finalState types.OperationState
+		finalState := opAfterJob.State
 		if opAfterJob.Type != types.DELETE && opAfterJob.InOrphanMitigationState() {
 			// successful orphan mitigation for CREATE/UPDATE should still leave the operation as FAILED
 			finalState = types.FAILED
 		} else {
-			// a delete that succeed or an orphan mitigation caused by a delete that succeeded are both successful deletions
-			finalState = types.SUCCEEDED
+			// Guard to avoid set SUCCEEDED state on pending cascade operations
+			if len(opAfterJob.CascadeRootID) == 0 || opAfterJob.State != types.PENDING {
+				// a delete that succeed or an orphan mitigation caused by a delete that succeeded are both successful deletions
+				finalState = types.SUCCEEDED
+			}
 			opAfterJob.Errors = json.RawMessage{}
 		}
 

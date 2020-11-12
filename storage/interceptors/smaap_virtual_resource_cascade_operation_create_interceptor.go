@@ -19,34 +19,38 @@ package interceptors
 import (
 	"context"
 	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"time"
 )
 
-const CascadeOperationCreateInterceptorProviderName = "CascadeOperationCreateInterceptorProvider"
+const VirtualResourceCascadeOperationCreateInterceptorProviderName = "VirtualResourceCascadeOperationCreateInterceptorProvider"
 
-type cascadeOperationCreateInterceptor struct {
+type VirtualResourceCascadeOperationCreateInterceptor struct {
+	TenantIdentifier string
 }
 
-type CascadeOperationCreateInterceptorProvider struct {
+type VirtualResourceCascadeOperationCreateInterceptorProvider struct {
+	TenantIdentifier string
 }
 
-func (c *CascadeOperationCreateInterceptorProvider) Provide() storage.CreateOnTxInterceptor {
-	return &cascadeOperationCreateInterceptor{}
+func (c *VirtualResourceCascadeOperationCreateInterceptorProvider) Provide() storage.CreateOnTxInterceptor {
+	return &VirtualResourceCascadeOperationCreateInterceptor{
+		TenantIdentifier: c.TenantIdentifier,
+	}
 }
 
-func (c *CascadeOperationCreateInterceptorProvider) Name() string {
-	return CascadeOperationCreateInterceptorProviderName
+func (c *VirtualResourceCascadeOperationCreateInterceptorProvider) Name() string {
+	return VirtualResourceCascadeOperationCreateInterceptorProviderName
 }
 
-func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+func (co *VirtualResourceCascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 	return func(ctx context.Context, storage storage.Repository, obj types.Object) (types.Object, error) {
 		operation := obj.(*types.Operation)
+		// currently we have only one virtual object: tenant
 		isVirtual := types.IsVirtualType(operation.ResourceType)
-		if isVirtual || operation.CascadeRootID == "" || operation.Type != types.DELETE {
+		if !isVirtual || operation.CascadeRootID == "" || operation.Type != types.DELETE {
 			return f(ctx, storage, operation)
 		}
 
@@ -66,14 +70,15 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 			return nil, err
 		}
 
-		cascadeResource, err := storage.Get(ctx, operation.ResourceType, query.ByField(query.EqualsOperator, "id", operation.ResourceID))
+		cascadeResource := types.NewTenant(operation.ResourceID, co.TenantIdentifier)
+		ops, err := operations.GetAllLevelsCascadeOperations(ctx, cascadeResource, operation, storage)
+
 		if err != nil {
 			return nil, err
 		}
 
-		ops, err := operations.GetAllLevelsCascadeOperations(ctx, cascadeResource, operation, storage)
-		if err != nil {
-			return nil, err
+		if len(ops) == 0 {
+			operation.State = types.SUCCEEDED
 		}
 
 		for _, op := range ops {
