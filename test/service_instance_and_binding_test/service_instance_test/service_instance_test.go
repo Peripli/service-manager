@@ -114,10 +114,12 @@ var _ = DescribeTestsFor(TestCase{
 	},
 	ResourceType:                           types.ServiceInstanceType,
 	SupportsAsyncOperations:                true,
+	SupportsCascadeDeleteOperations:        true,
 	DisableTenantResources:                 false,
 	StrictlyTenantScoped:                   true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
+	SubResourcesBlueprint:                  subResourcesBlueprint(),
 	ResourcePropertiesToIgnore:             []string{"last_operation", "platform_id"},
 	PatchResource:                          APIResourcePatch,
 	AdditionalTests: func(ctx *TestContext, t *TestCase) {
@@ -3558,6 +3560,39 @@ func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
 	}).Raw()
 
 	return instance
+}
+
+func subResourcesBlueprint() func(ctx *TestContext, auth *SMExpect, async bool, platformID string, resourceType types.ObjectType, instance Object) {
+	return func(ctx *TestContext, auth *SMExpect, async bool, platformID string, resourceType types.ObjectType, instance Object) {
+
+		resp := ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+			WithQuery("async", strconv.FormatBool(async)).
+			WithJSON(Object{
+				"name":                "test-service-binding",
+				"service_instance_id": instance["id"],
+			}).Expect()
+
+		if async {
+			resp.Status(http.StatusAccepted)
+		} else {
+			resp.Status(http.StatusCreated)
+		}
+
+		id, _ := VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+			Category:          types.CREATE,
+			State:             types.SUCCEEDED,
+			ResourceType:      types.ServiceBindingType,
+			Reschedulable:     false,
+			DeletionScheduled: false,
+		})
+
+		VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+			ID:    id,
+			Type:  types.ServiceBindingType,
+			Ready: true,
+		}).Raw()
+
+	}
 }
 
 func prepareBrokerWithCatalog(ctx *TestContext, auth *SMExpect) (*BrokerUtils, *httpexpect.Array) {
