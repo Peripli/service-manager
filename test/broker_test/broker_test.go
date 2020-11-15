@@ -1171,7 +1171,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					Context("when broker_url is changed and the credentials are correct", func() {
-						It("returns 200", func() {
+						It("returns 200 with basic", func() {
 							updatedBrokerJSON := Object{
 								"broker_url": updatedBrokerServer.URL(),
 								"credentials": Object{
@@ -1201,6 +1201,31 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								JSON().Object().
 								ContainsKey("broker_url").
 								Keys().NotContains("services", "credentials")
+						})
+
+						It("returns 200 with tls", func() {
+							updatedBrokerJSON := Object{
+								"broker_url": updatedBrokerServer.URL(),
+								"credentials": Object{
+									"tls": Object{
+										"client_certificate": tls_settings.ClientCertificate,
+										"client_key":         tls_settings.ClientKey,
+									},
+								},
+							}
+
+							updatedBrokerServer.Username = brokerServerWithTLS.Username
+							updatedBrokerServer.Password = brokerServerWithTLS.Password
+
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerIDWithTLS).
+								WithJSON(updatedBrokerJSON).
+								Expect().
+								Status(http.StatusOK).
+								JSON().Object().
+								ContainsKey("broker_url").
+								Keys().NotContains("services", "credentials")
+
+							assertInvocationCount(updatedBrokerServer.CatalogEndpointRequests, 1)
 						})
 					})
 
@@ -1235,48 +1260,96 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							}
 						})
 
-						Context("credentials object is missing", func() {
-							It("returns 400", func() {
-								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
-									WithJSON(updatedBrokerJSON).
-									Expect().
-									Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+						Context("when broker is behind tls", func() {
+							Context("credentials object is missing", func() {
+								It("returns 400", func() {
+									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerIDWithTLS).
+										WithJSON(updatedBrokerJSON).
+										Expect().
+										Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+								})
+							})
+
+							Context("client_certificate is missing", func() {
+								BeforeEach(func() {
+									updatedBrokerJSON["credentials"] = Object{
+										"tls": Object{
+											"client_key": "ck",
+										},
+									}
+								})
+
+								It("returns 400", func() {
+									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerIDWithTLS).
+										WithJSON(updatedBrokerJSON).
+										Expect().
+										Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+								})
+							})
+
+							Context("client_key is missing", func() {
+								BeforeEach(func() {
+									updatedBrokerJSON["credentials"] = Object{
+										"tls": Object{
+											"client_certificate": "cc",
+										},
+									}
+								})
+
+								It("returns 400", func() {
+									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerIDWithTLS).
+										WithJSON(updatedBrokerJSON).
+										Expect().
+										Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+								})
 							})
 						})
 
-						Context("username is missing", func() {
-							BeforeEach(func() {
-								updatedBrokerJSON["credentials"] = Object{
-									"basic": Object{
-										"password": "b",
-									},
-								}
+						Context("when broker is using basic credentials", func() {
+							Context("credentials object is missing", func() {
+								It("returns 400", func() {
+									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
+										WithJSON(updatedBrokerJSON).
+										Expect().
+										Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+								})
 							})
 
-							It("returns 400", func() {
-								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
-									WithJSON(updatedBrokerJSON).
-									Expect().
-									Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+							Context("username is missing", func() {
+								BeforeEach(func() {
+									updatedBrokerJSON["credentials"] = Object{
+										"basic": Object{
+											"password": "b",
+										},
+									}
+								})
+
+								It("returns 400", func() {
+									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
+										WithJSON(updatedBrokerJSON).
+										Expect().
+										Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+								})
+							})
+
+							Context("password is missing", func() {
+								BeforeEach(func() {
+									updatedBrokerJSON["credentials"] = Object{
+										"basic": Object{
+											"username": "a",
+										},
+									}
+								})
+
+								It("returns 400", func() {
+									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
+										WithJSON(updatedBrokerJSON).
+										Expect().
+										Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+								})
 							})
 						})
 
-						Context("password is missing", func() {
-							BeforeEach(func() {
-								updatedBrokerJSON["credentials"] = Object{
-									"basic": Object{
-										"username": "a",
-									},
-								}
-							})
-
-							It("returns 400", func() {
-								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
-									WithJSON(updatedBrokerJSON).
-									Expect().
-									Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
-							})
-						})
 					})
 				})
 

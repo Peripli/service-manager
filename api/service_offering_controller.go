@@ -34,7 +34,7 @@ func NewServiceOfferingController(ctx context.Context, options *Options) *Servic
 	return &ServiceOfferingController{
 		BaseController: NewController(ctx, options, web.ServiceOfferingsURL, types.ServiceOfferingType, func() types.Object {
 			return &types.ServiceOffering{}
-		}),
+		}, false),
 	}
 }
 func (c *ServiceOfferingController) Routes() []web.Route {

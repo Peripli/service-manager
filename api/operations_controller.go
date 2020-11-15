@@ -18,7 +18,7 @@ func NewOperationsController(ctx context.Context, options *Options) *OperationsC
 	return &OperationsController{
 		BaseController: NewController(ctx, options, web.OperationsURL, types.OperationType, func() types.Object {
 			return &types.Operation{}
-		}),
+		}, false),
 	}
 }
 
