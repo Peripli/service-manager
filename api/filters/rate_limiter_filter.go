@@ -22,7 +22,7 @@ type RateLimiterFilter struct {
 	usageLogThreshold int64
 }
 
-func NewRateLimiterFilter(middleware []*stdlib.Middleware, excludeClients, excludePaths []string, usageLogThreshold int64, tenantLabelKey string, ) *RateLimiterFilter {
+func NewRateLimiterFilter(middleware []*stdlib.Middleware, excludeClients, excludePaths []string, usageLogThreshold int64, tenantLabelKey string) *RateLimiterFilter {
 	return &RateLimiterFilter{
 		rateLimiters:      middleware,
 		excludeClients:    excludeClients,
@@ -104,7 +104,7 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 			}
 
 			// Log the clients that reach half of the allowed limit
-			if limiterContext.Remaining == limiterContext.Limit / rl.usageLogThreshold {
+			if limiterContext.Remaining == limiterContext.Limit/rl.usageLogThreshold {
 				log.C(request.Context()).Infof("the client has already used %s percents of its rate limit quota, is_limited_client:%s,client key:%s, X-RateLimit-Limit=%s,X-o-Remaining=%s,X-RateLimit-Reset=%s", rl.usageLogThreshold, isLimitedClient, userContext.Name, limiterContext.Limit, limiterContext.Reset)
 			}
 
