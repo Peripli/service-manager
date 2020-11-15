@@ -64,6 +64,7 @@ const (
 	TenantIDValue                      = "tenantID"
 	serviceNotSupportingContextUpdates = "serviceNotSupportingContextUpdatesID"
 	service1CatalogID                  = "service1CatalogID"
+	notRetrievableService              = "notRetrievableService"
 	plan1CatalogID                     = "plan1CatalogID"
 	planNotSupportingSMPlatform        = "planNotSupportingSmID"
 	MaximumPollingDuration             = 2 // seconds
@@ -113,10 +114,12 @@ var _ = DescribeTestsFor(TestCase{
 	},
 	ResourceType:                           types.ServiceInstanceType,
 	SupportsAsyncOperations:                true,
+	SupportsCascadeDeleteOperations:        true,
 	DisableTenantResources:                 false,
 	StrictlyTenantScoped:                   true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
+	SubResourcesBlueprint:                  subResourcesBlueprint(),
 	ResourcePropertiesToIgnore:             []string{"last_operation", "platform_id"},
 	PatchResource:                          APIResourcePatch,
 	AdditionalTests: func(ctx *TestContext, t *TestCase) {
@@ -248,6 +251,91 @@ var _ = DescribeTestsFor(TestCase{
 
 			AfterEach(func() {
 				ctx.CleanupAdditionalResources()
+			})
+
+			Describe("get parameters", func() {
+				When("service instance does not exist", func() {
+					It("should return an error", func() {
+						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/jkljlj" + web.ParametersURL).Expect().
+							Status(http.StatusNotFound)
+					})
+				})
+
+				When("service instance exists", func() {
+					var instanceName string
+					var serviceID string
+					JustBeforeEach(func() {
+						Expect(serviceID).ToNot(BeEmpty())
+						planId := findPlanIDForCatalogID(ctx, brokerID, serviceID, plan1CatalogID)
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, planId, TenantIDValue)
+						postInstanceRequest["service_plan_id"] = planId
+						resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
+						instanceName = resp.JSON().Object().Value("name").String().Raw()
+						Expect(instanceName).ToNot(BeEmpty())
+
+					})
+					Describe("not retrievable service instances", func() {
+						BeforeEach(func() {
+							serviceID = notRetrievableService
+						})
+
+						It("Should return an error", func() {
+							ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + web.ParametersURL).Expect().
+								Status(http.StatusBadRequest)
+						})
+
+					})
+					Describe("retrievable service instances", func() {
+						BeforeEach(func() {
+							serviceID = service1CatalogID
+							postInstanceRequest["parameters"] = map[string]string{
+								"cat": "Freddy",
+								"dog": "Lucy",
+							}
+
+						})
+						When("async operations is requested", func() {
+							It("Should return an error", func() {
+								url := web.ServiceInstancesURL + "/" + instanceID + web.ParametersURL
+								ctx.SMWithOAuthForTenant.GET(url).WithQuery("async", true).Expect().
+									Status(http.StatusBadRequest)
+							})
+						})
+						When("parameters are not readable", func() {
+							BeforeEach(func() {
+								brokerServer.ServiceInstanceHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
+									"parameters":    "mayamayamay:s",
+									"dashboard_url": "http://dashboard.com",
+								}))
+							})
+							It("should return an error", func() {
+								ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + web.ParametersURL).Expect().
+									Status(http.StatusBadGateway)
+							})
+						})
+						When("parameters are valid", func() {
+							BeforeEach(func() {
+								brokerServer.ServiceInstanceHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
+									"parameters": map[string]string{
+										"cat": "Freddy",
+										"dog": "Lucy",
+									},
+									"dashboard_url": "http://dashboard.com",
+								}))
+							})
+							It("should return parameters", func() {
+								response := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + web.ParametersURL).Expect()
+								response.Status(http.StatusOK)
+								jsonObject := response.JSON().Object()
+								jsonObject.Value("cat").String().Equal("Freddy")
+								jsonObject.Value("dog").String().Equal("Lucy")
+
+							})
+						})
+
+					})
+
+				})
 			})
 
 			Describe("GET", func() {
@@ -3474,6 +3562,39 @@ func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
 	return instance
 }
 
+func subResourcesBlueprint() func(ctx *TestContext, auth *SMExpect, async bool, platformID string, resourceType types.ObjectType, instance Object) {
+	return func(ctx *TestContext, auth *SMExpect, async bool, platformID string, resourceType types.ObjectType, instance Object) {
+
+		resp := ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+			WithQuery("async", strconv.FormatBool(async)).
+			WithJSON(Object{
+				"name":                "test-service-binding",
+				"service_instance_id": instance["id"],
+			}).Expect()
+
+		if async {
+			resp.Status(http.StatusAccepted)
+		} else {
+			resp.Status(http.StatusCreated)
+		}
+
+		id, _ := VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+			Category:          types.CREATE,
+			State:             types.SUCCEEDED,
+			ResourceType:      types.ServiceBindingType,
+			Reschedulable:     false,
+			DeletionScheduled: false,
+		})
+
+		VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+			ID:    id,
+			Type:  types.ServiceBindingType,
+			Ready: true,
+		}).Raw()
+
+	}
+}
+
 func prepareBrokerWithCatalog(ctx *TestContext, auth *SMExpect) (*BrokerUtils, *httpexpect.Array) {
 	return prepareBrokerWithCatalogAndPollingDuration(ctx, auth, 0)
 }
@@ -3502,9 +3623,16 @@ func prepareBrokerWithCatalogAndPollingDuration(ctx *TestContext, auth *SMExpect
 	if err != nil {
 		panic(err)
 	}
+	cPaidPlan4 := GenerateTestPlanWithID(plan1CatalogID)
+	cService3 := GenerateTestServiceWithPlansWithID(notRetrievableService, cPaidPlan4)
+	cService3, err = sjson.Set(cService3, "instances_retrievable", false)
+	if err != nil {
+		panic(err)
+	}
 	catalog := NewEmptySBCatalog()
 	catalog.AddService(cService)
 	catalog.AddService(cService2)
+	catalog.AddService(cService3)
 	brokerUtils := ctx.RegisterBrokerWithCatalog(catalog)
 	brokerID := brokerUtils.Broker.ID
 	server := brokerUtils.Broker.BrokerServer

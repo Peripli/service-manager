@@ -144,6 +144,10 @@ func (cr *integrityRepository) Count(ctx context.Context, objectType types.Objec
 	return cr.repository.Count(ctx, objectType, criteria...)
 }
 
+func (cr *integrityRepository) CountLabelValues(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error) {
+	return cr.repository.CountLabelValues(ctx, objectType, criteria...)
+}
+
 func (cr *integrityRepository) DeleteReturning(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	return cr.repository.DeleteReturning(ctx, objectType, criteria...)
 }

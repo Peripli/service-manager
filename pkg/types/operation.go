@@ -17,6 +17,7 @@
 package types
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -91,6 +92,7 @@ type Operation struct {
 type OperationContext struct {
 	Async             bool   `json:"async"`
 	IsAsyncNotDefined bool   `json:"is_async_not_defined"`
+	Cascade           bool   `json:"-"`
 	ServicePlanID     string `json:"service_plan_id"`
 	ServiceInstanceID string `json:"service_instance_id"`
 }
@@ -156,7 +158,7 @@ func (e *Operation) InOrphanMitigationState() bool {
 	return !e.DeletionScheduled.IsZero()
 }
 
-func (e *Operation) Sanitize() {
+func (e *Operation) Sanitize(context.Context) {
 	if e != nil {
 		e.Context = nil
 	}

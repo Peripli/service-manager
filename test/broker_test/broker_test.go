@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -220,6 +221,93 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				RemoveAllBrokers(ctx.SMRepository)
 
 				repository = ctx.SMRepository
+			})
+
+			Describe("GET", func() {
+				var (
+					k8sPlatform   *types.Platform
+					k8sAgent      *common.SMExpect
+					brokerID      string
+					planCatalogID string
+				)
+
+				assertBrokerForPlatformByID := func(agent *common.SMExpect, brokerID interface{}, status int) {
+					k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceBrokersURL, brokerID.(string))).
+						Expect().
+						Status(status)
+				}
+
+				assertBrokersForPlatformWithQuery := func(agent *common.SMExpect, query map[string]interface{}, brokers ...interface{}) {
+					q := url.Values{}
+					for k, v := range query {
+						q.Set(k, fmt.Sprint(v))
+					}
+					queryString := q.Encode()
+					result := agent.ListWithQuery(web.ServiceBrokersURL, queryString).Path("$[*].id").Array()
+					result.Length().Equal(len(brokers))
+					if len(brokers) > 0 {
+						result.ContainsOnly(brokers...)
+					}
+				}
+
+				assertBrokersForPlatform := func(agent *common.SMExpect, brokers ...interface{}) {
+					assertBrokersForPlatformWithQuery(agent, nil, brokers...)
+				}
+
+				BeforeEach(func() {
+					k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+					k8sPlatform = common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
+					k8sAgent = &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+						username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
+						req.WithBasicAuth(username, password)
+					})}
+
+					plan := common.GeneratePaidTestPlan()
+					planCatalogID = gjson.Get(plan, "id").String()
+					service := common.GenerateTestServiceWithPlans(plan)
+					catalog := common.NewEmptySBCatalog()
+					catalog.AddService(service)
+					brokerID = ctx.RegisterBrokerWithCatalog(catalog).Broker.ID
+				})
+
+				AfterEach(func() {
+					ctx.CleanupAdditionalResources()
+				})
+
+				Context("with no visibilities for any of the broker's plans", func() {
+					It("should return not found", func() {
+						assertBrokersForPlatform(k8sAgent, nil...)
+						assertBrokerForPlatformByID(k8sAgent, brokerID, http.StatusNotFound)
+					})
+
+					It("should not list broker with field query broker id", func() {
+						assertBrokersForPlatformWithQuery(k8sAgent,
+							map[string]interface{}{
+								"fieldQuery": fmt.Sprintf("broker_id eq '%s'", brokerID),
+							}, nil...)
+					})
+				})
+
+				Context("with public visibility for broker's plan", func() {
+					BeforeEach(func() {
+						ctx.TestContextData.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(planCatalogID, "", "")
+					})
+					It("should return one broker", func() {
+						assertBrokersForPlatform(k8sAgent, brokerID)
+						assertBrokerForPlatformByID(k8sAgent, brokerID, http.StatusOK)
+					})
+				})
+
+				Context("with visibility for platform and one of the broker's plans", func() {
+					BeforeEach(func() {
+						ctx.TestContextData.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(planCatalogID, k8sPlatform.ID, "")
+					})
+
+					It("should return the broker", func() {
+						assertBrokersForPlatform(k8sAgent, brokerID)
+						assertBrokerForPlatformByID(k8sAgent, brokerID, http.StatusOK)
+					})
+				})
 			})
 
 			Describe("POST", func() {
@@ -1083,7 +1171,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					Context("when broker_url is changed and the credentials are correct", func() {
-						It("returns 200", func() {
+						It("returns 200 with basic", func() {
 							updatedBrokerJSON := Object{
 								"broker_url": updatedBrokerServer.URL(),
 								"credentials": Object{
@@ -1113,6 +1201,31 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								JSON().Object().
 								ContainsKey("broker_url").
 								Keys().NotContains("services", "credentials")
+						})
+
+						It("returns 200 with tls", func() {
+							updatedBrokerJSON := Object{
+								"broker_url": updatedBrokerServer.URL(),
+								"credentials": Object{
+									"tls": Object{
+										"client_certificate": tls_settings.ClientCertificate,
+										"client_key":         tls_settings.ClientKey,
+									},
+								},
+							}
+
+							updatedBrokerServer.Username = brokerServerWithTLS.Username
+							updatedBrokerServer.Password = brokerServerWithTLS.Password
+
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerIDWithTLS).
+								WithJSON(updatedBrokerJSON).
+								Expect().
+								Status(http.StatusOK).
+								JSON().Object().
+								ContainsKey("broker_url").
+								Keys().NotContains("services", "credentials")
+
+							assertInvocationCount(updatedBrokerServer.CatalogEndpointRequests, 1)
 						})
 					})
 
@@ -1147,48 +1260,96 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							}
 						})
 
-						Context("credentials object is missing", func() {
-							It("returns 400", func() {
-								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
-									WithJSON(updatedBrokerJSON).
-									Expect().
-									Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+						Context("when broker is behind tls", func() {
+							Context("credentials object is missing", func() {
+								It("returns 400", func() {
+									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerIDWithTLS).
+										WithJSON(updatedBrokerJSON).
+										Expect().
+										Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+								})
+							})
+
+							Context("client_certificate is missing", func() {
+								BeforeEach(func() {
+									updatedBrokerJSON["credentials"] = Object{
+										"tls": Object{
+											"client_key": "ck",
+										},
+									}
+								})
+
+								It("returns 400", func() {
+									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerIDWithTLS).
+										WithJSON(updatedBrokerJSON).
+										Expect().
+										Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+								})
+							})
+
+							Context("client_key is missing", func() {
+								BeforeEach(func() {
+									updatedBrokerJSON["credentials"] = Object{
+										"tls": Object{
+											"client_certificate": "cc",
+										},
+									}
+								})
+
+								It("returns 400", func() {
+									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerIDWithTLS).
+										WithJSON(updatedBrokerJSON).
+										Expect().
+										Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+								})
 							})
 						})
 
-						Context("username is missing", func() {
-							BeforeEach(func() {
-								updatedBrokerJSON["credentials"] = Object{
-									"basic": Object{
-										"password": "b",
-									},
-								}
+						Context("when broker is using basic credentials", func() {
+							Context("credentials object is missing", func() {
+								It("returns 400", func() {
+									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
+										WithJSON(updatedBrokerJSON).
+										Expect().
+										Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+								})
 							})
 
-							It("returns 400", func() {
-								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
-									WithJSON(updatedBrokerJSON).
-									Expect().
-									Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+							Context("username is missing", func() {
+								BeforeEach(func() {
+									updatedBrokerJSON["credentials"] = Object{
+										"basic": Object{
+											"password": "b",
+										},
+									}
+								})
+
+								It("returns 400", func() {
+									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
+										WithJSON(updatedBrokerJSON).
+										Expect().
+										Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+								})
+							})
+
+							Context("password is missing", func() {
+								BeforeEach(func() {
+									updatedBrokerJSON["credentials"] = Object{
+										"basic": Object{
+											"username": "a",
+										},
+									}
+								})
+
+								It("returns 400", func() {
+									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
+										WithJSON(updatedBrokerJSON).
+										Expect().
+										Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+								})
 							})
 						})
 
-						Context("password is missing", func() {
-							BeforeEach(func() {
-								updatedBrokerJSON["credentials"] = Object{
-									"basic": Object{
-										"username": "a",
-									},
-								}
-							})
-
-							It("returns 400", func() {
-								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
-									WithJSON(updatedBrokerJSON).
-									Expect().
-									Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
-							})
-						})
 					})
 				})
 

@@ -58,10 +58,12 @@ type BaseController struct {
 
 	supportsAsync  bool
 	isAsyncDefault bool
+
+	supportsCascadeDelete bool
 }
 
 // NewController returns a new base controller
-func NewController(ctx context.Context, options *Options, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object) *BaseController {
+func NewController(ctx context.Context, options *Options, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, supportsCascadeDelete bool) *BaseController {
 	poolSize := options.OperationSettings.DefaultPoolSize
 	for _, pool := range options.OperationSettings.Pools {
 		if pool.Resource == objectType.String() {
@@ -70,21 +72,22 @@ func NewController(ctx context.Context, options *Options, resourceBaseURL string
 		}
 	}
 	controller := &BaseController{
-		repository:      options.Repository,
-		resourceBaseURL: resourceBaseURL,
-		objectBlueprint: objectBlueprint,
-		objectType:      objectType,
-		DefaultPageSize: options.APISettings.DefaultPageSize,
-		MaxPageSize:     options.APISettings.MaxPageSize,
-		scheduler:       operations.NewScheduler(ctx, options.Repository, options.OperationSettings, poolSize, options.WaitGroup),
+		repository:            options.Repository,
+		resourceBaseURL:       resourceBaseURL,
+		objectBlueprint:       objectBlueprint,
+		objectType:            objectType,
+		DefaultPageSize:       options.APISettings.DefaultPageSize,
+		MaxPageSize:           options.APISettings.MaxPageSize,
+		scheduler:             operations.NewScheduler(ctx, options.Repository, options.OperationSettings, poolSize, options.WaitGroup),
+		supportsCascadeDelete: supportsCascadeDelete,
 	}
 
 	return controller
 }
 
 // NewAsyncController returns a new base controller with a scheduler making it effectively an async controller
-func NewAsyncController(ctx context.Context, options *Options, resourceBaseURL string, objectType types.ObjectType, isAsyncDefault bool, objectBlueprint func() types.Object) *BaseController {
-	controller := NewController(ctx, options, resourceBaseURL, objectType, objectBlueprint)
+func NewAsyncController(ctx context.Context, options *Options, resourceBaseURL string, objectType types.ObjectType, isAsyncDefault bool, objectBlueprint func() types.Object, supportsCascadeDelete bool) *BaseController {
+	controller := NewController(ctx, options, resourceBaseURL, objectType, objectBlueprint, supportsCascadeDelete)
 	controller.supportsAsync = true
 	controller.isAsyncDefault = isAsyncDefault
 
@@ -209,7 +212,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	cleanObject(createdObj.GetLastOperation())
+	cleanObject(ctx, createdObj.GetLastOperation())
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
 }
 
@@ -239,19 +242,24 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 
 // DeleteSingleObject handles the deletion of the object with the id specified in the request
 func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[web.PathParamResourceID]
+	resourceID := r.PathParams[web.PathParamResourceID]
 	ctx := r.Context()
-	log.C(ctx).Debugf("Deleting %s with id %s", c.objectType, objectID)
+	log.C(ctx).Debugf("Deleting %s with id %s", c.objectType, resourceID)
 
-	byID := query.ByField(query.EqualsOperator, "id", objectID)
+	byID := query.ByField(query.EqualsOperator, "id", resourceID)
 	ctx, err := query.AddCriteria(ctx, byID)
 	if err != nil {
 		return nil, err
 	}
 	r.Request = r.WithContext(ctx)
 	criteria := query.CriteriaForContext(ctx)
+	opCtx := c.prepareOperationContextByRequest(r)
 
 	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+		// At this point, the resource will be already deleted if cascade operation requested.
+		if c.supportsCascadeDelete && opCtx.Cascade {
+			return nil, nil
+		}
 		err := repository.Delete(ctx, c.objectType, criteria...)
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
@@ -259,6 +267,39 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
+	}
+	var cascadeRootId = ""
+	if opCtx.Cascade {
+		if c.supportsCascadeDelete {
+			// Scan if requested resource really exists
+			resources, err := c.repository.List(ctx, c.objectType, criteria...)
+			if err != nil {
+				return nil, util.HandleStorageError(err, c.objectType.String())
+			}
+			if resources.Len() == 0 {
+				return nil, &util.HTTPError{
+					ErrorType:   "NotFound",
+					Description: "Resource not found",
+					StatusCode:  http.StatusNotFound,
+				}
+			}
+			cascadeRootId = UUID.String()
+		} else {
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: "Cascade delete is not supported for this API",
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+	}
+	if c.supportsCascadeDelete && opCtx.Cascade {
+		concurrentOp, err := operations.FindCascadeOperationForResource(ctx, c.repository, resourceID)
+		if err != nil {
+			return nil, err
+		}
+		if concurrentOp != nil {
+			return util.NewLocationResponse(concurrentOp.GetID(), resourceID, c.resourceBaseURL)
+		}
 	}
 	operation := &types.Operation{
 		Base: types.Base{
@@ -270,13 +311,20 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		},
 		Type:          types.DELETE,
 		State:         types.IN_PROGRESS,
-		ResourceID:    objectID,
+		ResourceID:    resourceID,
 		ResourceType:  c.objectType,
 		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
-		Context:       c.prepareOperationContextByRequest(r),
+		Context:       opCtx,
+		CascadeRootID: cascadeRootId,
 	}
-
+	if c.supportsCascadeDelete && opCtx.Cascade {
+		_, err = c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
+		if err != nil {
+			return nil, err
+		}
+		return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
+	}
 	_, isAsync, err := c.scheduler.ScheduleStorageAction(ctx, operation, action, c.supportsAsync)
 	if err != nil {
 		return nil, err
@@ -302,13 +350,13 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	cleanObject(object)
+	cleanObject(ctx, object)
 
 	if err := attachLastOperation(ctx, objectID, object, c.repository); err != nil {
 		return nil, err
 	}
 
-	cleanObject(object.GetLastOperation())
+	cleanObject(ctx, object.GetLastOperation())
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
@@ -333,7 +381,7 @@ func GetResourceOperation(r *web.Request, repository storage.Repository, objectT
 	}
 	criteria := query.CriteriaForContext(ctx)
 	operation, err := repository.Get(ctx, types.OperationType, criteria...)
-	cleanObject(operation)
+	cleanObject(ctx, operation)
 	if err != nil {
 		return nil, util.HandleStorageError(err, objectType.String())
 	}
@@ -486,14 +534,14 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	cleanObject(object.GetLastOperation())
-	cleanObject(object)
+	cleanObject(ctx, object.GetLastOperation())
+	cleanObject(ctx, object)
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
-func cleanObject(object types.Object) {
+func cleanObject(ctx context.Context, object types.Object) {
 	if secured, ok := object.(types.Strip); ok {
-		secured.Sanitize()
+		secured.Sanitize(ctx)
 	}
 }
 func getResourceIds(resources types.ObjectList) []string {
@@ -630,6 +678,7 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types.OperationContext {
 	operationContext := &types.OperationContext{}
 	async := r.URL.Query().Get(web.QueryParamAsync)
+	cascade := r.URL.Query().Get(web.QueryParamCascade)
 
 	if async == "" {
 		operationContext.Async = false
@@ -640,6 +689,15 @@ func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types
 	} else {
 		operationContext.Async = true
 		operationContext.IsAsyncNotDefined = false
+	}
+
+	if cascade == "true" {
+		operationContext.Cascade = true
+		if operationContext.IsAsyncNotDefined {
+			operationContext.Async = true
+		}
+	} else {
+		operationContext.Cascade = false
 	}
 
 	return operationContext
@@ -658,7 +716,7 @@ func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count,
 
 	for i := 0; i < objectList.Len(); i++ {
 		obj := objectList.ItemAt(i)
-		cleanObject(obj)
+		cleanObject(ctx, obj)
 		page.Items = append(page.Items, obj)
 	}
 

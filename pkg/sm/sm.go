@@ -151,6 +151,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 	securityBuilder, securityFilters := NewSecurityBuilder()
 	API.RegisterFiltersAfter(filters.LoggingFilterName, securityFilters...)
+	API.RegisterFilters(&filters.RegeneratePlatformCredentialsFilter{})
 
 	storageHealthIndicator, err := storage.NewSQLHealthIndicator(storage.PingFunc(smStorage.PingContext))
 	if err != nil {
@@ -158,7 +159,10 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	API.SetIndicator(storageHealthIndicator)
-	API.SetIndicator(healthcheck.NewPlatformIndicator(ctx, interceptableRepository, nil))
+	API.SetIndicator(healthcheck.NewPlatformIndicator(ctx, interceptableRepository, func(p *types.Platform) bool {
+		hours := time.Since(p.LastActive).Hours()
+		return hours > cfg.Health.PlatformMaxInactive.Hours()
+	}))
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,
@@ -196,6 +200,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	smb.RegisterPluginsBefore(osb.CheckInstanceOwnerhipPluginName, osb.NewStorePlugin(interceptableRepository))
 	smb.RegisterPluginsBefore(osb.OSBStorePluginName, osb.NewCheckVisibilityPlugin(interceptableRepository))
 	smb.RegisterPlugins(osb.NewCheckPlatformIDPlugin(interceptableRepository))
+	smb.RegisterPlugins(osb.NewPlatformTerminationPlugin(interceptableRepository))
 
 	// Register default interceptors that represent the core SM business logic
 	smb.
@@ -210,12 +215,22 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 			CatalogLoader: catalog.Load,
 		}).Register().
 		WithCreateAroundTxInterceptorProvider(types.PlatformType, &interceptors.GeneratePlatformCredentialsInterceptorProvider{}).Register().
+		WithUpdateAroundTxInterceptorProvider(types.PlatformType, &interceptors.RegeneratePlatformCredentialsInterceptorProvider{}).Register().
 		WithCreateOnTxInterceptorProvider(types.VisibilityType, &interceptors.VisibilityCreateNotificationsInterceptorProvider{}).Register().
 		WithUpdateOnTxInterceptorProvider(types.VisibilityType, &interceptors.VisibilityUpdateNotificationsInterceptorProvider{}).Register().
 		WithDeleteOnTxInterceptorProvider(types.VisibilityType, &interceptors.VisibilityDeleteNotificationsInterceptorProvider{}).Register().
-		WithCreateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsCreateInterceptorProvider{}).Before(interceptors.BrokerCreateCatalogInterceptorName).Register().
-		WithUpdateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsUpdateInterceptorProvider{}).Before(interceptors.BrokerUpdateCatalogInterceptorName).Register().
-		WithDeleteOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register()
+		WithCreateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsCreateInterceptorProvider{
+			TenantKey:            cfg.Multitenancy.LabelKey,
+			NotificationsKeepFor: cfg.Storage.Notification.KeepFor,
+		}).Before(interceptors.BrokerCreateCatalogInterceptorName).Register().
+		WithUpdateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsUpdateInterceptorProvider{
+			TenantKey:            cfg.Multitenancy.LabelKey,
+			NotificationsKeepFor: cfg.Storage.Notification.KeepFor,
+		}).Before(interceptors.BrokerUpdateCatalogInterceptorName).Register().
+		WithDeleteOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{
+			TenantKey:            cfg.Multitenancy.LabelKey,
+			NotificationsKeepFor: cfg.Storage.Notification.KeepFor,
+		}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register()
 
 	baseSMAAPInterceptorProvider := &interceptors.BaseSMAAPInterceptorProvider{
 		OSBClientCreateFunc: osbClientProvider,
@@ -250,7 +265,8 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		}).Register().
 		WithDeleteAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingDeleteInterceptorProvider{
 			BaseSMAAPInterceptorProvider: baseSMAAPInterceptorProvider,
-		}).Register()
+		}).Register().
+		WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.CascadeOperationCreateInterceptorProvider{}).Register()
 
 	return smb, nil
 }
@@ -543,7 +559,7 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.OperationsCreateInsterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).Register()
-	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.CascadeOperationCreateInterceptorProvider{
+	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.VirtualResourceCascadeOperationCreateInterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).Register()
 

@@ -36,6 +36,9 @@ const (
 
 	// QueryParamAsync is the value used to denote the query key used to convey a client's intent whether the request should be executed async or not
 	QueryParamAsync = "async"
+
+	// QueryParamCascade is the value used to denote the action to be applied on requested resource should include child sub-resources
+	QueryParamCascade = "cascade"
 )
 
 // API is the primary point for REST API registration
