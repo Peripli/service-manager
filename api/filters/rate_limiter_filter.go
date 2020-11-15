@@ -33,10 +33,10 @@ func NewRateLimiterFilter(middleware []*stdlib.Middleware, excludeClients, exclu
 }
 
 func (rl *RateLimiterFilter) handleLimitIsReached(limiterContext limiter.Context, username string, context context.Context) error {
-	log.C(context).Debugf("Request limit has been exceeded for client with key", username)
+	log.C(context).Debugf("Request limit has been exceeded for client with key: %s", username)
 	return &util.HTTPError{
 		ErrorType:   "BadRequest",
-		Description: fmt.Sprintf("The allowed request limit of %s requests has been reached please try again later", limiterContext.Limit),
+		Description: fmt.Sprintf("The allowed request limit of %d requests has been reached please try again later", limiterContext.Limit),
 		StatusCode:  http.StatusTooManyRequests,
 	}
 }
@@ -105,7 +105,7 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 
 			// Log the clients that reach half of the allowed limit
 			if limiterContext.Remaining == limiterContext.Limit/rl.usageLogThreshold {
-				log.C(request.Context()).Infof("the client has already used %s percents of its rate limit quota, is_limited_client:%s,client key:%s, X-RateLimit-Limit=%s,X-o-Remaining=%s,X-RateLimit-Reset=%s", rl.usageLogThreshold, isLimitedClient, userContext.Name, limiterContext.Limit, limiterContext.Reset)
+				log.C(request.Context()).Infof("the client has already used %d percents of its rate limit quota, is_limited_client:%t,client key:%s, X-RateLimit-Limit=%d,X-o-Remaining=%d,X-RateLimit-Reset=%d", rl.usageLogThreshold, isLimitedClient, userContext.Name, limiterContext.Limit, limiterContext.Remaining, limiterContext.Reset)
 			}
 
 			if limiterContext.Reached {
