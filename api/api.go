@@ -61,7 +61,6 @@ type Settings struct {
 	EnableInstanceTransfer     bool     `mapstructure:"enable_instance_transfer" description:"whether service instance transfer is enabled or not"`
 	RateLimit                  []string `mapstructure:"rate_limit" description:"the number of allowed requests to any protected endpoint"`
 	RateLimitingEnabled        bool     `mapstructure:"rate_limiting_enabled" description:"enable rate limiting"`
-	RateLimitingNodes          int64    `mapstructure:"rate_limiting_nodes" description:"the number of service manager instances"`
 	RateLimitExcludeClients    []string `mapstructure:"rate_limit_exclude_clients" description:"define client users that should be excluded from the rate limiter processing"`
 	RateLimitExcludePaths      []string `mapstructure:"rate_limit_exclude_paths" description:"define paths that should be excluded from the rate limiter processing"`
 	RateLimitUsageLogThreshold int64    `mapstructure:"rate_limiting_usage_log_threshold" description:"defines a threshold for log notification trigger about requests limit usage. Accepts value in range from 0 to 100 (percents)"`
@@ -80,7 +79,6 @@ func DefaultSettings() *Settings {
 		EnableInstanceTransfer:     false,
 		RateLimit:                  []string{"10000-H", "1000-M"},
 		RateLimitingEnabled:        false,
-		RateLimitingNodes:          1,
 		RateLimitExcludeClients:    []string{},
 		RateLimitUsageLogThreshold: 10,
 	}

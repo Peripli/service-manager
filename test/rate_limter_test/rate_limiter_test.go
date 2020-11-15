@@ -60,17 +60,20 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 	var serviceID string
 	var planID string
 	var filterContext = &overrideFilter{}
-	var changeContextUser = func() {
+	var changeClientIdentifier = func() string {
 		UUID, err := uuid.NewV4()
 		Expect(err).ToNot(HaveOccurred())
 		userName := UUID.String()
 		filterContext.UserName = userName
+		return userName
 	}
-	var newRateLimiterEnv = func(limit string, excludePaths string) {
+	var newRateLimiterEnv = func(limit string, customizer func(set *pflag.FlagSet)) {
 		ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
 			Expect(set.Set("api.rate_limit", limit)).ToNot(HaveOccurred())
 			Expect(set.Set("api.rate_limiting_enabled", "true")).ToNot(HaveOccurred())
-			Expect(set.Set("api.rate_limit_exclude_paths", excludePaths)).ToNot(HaveOccurred())
+			if customizer != nil {
+				customizer(set)
+			}
 		}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 			smb.RegisterFiltersBefore("RateLimiterFilter", filterContext)
 			return nil
@@ -88,8 +91,8 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 		}
 	}
 
-	JustBeforeEach(func() {
-		newRateLimiterEnv("20-M,20-M", "")
+	BeforeEach(func() {
+		newRateLimiterEnv("20-M,20-M", nil)
 		UUID, err := uuid.NewV4()
 		Expect(err).ToNot(HaveOccurred())
 		planID = UUID.String()
@@ -115,57 +118,84 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 
 	Describe("rate limiter", func() {
 
-		FWhen("request is authorized", func() {
+		Context("request is authorized", func() {
 
-			It("Authenticate with basic auth (Global Platform) - No limit to be applied", func() {
-				bulkRequest(ctx.SMWithBasic, osbURL+"/v2/catalog", 100)
+			When("basic auth (global Platform)", func() {
+				It("no limit to be applied", func() {
+					bulkRequest(ctx.SMWithBasic, osbURL+"/v2/catalog", 100)
+				})
 			})
 
-			It("access a public endpoint - no limit to be applied", func() {
-				bulkRequest(ctx.SMWithBasic, "/v1/info", 100)
-				bulkRequest(ctx.SMWithOAuth, "/v1/info", 100)
+			When("endpoint is public", func() {
+				BeforeEach(func() {
+					bulkRequest(ctx.SMWithOAuth, "/v1/info", 100)
+				})
+				It("no limit to be applied", func() {
+					expectNonLimitedRequest(ctx.SMWithOAuth, "/v1/info")
+				})
 			})
 
-			It("access a excluded endpoint - no limit to be applied", func() {
-				newRateLimiterEnv("20-M,20-M", web.PlatformsURL)
-				changeContextUser()
-				bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 100)
-				// Call for non excluded path should be limited
-				bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 20)
-				expectLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
+			When("endpoint is excluded", func() {
+				BeforeEach(func() {
+					newRateLimiterEnv("20-M,20-M", func(set *pflag.FlagSet) {
+						Expect(set.Set("api.rate_limit_exclude_paths", web.ServiceBrokersURL)).ToNot(HaveOccurred())
+					})
+					changeClientIdentifier()
+					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 20)
+				})
+				It("no limit to be applied", func() {
+					expectNonLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
+				})
 			})
 
-			It("request limit is exceeded", func() {
-				changeContextUser()
-				bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 20)
-				expectLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
+			When("doing too many requests", func() {
+				BeforeEach(func() {
+					changeClientIdentifier()
+					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 20)
+				})
+				It("apply request limit", func() {
+					expectLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
+				})
+				It("reset the limit after", func() {
+					time.Sleep(61 * time.Second)
+					expectNonLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
+				})
 			})
 
-			It("request limit is reset", func() {
-				changeContextUser()
-				bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 20)
-				expectLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
-				time.Sleep(61 * time.Second)
-				bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 3)
+			When("exclude client configured", func() {
+				BeforeEach(func() {
+					client := changeClientIdentifier()
+					newRateLimiterEnv("20-M,20-M", func(set *pflag.FlagSet) {
+						Expect(set.Set("api.rate_limit_exclude_clients", client)).ToNot(HaveOccurred())
+					})
+					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 20)
+				})
+				It("no limit to be applied", func() {
+					expectNonLimitedRequest(ctx.SMWithOAuth, web.PlatformsURL)
+				})
 			})
 
-			It("secondary limiter test", func() {
-				newRateLimiterEnv("20-S,30-M", "")
-				changeContextUser()
-				// Exhaust seconds limiter, minute limiter drop from 30 to 10
-				bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 20)
-				time.Sleep(1 * time.Second)
-				// Exhaust minute limiter
-				bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 10)
-				// Expecting second limiter will reset, but minute should be still exhausted
-				time.Sleep(3 * time.Second)
-				expectLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
-				// Expecting all limiters will reset
-				time.Sleep(61 * time.Second)
-				expectNonLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
+			When("two limiters configured", func() {
+				BeforeEach(func() {
+					newRateLimiterEnv("20-S,30-M", nil)
+					changeClientIdentifier()
+					// Exhaust seconds limiter, minute limiter drop from 30 to 10
+					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 20)
+					time.Sleep(1 * time.Second)
+					// Exhaust minute limiter
+					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 10)
+					// Expecting second limiter will reset, but minute should be still exhausted
+					time.Sleep(3 * time.Second)
+				})
+				It("apply request limit using secondary limiter", func() {
+					expectLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
+				})
+				It("resets the limit after", func() {
+					// Expecting all limiters will reset
+					time.Sleep(61 * time.Second)
+					expectNonLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
+				})
 			})
-
 		})
-
 	})
 })
