@@ -475,13 +475,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect(dbPlatform.CredentialsActive).To(BeTrue())
 						})
 
-						/*It("credential information doesn't retun in response", func() {
-							reply := ctx.SMWithOAuth.GET(web.PlatformsURL + "/" + id).
-								Expect().
-								Status(http.StatusOK).JSON().Object()
-							data := reply.Raw()
-						})*/
-
 						It("should return new credentials and keep current as old", func() {
 							ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
 								WithJSON(common.Object{}).
@@ -496,6 +489,15 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect(dbPlatform.CredentialsActive).To(BeFalse())
 							tryCredentials(dbPlatform.Credentials.Basic.Username, dbPlatform.Credentials.Basic.Password, http.StatusOK)
 							tryCredentials(dbPlatform.OldCredentials.Basic.Username, dbPlatform.OldCredentials.Basic.Password, http.StatusOK)
+
+							By("verify sensitive fields are sanitized")
+							reply := ctx.SMWithOAuth.GET(web.PlatformsURL + "/" + id).
+								Expect().
+								Status(http.StatusOK).JSON().Object()
+							reply.NotContainsKey("credentials")
+							reply.NotContainsKey("old_credentials")
+							reply.NotContainsKey("credentials_active")
+
 						})
 
 						It("old credentials are not usable", func() {
