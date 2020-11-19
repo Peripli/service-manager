@@ -18,6 +18,7 @@ package platform_test
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/gavv/httpexpect"
 	"net/http"
@@ -361,7 +362,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					getPlatformFromDB := func() *types.Platform {
 						platformObj, err := ctx.SMRepository.Get(context.Background(), types.PlatformType, query.ByField(query.EqualsOperator, "id", id))
 						Expect(err).NotTo(HaveOccurred())
-						return platformObj.(*types.Platform)
+						dbPlatform := platformObj.(*types.Platform)
+						//unmarshaling from json in order to validate this functionality
+						data, err := json.Marshal(dbPlatform)
+						Expect(err).ToNot(HaveOccurred())
+						pl := &types.Platform{}
+						err = json.Unmarshal(data, pl)
+						Expect(err).ToNot(HaveOccurred())
+						return pl
 					}
 
 					activatePlatformCredentials := func(user string, password string) {
@@ -403,7 +411,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					When("credentials are inactive", func() {
-						Context("no old credentials", func() {
+						Context("No old credentials", func() {
 							It("should return new credentials", func() {
 								ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
 									WithJSON(common.Object{}).
@@ -458,6 +466,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							dbPlatform := getPlatformFromDB()
 							Expect(dbPlatform.OldCredentials).To(BeNil())
 							Expect(dbPlatform.CredentialsActive).To(BeTrue())
+						})
+
+						It("should sanitize sensitive from response", func() {
+							reply := ctx.SMWithOAuth.GET(web.PlatformsURL + "/" + id).
+								Expect().
+								Status(http.StatusOK).JSON().Object()
+							reply.NotContainsKey("credentials")
+							reply.NotContainsKey("credentials_active")
 						})
 
 						It("should return new credentials and keep current as old", func() {
