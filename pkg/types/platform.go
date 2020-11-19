@@ -55,7 +55,7 @@ type Platform struct {
 	Active            bool         `json:"-"`
 	LastActive        time.Time    `json:"-"`
 	Integrity         []byte       `json:"-"`
-	CredentialsActive bool         `json:"-"`
+	CredentialsActive bool         `json:"credentials_active,omitempty"`
 }
 
 func (e *Platform) Equals(obj Object) bool {
@@ -81,6 +81,7 @@ func (e *Platform) Sanitize(ctx context.Context) {
 		e.Credentials = nil
 	}
 	e.OldCredentials = nil
+	e.CredentialsActive = false
 }
 
 func (e *Platform) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {
