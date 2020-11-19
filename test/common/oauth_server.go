@@ -119,6 +119,7 @@ func (os *OAuthServer) CreateToken(payload map[string]interface{}) string {
 		Issuer:         issuerURL,
 		KeyID:          os.keyID,
 		Audience:       "sm",
+		Subject:        "test-user",
 		ExpirationTime: nextYear,
 		Public:         payload,
 	})

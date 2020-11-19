@@ -191,6 +191,7 @@ var _ = Describe("SM", func() {
 			BeforeEach(func() {
 				ctx = common.NewTestContextBuilder().Build()
 				smPlatformID = verifySMPlatformExists()
+
 			})
 
 			AfterEach(func() {
@@ -215,6 +216,7 @@ var _ = Describe("SM", func() {
 			for _, auth := range auths {
 				auth := auth
 				It("disallows bulk deleting of service manager platform", func() {
+
 					auth().DELETE(web.PlatformsURL).WithQueryString(fmt.Sprintf("fieldQuery=name eq '%s'", types.SMPlatform)).
 						Expect().Status(http.StatusNotFound)
 				})

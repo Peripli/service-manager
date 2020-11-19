@@ -70,11 +70,12 @@ type MultitenancySettings struct {
 }
 
 type TestCase struct {
-	API                        string
-	SupportsAsyncOperations    bool
-	SupportedOps               []Op
-	ResourceType               types.ObjectType
-	ResourcePropertiesToIgnore []string
+	API                             string
+	SupportsAsyncOperations         bool
+	SupportsCascadeDeleteOperations bool
+	SupportedOps                    []Op
+	ResourceType                    types.ObjectType
+	ResourcePropertiesToIgnore      []string
 
 	MultitenancySettings   *MultitenancySettings
 	DisableTenantResources bool
@@ -84,6 +85,7 @@ type TestCase struct {
 	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
 	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
 	PatchResource                          func(ctx *common.TestContext, tenantScoped bool, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*types.LabelChange, async bool)
+	SubResourcesBlueprint                  func(ctx *common.TestContext, smClient *common.SMExpect, async bool, resourceID string, resourceType types.ObjectType, resource common.Object)
 
 	AdditionalTests func(ctx *common.TestContext, t *TestCase)
 	ContextBuilder  *common.TestContextBuilder
@@ -252,7 +254,7 @@ func DescribeTestsFor(t TestCase) bool {
 					case List:
 						DescribeListTestsFor(ctx, t, respMode)
 					case Delete:
-						DescribeDeleteTestsfor(ctx, t, respMode)
+						DescribeDeleteTestsfor(ctx, t, respMode, t.SupportsCascadeDeleteOperations)
 					case DeleteList:
 						if respMode == Sync {
 							DescribeDeleteListFor(ctx, t)

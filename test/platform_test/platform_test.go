@@ -19,13 +19,18 @@ package platform_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/Peripli/service-manager/api/filters"
+	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/storage"
 	"github.com/gavv/httpexpect"
+	"github.com/gofrs/uuid"
+	"github.com/tidwall/gjson"
+	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"sort"
 	"testing"
-
-	"github.com/Peripli/service-manager/pkg/query"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/web"
 
@@ -60,7 +65,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 		},
 	},
 	SupportsAsyncOperations:                false,
+	SupportsCascadeDeleteOperations:        true,
 	ResourceBlueprint:                      blueprint(true),
+	SubResourcesBlueprint:                  subResourcesBlueprint(),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
 	ResourcePropertiesToIgnore:             []string{"last_operation"},
 	PatchResource:                          test.APIResourcePatch,
@@ -538,23 +545,232 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							JSON().Object().
 							Value("error").String().Contains("ExistingReferenceEntity")
 					})
+					It("should delete instances when cascade requested", func() {
+						ctx.SMWithOAuth.DELETE(web.PlatformsURL+"/"+platformID).
+							WithQuery("cascade", "true").
+							Expect().
+							Status(http.StatusAccepted)
+					})
 				})
+
+				Context("with active platform", func() {
+					var makePlatformActive = func(platformID string) {
+						err := ctx.SMRepository.InTransaction(context.TODO(), func(ctx context.Context, storage storage.Repository) error {
+							var updatedPlatform types.Object
+							byID := query.ByField(query.EqualsOperator, "id", platformID)
+							platformFromStorage, err := storage.Get(ctx, types.PlatformType, byID)
+							Expect(err).ToNot(HaveOccurred())
+
+							platformFromStorage.(*types.Platform).Active = true
+							if updatedPlatform, err = storage.Update(ctx, platformFromStorage, types.LabelChanges{}); err != nil {
+								return err
+							}
+							Expect(updatedPlatform.(*types.Platform).Active).To(Equal(true))
+							return nil
+						})
+						Expect(err).ToNot(HaveOccurred())
+					}
+					When("sub-resources are exists", func() {
+						JustBeforeEach(func() {
+							makePlatformActive(platformID)
+						})
+						It("should return 422 unprocessable entity for cascade delete", func() {
+							ctx.SMWithOAuth.DELETE(web.PlatformsURL+"/"+platformID).
+								WithQuery("cascade", "true").
+								Expect().
+								Status(http.StatusUnprocessableEntity)
+						})
+					})
+
+					When("Platform active without sub-resources", func() {
+						var testPlatformID string
+						JustBeforeEach(func() {
+							testPlatformID := "platform-with-no-resources"
+							ctx.SMWithOAuth.POST(web.PlatformsURL).
+								WithJSON(common.MakePlatform(testPlatformID, "platform-with-no-resources", "cf", "descr")).
+								Expect().Status(http.StatusCreated)
+							makePlatformActive(testPlatformID)
+						})
+						It("should return ok", func() {
+							ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + testPlatformID).
+								Expect().
+								Status(http.StatusOK)
+						})
+					})
+
+				})
+
 			})
 		})
 	},
 })
 
+func hashPassword(password string) string {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		panic(err)
+	}
+
+	return string(passwordHash)
+}
+
+func subResourcesBlueprint() func(ctx *common.TestContext, auth *common.SMExpect, async bool, platformID string, resourceType types.ObjectType, platform common.Object) {
+	return func(ctx *common.TestContext, auth *common.SMExpect, async bool, platformID string, resourceType types.ObjectType, platform common.Object) {
+		var planID, serviceID, brokerID string
+		var origBrokerExpect *httpexpect.Expect
+
+		plan := common.GenerateFreeTestPlan()
+		planID = gjson.Get(plan, "id").String()
+
+		service := common.GenerateTestServiceWithPlans(plan)
+		serviceID = gjson.Get(service, "id").String()
+
+		catalog := common.NewEmptySBCatalog()
+		catalog.AddService(service)
+
+		brokerUtils := ctx.RegisterBrokerWithCatalog(catalog)
+		brokerID = brokerUtils.Broker.ID
+
+		SMPlatformExpect := ctx.SM.Builder(func(req *httpexpect.Request) {
+			username := ctx.TestPlatform.Credentials.Basic.Username
+			password := ctx.TestPlatform.Credentials.Basic.Password
+			req.WithBasicAuth(username, password)
+		})
+
+		SMPlatformExpect.PUT(web.BrokerPlatformCredentialsURL).
+			WithJSON(common.Object{
+				"broker_id":     brokerID,
+				"username":      "admin",
+				"password_hash": hashPassword("admin"),
+			}).Expect().Status(http.StatusOK)
+
+		common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
+
+		origBrokerExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
+			req.WithBasicAuth("admin", "admin")
+		})
+
+		instanceID1, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+
+		instanceID2, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+
+		origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/%s", web.OSBURL, brokerID, instanceID1)).
+			WithJSON(common.Object{
+				"service_id": serviceID,
+				"plan_id":    planID,
+				"context": common.Object{
+					"platform": "kubernetes",
+				},
+			}).Expect().Status(http.StatusCreated)
+
+		origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/%s", web.OSBURL, brokerID, instanceID2)).
+			WithJSON(common.Object{
+				"service_id": serviceID,
+				"plan_id":    planID,
+				"context": common.Object{
+					"platform": "cloudfoundry",
+				},
+			}).Expect().Status(http.StatusCreated)
+
+		bindingID1, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+
+		bindingID2, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+
+		origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/%s/service_bindings/%s", web.OSBURL, brokerID, instanceID1, bindingID1)).
+			WithJSON(common.Object{
+				"context":          common.Object{},
+				"maintenance_info": common.Object{"version": "old"},
+				"parameters":       common.Object{},
+				"plan_id":          planID,
+				"service_id":       serviceID,
+			}).
+			Expect().
+			Status(http.StatusCreated)
+
+		ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, bindingID1)).
+			Expect().
+			Status(http.StatusOK).
+			JSON().
+			Object().
+			ContainsMap(map[string]interface{}{
+				"id":                  bindingID1,
+				"service_instance_id": instanceID1,
+			})
+
+		origBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/%s/service_bindings/%s", web.OSBURL, brokerID, instanceID1, bindingID2)).
+			WithJSON(common.Object{
+				"context":          common.Object{},
+				"maintenance_info": common.Object{"version": "old"},
+				"parameters":       common.Object{},
+				"plan_id":          planID,
+				"service_id":       serviceID,
+			}).
+			Expect().
+			Status(http.StatusCreated)
+
+		ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, bindingID2)).
+			Expect().
+			Status(http.StatusOK).
+			JSON().
+			Object().
+			ContainsMap(map[string]interface{}{
+				"id":                  bindingID2,
+				"service_instance_id": instanceID1,
+			})
+
+	}
+}
+
 func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
-	return func(_ *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
+	return func(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
 		randomPlatform := common.GenerateRandomPlatform()
 		if !setNullFieldsValues {
 			delete(randomPlatform, "description")
 		}
-		platform := auth.POST(web.PlatformsURL).WithJSON(randomPlatform).
+		reply := auth.POST(web.PlatformsURL).WithJSON(randomPlatform).
 			Expect().
 			Status(http.StatusCreated).JSON().Object().Raw()
-		delete(platform, "credentials")
-
-		return platform
+		createdAtString := reply["created_at"].(string)
+		updatedAtString := reply["updated_at"].(string)
+		createdAt, err := time.Parse(time.RFC3339Nano, createdAtString)
+		if err != nil {
+			panic(err)
+		}
+		updatedAt, err := time.Parse(time.RFC3339Nano, updatedAtString)
+		if err != nil {
+			panic(err)
+		}
+		platform := &types.Platform{
+			Base: types.Base{
+				ID:        reply["id"].(string),
+				CreatedAt: createdAt,
+				UpdatedAt: updatedAt,
+				Ready:     true,
+			},
+			Credentials: &types.Credentials{
+				Basic: &types.Basic{
+					Username: reply["credentials"].(map[string]interface{})["basic"].(map[string]interface{})["username"].(string),
+					Password: reply["credentials"].(map[string]interface{})["basic"].(map[string]interface{})["password"].(string),
+				},
+			},
+			Type:        reply["type"].(string),
+			Description: reply["description"].(string),
+			Name:        reply["name"].(string),
+		}
+		ctx.TestPlatform = platform
+		delete(reply, "credentials")
+		return reply
 	}
 }

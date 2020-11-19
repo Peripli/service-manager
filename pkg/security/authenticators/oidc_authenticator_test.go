@@ -371,7 +371,7 @@ var _ = Describe("OIDC Authenticator", func() {
 						expectedUserName := "test_user"
 
 						BeforeEach(func() {
-							tokenJSON := fmt.Sprintf(`{"user_name": "%s", "abc": "xyz"}`, expectedUserName)
+							tokenJSON := fmt.Sprintf(`{"sub": "%s", "abc": "xyz"}`, expectedUserName)
 							token := &httpfakes.FakeTokenData{}
 							token.ClaimsStub = func(v interface{}) error {
 								return json.Unmarshal([]byte(tokenJSON), v)

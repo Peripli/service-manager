@@ -141,6 +141,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		WSSettings:        cfg.WebSocket,
 		Notificator:       pgNotificator,
 		WaitGroup:         waitGroup,
+		TenantLabelKey:    cfg.Multitenancy.LabelKey,
 	}
 	API, err := api.New(ctx, e, apiOptions)
 	if err != nil {
@@ -200,6 +201,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	smb.RegisterPluginsBefore(osb.CheckInstanceOwnerhipPluginName, osb.NewStorePlugin(interceptableRepository))
 	smb.RegisterPluginsBefore(osb.OSBStorePluginName, osb.NewCheckVisibilityPlugin(interceptableRepository))
 	smb.RegisterPlugins(osb.NewCheckPlatformIDPlugin(interceptableRepository))
+	smb.RegisterPlugins(osb.NewPlatformTerminationPlugin(interceptableRepository))
 
 	// Register default interceptors that represent the core SM business logic
 	smb.
@@ -264,7 +266,8 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		}).Register().
 		WithDeleteAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingDeleteInterceptorProvider{
 			BaseSMAAPInterceptorProvider: baseSMAAPInterceptorProvider,
-		}).Register()
+		}).Register().
+		WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.CascadeOperationCreateInterceptorProvider{}).Register()
 
 	return smb, nil
 }
@@ -557,7 +560,7 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.OperationsCreateInsterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).Register()
-	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.CascadeOperationCreateInterceptorProvider{
+	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.VirtualResourceCascadeOperationCreateInterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).Register()
 
