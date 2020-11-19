@@ -104,7 +104,7 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 			}
 
 			// Log the clients that reach half of the allowed limit
-			if limiterContext.Remaining == limiterContext.Limit - (limiterContext.Limit / rl.usageLogThreshold) {
+			if limiterContext.Remaining == limiterContext.Limit-(limiterContext.Limit/rl.usageLogThreshold) {
 				log.C(request.Context()).Infof("the client has already used %d percents of its rate limit quota, is_limited_client: %t, client key: %s, X-RateLimit-Limit=%d, X-o-Remaining=%d, X-RateLimit-Reset=%d", rl.usageLogThreshold, isLimitedClient, userContext.Name, limiterContext.Limit, limiterContext.Remaining, limiterContext.Reset)
 			}
 
