@@ -418,7 +418,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					When("credentials are inactive", func() {
-						Context("no old credentials", func() {
+						Context("No old credentials", func() {
 							It("should return new credentials", func() {
 								ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
 									WithJSON(common.Object{}).
