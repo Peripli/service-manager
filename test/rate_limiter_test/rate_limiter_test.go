@@ -196,6 +196,79 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 					expectNonLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
 				})
 			})
+
+			When("custom path limiter configured", func() {
+				BeforeEach(func() {
+					newRateLimiterEnv("10-M", func(set *pflag.FlagSet) {
+						Expect(set.Set("api.rate_limit_custom_paths", "5-M:"+web.PlatformsURL)).ToNot(HaveOccurred())
+					})
+					changeClientIdentifier()
+					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 5)
+				})
+				It("apply request limit using custom limiter", func() {
+					expectNonLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
+					expectLimitedRequest(ctx.SMWithOAuth, web.PlatformsURL)
+				})
+			})
+
+			When("custom path limiter configured with multiple paths", func() {
+				BeforeEach(func() {
+					newRateLimiterEnv("10-M", func(set *pflag.FlagSet) {
+						Expect(set.Set("api.rate_limit_custom_paths", "5-M:"+web.PlatformsURL+","+web.ServicePlansURL)).ToNot(HaveOccurred())
+					})
+					changeClientIdentifier()
+					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 5)
+				})
+				It("apply request limit", func() {
+					expectNonLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
+					// As it share same limiter with platforms
+					expectLimitedRequest(ctx.SMWithOAuth, web.ServicePlansURL)
+				})
+			})
+
+			When("custom path limiter configured with multiple rates", func() {
+				BeforeEach(func() {
+					newRateLimiterEnv("100-M", func(set *pflag.FlagSet) {
+						Expect(set.Set("api.rate_limit_custom_paths", "20-S,30-M:"+web.PlatformsURL)).ToNot(HaveOccurred())
+					})
+					changeClientIdentifier()
+					// Exhaust seconds limiter, minute limiter drop from 30 to 10
+					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 20)
+					time.Sleep(1 * time.Second)
+					// Exhaust minute limiter
+					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 10)
+					// Expecting second limiter will reset, but minute should be still exhausted
+					time.Sleep(3 * time.Second)
+				})
+				It("apply request limit using secondary limiter", func() {
+					expectLimitedRequest(ctx.SMWithOAuth, web.PlatformsURL)
+				})
+				It("resets the limit after", func() {
+					// Expecting all limiters will reset
+					time.Sleep(61 * time.Second)
+					expectNonLimitedRequest(ctx.SMWithOAuth, web.PlatformsURL)
+				})
+			})
+
+			When("custom path limiter configured with independent paths", func() {
+				BeforeEach(func() {
+					newRateLimiterEnv("10-M", func(set *pflag.FlagSet) {
+						Expect(set.Set("api.rate_limit_custom_paths", "5-M:"+web.PlatformsURL+";3-M:"+web.ServicePlansURL)).ToNot(HaveOccurred())
+					})
+					changeClientIdentifier()
+					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 5)
+				})
+				It("apply request limit (second independent limiter not impacted)", func() {
+					// As platforms limiter is already exhausted
+					expectLimitedRequest(ctx.SMWithOAuth, web.PlatformsURL)
+					// Exhausting plans limiter
+					expectNonLimitedRequest(ctx.SMWithOAuth, web.ServicePlansURL)
+					expectNonLimitedRequest(ctx.SMWithOAuth, web.ServicePlansURL)
+					expectNonLimitedRequest(ctx.SMWithOAuth, web.ServicePlansURL)
+					expectLimitedRequest(ctx.SMWithOAuth, web.ServicePlansURL)
+				})
+			})
+
 		})
 	})
 })

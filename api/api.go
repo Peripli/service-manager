@@ -22,9 +22,11 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/pkg/errors"
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/middleware/stdlib"
 	"github.com/ulule/limiter/drivers/store/memory"
+	"strings"
 	"sync"
 
 	"github.com/Peripli/service-manager/api/configuration"
@@ -64,6 +66,7 @@ type Settings struct {
 	RateLimitExcludeClients    []string `mapstructure:"rate_limit_exclude_clients" description:"define client users that should be excluded from the rate limiter processing"`
 	RateLimitExcludePaths      []string `mapstructure:"rate_limit_exclude_paths" description:"define paths that should be excluded from the rate limiter processing"`
 	RateLimitUsageLogThreshold int64    `mapstructure:"rate_limiting_usage_log_threshold" description:"defines a threshold for log notification trigger about requests limit usage. Accepts value in range from 0 to 100 (percents)"`
+	RateLimitCustomPaths       string   `mapstructure:"rate_limit_custom_paths" description:"defines custom rate limit configuration for specific paths"`
 }
 
 // DefaultSettings returns default values for API settings
@@ -102,8 +105,8 @@ type Options struct {
 	TenantLabelKey    string
 }
 
-func initRateLimiters(options *Options) ([]*stdlib.Middleware, error) {
-	var rateLimiters []*stdlib.Middleware
+func initRateLimiters(options *Options) ([]filters.RateLimiterMiddleware, error) {
+	var rateLimiters []filters.RateLimiterMiddleware
 	if !options.APISettings.RateLimitingEnabled {
 		return nil, nil
 	}
@@ -116,8 +119,51 @@ func initRateLimiters(options *Options) ([]*stdlib.Middleware, error) {
 		if err != nil {
 			return nil, err
 		}
+		rateLimiters = append(
+			rateLimiters,
+			filters.NewRateLimiterMiddleware(
+				stdlib.NewMiddleware(limiter.New(memory.NewStore(), rate)),
+				nil,
+			),
+		)
+	}
 
-		rateLimiters = append(rateLimiters, stdlib.NewMiddleware(limiter.New(memory.NewStore(), rate)))
+	/**
+	 * Rate limit custom path format examples:
+	 * Single rate, single path - rate:path - 3-M:/v1/something
+	 * Multiple rate - rate,rate:path - 3-M,1-S:/v1/something
+	 * Multiple paths - rate:path,path - 3-M:/v1/something,/v2/something
+	 * Multiple limiters - rate:path;rate:path - 3-M:/v1/something;10-M:/v2/something
+	 */
+	if len(options.APISettings.RateLimitCustomPaths) > 0 {
+		for index, config := range strings.Split(options.APISettings.RateLimitCustomPaths, ";") {
+			tuple := strings.Split(config, ":")
+			if len(tuple) != 2 {
+				return nil, errors.Errorf("incorrect rate limiter custom path configuration #%d '%s': expected configuration in form 'rate:path'", index, config)
+			}
+			rates := strings.Split(tuple[0], ",")
+			if len(rates) == 0 {
+				return nil, errors.Errorf("incorrect rate limiter custom path configuration #%d '%s': no rate defined", index, config)
+			}
+			paths := strings.Split(tuple[1], ",")
+			if len(paths) == 0 {
+				return nil, errors.Errorf("incorrect rate limiter custom path configuration #%d '%s': no paths defined", index, config)
+			}
+			for _, rate := range rates {
+				rate, err := limiter.NewRateFromFormatted(rate)
+
+				if err != nil {
+					return nil, err
+				}
+				rateLimiters = append(
+					rateLimiters,
+					filters.NewRateLimiterMiddleware(
+						stdlib.NewMiddleware(limiter.New(memory.NewStore(), rate)),
+						paths,
+					),
+				)
+			}
+		}
 	}
 
 	return rateLimiters, nil

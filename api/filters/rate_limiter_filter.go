@@ -15,14 +15,26 @@ import (
 )
 
 type RateLimiterFilter struct {
-	rateLimiters      []*stdlib.Middleware
+	rateLimiters      []RateLimiterMiddleware
 	excludeClients    []string
 	excludePaths      []string
 	tenantLabelKey    string
 	usageLogThreshold int64
 }
 
-func NewRateLimiterFilter(middleware []*stdlib.Middleware, excludeClients, excludePaths []string, usageLogThreshold int64, tenantLabelKey string) *RateLimiterFilter {
+type RateLimiterMiddleware struct {
+	middleware   *stdlib.Middleware
+	limitedPaths []string
+}
+
+func NewRateLimiterMiddleware(middleware *stdlib.Middleware, protectedPaths []string) RateLimiterMiddleware {
+	return RateLimiterMiddleware{
+		middleware,
+		protectedPaths,
+	}
+}
+
+func NewRateLimiterFilter(middleware []RateLimiterMiddleware, excludeClients, excludePaths []string, usageLogThreshold int64, tenantLabelKey string) *RateLimiterFilter {
 	return &RateLimiterFilter{
 		rateLimiters:      middleware,
 		excludeClients:    excludeClients,
@@ -82,6 +94,15 @@ func (rl *RateLimiterFilter) isExcludedPath(path string) bool {
 	return false
 }
 
+func (rl *RateLimiterFilter) isRateLimitedPath(path string, limitedPaths []string) bool {
+	for _, prefix := range limitedPaths {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
 	userContext, isProtectedEndpoint := web.UserFromContext(request.Context())
 
@@ -98,7 +119,11 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 
 	if isLimitedClient {
 		for _, rlm := range rl.rateLimiters {
-			limiterContext, err := rlm.Limiter.Get(request.Context(), userContext.Name)
+			// Check if request limited by ratelimiter custom protected paths
+			if rlm.limitedPaths != nil && !rl.isRateLimitedPath(request.URL.Path, rlm.limitedPaths) {
+				continue
+			}
+			limiterContext, err := rlm.middleware.Limiter.Get(request.Context(), userContext.Name)
 			if err != nil {
 				return nil, err
 			}
