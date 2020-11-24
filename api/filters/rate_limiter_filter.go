@@ -23,14 +23,14 @@ type RateLimiterFilter struct {
 }
 
 type RateLimiterMiddleware struct {
-	middleware   *stdlib.Middleware
-	limitedPaths []string
+	middleware *stdlib.Middleware
+	pathPrefix string
 }
 
-func NewRateLimiterMiddleware(middleware *stdlib.Middleware, protectedPaths []string) RateLimiterMiddleware {
+func NewRateLimiterMiddleware(middleware *stdlib.Middleware, pathPrefix string) RateLimiterMiddleware {
 	return RateLimiterMiddleware{
 		middleware,
-		protectedPaths,
+		pathPrefix,
 	}
 }
 
@@ -94,15 +94,6 @@ func (rl *RateLimiterFilter) isExcludedPath(path string) bool {
 	return false
 }
 
-func (rl *RateLimiterFilter) isRateLimitedPath(path string, limitedPaths []string) bool {
-	for _, prefix := range limitedPaths {
-		if strings.HasPrefix(path, prefix) {
-			return true
-		}
-	}
-	return false
-}
-
 func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
 	userContext, isProtectedEndpoint := web.UserFromContext(request.Context())
 
@@ -119,8 +110,7 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 
 	if isLimitedClient {
 		for _, rlm := range rl.rateLimiters {
-			// Check if request limited by ratelimiter custom protected paths
-			if rlm.limitedPaths != nil && !rl.isRateLimitedPath(request.URL.Path, rlm.limitedPaths) {
+			if !strings.HasPrefix(request.URL.Path, rlm.pathPrefix) {
 				continue
 			}
 			limiterContext, err := rlm.middleware.Limiter.Get(request.Context(), userContext.Name)
@@ -130,7 +120,7 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 
 			// Log the clients that reach half of the allowed limit
 			if limiterContext.Remaining == limiterContext.Limit-(limiterContext.Limit/rl.usageLogThreshold) {
-				log.C(request.Context()).Infof("the client has already used %d percents of its rate limit quota, is_limited_client: %t, client key: %s, X-RateLimit-Limit=%d, X-o-Remaining=%d, X-RateLimit-Reset=%d", rl.usageLogThreshold, isLimitedClient, userContext.Name, limiterContext.Limit, limiterContext.Remaining, limiterContext.Reset)
+				log.C(request.Context()).Infof("the client has already used %d percents of its rate limit quota, is_limited_client: %t, client key: %s, path prefix: %s, X-RateLimit-Limit=%d, X-o-Remaining=%d, X-RateLimit-Reset=%d", rl.usageLogThreshold, isLimitedClient, userContext.Name, rlm.pathPrefix, limiterContext.Limit, limiterContext.Remaining, limiterContext.Reset)
 			}
 
 			if limiterContext.Reached {
