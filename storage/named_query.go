@@ -7,6 +7,8 @@ const (
 	QueryByExistingLabel
 	QueryForLastOperationsPerResource
 	QueryForLabelLessVisibilities
+	QueryForPlatformVisibility
+	QueryForVisibilityLabelByPlatform
 )
 
 var namedQueries = map[NamedQuery]string{
@@ -56,6 +58,10 @@ var namedQueries = map[NamedQuery]string{
 	SELECT v.* FROM visibilities v
 	LEFT OUTER JOIN visibility_labels vl on v.id = vl.visibility_id
 	WHERE (vl.id IS NULL and v.platform_id in (:platform_ids)) OR v.platform_id IS NULL`,
+	QueryForPlatformVisibility: `select  * from {{.ENTITY_TABLE}} inner join public.visibility_labels on visibilities.id = visibility_labels.visibility_id
+where key ='subaccount_id' and val ='ab8b7ee1-4806-424f-b0dc-8b3256b7a501' and platform_id =  '(:platform_id)' and service_plan_id ='(:service_plan_id)`,
+	QueryForVisibilityLabelByPlatform: `select 1 as label_key_found from visibilities inner join visibility_labels on visibilities.id = visibility_labels.visibility_id
+where platform_id='service-manager' and key ='subaccount_id' limit 1`,
 }
 
 func GetNamedQuery(query NamedQuery) string {

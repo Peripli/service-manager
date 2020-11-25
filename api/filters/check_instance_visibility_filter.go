@@ -53,6 +53,7 @@ func (*serviceInstanceVisibilityFilter) Name() string {
 	return ServiceInstanceVisibilityFilterName
 }
 
+//@todo improve label selection
 func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 
@@ -77,7 +78,7 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		query.ByField(query.EqualsOperator, planIDProperty, planID),
 	}
 
-	list, err := f.repository.List(ctx, types.VisibilityType, criteria...)
+	list, err := f.repository.ListNoLabels(ctx, types.VisibilityType, criteria...)
 	if err != nil && err != util.ErrNotFoundInStorage {
 		return nil, util.HandleStorageError(err, types.VisibilityType.String())
 	}
@@ -101,12 +102,12 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		return next.Handle(req)
 	}
 
-	tenantLabels, ok := visibility.Labels[visibilityMetadata.LabelKey]
-	if ok && slice.StringsAnyEquals(tenantLabels, visibilityMetadata.LabelValue) {
+	tenantLabels, labelValuesFound := visibility.Labels[visibilityMetadata.LabelKey]
+	if labelValuesFound && slice.StringsAnyEquals(tenantLabels, visibilityMetadata.LabelValue) {
 		return next.Handle(req)
 	}
 
-	if !ok {
+	if !labelValuesFound {
 		// no visibility labels means this is a public visibility
 		return next.Handle(req)
 	}
