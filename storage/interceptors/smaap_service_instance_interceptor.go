@@ -122,7 +122,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		values := instance.Labels["smaap_operated"]
 		smaapOperated := len(values) > 0 && values[0] == "true"
 
-		if instance.PlatformID != types.SMPlatform && !smaapOperated{
+		if instance.PlatformID != types.SMPlatform && !smaapOperated {
 			return f(ctx, obj)
 		}
 
