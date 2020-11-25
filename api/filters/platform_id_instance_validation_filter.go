@@ -44,6 +44,11 @@ func (*PlatformIDInstanceValidationFilter) Name() string {
 }
 
 func (*PlatformIDInstanceValidationFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+	isSMAAPOperated := web.IsSMAAPOperated(req.Context())
+	if isSMAAPOperated {
+		return next.Handle(req)
+	}
+
 	platformID := gjson.GetBytes(req.Body, platformIDProperty).Str
 
 	if platformID != "" && platformID != types.SMPlatform {
