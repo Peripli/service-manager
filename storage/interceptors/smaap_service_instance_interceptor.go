@@ -41,7 +41,10 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-const ServiceInstanceCreateInterceptorProviderName = "ServiceInstanceCreateInterceptorProvider"
+const (
+	ServiceInstanceCreateInterceptorProviderName = "ServiceInstanceCreateInterceptorProvider"
+	SMAAPOperatedLabelKey                        = "smaap_operated"
+)
 
 type BaseSMAAPInterceptorProvider struct {
 	OSBClientCreateFunc osbc.CreateFunc
@@ -119,7 +122,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		instance := obj.(*types.ServiceInstance)
 		instance.Usable = false
-		values := instance.Labels["smaap_operated"]
+		values := instance.Labels[SMAAPOperatedLabelKey]
 		smaapOperated := len(values) > 0 && values[0] == "true"
 
 		if instance.PlatformID != types.SMPlatform && !smaapOperated {
