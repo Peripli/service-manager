@@ -576,7 +576,7 @@ var _ = DescribeTestsFor(TestCase{
 						})
 
 						Context("instance visibility", func() {
-							FWhen("tenant doesn't have plan visibility", func() {
+							When("tenant doesn't have plan visibility", func() {
 								It("returns 404", func() {
 									createInstance(ctx.SMWithOAuthForTenant, testCase.async, http.StatusNotFound)
 								})
