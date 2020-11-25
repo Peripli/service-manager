@@ -78,12 +78,12 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 
 	list, err := f.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForVisibility, map[string]interface{}{
 		"platform_id":     visibilityMetadata.PlatformID,
+		"service_plan_id": planID,
 		"key":             visibilityMetadata.LabelKey,
 		"val":             visibilityMetadata.LabelValue,
-		"service_plan_id": planID,
 	})
 
-	if err != nil && err != util.ErrNotFoundInStorage {
+	if err != nil {
 		return nil, util.HandleStorageError(err, types.VisibilityType.String())
 	}
 
@@ -96,11 +96,11 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		"service_plan_id": planID,
 	})
 
-	if err != nil && err != util.ErrNotFoundInStorage {
+	if err != nil {
 		return nil, util.HandleStorageError(err, types.VisibilityType.String())
 	}
 
-	if list == nil || list.Len() == 0 {
+	if list.Len() != 0 && list.ItemAt(0).GetLabels() == nil {
 		return next.Handle(req)
 	}
 
