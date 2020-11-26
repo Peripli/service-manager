@@ -17,6 +17,7 @@
 package postgres
 
 import (
+	sqlxtypes "github.com/jmoiron/sqlx/types"
 	"reflect"
 	"strings"
 	"time"
@@ -38,11 +39,14 @@ var (
 	int64Type     = reflect.TypeOf(int64(1))
 	timeType      = reflect.TypeOf(time.Time{})
 	byteSliceType = reflect.TypeOf([]byte{})
+	jsonType      = reflect.TypeOf(sqlxtypes.JSONText{})
 )
 
 func determineCastByType(tagType reflect.Type) string {
 	dbCast := ""
 	switch tagType {
+	case jsonType:
+		fallthrough
 	case intType:
 		fallthrough
 	case int64Type:

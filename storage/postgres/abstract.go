@@ -100,6 +100,15 @@ func columnsByTags(tags []tagType) map[string]bool {
 	return availableColumns
 }
 
+func columnsByTypes(tags []tagType) map[string]reflect.Type {
+	availableColumns := make(map[string]reflect.Type)
+	for _, dbTag := range tags {
+		tagValues := strings.Split(dbTag.Tag, ",")
+		availableColumns[tagValues[0]] = dbTag.Type
+	}
+	return availableColumns
+}
+
 func update(ctx context.Context, db namedExecerContext, table string, dto interface{}) error {
 	updateQueryString := updateQuery(table, dto)
 	if updateQueryString == "" {

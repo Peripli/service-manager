@@ -98,9 +98,12 @@ func (t *whereClauseTree) compileSQL() (string, []interface{}) {
 func criterionSQL(c query.Criterion, dbTags []tagType, tableAlias string) (string, interface{}) {
 	rightOpBindVar, rightOpQueryValue := buildRightOp(c.Operator, c.RightOp)
 	sqlOperation := translateOperationToSQLEquivalent(c.Operator)
-
-	ttype := findTagType(dbTags, c.LeftOp)
+	column := strings.Split(c.LeftOp, ".")[0]
+	ttype := findTagType(dbTags, column)
 	dbCast := determineCastByType(ttype)
+	if ttype == jsonType {
+		c.LeftOp = convertToJsonKey(c.LeftOp)
+	}
 	var clause string
 	if c.Type == query.ExistQuery {
 		clause = fmt.Sprintf("%s (%s)", sqlOperation, rightOpQueryValue.(string))
@@ -113,6 +116,20 @@ func criterionSQL(c query.Criterion, dbTags []tagType, tableAlias string) (strin
 		clause = fmt.Sprintf("(%s OR %s IS NULL)", clause, c.LeftOp)
 	}
 	return clause, rightOpQueryValue
+}
+
+func convertToJsonKey(key string) string {
+	columnParts := strings.Split(key, ".")
+	if len(columnParts) == 1 {
+		return columnParts[0]
+	} else {
+		result := columnParts[0]
+		for i := 1 ; i < len(columnParts) -1 ; i++ {
+	       result += fmt.Sprintf("%s'%s'", "->", columnParts[i])
+		}
+		result += fmt.Sprintf("%s'%s'", "->>", columnParts[len(columnParts) -1])
+		return result
+	}
 }
 
 func buildRightOp(operator query.Operator, rightOp []string) (string, interface{}) {
