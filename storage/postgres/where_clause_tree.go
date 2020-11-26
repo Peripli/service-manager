@@ -128,10 +128,10 @@ func convertToJsonKey(key string) (string, bool) {
 		return columnParts[0], false
 	} else {
 		result := columnParts[0]
-		for i := 1 ; i < len(columnParts) -1 ; i++ {
-	       result += fmt.Sprintf("%s'%s'", "->", columnParts[i])
+		for i := 1; i < len(columnParts)-1; i++ {
+			result += fmt.Sprintf("%s'%s'", "->", columnParts[i])
 		}
-		result += fmt.Sprintf("%s'%s'", "->>", columnParts[len(columnParts) -1])
+		result += fmt.Sprintf("%s'%s'", "->>", columnParts[len(columnParts)-1])
 		return result, true
 	}
 }
