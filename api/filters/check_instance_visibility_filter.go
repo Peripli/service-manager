@@ -71,11 +71,6 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		return next.Handle(req)
 	}
 
-	//criteria := []query.Criterion{
-	//	query.ByField(query.EqualsOrNilOperator, platformIDProperty, visibilityMetadata.PlatformID),
-	//	query.ByField(query.EqualsOperator, planIDProperty, planID),
-	//}
-
 	list, err := f.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForVisibility, map[string]interface{}{
 		"platform_id":     visibilityMetadata.PlatformID,
 		"service_plan_id": planID,
@@ -94,6 +89,7 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 	list, err = f.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForLabelLessVisibilitiesForPlatformAndPlan, map[string]interface{}{
 		"platform_id":     visibilityMetadata.PlatformID,
 		"service_plan_id": planID,
+		//"key":             visibilityMetadata.LabelKey,
 	})
 
 	if err != nil {
