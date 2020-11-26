@@ -102,7 +102,11 @@ func criterionSQL(c query.Criterion, dbTags []tagType, tableAlias string) (strin
 	ttype := findTagType(dbTags, column)
 	dbCast := determineCastByType(ttype)
 	if ttype == jsonType {
-		c.LeftOp = convertToJsonKey(c.LeftOp)
+		var isCompound bool
+		c.LeftOp, isCompound = convertToJsonKey(c.LeftOp)
+		if isCompound {
+			dbCast = ""
+		}
 	}
 	var clause string
 	if c.Type == query.ExistQuery {
@@ -118,17 +122,17 @@ func criterionSQL(c query.Criterion, dbTags []tagType, tableAlias string) (strin
 	return clause, rightOpQueryValue
 }
 
-func convertToJsonKey(key string) string {
+func convertToJsonKey(key string) (string, bool) {
 	columnParts := strings.Split(key, ".")
 	if len(columnParts) == 1 {
-		return columnParts[0]
+		return columnParts[0], false
 	} else {
 		result := columnParts[0]
 		for i := 1 ; i < len(columnParts) -1 ; i++ {
 	       result += fmt.Sprintf("%s'%s'", "->", columnParts[i])
 		}
 		result += fmt.Sprintf("%s'%s'", "->>", columnParts[len(columnParts) -1])
-		return result
+		return result, true
 	}
 }
 

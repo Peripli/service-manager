@@ -45,8 +45,6 @@ var (
 func determineCastByType(tagType reflect.Type) string {
 	dbCast := ""
 	switch tagType {
-	case jsonType:
-		fallthrough
 	case intType:
 		fallthrough
 	case int64Type:
