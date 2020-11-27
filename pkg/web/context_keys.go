@@ -17,7 +17,7 @@ const (
 	smaapOperatedKey
 )
 
-// IsSMAAPOperated indicates wether resource operated by SMAAP
+// IsSMAAPOperated indicates whether resource from another platform operated by SMAAP
 func IsSMAAPOperated(ctx context.Context) bool {
 	smaapOperated := ctx.Value(smaapOperatedKey)
 	return smaapOperated != nil && smaapOperated.(bool)
