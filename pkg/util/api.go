@@ -34,7 +34,7 @@ var (
 	reservedSymbolsRFC3986 = strings.Join([]string{
 		":", "/", "?", "#", "[", "]", "@", "!", "$", "&", "'", "(", ")", "*", "+", ",", ";", "=",
 	}, "")
-	supportedContentTypes = []string{"application/json"}
+	supportedContentTypes = []string{"application/json", "application/x-www-form-urlencoded"}
 )
 
 // InputValidator should be implemented by types that need input validation check. For a reference refer to pkg/types
