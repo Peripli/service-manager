@@ -20,15 +20,11 @@ package api
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/ulule/limiter"
-	"github.com/ulule/limiter/drivers/middleware/stdlib"
-	"github.com/ulule/limiter/drivers/store/memory"
-	"sync"
-
 	"github.com/Peripli/service-manager/api/configuration"
 	"github.com/Peripli/service-manager/api/profile"
+	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/env"
+	"sync"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -59,7 +55,7 @@ type Settings struct {
 	MaxPageSize                int      `mapstructure:"max_page_size" description:"maximum number of items that could be returned in a single page"`
 	DefaultPageSize            int      `mapstructure:"default_page_size" description:"default number of items returned in a single page if not specified in request"`
 	EnableInstanceTransfer     bool     `mapstructure:"enable_instance_transfer" description:"whether service instance transfer is enabled or not"`
-	RateLimit                  []string `mapstructure:"rate_limit" description:"the number of allowed requests to any protected endpoint"`
+	RateLimit                  string   `mapstructure:"rate_limit" description:"rate limiter configuration defined in format: rate<:path><,rate<:path>,...>"`
 	RateLimitingEnabled        bool     `mapstructure:"rate_limiting_enabled" description:"enable rate limiting"`
 	RateLimitExcludeClients    []string `mapstructure:"rate_limit_exclude_clients" description:"define client users that should be excluded from the rate limiter processing"`
 	RateLimitExcludePaths      []string `mapstructure:"rate_limit_exclude_paths" description:"define paths that should be excluded from the rate limiter processing"`
@@ -77,7 +73,7 @@ func DefaultSettings() *Settings {
 		MaxPageSize:                200,
 		DefaultPageSize:            50,
 		EnableInstanceTransfer:     false,
-		RateLimit:                  []string{"10000-H", "1000-M"},
+		RateLimit:                  "10000-H,1000-M",
 		RateLimitingEnabled:        false,
 		RateLimitExcludeClients:    []string{},
 		RateLimitUsageLogThreshold: 10,
@@ -89,7 +85,7 @@ func (s *Settings) Validate() error {
 	if (len(s.TokenIssuerURL)) == 0 {
 		return fmt.Errorf("validate Settings: APITokenIssuerURL missing")
 	}
-	return nil
+	return validateRateLimiterConfiguration(s.RateLimit)
 }
 
 type Options struct {
@@ -100,27 +96,6 @@ type Options struct {
 	Notificator       storage.Notificator
 	WaitGroup         *sync.WaitGroup
 	TenantLabelKey    string
-}
-
-func initRateLimiters(options *Options) ([]*stdlib.Middleware, error) {
-	var rateLimiters []*stdlib.Middleware
-	if !options.APISettings.RateLimitingEnabled {
-		return nil, nil
-	}
-
-	limitIntervals := options.APISettings.RateLimit
-	for _, limit := range limitIntervals {
-
-		rate, err := limiter.NewRateFromFormatted(limit)
-
-		if err != nil {
-			return nil, err
-		}
-
-		rateLimiters = append(rateLimiters, stdlib.NewMiddleware(limiter.New(memory.NewStore(), rate)))
-	}
-
-	return rateLimiters, nil
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
