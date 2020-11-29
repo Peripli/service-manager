@@ -156,6 +156,17 @@ func BytesToObject(bytes []byte, object interface{}) error {
 	return nil
 }
 
+func ValidateContentType(headers string, supportedContentType string) error {
+	if !strings.EqualFold(headers, supportedContentType) {
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("unsupported media type: %s", headers),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+	return nil
+}
+
 // unmarshal unmarshals the specified []byte into the provided value and returns an HttpError in unmarshaling fails
 func unmarshal(body []byte, value interface{}) error {
 	err := json.Unmarshal(body, value)

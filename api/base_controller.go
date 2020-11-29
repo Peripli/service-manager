@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/Peripli/service-manager/operations"
@@ -154,8 +153,8 @@ func (c *BaseController) Routes() []web.Route {
 
 // CreateObject handles the creation of a new object
 func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
-	if !strings.EqualFold(r.Header.Get("Content-Type"), supportedContentType) {
-		return nil, fmt.Errorf("unsupported media type: %s", r.Header.Get("Content-Type"))
+	if err := util.ValidateContentType(r.Header.Get("Content-Type"), supportedContentType); err != nil {
+		return nil, err
 	}
 
 	ctx := r.Context()
@@ -464,8 +463,8 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 
 // PatchObject handles the update of the object with the id specified in the request
 func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
-	if !strings.EqualFold(r.Header.Get("Content-Type"), supportedContentType) {
-		return nil, fmt.Errorf("unsupported media type: %s", r.Header.Get("Content-Type"))
+	if err := util.ValidateContentType(r.Header.Get("Content-Type"), supportedContentType); err != nil {
+		return nil, err
 	}
 
 	objectID := r.PathParams[web.PathParamResourceID]
