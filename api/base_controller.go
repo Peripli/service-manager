@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Peripli/service-manager/operations"
@@ -43,6 +44,8 @@ import (
 // If there is 1 more item than requested, we need to generate a token for the next page.
 // The last item is omitted.
 const pagingLimitOffset = 1
+
+const supportedContentType = "application/json"
 
 // BaseController provides common CRUD handlers for all object types in the service manager
 type BaseController struct {
@@ -151,6 +154,10 @@ func (c *BaseController) Routes() []web.Route {
 
 // CreateObject handles the creation of a new object
 func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
+	if !strings.Contains(r.Header.Get("Content-Type"), supportedContentType) {
+		return nil, fmt.Errorf("unsupported media type: %s", r.Header.Get("Content-Type"))
+	}
+
 	ctx := r.Context()
 	log.C(ctx).Debugf("Creating new %s", c.objectType)
 
@@ -457,6 +464,10 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 
 // PatchObject handles the update of the object with the id specified in the request
 func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
+	if !strings.Contains(r.Header.Get("Content-Type"), supportedContentType) {
+		return nil, fmt.Errorf("unsupported media type: %s", r.Header.Get("Content-Type"))
+	}
+
 	objectID := r.PathParams[web.PathParamResourceID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Updating %s with id %s", c.objectType, objectID)
