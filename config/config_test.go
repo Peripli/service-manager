@@ -300,6 +300,43 @@ var _ = Describe("config", func() {
 				assertErrorDuringValidate()
 			})
 		})
+
+		Context("rate limiter activated", func() {
+			BeforeEach(func() {
+				config.API.RateLimitingEnabled = true
+			})
+			When("invalid configuration specified", func() {
+				It("returns error", func() {
+					config.API.RateLimit = "5"
+					assertErrorDuringValidate()
+				})
+			})
+			When("empty path in configuration specified", func() {
+				It("returns error", func() {
+					config.API.RateLimit = "5-M:"
+					assertErrorDuringValidate()
+				})
+			})
+			When("empty element in configuration specified", func() {
+				It("Returns error", func() {
+					config.API.RateLimit = "5-M:/aaa,"
+					assertErrorDuringValidate()
+				})
+			})
+			When("path with multiple slashes in configuration specified", func() {
+				It("returns error", func() {
+					config.API.RateLimit = "5-M:///,"
+					assertErrorDuringValidate()
+				})
+			})
+			When("path not starts from slash in configuration specified", func() {
+				It("returns error", func() {
+					config.API.RateLimit = "5-M:v1/aaa,"
+					assertErrorDuringValidate()
+				})
+			})
+		})
+
 	})
 
 	Describe("New", func() {
