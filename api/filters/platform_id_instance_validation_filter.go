@@ -44,8 +44,7 @@ func (*PlatformIDInstanceValidationFilter) Name() string {
 }
 
 func (*PlatformIDInstanceValidationFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	isSMAAPOperated := web.IsSMAAPOperated(req.Context())
-	if isSMAAPOperated {
+	if web.IsSMAAPOperated(req.Context()) {
 		return next.Handle(req)
 	}
 
