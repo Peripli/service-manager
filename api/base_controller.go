@@ -44,8 +44,6 @@ import (
 // The last item is omitted.
 const pagingLimitOffset = 1
 
-const supportedContentType = "application/json"
-
 // BaseController provides common CRUD handlers for all object types in the service manager
 type BaseController struct {
 	scheduler *operations.Scheduler
@@ -153,7 +151,7 @@ func (c *BaseController) Routes() []web.Route {
 
 // CreateObject handles the creation of a new object
 func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
-	if err := util.ValidateContentType(r.Header.Get("Content-Type"), supportedContentType); err != nil {
+	if err := util.ValidateJsonContentType(r.Header.Get("Content-Type")); err != nil {
 		return nil, err
 	}
 
@@ -463,7 +461,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 
 // PatchObject handles the update of the object with the id specified in the request
 func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
-	if err := util.ValidateContentType(r.Header.Get("Content-Type"), supportedContentType); err != nil {
+	if err := util.ValidateJsonContentType(r.Header.Get("Content-Type")); err != nil {
 		return nil, err
 	}
 

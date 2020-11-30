@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/util/slice"
 	"net/http"
 	"strings"
 	"time"
@@ -30,11 +31,13 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 )
 
+const jsonContentType = "application/json"
+
 var (
 	reservedSymbolsRFC3986 = strings.Join([]string{
 		":", "/", "?", "#", "[", "]", "@", "!", "$", "&", "'", "(", ")", "*", "+", ",", ";", "=",
 	}, "")
-	supportedContentTypes = []string{"application/json", "application/x-www-form-urlencoded"}
+	supportedContentTypes = []string{jsonContentType, "application/x-www-form-urlencoded"}
 )
 
 // InputValidator should be implemented by types that need input validation check. For a reference refer to pkg/types
@@ -55,21 +58,9 @@ func ToRFCNanoFormat(timestamp time.Time) string {
 // RequestBodyToBytes reads the request body and returns []byte with its content or an error if
 // the media type is unsupported or if the body is not a valid JSON
 func RequestBodyToBytes(request *http.Request) ([]byte, error) {
-	contentType := request.Header.Get("Content-Type")
-	contentTypeSupported := false
-	for _, supportedType := range supportedContentTypes {
-		if strings.Contains(contentType, supportedType) {
-			contentTypeSupported = true
-			break
-		}
-	}
-
-	if !contentTypeSupported {
-		return nil, &HTTPError{
-			ErrorType:   "UnsupportedMediaType",
-			Description: "unsupported media type provided",
-			StatusCode:  http.StatusUnsupportedMediaType,
-		}
+	contentType, err := validateContentTypeIsSupported(request)
+	if err != nil {
+		return nil, err
 	}
 
 	body, err := BodyToBytes(request.Body)
@@ -77,7 +68,7 @@ func RequestBodyToBytes(request *http.Request) ([]byte, error) {
 		return nil, err
 	}
 
-	if strings.Contains(contentType, "application/json") {
+	if strings.EqualFold(contentType, jsonContentType) {
 		if err := validJson(body); err != nil {
 			return nil, &HTTPError{
 				ErrorType:   "BadRequest",
@@ -88,6 +79,19 @@ func RequestBodyToBytes(request *http.Request) ([]byte, error) {
 	}
 
 	return body, nil
+}
+
+func validateContentTypeIsSupported(request *http.Request) (string, error) {
+	contentTypeHeader := request.Header.Get("Content-Type")
+	if slice.StringsAnyEquals(supportedContentTypes, contentTypeHeader) {
+		return contentTypeHeader, nil
+	}
+
+	return "", &HTTPError{
+		ErrorType:   "UnsupportedMediaType",
+		Description: fmt.Sprintf("unsupported media type: %s", contentTypeHeader),
+		StatusCode:  http.StatusUnsupportedMediaType,
+	}
 }
 
 func validJson(data []byte) error {
@@ -156,11 +160,11 @@ func BytesToObject(bytes []byte, object interface{}) error {
 	return nil
 }
 
-func ValidateContentType(headers string, supportedContentType string) error {
-	if !strings.EqualFold(headers, supportedContentType) {
+func ValidateJsonContentType(contentTypeHeader string) error {
+	if !strings.EqualFold(contentTypeHeader, jsonContentType) {
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("unsupported media type: %s", headers),
+			Description: fmt.Sprintf("unsupported media type: %s", contentTypeHeader),
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
