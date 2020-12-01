@@ -106,6 +106,7 @@ var _ = Describe("Utils test", func() {
 			})
 			When("when multiple Content-type are passed", func() {
 				for _, header := range []string{"application/json,application/x-www-form-urlencoded", "application/json application/x-www-form-urlencoded"} {
+					header := header
 					It("should fail and return a proper HTTPError", func() {
 						req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(validJSON))
 						req.Header.Add("Content-Type", header)

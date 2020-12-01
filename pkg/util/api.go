@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/util/slice"
+	"mime"
 	"net/http"
 	"strings"
 	"time"
@@ -68,7 +69,7 @@ func RequestBodyToBytes(request *http.Request) ([]byte, error) {
 		return nil, err
 	}
 
-	if strings.HasPrefix(contentType, jsonContentType) {
+	if strings.EqualFold(contentType, jsonContentType) {
 		if err := validJson(body); err != nil {
 			return nil, &HTTPError{
 				ErrorType:   "BadRequest",
@@ -88,14 +89,17 @@ func validateContentTypeIsSupported(request *http.Request) (string, error) {
 		return jsonContentType, nil
 	}
 
-	for _, supportedContentType := range supportedContentTypes {
-		if strings.HasPrefix(contentTypeHeader, supportedContentType) {
-			return contentTypeHeader, nil
+	mimeType, _, err := mime.ParseMediaType(contentTypeHeader)
+	if err != nil {
+		return "", &HTTPError{
+			ErrorType:   "UnsupportedMediaType",
+			Description: fmt.Sprintf("media type error: %s", err),
+			StatusCode:  http.StatusUnsupportedMediaType,
 		}
 	}
 
-	if slice.StringsAnyPrefix(supportedContentTypes, contentTypeHeader) {
-		return contentTypeHeader, nil
+	if slice.StringsAnyEquals(supportedContentTypes, mimeType) {
+		return mimeType, nil
 	}
 
 	return "", &HTTPError{
@@ -172,10 +176,11 @@ func BytesToObject(bytes []byte, object interface{}) error {
 }
 
 func ValidateJsonContentType(contentTypeHeader string) error {
-	if !strings.HasPrefix(contentTypeHeader, jsonContentType) {
+	mimeType, _, err := mime.ParseMediaType(contentTypeHeader)
+	if err != nil || !strings.EqualFold(mimeType, jsonContentType) {
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("unsupported media type: %s", contentTypeHeader),
+			Description: fmt.Sprintf("unsupported media type: %s, expecting %s", contentTypeHeader, jsonContentType),
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
