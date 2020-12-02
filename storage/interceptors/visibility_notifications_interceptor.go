@@ -18,6 +18,7 @@ func NewVisibilityNotificationsInterceptor() *NotificationsInterceptor {
 			if platformID != types.SMPlatform {
 				platformIDS = append(platformIDS, platformID)
 			}
+			//TODO: filter platforms with auth_type=oauth
 			return platformIDS, nil
 		},
 		AdditionalDetailsFunc: func(ctx context.Context, objects types.ObjectList, repository storage.Repository) (objectDetails, error) {

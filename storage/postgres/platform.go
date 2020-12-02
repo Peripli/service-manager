@@ -41,6 +41,7 @@ type Platform struct {
 	Active            bool           `db:"active"`
 	CredentialsActive bool           `db:"credentials_active"`
 	LastActive        time.Time      `db:"last_active"`
+	AuthType          string         `db:"auth_type"`
 }
 
 func (p *Platform) FromObject(object types.Object) (storage.Entity, error) {
@@ -72,14 +73,32 @@ func (p *Platform) FromObject(object types.Object) (storage.Entity, error) {
 		result.Integrity = platform.Integrity
 	}
 
-	if platform.Credentials != nil && platform.Credentials.Basic != nil {
-		result.Username = platform.Credentials.Basic.Username
-		result.Password = platform.Credentials.Basic.Password
+	if platform.Credentials != nil {
+		var username, password string
+		if platform.Credentials.Basic != nil {
+			username = platform.Credentials.Basic.Username
+			password = platform.Credentials.Basic.Password
+			result.AuthType = "basic"
+		} else if platform.Credentials.Oauth != nil {
+			username = platform.Credentials.Oauth.ClientID
+			password = platform.Credentials.Oauth.ClientSecret
+			result.AuthType = "oauth"
+		}
+		result.Username = username
+		result.Password = password
 	}
 
-	if platform.OldCredentials != nil && platform.OldCredentials.Basic != nil {
-		result.OldUsername = platform.OldCredentials.Basic.Username
-		result.OldPassword = platform.OldCredentials.Basic.Password
+	if platform.OldCredentials != nil {
+		var username, password string
+		if platform.OldCredentials.Basic != nil {
+			username = platform.OldCredentials.Basic.Username
+			password = platform.OldCredentials.Basic.Password
+		} else if platform.OldCredentials.Oauth != nil {
+			username = platform.OldCredentials.Oauth.ClientID
+			password = platform.OldCredentials.Oauth.ClientSecret
+		}
+		result.OldUsername = username
+		result.OldPassword = password
 	}
 	return result, nil
 }
@@ -93,26 +112,45 @@ func (p *Platform) ToObject() (types.Object, error) {
 			PagingSequence: p.PagingSequence,
 			Ready:          p.Ready,
 		},
-		Type:        p.Type,
-		Name:        p.Name,
-		Description: p.Description.String,
-		Credentials: &types.Credentials{
-			Basic: &types.Basic{
-				Username: p.Username,
-				Password: p.Password,
-			},
-		},
+		Type:              p.Type,
+		Name:              p.Name,
+		Description:       p.Description.String,
 		Active:            p.Active,
 		CredentialsActive: p.CredentialsActive,
 		LastActive:        p.LastActive,
 		Integrity:         p.Integrity,
 	}
-	if len(p.OldUsername) > 0 || len(p.OldPassword) > 0 {
-		platform.OldCredentials = &types.Credentials{
+	if p.AuthType == "basic" {
+		platform.Credentials = &types.Credentials{
 			Basic: &types.Basic{
-				Username: p.OldUsername,
-				Password: p.OldPassword,
+				Username: p.Username,
+				Password: p.Password,
 			},
+		}
+	} else if p.AuthType == "oauth" {
+		platform.Credentials = &types.Credentials{
+			Oauth: &types.Oauth{
+				ClientID:     p.Username,
+				ClientSecret: p.Password,
+			},
+		}
+	}
+
+	if len(p.OldUsername) > 0 || len(p.OldPassword) > 0 {
+		if p.AuthType == "basic" {
+			platform.OldCredentials = &types.Credentials{
+				Basic: &types.Basic{
+					Username: p.OldUsername,
+					Password: p.OldPassword,
+				},
+			}
+		} else if p.AuthType == "oauth" {
+			platform.OldCredentials = &types.Credentials{
+				Oauth: &types.Oauth{
+					ClientID:     p.OldUsername,
+					ClientSecret: p.OldPassword,
+				},
+			}
 		}
 	}
 	return platform, nil

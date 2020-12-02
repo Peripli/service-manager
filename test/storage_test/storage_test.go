@@ -325,6 +325,70 @@ var _ = Describe("Test", func() {
 			Expect(planIsFree).To(Equal(true))
 		})
 	})
+
+	Context("when platform of type oauth", func() {
+		var platform *types.Platform
+		BeforeEach(func() {
+			UUID, err := uuid.NewV4()
+			Expect(err).ToNot(HaveOccurred())
+			platform = &types.Platform{
+				Base: types.Base{
+					ID: UUID.String(),
+				},
+				Credentials: &types.Credentials{
+					Oauth: &types.Oauth{
+						ClientID:     "username",
+						ClientSecret: "password",
+					},
+				},
+				Type: "kubernetes",
+			}
+
+		})
+
+		AfterEach(func() {
+			byID := query.ByField(query.EqualsOperator, "id", platform.ID)
+			ctx.SMRepository.Delete(context.Background(), types.PlatformType, byID)
+		})
+
+		It("should retrieve credentials properly", func() {
+			_, err = ctx.SMRepository.Create(context.Background(), platform)
+			Expect(err).ToNot(HaveOccurred())
+			byID := query.ByField(query.EqualsOperator, "id", platform.ID)
+			obj, err := ctx.SMRepository.Get(context.Background(), types.PlatformType, byID)
+			dbPlatform := obj.(*types.Platform)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(dbPlatform.GetID()).To(Equal(platform.GetID()))
+			Expect(dbPlatform.Credentials.Oauth.ClientID).To(Equal("username"))
+			Expect(dbPlatform.Credentials.Oauth.ClientSecret).To(Equal("password"))
+			Expect(dbPlatform.Credentials.Basic).To(BeNil())
+		})
+		When("old credentials exist", func() {
+
+			It("should retrieve credentials properly", func() {
+				credentials := &types.Credentials{
+					Oauth: &types.Oauth{
+						ClientID:     "username",
+						ClientSecret: "password",
+					},
+				}
+				platform.OldCredentials = credentials
+				_, err = ctx.SMRepository.Create(context.Background(), platform)
+				Expect(err).ToNot(HaveOccurred())
+				byID := query.ByField(query.EqualsOperator, "id", platform.ID)
+				obj, err := ctx.SMRepository.Get(context.Background(), types.PlatformType, byID)
+				dbPlatform := obj.(*types.Platform)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(dbPlatform.GetID()).To(Equal(platform.GetID()))
+				Expect(dbPlatform.Credentials.Oauth.ClientID).To(Equal("username"))
+				Expect(dbPlatform.Credentials.Oauth.ClientSecret).To(Equal("password"))
+				Expect(dbPlatform.Credentials.Basic).To(BeNil())
+				Expect(dbPlatform.OldCredentials.Oauth.ClientID).To(Equal("username"))
+				Expect(dbPlatform.OldCredentials.Oauth.ClientSecret).To(Equal("password"))
+				Expect(dbPlatform.OldCredentials.Basic).To(BeNil())
+			})
+		})
+	})
 })
 
 func compareLabels(actual, expected types.Labels) {
