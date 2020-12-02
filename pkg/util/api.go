@@ -175,7 +175,7 @@ func BytesToObject(bytes []byte, object interface{}) error {
 	return nil
 }
 
-func ValidateJsonContentType(contentTypeHeader string) error {
+func ValidateJSONContentType(contentTypeHeader string) error {
 	mimeType, _, err := mime.ParseMediaType(contentTypeHeader)
 	if err != nil || !strings.EqualFold(mimeType, jsonContentType) {
 		return &HTTPError{
