@@ -7,6 +7,7 @@ addons:
   postgresql: "9.6"
 
 install:
+  - find . -type f -exec sed -i 's/Peripli\/service-manager/sm-ci\/service-manager/g' {} +
   - make prepare
 
 services:
@@ -18,31 +19,26 @@ jobs:
       name: "Other Integration Tests"
       script:
         - make precommit-integration-tests-other
-        - goveralls -coverprofile profile-int-other.cov -service=travis-ci
         - kill %1
     - stage: "Tests"
       name: "Broker Integration Tests"
       script:
         - travis_wait 20 make precommit-integration-tests-broker
-        - goveralls -coverprofile profile-int-broker.cov -service=travis-ci
         - kill %1
     - stage: "Tests"
       name: "OSB and Plugin Integration Tests"
       script:
         - make precommit-integration-tests-osb-and-plugin
-        - goveralls -coverprofile profile-int-osb-and-plugin.cov -service=travis-ci
         - kill %1
     - stage: "Tests"
       name: "Service Instance and Service Bindings Integration Tests"
       script:
         - travis_wait 30 make precommit-integration-tests-service-instance-and-binding
-        - goveralls -coverprofile profile-int-service-instance-and-bindings.cov -service=travis-ci
         - kill %1
     - stage: "Tests"
       name: "Unit Tests"
       script:
         - make precommit-unit-tests
-        - goveralls -coverprofile profile-unit.cov -service=travis-ci
         - kill %1
 
 env:
