@@ -72,15 +72,18 @@ func (*ServiceInstanceStripFilter) FilterMatchers() []web.FilterMatcher {
 func removePropertiesFromRequest(ctx context.Context, body []byte, props []string) ([]byte, error) {
 	var err error
 	for _, prop := range props {
-		body, err = sjson.DeleteBytes(body, prop)
-		if err != nil {
-			log.C(ctx).Errorf("Could not remove %s from body %s", prop, err)
-			return nil, &util.HTTPError{
-				ErrorType:   "BadRequest",
-				Description: "Invalid request body",
-				StatusCode:  http.StatusBadRequest,
+		for gjson.GetBytes(body, prop).Exists() {
+			body, err = sjson.DeleteBytes(body, prop)
+			if err != nil {
+				log.C(ctx).Errorf("Could not remove %s from body %s", prop, err)
+				return nil, &util.HTTPError{
+					ErrorType:   "BadRequest",
+					Description: "Invalid request body",
+					StatusCode:  http.StatusBadRequest,
+				}
 			}
 		}
 	}
+
 	return body, nil
 }
