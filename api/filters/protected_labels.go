@@ -56,6 +56,15 @@ func (flo *ProtectedLabelsFilter) Run(req *web.Request, next web.Handler) (*web.
 	}
 
 	if req.Method == http.MethodPost {
+		isJSON, err := util.IsJSONContentType(req.Header.Get("Content-Type"))
+		if err != nil {
+			return nil, err
+		}
+
+		if !isJSON {
+			return next.Handle(req)
+		}
+
 		var result types.Base
 		if err := json.Unmarshal(req.Body, &result); err != nil {
 			return nil, &util.HTTPError{
