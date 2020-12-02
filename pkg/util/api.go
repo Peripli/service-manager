@@ -69,7 +69,7 @@ func RequestBodyToBytes(request *http.Request) ([]byte, error) {
 		return nil, err
 	}
 
-	if strings.EqualFold(contentType, jsonContentType) {
+	if contentType == jsonContentType {
 		if err := validJson(body); err != nil {
 			return nil, &HTTPError{
 				ErrorType:   "BadRequest",
@@ -177,7 +177,7 @@ func BytesToObject(bytes []byte, object interface{}) error {
 
 func ValidateJSONContentType(contentTypeHeader string) error {
 	mimeType, _, err := mime.ParseMediaType(contentTypeHeader)
-	if err != nil || !strings.EqualFold(mimeType, jsonContentType) {
+	if err != nil || mimeType != jsonContentType {
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: fmt.Sprintf("unsupported media type: %s, expecting %s", contentTypeHeader, jsonContentType),
