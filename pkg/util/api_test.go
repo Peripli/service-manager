@@ -95,12 +95,26 @@ var _ = Describe("Utils test", func() {
 		var req *http.Request
 
 		Context("when Content-type is not supported", func() {
-			It("returns a proper HTTPError", func() {
-				req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(validJSON))
-				req.Header.Add("Content-Type", "application/xml")
-				_, err := util.RequestBodyToBytes(req)
+			When("when a single Content-type is passed", func() {
+				It("returns a proper HTTPError", func() {
+					req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(validJSON))
+					req.Header.Add("Content-Type", "application/xml")
+					_, err := util.RequestBodyToBytes(req)
 
-				validateHTTPErrorOccurred(err, http.StatusUnsupportedMediaType)
+					validateHTTPErrorOccurred(err, http.StatusUnsupportedMediaType)
+				})
+			})
+			When("when multiple Content-type are passed", func() {
+				for _, header := range []string{"application/json,application/x-www-form-urlencoded", "application/json application/x-www-form-urlencoded"} {
+					header := header
+					It("should fail and return a proper HTTPError", func() {
+						req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(validJSON))
+						req.Header.Add("Content-Type", header)
+						_, err := util.RequestBodyToBytes(req)
+
+						validateHTTPErrorOccurred(err, http.StatusUnsupportedMediaType)
+					})
+				}
 			})
 		})
 
@@ -268,6 +282,25 @@ var _ = Describe("Utils test", func() {
 			Expect(response.Body).ShouldNot(BeEmpty())
 			Expect(response.Body).ShouldNot(Equal(util.EmptyResponseBody{}))
 			Expect(response.Header.Get("Content-Type")).To(Equal("application/json"))
+		})
+	})
+
+	Describe("ValidateJSONContentType", func() {
+		It("returns with no error if content-type is application/json", func() {
+			err := util.ValidateJSONContentType("application/json")
+			Expect(err).ShouldNot(HaveOccurred())
+		})
+		It("returns with no error if content-type is capitalized APPLICATION/JSON", func() {
+			err := util.ValidateJSONContentType("APPLICATION/JSON")
+			Expect(err).ShouldNot(HaveOccurred())
+		})
+		It("returns error if content-type is not application/json", func() {
+			err := util.ValidateJSONContentType("application/xml")
+			validateHTTPErrorOccurred(err, http.StatusBadRequest)
+		})
+		It("returns error if content-type is capitalized APPLICATION/XML", func() {
+			err := util.ValidateJSONContentType("APPLICATION/XML")
+			validateHTTPErrorOccurred(err, http.StatusBadRequest)
 		})
 	})
 })

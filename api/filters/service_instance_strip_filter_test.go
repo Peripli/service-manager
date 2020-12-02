@@ -48,7 +48,7 @@ var _ = Describe("Service Instance Strip Filter", func() {
 
 	Context("Create instance", func() {
 		When("body has properties which cannot be set", func() {
-			It("should remove them from request body", func() {
+			It("should remove them from request body as json", func() {
 				var err error
 				for _, prop := range serviceInstanceUnmodifiableProperties {
 					jsonWithPropertiesToStrip, err = sjson.Set(jsonWithPropertiesToStrip, prop, defaultValue)
@@ -58,6 +58,20 @@ var _ = Describe("Service Instance Strip Filter", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				req := mockedRequest(http.MethodPost, jsonWithPropertiesToStrip)
+				_, err = filter.Run(req, handler)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(handler.HandleCallCount()).To(Equal(1))
+				requestBody := handler.HandleArgsForCall(0).Body
+				for _, prop := range serviceInstanceUnmodifiableProperties {
+					Expect(gjson.GetBytes(requestBody, prop).String()).To(BeEmpty())
+				}
+				Expect(gjson.GetBytes(requestBody, propertyNotToBeDeleted).String()).To(Equal(defaultValue))
+			})
+
+			It("should remove them from request body as string with duplicate properties", func() {
+				var err error
+				stringBody := "{\"ready\":\"value\",\"ready\":\"value2\",\"usable\":\"value\",\"context\":\"value\",\"some_prop\":\"value\"}"
+				req := mockedRequest(http.MethodPost, stringBody)
 				_, err = filter.Run(req, handler)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(handler.HandleCallCount()).To(Equal(1))
