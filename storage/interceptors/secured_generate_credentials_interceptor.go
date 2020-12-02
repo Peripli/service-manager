@@ -27,8 +27,8 @@ import (
 )
 
 const (
-	generatePlatformCredentialsInterceptorName   = "CreatePlatformCredentialsInterceptor"
-	regeneratePlatformCredentialsInterceptorName = "UpdatePlatformCredentialsInterceptor"
+	GeneratePlatformCredentialsInterceptorName   = "CreatePlatformCredentialsInterceptor"
+	RegeneratePlatformCredentialsInterceptorName = "UpdatePlatformCredentialsInterceptor"
 )
 
 type GeneratePlatformCredentialsInterceptorProvider struct {
@@ -42,7 +42,7 @@ func (c *GeneratePlatformCredentialsInterceptorProvider) Provide() storage.Creat
 }
 
 func (c *GeneratePlatformCredentialsInterceptorProvider) Name() string {
-	return generatePlatformCredentialsInterceptorName
+	return GeneratePlatformCredentialsInterceptorName
 }
 
 func (c *RegeneratePlatformCredentialsInterceptorProvider) Provide() storage.UpdateAroundTxInterceptor {
@@ -50,7 +50,7 @@ func (c *RegeneratePlatformCredentialsInterceptorProvider) Provide() storage.Upd
 }
 
 func (c *RegeneratePlatformCredentialsInterceptorProvider) Name() string {
-	return regeneratePlatformCredentialsInterceptorName
+	return RegeneratePlatformCredentialsInterceptorName
 }
 
 type generatePlatformCredentialsInterceptor struct{}
