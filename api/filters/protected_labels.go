@@ -58,7 +58,11 @@ func (flo *ProtectedLabelsFilter) Run(req *web.Request, next web.Handler) (*web.
 	if req.Method == http.MethodPost {
 		var result types.Base
 		if err := json.Unmarshal(req.Body, &result); err != nil {
-			return nil, err
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: fmt.Sprintf("Invalid JSON body"),
+				StatusCode:  http.StatusBadRequest,
+			}
 		}
 
 		labels := result.Labels
