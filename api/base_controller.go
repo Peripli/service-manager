@@ -151,6 +151,10 @@ func (c *BaseController) Routes() []web.Route {
 
 // CreateObject handles the creation of a new object
 func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
+	if err := util.ValidateJSONContentType(r.Header.Get("Content-Type")); err != nil {
+		return nil, err
+	}
+
 	ctx := r.Context()
 	log.C(ctx).Debugf("Creating new %s", c.objectType)
 
@@ -457,6 +461,10 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 
 // PatchObject handles the update of the object with the id specified in the request
 func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
+	if err := util.ValidateJSONContentType(r.Header.Get("Content-Type")); err != nil {
+		return nil, err
+	}
+
 	objectID := r.PathParams[web.PathParamResourceID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Updating %s with id %s", c.objectType, objectID)
