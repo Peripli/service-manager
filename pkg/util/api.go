@@ -177,8 +177,15 @@ func BytesToObject(bytes []byte, object interface{}) error {
 
 func ValidateJSONContentType(contentTypeHeader string) error {
 	isJSON, err := IsJSONContentType(contentTypeHeader)
-	if err != nil || !isJSON {
+	if err != nil {
 		return err
+	}
+	if !isJSON {
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("unsupported media type"),
+			StatusCode:  http.StatusBadRequest,
+		}
 	}
 	return nil
 }
