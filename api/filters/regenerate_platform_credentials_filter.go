@@ -8,7 +8,7 @@ import (
 const (
 	RegeneratePlatformCredentialsFilterName = "RegeneratePlatformCredentialsFilter"
 	RegenerateCredentialsQueryParam         = "regenerateCredentials"
-	ActivateCredentialsQueryParam         = "activateCredentials"
+	ActivateCredentialsQueryParam           = "activateCredentials"
 )
 
 // RegeneratePlatformCredentialsFilter checks if regenerate credentials for platform was required
