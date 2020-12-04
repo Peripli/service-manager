@@ -20,15 +20,14 @@ func (f *RegeneratePlatformCredentialsFilter) Name() string {
 }
 
 func (f *RegeneratePlatformCredentialsFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	ctx := req.Context()
 
 	if req.URL.Query().Get(RegenerateCredentialsQueryParam) == "true" {
-		newCtx := web.ContextWithGeneratePlatformCredentialsFlag(ctx, true)
+		newCtx := web.ContextWithGeneratePlatformCredentialsFlag(req.Context(), true)
 		req.Request = req.WithContext(newCtx)
 	}
 
 	if req.URL.Query().Get(ActivateCredentialsQueryParam) == "true" {
-		newCtx := web.ContextWithActivatePlatformCredentialsFlag(ctx, true)
+		newCtx := web.ContextWithActivatePlatformCredentialsFlag(req.Context(), true)
 		req.Request = req.WithContext(newCtx)
 	}
 	return next.Handle(req)
