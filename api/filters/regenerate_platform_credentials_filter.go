@@ -8,6 +8,7 @@ import (
 const (
 	RegeneratePlatformCredentialsFilterName = "RegeneratePlatformCredentialsFilter"
 	RegenerateCredentialsQueryParam         = "regenerateCredentials"
+	ActivateCredentialsQueryParam         = "activateCredentials"
 )
 
 // RegeneratePlatformCredentialsFilter checks if regenerate credentials for platform was required
@@ -23,6 +24,11 @@ func (f *RegeneratePlatformCredentialsFilter) Run(req *web.Request, next web.Han
 
 	if req.URL.Query().Get(RegenerateCredentialsQueryParam) == "true" {
 		newCtx := web.ContextWithGeneratePlatformCredentialsFlag(ctx, true)
+		req.Request = req.WithContext(newCtx)
+	}
+
+	if req.URL.Query().Get(ActivateCredentialsQueryParam) == "true" {
+		newCtx := web.ContextWithActivatePlatformCredentialsFlag(ctx, true)
 		req.Request = req.WithContext(newCtx)
 	}
 	return next.Handle(req)
