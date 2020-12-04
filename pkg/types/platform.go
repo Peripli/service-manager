@@ -82,6 +82,7 @@ func (e *Platform) Sanitize(ctx context.Context) {
 	}
 	e.OldCredentials = nil
 	e.CredentialsActive = false
+	delete(e.Labels, "oauth_metadata")
 }
 
 func (e *Platform) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {
