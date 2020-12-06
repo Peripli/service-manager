@@ -56,6 +56,8 @@ type Platform struct {
 	LastActive        time.Time    `json:"-"`
 	Integrity         []byte       `json:"-"`
 	CredentialsActive bool         `json:"credentials_active,omitempty"`
+	//technical platforms are only used for managing visibilities, and are excluded in notification and credential management flows
+	Technical         bool         `json:"technical,omitempty"`
 }
 
 func (e *Platform) Equals(obj Object) bool {
@@ -82,6 +84,7 @@ func (e *Platform) Sanitize(ctx context.Context) {
 	}
 	e.OldCredentials = nil
 	e.CredentialsActive = false
+	e.Technical = false
 }
 
 func (e *Platform) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {

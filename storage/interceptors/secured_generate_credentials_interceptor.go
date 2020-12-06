@@ -63,7 +63,7 @@ func (c *generatePlatformCredentialsInterceptor) AroundTxCreate(h storage.Interc
 			return nil, errors.New("created object is not a platform")
 		}
 
-		if isPlatformExcluded(platform) {
+		if platform.Technical {
 			return h(ctx, obj)
 		}
 
@@ -81,7 +81,7 @@ func (c *generatePlatformCredentialsInterceptor) AroundTxUpdate(h storage.Interc
 			return nil, errors.New("created object is not a platform")
 		}
 
-		if isPlatformExcluded(platform) {
+		if platform.Technical {
 			return h(ctx, platform, labelChanges...)
 		}
 
@@ -98,10 +98,6 @@ func (c *generatePlatformCredentialsInterceptor) AroundTxUpdate(h storage.Interc
 		}
 		return h(ctx, platform, labelChanges...)
 	}
-}
-
-func isPlatformExcluded(platform *types.Platform) bool {
-	return platform.Labels != nil && len(platform.Labels["excluded"]) > 0 && platform.Labels["excluded"][0] == "true"
 }
 
 func generateCredentials(ctx context.Context, platform *types.Platform) error {
