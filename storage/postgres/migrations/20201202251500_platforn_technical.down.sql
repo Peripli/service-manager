@@ -1,5 +1,5 @@
 BEGIN;
 
-ALTER TABLE platforms DROP COLUMN IF EXISTS auth_type;
+ALTER TABLE platforms DROP COLUMN IF EXISTS technical;
 
 COMMIT;
