@@ -27,8 +27,8 @@ import (
 )
 
 const (
-	GeneratePlatformCredentialsInterceptorName   = "CreatePlatformCredentialsInterceptor"
-	RegeneratePlatformCredentialsInterceptorName = "UpdatePlatformCredentialsInterceptor"
+	generatePlatformCredentialsInterceptorName   = "CreatePlatformCredentialsInterceptor"
+	regeneratePlatformCredentialsInterceptorName = "UpdatePlatformCredentialsInterceptor"
 )
 
 type GeneratePlatformCredentialsInterceptorProvider struct {
@@ -42,7 +42,7 @@ func (c *GeneratePlatformCredentialsInterceptorProvider) Provide() storage.Creat
 }
 
 func (c *GeneratePlatformCredentialsInterceptorProvider) Name() string {
-	return GeneratePlatformCredentialsInterceptorName
+	return generatePlatformCredentialsInterceptorName
 }
 
 func (c *RegeneratePlatformCredentialsInterceptorProvider) Provide() storage.UpdateAroundTxInterceptor {
@@ -50,7 +50,7 @@ func (c *RegeneratePlatformCredentialsInterceptorProvider) Provide() storage.Upd
 }
 
 func (c *RegeneratePlatformCredentialsInterceptorProvider) Name() string {
-	return RegeneratePlatformCredentialsInterceptorName
+	return regeneratePlatformCredentialsInterceptorName
 }
 
 type generatePlatformCredentialsInterceptor struct{}
@@ -61,10 +61,6 @@ func (c *generatePlatformCredentialsInterceptor) AroundTxCreate(h storage.Interc
 		platform, ok := obj.(*types.Platform)
 		if !ok {
 			return nil, errors.New("created object is not a platform")
-		}
-		// generate credentials only for platforms with basic auth type
-		if platform.Credentials != nil && platform.Credentials.Oauth != nil {
-			return h(ctx, obj)
 		}
 
 		if err := generateCredentials(ctx, platform); err != nil {
@@ -79,11 +75,6 @@ func (c *generatePlatformCredentialsInterceptor) AroundTxUpdate(h storage.Interc
 		platform, ok := obj.(*types.Platform)
 		if !ok {
 			return nil, errors.New("created object is not a platform")
-		}
-
-		// regenerate credentials only for platforms with basic auth type
-		if platform.Credentials != nil && platform.Credentials.Oauth != nil {
-			return h(ctx, platform, labelChanges...)
 		}
 
 		if web.IsGeneratePlatformCredentialsRequired(ctx) {
