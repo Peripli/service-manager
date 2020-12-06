@@ -1,5 +1,0 @@
-BEGIN;
-
-ALTER TABLE platforms ADD COLUMN IF NOT EXISTS auth_type varchar(25) NOT NULL DEFAULT 'basic';
-
-COMMIT;

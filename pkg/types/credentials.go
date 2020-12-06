@@ -30,12 +30,6 @@ type Basic struct {
 	Password string `json:"password,omitempty"`
 }
 
-// Oauth credentials
-type Oauth struct {
-	ClientID     string `json:"client_id,omitempty"`
-	ClientSecret string `json:"client_secret,omitempty"`
-}
-
 type TLS struct {
 	Certificate string `json:"client_certificate,omitempty"`
 	Key         string `json:"client_key,omitempty"`
@@ -44,7 +38,6 @@ type TLS struct {
 // Credentials credentials
 type Credentials struct {
 	Basic     *Basic `json:"basic,omitempty"`
-	Oauth     *Oauth `json:"oauth,omitempty"`
 	TLS       *TLS   `json:"tls,omitempty"`
 	Integrity []byte `json:"-"`
 }

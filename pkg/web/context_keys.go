@@ -14,7 +14,6 @@ const (
 	authorizationErrorKey
 	shouldStoreBindingsKey
 	generatePlatformCredentialsKey
-	activatePlatformCredentialsKey
 	smaapOperatedKey
 )
 
@@ -35,15 +34,6 @@ func IsGeneratePlatformCredentialsRequired(ctx context.Context) bool {
 
 func ContextWithGeneratePlatformCredentialsFlag(ctx context.Context, generate bool) context.Context {
 	return context.WithValue(ctx, generatePlatformCredentialsKey, generate)
-}
-
-func IsActivatePlatformCredentialsRequired(ctx context.Context) bool {
-	activateRequired := ctx.Value(activatePlatformCredentialsKey)
-	return activateRequired != nil && activateRequired.(bool)
-}
-
-func ContextWithActivatePlatformCredentialsFlag(ctx context.Context, activate bool) context.Context {
-	return context.WithValue(ctx, activatePlatformCredentialsKey, activate)
 }
 
 // ShouldStoreBindings returns whether the request has to store bindings

@@ -82,7 +82,6 @@ func (e *Platform) Sanitize(ctx context.Context) {
 	}
 	e.OldCredentials = nil
 	e.CredentialsActive = false
-	delete(e.Labels, "oauth_metadata")
 }
 
 func (e *Platform) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {
@@ -94,59 +93,38 @@ func (e *Platform) Decrypt(ctx context.Context, decryptionFunc func(context.Cont
 }
 
 func (e *Platform) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
-	if credType, ok := e.credentialsType(e.Credentials); ok {
-		if credType == "basic" {
-			transformedPassword, err := transformationFunc(ctx, []byte(e.Credentials.Basic.Password))
-			if err != nil {
-				return err
-			}
-			e.Credentials.Basic.Password = string(transformedPassword)
-		} else if credType == "oauth" {
-			transformedPassword, err := transformationFunc(ctx, []byte(e.Credentials.Oauth.ClientSecret))
-			if err != nil {
-				return err
-			}
-			e.Credentials.Oauth.ClientSecret = string(transformedPassword)
-		}
+	var credentialsExist bool
+	var oldCredentialsExist bool
+	if e.Credentials != nil && e.Credentials.Basic != nil {
+		credentialsExist = true
+	}
+	if e.OldCredentials != nil && e.OldCredentials.Basic != nil {
+		oldCredentialsExist = true
 	}
 
-	if credType, ok := e.credentialsType(e.OldCredentials); ok {
-		if credType == "basic" {
-			transformedPassword, err := transformationFunc(ctx, []byte(e.OldCredentials.Basic.Password))
-			if err != nil {
-				return err
-			}
-			e.OldCredentials.Basic.Password = string(transformedPassword)
-		} else if credType == "oauth" {
-			transformedPassword, err := transformationFunc(ctx, []byte(e.OldCredentials.Oauth.ClientSecret))
-			if err != nil {
-				return err
-			}
-			e.OldCredentials.Oauth.ClientSecret = string(transformedPassword)
+	if credentialsExist {
+		transformedPassword, err := transformationFunc(ctx, []byte(e.Credentials.Basic.Password))
+		if err != nil {
+			return err
 		}
+		e.Credentials.Basic.Password = string(transformedPassword)
+	}
+	if oldCredentialsExist {
+		transformedOldPassword, err := transformationFunc(ctx, []byte(e.OldCredentials.Basic.Password))
+		if err != nil {
+			return err
+		}
+		e.OldCredentials.Basic.Password = string(transformedOldPassword)
 	}
 	return nil
 }
 
 func (e *Platform) IntegralData() []byte {
 	oldCredentials := ""
-	if e.OldCredentials != nil {
-		if e.OldCredentials.Basic != nil {
-			oldCredentials = fmt.Sprintf(":%s:%s", e.OldCredentials.Basic.Username, e.OldCredentials.Basic.Password)
-		} else if e.OldCredentials.Oauth != nil {
-			oldCredentials = fmt.Sprintf(":%s:%s", e.OldCredentials.Oauth.ClientID, e.OldCredentials.Oauth.ClientSecret)
-		}
+	if e.OldCredentials != nil && e.OldCredentials.Basic != nil {
+		oldCredentials = fmt.Sprintf(":%s:%s", e.OldCredentials.Basic.Username, e.OldCredentials.Basic.Password)
 	}
-	var user, password string
-	if e.Credentials.Basic != nil {
-		user = e.Credentials.Basic.Username
-		password = e.Credentials.Basic.Password
-	} else if e.Credentials.Oauth != nil {
-		user = e.Credentials.Oauth.ClientID
-		password = e.Credentials.Oauth.ClientSecret
-	}
-
-	integrity := fmt.Sprintf("%s:%s%s", user, password, oldCredentials)
+	integrity := fmt.Sprintf("%s:%s%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, oldCredentials)
 	return []byte(integrity)
 }
 
@@ -170,25 +148,4 @@ func (e *Platform) Validate() error {
 		return fmt.Errorf("%s contains invalid character(s)", e.ID)
 	}
 	return nil
-}
-
-func (e *Platform) CredentialsType() string {
-	credType, _ := e.credentialsType(e.Credentials)
-	return credType
-}
-
-func (e *Platform) credentialsType(credentials *Credentials) (string, bool) {
-	if credentials == nil {
-		return "", false
-	}
-	if credentials.Basic != nil {
-		return "basic", true
-	}
-	if credentials.Oauth != nil {
-		return "oauth", true
-	}
-	if e.Credentials.TLS != nil {
-		return "tls", true
-	}
-	return "", false
 }
