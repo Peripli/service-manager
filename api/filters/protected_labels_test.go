@@ -111,7 +111,7 @@ var _ = Describe("Forbidden label operations filter", func() {
 				req := mockedRequest(http.MethodPost, `{"labels": "invalid"}`)
 				_, err := filter.Run(req, handler)
 				Expect(err).Should(HaveOccurred())
-				Expect(err.Error()).Should(ContainSubstring("cannot unmarshal string"))
+				Expect(err.Error()).Should(ContainSubstring("Invalid JSON body"))
 				Expect(handler.HandleCallCount()).To(Equal(0))
 			})
 		})
