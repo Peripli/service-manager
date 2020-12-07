@@ -98,17 +98,19 @@ func (p *Platform) ToObject() (types.Object, error) {
 		Type:        p.Type,
 		Name:        p.Name,
 		Description: p.Description.String,
-		Credentials: &types.Credentials{
-			Basic: &types.Basic{
-				Username: p.Username,
-				Password: p.Password,
-			},
-		},
 		Active:            p.Active,
 		CredentialsActive: p.CredentialsActive,
 		LastActive:        p.LastActive,
 		Technical:         p.Technical,
 		Integrity:         p.Integrity,
+	}
+	if len(p.Username) > 0 || len(p.Password) > 0 {
+		platform.Credentials = &types.Credentials{
+			Basic: &types.Basic{
+				Username: p.Username,
+				Password: p.Password,
+			},
+		}
 	}
 	if len(p.OldUsername) > 0 || len(p.OldPassword) > 0 {
 		platform.OldCredentials = &types.Credentials{

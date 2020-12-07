@@ -127,7 +127,10 @@ func (e *Platform) IntegralData() []byte {
 	if e.OldCredentials != nil && e.OldCredentials.Basic != nil {
 		oldCredentials = fmt.Sprintf(":%s:%s", e.OldCredentials.Basic.Username, e.OldCredentials.Basic.Password)
 	}
-	integrity := fmt.Sprintf("%s:%s%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, oldCredentials)
+	integrity := ""
+	if e.Credentials != nil {
+		integrity = fmt.Sprintf("%s:%s%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, oldCredentials)
+	}
 	return []byte(integrity)
 }
 
