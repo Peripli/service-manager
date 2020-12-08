@@ -305,12 +305,18 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 			return util.NewLocationResponse(concurrentOp.GetID(), resourceID, c.resourceBaseURL)
 		}
 	}
+
+	labels := types.Labels{}
+	if opCtx.Force {
+		labels["force"] = []string{"true"}
+	}
+
 	operation := &types.Operation{
 		Base: types.Base{
 			ID:        UUID.String(),
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
-			Labels:    make(map[string][]string),
+			Labels:    labels,
 			Ready:     true,
 		},
 		Type:          types.DELETE,
@@ -687,6 +693,7 @@ func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types
 	operationContext := &types.OperationContext{}
 	async := r.URL.Query().Get(web.QueryParamAsync)
 	cascade := r.URL.Query().Get(web.QueryParamCascade)
+	force := r.URL.Query().Get(web.QueryParamForce)
 
 	if async == "" {
 		operationContext.Async = false
@@ -707,6 +714,8 @@ func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types
 	} else {
 		operationContext.Cascade = false
 	}
+
+	operationContext.Force = force == "true"
 
 	return operationContext
 }
