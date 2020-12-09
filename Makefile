@@ -163,7 +163,7 @@ generate: prepare-counterfeiter build-gen-binary $(GENERATE_PREREQ_FILES) ## Rec
 	$(GO) list ./... | xargs $(GO) generate
 	@touch $@
 
-test-unit: generate ## Runs the unit tests
+test-unit:
 	@echo Running unit tests:
 	$(GO_UNIT_TEST)
 
