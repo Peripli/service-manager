@@ -32,4 +32,4 @@ jobs:
     
     - name: Unit Test
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
-      run: make precommit-unit-tests
+      run: make test-unit
