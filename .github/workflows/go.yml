@@ -33,6 +33,7 @@ jobs:
     - name: Unit Test
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
       run: |
+        make prepare
         make build
         make format-check
         make lint-check
