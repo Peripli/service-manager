@@ -36,7 +36,7 @@ func (pi *monitoredPlatformsIndicator) Status() (interface{}, error) {
 		return nil, fmt.Errorf("could not fetch monitored platforms health from storage: %v", err)
 	}
 	platforms := monitoredPlatforms.(*types.Platforms).Platforms
-	details, inactivePlatforms, _ := checkPlatformsState(platforms,nil)
+	details, inactivePlatforms, _ := CheckPlatformsState(platforms,nil)
 	if len(platforms) > 0 {
 		currentThreshold := (inactivePlatforms / len(platforms)) * 100
 		if currentThreshold >= pi.monitoredPlatformsThreshold {

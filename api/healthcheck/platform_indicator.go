@@ -63,7 +63,7 @@ func (pi *platformIndicator) Status() (interface{}, error) {
 		return nil, fmt.Errorf("could not fetch platforms health from storage: %v", err)
 	}
 	platforms := objList.(*types.Platforms).Platforms
-	details, inactivePlatforms, fatalInactivePlatforms := checkPlatformsState(platforms, nil)
+	details, inactivePlatforms, fatalInactivePlatforms := CheckPlatformsState(platforms, nil)
 	if fatalInactivePlatforms > 0 {
 		err = fmt.Errorf("there are %d inactive platforms %d of them are fatal", inactivePlatforms, fatalInactivePlatforms)
 	}

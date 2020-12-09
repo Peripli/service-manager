@@ -5,7 +5,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-func checkPlatformsState(platforms []*types.Platform, fatal func(*types.Platform) bool) ( map[string]*health.Health, int,int){
+func CheckPlatformsState(platforms []*types.Platform, fatal func(*types.Platform) bool) ( map[string]*health.Health, int,int){
 	details := make(map[string]*health.Health)
 	inactivePlatforms := 0
 	fatalInactivePlatforms:=0
