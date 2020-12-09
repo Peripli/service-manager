@@ -50,6 +50,7 @@ var indicatorNames = [...]string{
 type Settings struct {
 	Indicators          map[string]*IndicatorSettings `mapstructure:"indicators"`
 	PlatformMaxInactive time.Duration                 `mapstructure:"platform_max_inactive"`
+	MonitoredPlatformsThreshold int	                  `mapstructure:"monitored_platforms_threshold"`
 }
 
 // DefaultSettings returns default values for health settings
@@ -61,6 +62,7 @@ func DefaultSettings() *Settings {
 	return &Settings{
 		Indicators:          defaultIndicatorSettings,
 		PlatformMaxInactive: 60 * 24 * time.Hour,
+
 	}
 }
 
@@ -80,6 +82,7 @@ type IndicatorSettings struct {
 	FailuresThreshold int64         `mapstructure:"failures_threshold" description:"number of failures in a row that will affect overall status"`
 	Interval          time.Duration `mapstructure:"interval" description:"time between health checks of components"`
 }
+
 
 // DefaultIndicatorSettings returns default values for indicator settings
 func DefaultIndicatorSettings() *IndicatorSettings {
