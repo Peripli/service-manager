@@ -101,8 +101,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		if err != nil {
 			return nil, err
 		}
-		values := instance.Labels[SMAAPOperatedLabelKey]
-		smaapOperated := len(values) > 0 && values[0] == "true"
+		smaapOperated := len(instance.Labels[OperatedByLabelKey]) > 0
 
 		if instance.PlatformID != types.SMPlatform && !smaapOperated {
 			log.C(ctx).Debugf("platform is not %s. Skipping interceptor %s", types.SMPlatform, ServiceBindingDeleteInterceptorProviderName)

@@ -43,7 +43,7 @@ import (
 
 const (
 	ServiceInstanceCreateInterceptorProviderName = "ServiceInstanceCreateInterceptorProvider"
-	SMAAPOperatedLabelKey                        = "smaap_operated"
+	OperatedByLabelKey                           = "operated_by"
 )
 
 type BaseSMAAPInterceptorProvider struct {
@@ -122,8 +122,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		instance := obj.(*types.ServiceInstance)
 		instance.Usable = false
-		values := instance.Labels[SMAAPOperatedLabelKey]
-		smaapOperated := len(values) > 0 && values[0] == "true"
+		smaapOperated := len(instance.Labels[OperatedByLabelKey]) > 0
 
 		if instance.PlatformID != types.SMPlatform && !smaapOperated {
 			return f(ctx, obj)
@@ -231,8 +230,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 	return func(ctx context.Context, updatedObj types.Object, labelChanges ...*types.LabelChange) (object types.Object, err error) {
 		updatedInstance := updatedObj.(*types.ServiceInstance)
-		values := updatedInstance.Labels[SMAAPOperatedLabelKey]
-		smaapOperated := len(values) > 0 && values[0] == "true"
+		smaapOperated := len(updatedInstance.Labels[OperatedByLabelKey]) > 0
 
 		if updatedInstance.PlatformID != types.SMPlatform && !smaapOperated {
 			return f(ctx, updatedObj, labelChanges...)

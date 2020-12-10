@@ -227,6 +227,29 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						reply.Value("description").String().Contains("api doesn't support asynchronous operations")
 					})
 				})
+
+				Context("Technical Platform", func() {
+
+					It("should succeed", func() {
+						result := ctx.SMWithOAuthForTenant.POST(web.PlatformsURL).
+							WithJSON(common.Object{
+								"name":        "technical",
+								"technical":   true,
+								"type":        "kubernetes",
+								"description": "none",
+								"id":          "1234",
+							}).Expect().Status(http.StatusCreated).JSON().Object()
+						result.Value("id").String().Equal("1234")
+						result.NotContainsKey("credentials")
+
+					})
+
+					AfterEach(func() {
+						ctx.SMWithOAuthForTenant.DELETE(web.PlatformsURL + "/1234").
+							Expect().Status(http.StatusOK)
+					})
+				})
+
 			})
 
 			Describe("PATCH", func() {
@@ -601,6 +624,38 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				})
 
+			})
+
+			Describe("GET", func() {
+				Context("Technical Platform", func() {
+					BeforeEach(func() {
+						ctx.SMWithOAuthForTenant.POST(web.PlatformsURL).
+							WithJSON(common.Object{
+								"name":        "technical",
+								"technical":   true,
+								"type":        "kubernetes",
+								"description": "none",
+								"id":          "1234",
+							}).Expect().Status(http.StatusCreated)
+					})
+
+					AfterEach(func() {
+						ctx.SMWithOAuthForTenant.DELETE(web.PlatformsURL + "/1234").
+							Expect().Status(http.StatusOK)
+					})
+
+					It("should be not found", func() {
+						ctx.SMWithOAuthForTenant.GET(web.PlatformsURL + "/1234").
+							Expect().Status(http.StatusNotFound)
+					})
+
+					It("should be filtered out from list", func() {
+						result := ctx.SMWithOAuthForTenant.GET(web.PlatformsURL).
+							Expect().Status(http.StatusOK).JSON().Object()
+						result.NotEmpty().Value("items").Path("$[*].id").Array().
+							NotContains("1234")
+					})
+				})
 			})
 		})
 	},
