@@ -3341,6 +3341,28 @@ var _ = DescribeTestsFor(TestCase{
 											Ready: true,
 										})
 									})
+
+									It("deletes the instance and marks operation with success when cascade and force are passed", func() {
+										resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+instanceID).
+											WithQuery("async", testCase.async).
+											WithQuery("force", true).
+											WithQuery("cascade", true).
+											Expect().
+											Status(http.StatusAccepted)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:   instanceID,
+											Type: types.ServiceInstanceType,
+										})
+									})
 								})
 
 								When("deprovision responds with error that does not require orphan mitigation", func() {
@@ -3362,6 +3384,28 @@ var _ = DescribeTestsFor(TestCase{
 											ID:    instanceID,
 											Type:  types.ServiceInstanceType,
 											Ready: true,
+										})
+									})
+
+									It("deletes the instance and marks operation with success when cascade and force are passed", func() {
+										resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+instanceID).
+											WithQuery("async", testCase.async).
+											WithQuery("force", true).
+											WithQuery("cascade", true).
+											Expect().
+											Status(http.StatusAccepted)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+											ID:   instanceID,
+											Type: types.ServiceInstanceType,
 										})
 									})
 								})
