@@ -1,4 +1,4 @@
-# Service Manager
+# Service Manager 
 
 
 [![Build Status](https://travis-ci.com/Peripli/service-manager.svg?branch=master)](https://travis-ci.com/Peripli/service-manager)
