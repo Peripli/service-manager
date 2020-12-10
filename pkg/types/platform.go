@@ -56,8 +56,7 @@ type Platform struct {
 	LastActive        time.Time    `json:"-"`
 	Integrity         []byte       `json:"-"`
 	CredentialsActive bool         `json:"credentials_active,omitempty"`
-	//technical platforms are only used for managing visibilities, and are excluded in notification and credential management flows
-	Technical         bool         `json:"technical,omitempty"`
+	Technical         bool         `json:"technical,omitempty"` //technical platforms are only used for managing visibilities, and are excluded in notification and credential management flows
 }
 
 func (e *Platform) Equals(obj Object) bool {
