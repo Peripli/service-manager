@@ -69,5 +69,5 @@ jobs:
 
     - name: Test
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
-      run: precommit-new-integration-tests-broker
+      run: make precommit-new-integration-tests-broker
 
