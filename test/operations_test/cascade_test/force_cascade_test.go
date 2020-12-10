@@ -297,14 +297,14 @@ var _ = Describe("force cascade delete", func() {
 			createOSBInstance(ctx, ctx.SMWithBasic, globalBrokerID, osbInstanceID, map[string]interface{}{
 				"service_id":        "global-service",
 				"plan_id":           "global-plan",
-				"organization_guid": "my-orgafsf",
+				"organization_guid": "my-org",
 				"context": map[string]string{
 					"tenant": tenantID,
 				},
 			})
 			createOSBBinding(ctx, ctx.SMWithBasic, globalBrokerID, osbInstanceID, osbBindingID, map[string]interface{}{
-				"service_id":        "test-service",
-				"plan_id":           "plan-service",
+				"service_id":        "global-service",
+				"plan_id":           "global-plan",
 				"organization_guid": "my-org",
 			})
 		})
