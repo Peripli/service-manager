@@ -38,6 +38,7 @@ var (
 	tenantOperationsCount = 14 //the number of operations that will be created after tenant creation in JustBeforeEach
 	tenantID              = "tenant_value"
 	osbInstanceID         = "test-instance"
+	osbBindingID          = "test-binding"
 	smaapInstanceID1      = ""
 	smaapInstanceID2      = ""
 	testFullTree          *tree
