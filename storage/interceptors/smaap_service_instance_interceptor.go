@@ -122,7 +122,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		instance := obj.(*types.ServiceInstance)
 		instance.Usable = false
-		smaapOperated := len(instance.Labels[OperatedByLabelKey]) > 0
+		smaapOperated := instance.Labels != nil && len(instance.Labels[OperatedByLabelKey]) > 0
 
 		if instance.PlatformID != types.SMPlatform && !smaapOperated {
 			return f(ctx, obj)
@@ -230,7 +230,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 	return func(ctx context.Context, updatedObj types.Object, labelChanges ...*types.LabelChange) (object types.Object, err error) {
 		updatedInstance := updatedObj.(*types.ServiceInstance)
-		smaapOperated := len(updatedInstance.Labels[OperatedByLabelKey]) > 0
+		smaapOperated := updatedInstance.Labels != nil && len(updatedInstance.Labels[OperatedByLabelKey]) > 0
 
 		if updatedInstance.PlatformID != types.SMPlatform && !smaapOperated {
 			return f(ctx, updatedObj, labelChanges...)
