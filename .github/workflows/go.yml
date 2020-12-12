@@ -218,7 +218,7 @@ jobs:
         path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-other.cov
 
   finish:
-    needs: test
+    needs: [unit, broker, osb, instance-and-binding, other]
     runs-on: ubuntu-latest
     steps:
       - uses: shogo82148/actions-goveralls@v1
