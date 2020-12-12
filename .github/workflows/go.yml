@@ -34,6 +34,13 @@ jobs:
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
       run: make precommit-new-unit-tets
 
+    - name: Send coverage
+      uses: shogo82148/actions-goveralls@v1
+      with:
+        parallel: true
+        flag-name: unit
+        path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-unit.cov
+
   broker:
     name: Broker Test
     env:
@@ -70,6 +77,13 @@ jobs:
     - name: Test
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
       run: make precommit-new-integration-tests-broker
+
+    - name: Send coverage
+      uses: shogo82148/actions-goveralls@v1
+      with:
+        parallel: true
+        flag-name: broker
+        path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-broker.cov
 
   osb:
     name: OSB Test
@@ -108,6 +122,13 @@ jobs:
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
       run: make precommit-new-integration-tests-osb-and-plugin
 
+    - name: Send coverage
+      uses: shogo82148/actions-goveralls@v1
+      with:
+        parallel: true
+        flag-name: osb
+        path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-osb-and-plugin.cov
+
   instance-and-binding:
     name: Instance And Binding Test
     env:
@@ -145,6 +166,12 @@ jobs:
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
       run: make precommit-new-integration-tests-service-instance-and-binding
 
+    - name: Send coverage
+      uses: shogo82148/actions-goveralls@v1
+      with:
+        parallel: true
+        flag-name: instance-and-binding
+        path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-service-instance-and-bindings.cov
 
   other:
     name: Other Test
@@ -182,3 +209,18 @@ jobs:
     - name: Test
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
       run: make precommit-integration-tests-other
+
+    - name: Send coverage
+      uses: shogo82148/actions-goveralls@v1
+      with:
+        parallel: true
+        flag-name: broker
+        path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-other.cov
+
+  finish:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: shogo82148/actions-goveralls@v1
+        with:
+          parallel-finished: true
