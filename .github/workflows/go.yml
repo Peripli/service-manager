@@ -214,7 +214,7 @@ jobs:
       uses: shogo82148/actions-goveralls@v1
       with:
         parallel: true
-        flag-name: broker
+        flag-name: other
         path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-other.cov
 
   coverage:
