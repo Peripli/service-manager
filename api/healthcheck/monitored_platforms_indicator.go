@@ -40,7 +40,7 @@ func (pi *monitoredPlatformsIndicator) Status() (interface{}, error) {
 	if len(platforms) > 0 {
 		currentThreshold := (inactivePlatforms / len(platforms)) * 100
 		if currentThreshold >= pi.monitoredPlatformsThreshold {
-			err = fmt.Errorf("%d % of the platforms are failing", currentThreshold)
+			err = fmt.Errorf("%d %% of the platforms are failing", currentThreshold)
 		}
 	}
 	return details, err
