@@ -217,7 +217,7 @@ jobs:
         flag-name: broker
         path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-other.cov
 
-  finish:
+  coverage:
     needs: [unit, broker, osb, instance-and-binding, other]
     runs-on: ubuntu-latest
     steps:
