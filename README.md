@@ -1,7 +1,7 @@
 # Service Manager
 
 
-[![Build Status](https://travis-ci.com/Peripli/service-manager.svg?branch=master)](https://travis-ci.com/Peripli/service-manager)
+[![Build Status](https://github.com/Peripli/service-manager/workflows/Go/badge.svg)](https://github.com/Peripli/service-manager/actions)
 [![Go Report Card](https://goreportcard.com/badge/github.com/Peripli/service-manager)](https://goreportcard.com/report/github.com/Peripli/service-manager)
 [![Coverage Status](https://coveralls.io/repos/github/Peripli/service-manager/badge.svg)](https://coveralls.io/github/Peripli/service-manager)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/Peripli/service-manager/blob/master/LICENSE)
