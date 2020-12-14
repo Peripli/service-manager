@@ -3414,6 +3414,7 @@ var _ = DescribeTestsFor(TestCase{
 												WithJSON(Object{"name": "test-binding", "service_instance_id": instanceID}).
 												Expect().
 												Status(http.StatusCreated)
+
 											bindingID = resp.JSON().Object().Value("id").String().Raw()
 										})
 
