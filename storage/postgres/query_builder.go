@@ -309,8 +309,8 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 		case query.FieldQuery:
 			columns := columnsByTags(pq.entityTags)
 			columnName := criterion.LeftOp
-			if strings.Contains(columnName, ".") {
-				columnName = strings.Split(columnName, ".")[0]
+			if strings.Contains(columnName, "/") {
+				columnName = strings.Split(columnName, "/")[0]
 				ttype := findTagType(pq.entityTags, columnName)
 				if ttype != jsonType {
 					pq.err = &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query json notation on non json column: %s", columnName)}

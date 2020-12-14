@@ -98,7 +98,7 @@ func (t *whereClauseTree) compileSQL() (string, []interface{}) {
 func criterionSQL(c query.Criterion, dbTags []tagType, tableAlias string) (string, interface{}) {
 	rightOpBindVar, rightOpQueryValue := buildRightOp(c.Operator, c.RightOp)
 	sqlOperation := translateOperationToSQLEquivalent(c.Operator)
-	column := strings.Split(c.LeftOp, ".")[0]
+	column := strings.Split(c.LeftOp, "/")[0]
 	ttype := findTagType(dbTags, column)
 	dbCast := determineCastByType(ttype)
 	if ttype == jsonType {
@@ -123,7 +123,7 @@ func criterionSQL(c query.Criterion, dbTags []tagType, tableAlias string) (strin
 }
 
 func convertToJsonKey(key string) (string, bool) {
-	columnParts := strings.Split(key, ".")
+	columnParts := strings.Split(key, "/")
 	if len(columnParts) == 1 {
 		return columnParts[0], false
 	} else {

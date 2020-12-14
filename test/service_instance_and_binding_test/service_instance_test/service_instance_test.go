@@ -323,6 +323,7 @@ var _ = DescribeTestsFor(TestCase{
 									"dashboard_url": "http://dashboard.com",
 								}))
 							})
+
 							It("should return parameters", func() {
 								response := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID + web.ParametersURL).Expect()
 								response.Status(http.StatusOK)
@@ -365,6 +366,16 @@ var _ = DescribeTestsFor(TestCase{
 							"instance_name":  instanceName,
 							TenantIdentifier: TenantIDValue,
 						})
+					})
+
+					It("returns OSB context with tenant as part of the instance using json query", func() {
+						res := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL).
+							WithQuery("fieldQuery", fmt.Sprintf("context/instance_name eq '%s' and context/platform eq '%s'", instanceName, types.SMPlatform)).
+							Expect().
+							Status(http.StatusOK).
+							JSON().Object().Value("items").Array()
+						res.Length().Equal(1)
+						res.First().Object().Value("id").Equal(instanceID)
 					})
 				})
 

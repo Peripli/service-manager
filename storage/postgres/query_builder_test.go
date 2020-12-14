@@ -1052,7 +1052,7 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 
 		Context("when query for json field", func() {
 			It("builds a valid query", func() {
-				criteria := query.ByField(query.EqualsOperator, "context.origin", "kubernetes")
+				criteria := query.ByField(query.EqualsOperator, "context/origin", "kubernetes")
 				_, err := qb.NewQuery(entity).WithCriteria(criteria).List(ctx)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
@@ -1078,7 +1078,7 @@ ORDER BY service_instances.paging_sequence ASC ;`)))
 
 		Context("when query for compound json field", func() {
 			It("builds a valid query", func() {
-				criteria := query.ByField(query.EqualsOperator, "context.a.b", "kubernetes")
+				criteria := query.ByField(query.EqualsOperator, "context/a/b", "kubernetes")
 				_, err := qb.NewQuery(entity).WithCriteria(criteria).List(ctx)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`

@@ -55,9 +55,9 @@ func GetCascadeObject(ctx context.Context, object types.Object) (Cascade, bool) 
 	case types.ServiceBrokerType:
 		return &ServiceBrokerCascade{object.(*types.ServiceBroker)}, true
 	case types.ServiceInstanceType:
-		parentInstanceLabelKey := ctx.Value(ParentInstanceLabelKeys{})
+		parentInstanceLabelKeysInterface := ctx.Value(ParentInstanceLabelKeys{})
 		var parentInstanceKeys []string
-		if keys, ok := parentInstanceLabelKey.([]string); ok {
+		if keys, ok := parentInstanceLabelKeysInterface.([]string); ok {
 			parentInstanceKeys = keys
 		}
 		return &ServiceInstanceCascade{object.(*types.ServiceInstance), parentInstanceKeys}, true

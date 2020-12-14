@@ -423,7 +423,7 @@ var _ = Describe("cascade operations", func() {
 		It("should succeed - cascade a container", func() {
 			container := createContainerWithChildren()
 
-			newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKeys{}, []string{"containerID", "kaka"})
+			newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKeys{}, []string{"containerID", "anotherKey"})
 			rootID := triggerCascadeOperation(newCtx, types.ServiceInstanceType, container.id, false)
 
 			By("waiting cascading process to finish")

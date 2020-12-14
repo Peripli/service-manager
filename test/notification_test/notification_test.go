@@ -864,6 +864,56 @@ var _ = Describe("Notifications Suite", func() {
 		})
 	}
 
+	Context("When technical platform exists", func() {
+		BeforeEach(func() {
+			_, err := ctx.SMRepository.Create(context.Background(), &types.Platform{
+				Base: types.Base{
+					ID: "1234",
+				},
+				Active:    true,
+				Name:      "platform",
+				Technical: true,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			regBroker(ctx)
+		})
+
+		When("new broker created", func() {
+			It("should not create broker notifications", func() {
+				c := query.ByField(query.EqualsOperator, "platform_id", "1234")
+				cnt, err := ctx.SMRepository.Count(context.Background(), types.NotificationType, c)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(cnt).To(Equal(0))
+			})
+		})
+
+		//change this test when feature implemented
+		When("new visibility created", func() {
+			BeforeEach(func() {
+				existingPlanIDs := ctx.SMWithOAuth.List(web.ServicePlansURL).
+					Path("$[*].id").Array().Raw()
+
+				v := &types.Visibility{
+					Base: types.Base{
+						ID:    "111111",
+						Ready: true,
+					},
+					PlatformID:    "1234",
+					ServicePlanID: existingPlanIDs[0].(string),
+				}
+				_, err := ctx.SMRepository.Create(context.Background(), v)
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("should create visibility notifications", func() {
+				c := query.ByField(query.EqualsOperator, "platform_id", "1234")
+				cnt, err := ctx.SMRepository.Count(context.Background(), types.NotificationType, c)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(cnt > 0).To(BeTrue())
+			})
+		})
+	})
+
 	Context("When resource creation fails after the transaction is commited", func() {
 		var customCtx *common.TestContext
 		BeforeEach(func() {

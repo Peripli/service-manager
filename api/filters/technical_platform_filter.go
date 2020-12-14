@@ -2,6 +2,8 @@ package filters
 
 import (
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 	"net/http"
 	"regexp"
 
@@ -17,6 +19,7 @@ const (
 
 // PlatformFilter filters out technical platforms and marks it as active on creation
 type TechnicalPlatformFilter struct {
+	Storage storage.Repository
 }
 
 func (f *TechnicalPlatformFilter) Name() string {
@@ -33,12 +36,26 @@ func (f *TechnicalPlatformFilter) Run(req *web.Request, next web.Handler) (*web.
 }
 
 func (f *TechnicalPlatformFilter) get(req *web.Request, next web.Handler) (*web.Response, error) {
-	m := operationsUrl.FindStringSubmatch(req.URL.Path)
-	if len(m) > 1 {
-		return next.Handle(req)
+	var criteria query.Criterion
+	if operationRequest(req) {
+		platformID := req.PathParams[web.PathParamResourceID]
+		isTechnicalPlatformCriteria := []query.Criterion{
+			query.ByField(query.EqualsOperator, "id", platformID),
+			query.ByField(query.EqualsOperator, technicalKeyName, "true"),
+		}
+
+		cnt, err := f.Storage.Count(req.Context(), types.PlatformType, isTechnicalPlatformCriteria...)
+		if err != nil {
+			return nil, err
+		}
+		if cnt == 0 {
+			return next.Handle(req)
+		}
+		criteria = query.ByField(query.NotEqualsOperator, "resource_id", platformID)
+	} else {
+		criteria = query.ByField(query.EqualsOperator, technicalKeyName, "false")
 	}
 
-	criteria := query.ByField(query.EqualsOperator, technicalKeyName, "false")
 	newCtx, err := query.AddCriteria(req.Context(), criteria)
 	if err != nil {
 		return nil, err
@@ -46,6 +63,11 @@ func (f *TechnicalPlatformFilter) get(req *web.Request, next web.Handler) (*web.
 
 	req.Request = req.WithContext(newCtx)
 	return next.Handle(req)
+}
+
+func operationRequest(req *web.Request) bool {
+	m := operationsUrl.FindStringSubmatch(req.URL.Path)
+	return len(m) > 1
 }
 
 func (f *TechnicalPlatformFilter) FilterMatchers() []web.FilterMatcher {
