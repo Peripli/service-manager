@@ -40,7 +40,7 @@ const (
 	// QueryParamCascade is the value used to denote the action to be applied on requested resource should include child sub-resources
 	QueryParamCascade = "cascade"
 
-	// QueryParamForce is the value used to denote
+	// QueryParamForce is the value used to denote if the requested resource should be purged from db
 	QueryParamForce = "force"
 )
 
