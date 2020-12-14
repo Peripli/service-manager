@@ -154,6 +154,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	securityBuilder, securityFilters := NewSecurityBuilder()
 	API.RegisterFiltersAfter(filters.LoggingFilterName, securityFilters...)
 	API.RegisterFilters(&filters.RegeneratePlatformCredentialsFilter{})
+
 	API.RegisterFiltersAfter(secFilters.AuthorizationFilterName, &filters.ForceDeleteValidationFilter{})
 
 	storageHealthIndicator, err := storage.NewSQLHealthIndicator(storage.PingFunc(smStorage.PingContext))
