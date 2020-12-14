@@ -38,9 +38,9 @@ func (pi *monitoredPlatformsIndicator) Status() (interface{}, error) {
 	platforms := monitoredPlatforms.(*types.Platforms).Platforms
 	details, inactivePlatforms, _ := CheckPlatformsState(platforms,nil)
 	if len(platforms) > 0 {
-		currentThreshold := (inactivePlatforms / len(platforms)) * 100
+		currentThreshold := (inactivePlatforms*100.00 / len(platforms))
 		if currentThreshold >= pi.monitoredPlatformsThreshold {
-			err = fmt.Errorf("%d %% of the platforms are failing", currentThreshold)
+			err = fmt.Errorf("%d%% of the monitored platforms are failing", currentThreshold)
 		}
 	}
 	return details, err

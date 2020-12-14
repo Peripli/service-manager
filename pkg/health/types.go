@@ -62,6 +62,7 @@ func DefaultSettings() *Settings {
 	return &Settings{
 		Indicators:          defaultIndicatorSettings,
 		PlatformMaxInactive: 60 * 24 * time.Hour,
+		MonitoredPlatformsThreshold: 10,
 
 	}
 }
