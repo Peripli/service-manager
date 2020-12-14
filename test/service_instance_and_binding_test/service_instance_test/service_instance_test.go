@@ -3319,7 +3319,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								When("deprovision responds with error due to stopped broker", func() {
-									BeforeEach(func() {
+									JustBeforeEach(func() {
 										brokerServer.Close()
 										delete(ctx.Servers, BrokerServerPrefix+brokerID)
 									})
@@ -3342,31 +3342,51 @@ var _ = DescribeTestsFor(TestCase{
 										})
 									})
 
-									It("deletes the instance and marks operation with success when cascade and force are passed", func() {
-										resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+instanceID).
-											WithQuery("async", testCase.async).
-											WithQuery("force", true).
-											WithQuery("cascade", true).
-											Expect().
-											Status(http.StatusAccepted)
-
-										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-											Category:          types.DELETE,
-											State:             types.SUCCEEDED,
-											ResourceType:      types.ServiceInstanceType,
-											Reschedulable:     false,
-											DeletionScheduled: false,
+									FWhen("cascade=true and force=true are passed", func() {
+										var bindingID string
+										BeforeEach(func() {
+											resp := ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+												WithJSON(Object{"name": "test-binding", "service_instance_id": instanceID}).
+												Expect().
+												Status(http.StatusCreated)
+											bindingID = resp.JSON().Object().Value("id").String().Raw()
 										})
 
-										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
-											ID:   instanceID,
-											Type: types.ServiceInstanceType,
+										It("deletes the instance and its bindings and marks operation with success", func() {
+											resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+instanceID).
+												WithQuery("async", testCase.async).
+												WithQuery("force", true).
+												WithQuery("cascade", true).
+												Expect().
+												Status(http.StatusAccepted)
+
+											By("validating instance delete operation exists with status pending")
+											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.PENDING,
+												ResourceType:      types.ServiceInstanceType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											By("validating binding does not exist")
+											VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:   bindingID,
+												Type: types.ServiceBindingType,
+											})
+
+											By("validating instance does not exist")
+											VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:   instanceID,
+												Type: types.ServiceInstanceType,
+											})
 										})
 									})
+
 								})
 
 								When("deprovision responds with error that does not require orphan mitigation", func() {
-									BeforeEach(func() {
+									JustBeforeEach(func() {
 										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
 									})
 
@@ -3387,25 +3407,44 @@ var _ = DescribeTestsFor(TestCase{
 										})
 									})
 
-									It("deletes the instance and marks operation with success when cascade and force are passed", func() {
-										resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+instanceID).
-											WithQuery("async", testCase.async).
-											WithQuery("force", true).
-											WithQuery("cascade", true).
-											Expect().
-											Status(http.StatusAccepted)
-
-										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-											Category:          types.DELETE,
-											State:             types.SUCCEEDED,
-											ResourceType:      types.ServiceInstanceType,
-											Reschedulable:     false,
-											DeletionScheduled: false,
+									When("cascade=true and force=true are passed", func() {
+										var bindingID string
+										BeforeEach(func() {
+											resp := ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+												WithJSON(Object{"name": "test-binding", "service_instance_id": instanceID}).
+												Expect().
+												Status(http.StatusCreated)
+											bindingID = resp.JSON().Object().Value("id").String().Raw()
 										})
 
-										VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
-											ID:   instanceID,
-											Type: types.ServiceInstanceType,
+										It("deletes the instance and its bindings and marks operation with success", func() {
+											resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+instanceID).
+												WithQuery("async", testCase.async).
+												WithQuery("force", true).
+												WithQuery("cascade", true).
+												Expect().
+												Status(http.StatusAccepted)
+
+											By("validating instance delete operation exists with status pending")
+											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.PENDING,
+												ResourceType:      types.ServiceInstanceType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											By("validating binding does not exist")
+											VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:   bindingID,
+												Type: types.ServiceBindingType,
+											})
+
+											By("validating instance does not exist")
+											VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:   instanceID,
+												Type: types.ServiceInstanceType,
+											})
 										})
 									})
 								})
