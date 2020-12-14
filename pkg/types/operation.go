@@ -93,7 +93,6 @@ type OperationContext struct {
 	Async             bool   `json:"async"`
 	IsAsyncNotDefined bool   `json:"is_async_not_defined"`
 	Cascade           bool   `json:"-"`
-	Force             bool   `json:"-"`
 	ServicePlanID     string `json:"service_plan_id"`
 	ServiceInstanceID string `json:"service_instance_id"`
 }

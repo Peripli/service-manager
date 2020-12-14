@@ -306,8 +306,9 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		}
 	}
 
+	isForce := r.URL.Query().Get(web.QueryParamForce) == "true"
 	labels := types.Labels{}
-	if opCtx.Force {
+	if isForce {
 		labels["force"] = []string{"true"}
 	}
 
@@ -693,7 +694,6 @@ func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types
 	operationContext := &types.OperationContext{}
 	async := r.URL.Query().Get(web.QueryParamAsync)
 	cascade := r.URL.Query().Get(web.QueryParamCascade)
-	force := r.URL.Query().Get(web.QueryParamForce)
 
 	if async == "" {
 		operationContext.Async = false
@@ -714,8 +714,6 @@ func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types
 	} else {
 		operationContext.Cascade = false
 	}
-
-	operationContext.Force = force == "true"
 
 	return operationContext
 }
