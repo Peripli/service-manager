@@ -3342,7 +3342,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 									})
 
-									FWhen("cascade=true and force=true are passed", func() {
+									When("cascade=true and force=true are passed", func() {
 										var bindingID string
 										BeforeEach(func() {
 											resp := ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
