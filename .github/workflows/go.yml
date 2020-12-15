@@ -1,0 +1,226 @@
+name: Go
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+    
+jobs:
+
+  unit:
+    name: Unit Test
+    env:
+      GOPATH: ${{ github.workspace }}
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Set up Go 1.x
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.13
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+      with:
+        path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+        
+    - name: Get dependencies
+      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+      run: |
+        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+    
+    - name: Test
+      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+      run: make precommit-new-unit-tets
+
+    - name: Send coverage
+      uses: shogo82148/actions-goveralls@v1
+      with:
+        parallel: true
+        flag-name: unit
+        path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-unit.cov
+
+  broker:
+    name: Broker Test
+    env:
+      GOPATH: ${{ github.workspace }}
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sm
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+    - name: Set up Go 1.x
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.13
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+      with:
+        path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+
+    - name: Get dependencies
+      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+      run: |
+        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+
+    - name: Test
+      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+      run: make precommit-new-integration-tests-broker
+
+    - name: Send coverage
+      uses: shogo82148/actions-goveralls@v1
+      with:
+        parallel: true
+        flag-name: broker
+        path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-broker.cov
+
+  osb:
+    name: OSB Test
+    env:
+      GOPATH: ${{ github.workspace }}
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sm
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+    - name: Set up Go 1.x
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.13
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+      with:
+        path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+
+    - name: Get dependencies
+      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+      run: |
+        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+
+    - name: Test
+      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+      run: make precommit-new-integration-tests-osb-and-plugin
+
+    - name: Send coverage
+      uses: shogo82148/actions-goveralls@v1
+      with:
+        parallel: true
+        flag-name: osb
+        path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-osb-and-plugin.cov
+
+  instance-and-binding:
+    name: Instance And Binding Test
+    env:
+      GOPATH: ${{ github.workspace }}
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sm
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+    - name: Set up Go 1.x
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.13
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+      with:
+        path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+
+    - name: Get dependencies
+      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+      run: |
+        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+
+    - name: Test
+      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+      run: make precommit-new-integration-tests-service-instance-and-binding
+
+    - name: Send coverage
+      uses: shogo82148/actions-goveralls@v1
+      with:
+        parallel: true
+        flag-name: instance-and-binding
+        path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-service-instance-and-bindings.cov
+
+  other:
+    name: Other Test
+    env:
+      GOPATH: ${{ github.workspace }}
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sm
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+    - name: Set up Go 1.x
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.13
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+      with:
+        path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+
+    - name: Get dependencies
+      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+      run: |
+        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+
+    - name: Test
+      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+      run: make precommit-integration-tests-other
+
+    - name: Send coverage
+      uses: shogo82148/actions-goveralls@v1
+      with:
+        parallel: true
+        flag-name: other
+        path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-other.cov
+
+  coverage:
+    needs: [unit, broker, osb, instance-and-binding, other]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: shogo82148/actions-goveralls@v1
+        with:
+          parallel-finished: true

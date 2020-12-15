@@ -286,6 +286,39 @@ var _ = Describe("force cascade delete", func() {
 			})
 		})
 	})
+
+	Context("delete binding", func() {
+		BeforeEach(func() {
+			createInstances = false
+		})
+
+		JustBeforeEach(func() {
+			ctx.SMWithBasic.SetBasicCredentials(ctx, ctx.TestPlatform.Credentials.Basic.Username, ctx.TestPlatform.Credentials.Basic.Password)
+			createOSBInstance(ctx, ctx.SMWithBasic, globalBrokerID, osbInstanceID, map[string]interface{}{
+				"service_id":        "global-service",
+				"plan_id":           "global-plan",
+				"organization_guid": "my-org",
+				"context": map[string]string{
+					"tenant": tenantID,
+				},
+			})
+			createOSBBinding(ctx, ctx.SMWithBasic, globalBrokerID, osbInstanceID, osbBindingID, map[string]interface{}{
+				"service_id":        "global-service",
+				"plan_id":           "global-plan",
+				"organization_guid": "my-org",
+			})
+		})
+
+		When("getting deprovision errors", func() {
+			It("should delete using force and marked as succeeded", func() {
+				globalBrokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"1", func(req *http.Request) (int, map[string]interface{}) {
+					return http.StatusBadRequest, common.Object{}
+				})
+				rootID := triggerCascadeOperation(context.Background(), types.ServiceBindingType, osbBindingID, true)
+				waitCascadingProcessToFinish(actionTimeout+pollCascade, subaccountResourcesCount(), 1, queryForRoot(rootID), querySucceeded)
+			})
+		})
+	})
 })
 
 func validateNumberOfForceDeletions(fullTree *tree, objectType types.ObjectType, state types.OperationState, countOfForcedOperations int) {

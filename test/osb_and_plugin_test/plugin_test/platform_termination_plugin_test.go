@@ -101,8 +101,8 @@ var _ = Describe("Service Manager Platform Termination Plugin Tests", func() {
 			{"bind", "PUT", "/v2/service_instances/12345/service_bindings/111", []string{""}, http.StatusUnprocessableEntity},
 			{"unbind", "DELETE", "/v2/service_instances/1234/service_bindings/111", []string{""}, http.StatusOK},
 			{"fetchBinding", "GET", "/v2/service_instances/1234/service_bindings/111", []string{""}, http.StatusOK},
-			{"pollInstance", "GET", "/v2/service_instances/1234/last_operation", []string{"", "service_id=serviceId", "plan_id=planId", "operation=provision", "service_id=serviceId&plan_id=planId&operation=provision"}, http.StatusOK},
-			{"pollBinding", "GET", "/v2/service_instances/1234/service_bindings/111/last_operation", []string{"", "service_id=serviceId", "plan_id=planId", "operation=provision", "service_id=serviceId&plan_id=planId&operation=provision"}, http.StatusOK},
+			//{"pollInstance", "GET", "/v2/service_instances/1234/last_operation", []string{"", "service_id=serviceId", "plan_id=planId", "operation=provision", "service_id=serviceId&plan_id=planId&operation=provision"}, http.StatusOK},
+			//{"pollBinding", "GET", "/v2/service_instances/1234/service_bindings/111/last_operation", []string{"", "service_id=serviceId", "plan_id=planId", "operation=provision", "service_id=serviceId&plan_id=planId&operation=provision"}, http.StatusOK},
 			{"adaptCredentials", "POST", "/v2/service_instances/1234/service_bindings/111/adapt_credentials", []string{""}, http.StatusOK},
 		}
 

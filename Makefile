@@ -163,7 +163,7 @@ generate: prepare-counterfeiter build-gen-binary $(GENERATE_PREREQ_FILES) ## Rec
 	$(GO) list ./... | xargs $(GO) generate
 	@touch $@
 
-test-unit: generate ## Runs the unit tests
+test-unit:
 	@echo Running unit tests:
 	$(GO_UNIT_TEST)
 
@@ -171,19 +171,19 @@ test-int: generate ## Runs the integration tests. Use TEST_FLAGS="--storage.uri=
 	@echo Running integration tests:
 	$(GO_INT_TEST)
 
-test-int-other: generate ## Runs the integration tests that are not broker/osb/plugin/service-instance/service-binding. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
+test-int-other:
 	@echo Running integration tests:
 	$(GO_INT_TEST_OTHER)
 
-test-int-broker: generate ## Runs the broker integration tests. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
+test-int-broker:
 	@echo Running integration tests:
 	$(GO_INT_TEST_BROKER)
 
-test-int-osb-and-plugin: generate ## Runs the osb and plugin integration tests. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
+test-int-osb-and-plugin:
 	@echo Running integration tests:
 	$(GO_INT_TEST_OSB_AND_PLUGIN)
 
-test-int-service-instance-and-binding: generate ## Runs the service-instance and service-binding integration tests. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
+test-int-service-instance-and-binding:
 	@echo Running integration tests:
 	$(GO_INT_TEST_SERVICE_INSTANCE_AND_BINDING)
 
@@ -224,6 +224,13 @@ precommit-integration-tests-osb-and-plugin: build test-int-osb-and-plugin ## Run
 precommit-integration-tests-service-instance-and-binding: build test-int-service-instance-and-binding ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
 precommit-integration-tests-other: build test-int-other ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
 precommit-unit-tests: build test-unit format-check lint-check ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
+precommit-new-unit-tets: prepare build test-unit format-check lint-check
+
+precommit-new-unit-tets: prepare build test-unit format-check lint-check
+precommit-new-integration-tests-broker: prepare build  test-int-broker
+precommit-new-integration-tests-osb-and-plugin: prepare build test-int-osb-and-plugin
+precommit-new-integration-tests-service-instance-and-binding: prepare build test-int-service-instance-and-binding
+precommit-integration-tests-other: prepare build test-int-other
 
 format: ## Formats the source code files with gofmt
 	@echo The following files were reformated:
