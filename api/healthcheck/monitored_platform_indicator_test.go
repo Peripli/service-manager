@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var _ = Describe("Monitored Platforms Indicator", func() {
+var _ = FDescribe("Monitored Platforms Indicator", func() {
 	var indicator health.Indicator
 	var repository *storagefakes2.FakeStorage
 	var ctx context.Context
@@ -91,7 +91,7 @@ var _ = Describe("Monitored Platforms Indicator", func() {
 			It("Should return error", func() {
 				details, err := indicator.Status()
 				detailsH:= details.(map[string]*health.Health)
-				Expect(len(detailsH)).To(Equal(3))
+				Expect(len(detailsH)).To(Equal(5))
 				Expect(err).ShouldNot(HaveOccurred())
 
 			})
