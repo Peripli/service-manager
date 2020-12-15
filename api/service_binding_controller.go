@@ -41,7 +41,7 @@ func NewServiceBindingController(ctx context.Context, options *Options) *Service
 	return &ServiceBindingController{
 		BaseController: NewAsyncController(ctx, options, web.ServiceBindingsURL, types.ServiceBindingType, true, func() types.Object {
 			return &types.ServiceBinding{}
-		}, false),
+		}, true),
 		osbVersion: options.APISettings.OSBVersion,
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gofrs/uuid"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -116,4 +117,11 @@ func BodyToObject(closer io.ReadCloser, object interface{}) error {
 		return err
 	}
 	return BytesToObject(body, object)
+}
+
+// AppendQueryParamToRequest adds a new query parameter to the request url
+func AppendQueryParamToRequest(request *web.Request, key string, value string) {
+	queryParams := request.URL.Query()
+	queryParams.Set(key, value)
+	request.URL.RawQuery = queryParams.Encode()
 }
