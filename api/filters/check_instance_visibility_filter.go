@@ -20,10 +20,8 @@ import (
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -53,6 +51,7 @@ func (*serviceInstanceVisibilityFilter) Name() string {
 	return ServiceInstanceVisibilityFilterName
 }
 
+//@todo improve label selection
 func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 
@@ -61,7 +60,7 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		return nil, err
 	}
 
-	if req.Method == http.MethodDelete {
+	if visibilityMetadata.LabelKey == "" || visibilityMetadata.LabelValue == "" || req.Method == http.MethodDelete {
 		return next.Handle(req)
 	}
 
@@ -72,43 +71,38 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		return next.Handle(req)
 	}
 
-	criteria := []query.Criterion{
-		query.ByField(query.EqualsOrNilOperator, platformIDProperty, visibilityMetadata.PlatformID),
-		query.ByField(query.EqualsOperator, planIDProperty, planID),
+	list, err := f.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForVisibility, map[string]interface{}{
+		"platform_id":     visibilityMetadata.PlatformID,
+		"service_plan_id": planID,
+		"key":             visibilityMetadata.LabelKey,
+		"val":             visibilityMetadata.LabelValue,
+	})
+
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.VisibilityType.String())
 	}
 
-	list, err := f.repository.List(ctx, types.VisibilityType, criteria...)
-	if err != nil && err != util.ErrNotFoundInStorage {
+	if list != nil && list.Len() > 0 {
+		return next.Handle(req)
+	}
+
+	list, err = f.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForLabelLessVisibilitiesForPlatformAndPlan, map[string]interface{}{
+		"platform_id":     visibilityMetadata.PlatformID,
+		"service_plan_id": planID,
+	})
+
+	if err != nil {
 		return nil, util.HandleStorageError(err, types.VisibilityType.String())
+	}
+
+	if list.Len() != 0 && list.ItemAt(0).GetLabels() == nil {
+		return next.Handle(req)
 	}
 
 	visibilityError := &util.HTTPError{
 		ErrorType:   "NotFound",
 		Description: "could not find such service plan",
 		StatusCode:  http.StatusNotFound,
-	}
-	if list.Len() == 0 {
-		return nil, visibilityError
-	}
-
-	// There may be at most one visibility for the query - for SM platform or public for this plan
-	visibility := list.ItemAt(0).(*types.Visibility)
-	if len(visibility.PlatformID) == 0 { // public visibility
-		return next.Handle(req)
-	}
-
-	if visibilityMetadata.LabelKey == "" {
-		return next.Handle(req)
-	}
-
-	tenantLabels, ok := visibility.Labels[visibilityMetadata.LabelKey]
-	if ok && slice.StringsAnyEquals(tenantLabels, visibilityMetadata.LabelValue) {
-		return next.Handle(req)
-	}
-
-	if !ok {
-		// no visibility labels means this is a public visibility
-		return next.Handle(req)
 	}
 
 	return nil, visibilityError

@@ -6,7 +6,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/tidwall/gjson"
@@ -88,15 +87,8 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 	if err != nil {
 		return nil, err
 	}
-	byPlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
-	visibilitiesList, err := p.repository.List(ctx, types.VisibilityType, byPlanID)
-	if err != nil {
-		return nil, util.HandleStorageError(err, string(types.VisibilityType))
-	}
-	visibilities := visibilitiesList.(*types.Visibilities)
 
-	switch platform.Type {
-	case "cloudfoundry":
+	if platform.Type == types.CFPlatformType {
 		if len(osbContext) == 0 {
 			log.C(ctx).Errorf("Could not find context in the osb request.")
 			return nil, &util.HTTPError{
@@ -114,35 +106,40 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 				StatusCode:  http.StatusBadRequest,
 			}
 		}
-		for _, v := range visibilities.Visibilities {
-			if v.PlatformID == "" { // public visibility
-				return next.Handle(req)
-			}
-			if v.PlatformID == platform.ID {
-				if v.Labels == nil {
-					return next.Handle(req)
-				}
-				orgGUIDs, ok := v.Labels["organization_guid"]
-				if !ok {
-					return next.Handle(req)
-				}
-				if slice.StringsAnyEquals(orgGUIDs, payloadOrgGUID) {
-					return next.Handle(req)
-				}
-			}
+
+		visibilityList, err := p.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForVisibility, map[string]interface{}{
+			"platform_id":     platform.ID,
+			"service_plan_id": planID,
+			"key":             "organization_guid",
+			"val":             payloadOrgGUID,
+		})
+
+		if err != nil {
+			return nil, err
 		}
-		log.C(ctx).Errorf("Service plan %v is not visible on platform %v", planID, platform.ID)
-		return nil, errPlanNotAccessible
-	default:
-		for _, v := range visibilities.Visibilities {
-			if v.PlatformID == "" { // public visibility
-				return next.Handle(req)
-			}
-			if v.PlatformID == platform.ID {
-				return next.Handle(req)
-			}
+
+		if visibilityList.Len() > 0 {
+			return next.Handle(req)
 		}
-		log.C(ctx).Errorf("Service plan %v is not visible on platform %v", planID, platform.ID)
-		return nil, errPlanNotAccessible
 	}
+
+	visibilityList, err := p.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForLabelLessVisibilitiesForPlatformAndPlan, map[string]interface{}{
+		"platform_id":     platform.ID,
+		"service_plan_id": planID,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if visibilityList.Len() > 0 && visibilityList.ItemAt(0).(*types.Visibility).PlatformID == platform.ID && platform.Type != types.CFPlatformType {
+		return next.Handle(req)
+	}
+
+	if visibilityList.Len() != 0 && visibilityList.ItemAt(0).GetLabels() == nil {
+		return next.Handle(req)
+	}
+
+	log.C(ctx).Errorf("Service plan %v is not visible on platform %v", planID, platform.ID)
+	return nil, errPlanNotAccessible
 }

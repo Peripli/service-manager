@@ -7,6 +7,8 @@ const (
 	QueryByExistingLabel
 	QueryForLastOperationsPerResource
 	QueryForLabelLessVisibilities
+	QueryForVisibility
+	QueryForLabelLessVisibilitiesForPlatformAndPlan
 )
 
 var namedQueries = map[NamedQuery]string{
@@ -56,6 +58,23 @@ var namedQueries = map[NamedQuery]string{
 	SELECT v.* FROM visibilities v
 	LEFT OUTER JOIN visibility_labels vl on v.id = vl.visibility_id
 	WHERE (vl.id IS NULL and v.platform_id in (:platform_ids)) OR v.platform_id IS NULL`,
+	QueryForVisibility: `
+	SELECT v.* FROM visibilities v
+	INNER JOIN visibility_labels vl on v.id = vl.visibility_id
+	WHERE key=:key and val = :val and platform_id = :platform_id and service_plan_id = :service_plan_id`,
+
+	QueryForLabelLessVisibilitiesForPlatformAndPlan: `
+	SELECT {{.ENTITY_TABLE}}.*,
+	{{.LABELS_TABLE}}.id         "{{.LABELS_TABLE}}.id",
+	{{.LABELS_TABLE}}.key        "{{.LABELS_TABLE}}.key",
+	{{.LABELS_TABLE}}.val        "{{.LABELS_TABLE}}.val",
+	{{.LABELS_TABLE}}.created_at "{{.LABELS_TABLE}}.created_at",
+	{{.LABELS_TABLE}}.updated_at "{{.LABELS_TABLE}}.updated_at",
+	{{.LABELS_TABLE}}.{{.REF_COLUMN}} "{{.LABELS_TABLE}}.{{.REF_COLUMN}}"
+	FROM {{.ENTITY_TABLE}}
+		{{.JOIN}} {{.LABELS_TABLE}}
+	ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
+	WHERE service_plan_id = :service_plan_id and platform_id IS NULL OR service_plan_id = :service_plan_id and platform_id=:platform_id LIMIT 1`,
 }
 
 func GetNamedQuery(query NamedQuery) string {
