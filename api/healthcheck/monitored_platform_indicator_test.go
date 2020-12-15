@@ -41,7 +41,7 @@ var _ = Describe("Monitored Platforms Indicator", func() {
 
 		}
 
-		indicator = NewMonioredPlatformsIndicator(ctx, repository, 40)
+		indicator = NewMonitoredPlatformsIndicator(ctx, repository, 40)
 
 	})
 

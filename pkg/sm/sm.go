@@ -167,7 +167,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		hours := time.Since(p.LastActive).Hours()
 		return hours > cfg.Health.PlatformMaxInactive.Hours()
 	}))
-	API.SetIndicator(healthcheck.NewMonioredPlatformsIndicator(ctx, interceptableRepository, cfg.Health.MonitoredPlatformsThreshold))
+	API.SetIndicator(healthcheck.NewMonitoredPlatformsIndicator(ctx, interceptableRepository, cfg.Health.MonitoredPlatformsThreshold))
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,

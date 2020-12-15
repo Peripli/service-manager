@@ -8,7 +8,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-func NewMonioredPlatformsIndicator(ctx context.Context, repository storage.Repository, monitoredPlatformsThreshold int) health.Indicator {
+func NewMonitoredPlatformsIndicator(ctx context.Context, repository storage.Repository, monitoredPlatformsThreshold int) health.Indicator {
 	return &monitoredPlatformsIndicator{
 		ctx:                         ctx,
 		repository:                  repository,
@@ -31,17 +31,21 @@ func (pi *monitoredPlatformsIndicator) Name() string {
 
 // Status returns status of the health check
 func (pi *monitoredPlatformsIndicator) Status() (interface{}, error) {
-	monitoredPlatforms, err := pi.repository.QueryForList(pi.ctx, types.PlatformType, storage.QueryByExistingLabel, map[string]interface{}{"key": types.Monitored})
+	objList, err := pi.repository.QueryForList(pi.ctx, types.PlatformType, storage.QueryByExistingLabel, map[string]interface{}{"key": types.Monitored})
 	if err != nil {
-		return nil, fmt.Errorf("could not fetch monitored platforms health from storage: %v", err)
+		return nil, fmt.Errorf("unable to query for monitored monitoredPlatforms: %v", err)
 	}
-	platforms := monitoredPlatforms.(*types.Platforms).Platforms
-	details, inactivePlatforms, _ := CheckPlatformsState(platforms,nil)
-	if len(platforms) > 0 {
-		currentThreshold := (inactivePlatforms*100.00 / len(platforms))
+	monitoredPlatforms := objList.(*types.Platforms).Platforms
+	details, inactivePlatforms, _ := CheckPlatformsState(monitoredPlatforms,nil)
+	return details, isHealthy(monitoredPlatforms, inactivePlatforms, pi, err)
+}
+
+func isHealthy(monitoredPlatforms []*types.Platform, inactivePlatforms int, pi *monitoredPlatformsIndicator, err error) error {
+	if len(monitoredPlatforms) > 0 {
+		currentThreshold := (inactivePlatforms * 100.00 / len(monitoredPlatforms))
 		if currentThreshold >= pi.monitoredPlatformsThreshold {
-			err = fmt.Errorf("%d%% of the monitored platforms are failing", currentThreshold)
+			err = fmt.Errorf("%d%% of the monitored monitoredPlatforms are failing", currentThreshold)
 		}
 	}
-	return details, err
+	return err
 }

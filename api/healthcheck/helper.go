@@ -5,24 +5,24 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-func CheckPlatformsState(platforms []*types.Platform, fatal func(*types.Platform) bool) ( map[string]*health.Health, int,int){
+func CheckPlatformsState(platforms []*types.Platform, fatal func(*types.Platform) bool) (map[string]*health.Health, int, int) {
 	details := make(map[string]*health.Health)
 	inactivePlatforms := 0
-	fatalInactivePlatforms:=0
+	fatalInactivePlatforms := 0
 	for _, platform := range platforms {
+		var status health.Status
 		if platform.Active {
-			details[platform.ID] = health.New().WithStatus(health.StatusUp).
-				WithDetail("type", platform.Type).WithDetail("name", platform.Name)
+			status = health.StatusUp
 		} else {
-			details[platform.ID] = health.New().WithStatus(health.StatusDown).
-				WithDetail("since", platform.LastActive).
-				WithDetail("type", platform.Type).WithDetail("name", platform.Name)
-			inactivePlatforms++
-			if fatal!=nil &&fatal(platform) {
-				fatalInactivePlatforms++
-			}
-
+			status = health.StatusDown
 		}
+		details[platform.Name] = health.New().WithDetail("type", platform.Type).WithStatus(status)
+
+		if fatal != nil && fatal(platform) {
+			fatalInactivePlatforms++
+		}
+		inactivePlatforms++
+
 	}
 	return details, inactivePlatforms, fatalInactivePlatforms
 
