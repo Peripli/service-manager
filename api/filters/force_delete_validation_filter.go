@@ -9,8 +9,8 @@ import (
 
 const (
 	ForceDeleteFilterName                = "ForceDeleteValidationFilter"
-	FailOnNotAllowedUrlDescription       = "Force deletion can only be executed for instances or bindings"
-	FailOnBadFlagsCombinationDescription = "Combination of cascade 'false' and force 'true' is not allowed"
+	FailOnNotAllowedUrlDescription       = "Couldn't delete this resource. You can only force-delete instances or bindings."
+	FailOnBadFlagsCombinationDescription = "Invalid combination of parameters. When using force-delete, you must also use cascade-delete. Set both 'force' and 'cascade' parameters to true."
 )
 
 type ForceDeleteValidationFilter struct {
