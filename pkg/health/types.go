@@ -34,7 +34,7 @@ const StorageIndicatorName = "storage"
 
 // PlatformsIndicatorName is the name of platforms indicator
 const PlatformsIndicatorName = "platforms"
-
+const MonitoredPlatformsHealthIndicatorName = "monitored_platforms"
 // indicatorNames is a list of names of indicators which will be registered with default settings
 // as part of default health settings, this will allow binding them as part of environment.
 // If an indicator is registered but not specified in this list, it will be configured with
@@ -44,6 +44,7 @@ const PlatformsIndicatorName = "platforms"
 var indicatorNames = [...]string{
 	StorageIndicatorName,
 	PlatformsIndicatorName,
+	MonitoredPlatformsHealthIndicatorName,
 }
 
 // Settings type to be loaded from the environment

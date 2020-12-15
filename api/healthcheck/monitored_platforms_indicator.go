@@ -22,11 +22,11 @@ type monitoredPlatformsIndicator struct {
 	monitoredPlatformsThreshold int
 }
 
-const MonitoredPlatformsHealthIndicatorName string = "monitored_platforms"
+
 
 // Name returns the name of the indicator
 func (pi *monitoredPlatformsIndicator) Name() string {
-	return MonitoredPlatformsHealthIndicatorName
+	return health.MonitoredPlatformsHealthIndicatorName
 }
 
 // Status returns status of the health check

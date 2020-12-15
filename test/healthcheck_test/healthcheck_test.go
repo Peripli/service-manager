@@ -18,18 +18,16 @@ package healthcheck_test
 
 import (
 	"context"
-	"fmt"
-	"github.com/Peripli/service-manager/api/healthcheck"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/test/common"
-	"github.com/spf13/pflag"
 	"net/http"
 	"testing"
+
+	"github.com/Peripli/service-manager/api/healthcheck"
+	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 )
 
 func TestHealth(t *testing.T) {
@@ -39,32 +37,16 @@ func TestHealth(t *testing.T) {
 var _ = Describe("Healthcheck API", func() {
 
 	var (
-		ctxBuilder        *common.TestContextBuilder
-		ctx               *common.TestContext
-		monitoredPlatform *types.Platform
+		ctxBuilder *common.TestContextBuilder
+		ctx        *common.TestContext
 	)
 
 	BeforeEach(func() {
 		ctxBuilder = common.NewTestContextBuilderWithSecurity()
-		ctxBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
-			Expect(set.Set("health.indicators.monitored_platforms.failures_threshold", "1")).ShouldNot(HaveOccurred())
-			}).Build()
 	})
 
 	JustBeforeEach(func() {
 		ctx = ctxBuilder.Build()
-		platformJSON := common.Object{
-			"name":        "monitored-platform-test",
-			"type":        "kubernetes",
-			"description": "testDescrption",
-			"labels": map[string]interface{}{
-				"monitored": []interface{}{
-					"true",
-				},
-			},
-		}
-		monitoredPlatform = common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
-
 	})
 
 	AfterEach(func() {
@@ -90,21 +72,13 @@ var _ = Describe("Healthcheck API", func() {
 					smb.RegisterFilters(&dummyAuthFilter{})
 					return nil
 				})
-
-
-
 			})
 
 			It("Doesn't include SM platform", func() {
 				respBody := ctx.SMWithOAuth.GET(healthcheck.URL).
 					Expect().
 					Status(http.StatusOK).JSON().Object()
-				fmt.Println("monitored platofrms", monitoredPlatform)
-			//	respBody.ContainsMap(map[string]interface{}{
-				//	"details": map[string]interface{}{
-				//		"monitored_platforms": map[string]interface{}{}}})
-				//obj:=respBody.Path(fmt.Sprintf("$.details.monitored_platforms.%s", monitoredPlatform.ID)).Object()
-				//fmt.Println("obj", obj)
+
 				respBody.NotContainsMap(map[string]interface{}{
 					"details": map[string]interface{}{
 						"platforms": map[string]interface{}{
