@@ -305,12 +305,19 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 			return util.NewLocationResponse(concurrentOp.GetID(), resourceID, c.resourceBaseURL)
 		}
 	}
+
+	isForce := r.URL.Query().Get(web.QueryParamForce) == "true"
+	labels := types.Labels{}
+	if isForce {
+		labels["force"] = []string{"true"}
+	}
+
 	operation := &types.Operation{
 		Base: types.Base{
 			ID:        UUID.String(),
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
-			Labels:    make(map[string][]string),
+			Labels:    labels,
 			Ready:     true,
 		},
 		Type:          types.DELETE,
