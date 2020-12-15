@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var _ = FDescribe("Monitored Platforms Indicator", func() {
+var _ = Describe("Monitored Platforms Indicator", func() {
 	var indicator health.Indicator
 	var repository *storagefakes2.FakeStorage
 	var ctx context.Context
