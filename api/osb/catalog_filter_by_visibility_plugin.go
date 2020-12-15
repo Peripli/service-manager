@@ -96,7 +96,7 @@ func getVisiblePlansByBrokerIDAndPlatformID(ctx context.Context, repository stor
 		planIDs = append(planIDs, plansList.ItemAt(i).GetID())
 	}
 
-	visibilitiesList, err := repository.List(ctx, types.VisibilityType,
+	visibilitiesList, err := repository.ListNoLabels(ctx, types.VisibilityType,
 		query.ByField(query.EqualsOrNilOperator, "platform_id", platform.ID),
 		query.ByField(query.InOperator, "service_plan_id", planIDs...))
 	if err != nil {
