@@ -347,12 +347,25 @@ func CreateVisibilitiesForAllBrokerPlans(SM *SMExpect, brokerID string) {
 		}).Expect().Status(http.StatusCreated)
 	}
 }
+func RegisterPlatformInSMQuery(platformJSON Object, SM *SMExpect, headers map[string]string, query string) *types.Platform {
+	req := SM.POST(web.PlatformsURL).
+		WithHeaders(headers)
+	if query != "" {
+		req = req.WithQueryString(query)
+	}
+	reply := req.WithJSON(platformJSON).
+		Expect().Status(http.StatusCreated).JSON().Object().Raw()
+	return makePlatformFromResponse(reply)
+}
 
 func RegisterPlatformInSM(platformJSON Object, SM *SMExpect, headers map[string]string) *types.Platform {
 	reply := SM.POST(web.PlatformsURL).
-		WithHeaders(headers).
-		WithJSON(platformJSON).
+		WithHeaders(headers).WithJSON(platformJSON).
 		Expect().Status(http.StatusCreated).JSON().Object().Raw()
+	return makePlatformFromResponse(reply)
+}
+
+func makePlatformFromResponse(reply map[string]interface{}) *types.Platform {
 	createdAtString := reply["created_at"].(string)
 	updatedAtString := reply["updated_at"].(string)
 	createdAt, err := time.Parse(time.RFC3339Nano, createdAtString)
