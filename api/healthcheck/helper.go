@@ -14,6 +14,7 @@ func CheckPlatformsState(platforms []*types.Platform, fatal func(*types.Platform
 		if platform.Active {
 			status = health.StatusUp
 		} else {
+			inactivePlatforms++
 			status = health.StatusDown
 		}
 		details[platform.Name] = health.New().WithDetail("type", platform.Type).WithStatus(status)
@@ -21,7 +22,6 @@ func CheckPlatformsState(platforms []*types.Platform, fatal func(*types.Platform
 		if fatal != nil && fatal(platform) {
 			fatalInactivePlatforms++
 		}
-		inactivePlatforms++
 
 	}
 	return details, inactivePlatforms, fatalInactivePlatforms
