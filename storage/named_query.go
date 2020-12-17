@@ -7,6 +7,7 @@ const (
 	QueryByExistingLabel
 	QueryForLastOperationsPerResource
 	QueryForLabelLessVisibilities
+	QueryForLabelLessPlanVisibilities
 )
 
 var namedQueries = map[NamedQuery]string{
@@ -56,6 +57,10 @@ var namedQueries = map[NamedQuery]string{
 	SELECT v.* FROM visibilities v
 	LEFT OUTER JOIN visibility_labels vl on v.id = vl.visibility_id
 	WHERE (vl.id IS NULL and v.platform_id in (:platform_ids)) OR v.platform_id IS NULL`,
+	QueryForLabelLessPlanVisibilities: `
+	SELECT v.* FROM visibilities v
+	LEFT OUTER JOIN visibility_labels vl on v.id = vl.visibility_id
+	WHERE (vl.id IS NULL and v.service_plan_id in (:service_plan_ids))`,
 }
 
 func GetNamedQuery(query NamedQuery) string {
