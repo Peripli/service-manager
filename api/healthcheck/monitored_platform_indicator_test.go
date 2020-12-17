@@ -47,7 +47,7 @@ var _ = Describe("Monitored Platforms Indicator", func() {
 
 	Context("Name", func() {
 		It("should not be empty", func() {
-			Expect(indicator.Name()).Should(Equal(MonitoredPlatformsHealthIndicatorName))
+			Expect(indicator.Name()).Should(Equal(health.MonitoredPlatformsHealthIndicatorName))
 		})
 	})
 	Context("When no platforms are labeled as monitored", func() {
