@@ -113,7 +113,7 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 		tenantKey = "organization_guid"
 	}
 
-	list, err := p.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForLabelLessVisibilitiesByPlatformAndPlan, map[string]interface{}{
+	list, err := p.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForVisibilityWithPlatformAndPlan, map[string]interface{}{
 		"platform_id":     platform.ID,
 		"service_plan_id": planID,
 		"key":             tenantKey,

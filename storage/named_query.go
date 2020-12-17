@@ -8,7 +8,7 @@ const (
 	QueryForLastOperationsPerResource
 	QueryForLabelLessVisibilities
 	QueryForLabelLessPlanVisibilities
-	QueryForLabelLessVisibilitiesByPlatformAndPlan
+	QueryForVisibilityWithPlatformAndPlan
 )
 
 var namedQueries = map[NamedQuery]string{
@@ -62,7 +62,7 @@ var namedQueries = map[NamedQuery]string{
 	SELECT v.* FROM visibilities v
 	LEFT OUTER JOIN visibility_labels vl on v.id = vl.visibility_id
 	WHERE (vl.id IS NULL and v.service_plan_id in (:service_plan_ids))`,
-	QueryForLabelLessVisibilitiesByPlatformAndPlan: `
+	QueryForVisibilityWithPlatformAndPlan: `
 	SELECT v.*
 	FROM visibilities v
 	WHERE v.service_plan_id = :service_plan_id
