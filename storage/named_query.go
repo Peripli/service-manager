@@ -55,7 +55,7 @@ var namedQueries = map[NamedQuery]string{
 	QueryForLabelLessVisibilities: `
 	SELECT v.* FROM visibilities v
 	WHERE (v.platform_id in (:platform_ids) OR v.platform_id IS NULL) AND
-	NOT EXISTS(SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id )`,
+	NOT EXISTS(SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id)`,
 }
 
 func GetNamedQuery(query NamedQuery) string {

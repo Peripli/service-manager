@@ -1013,7 +1013,7 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 				Expect(executedQuery).Should(Equal(`
 	SELECT v.* FROM visibilities v
 	WHERE (v.platform_id in (?, ?) OR v.platform_id IS NULL) AND
-	NOT EXISTS(SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id LIMIT 1)`))
+	NOT EXISTS(SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id)`))
 			})
 		})
 
