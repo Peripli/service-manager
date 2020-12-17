@@ -43,7 +43,7 @@ func servicesCriteria(ctx context.Context, repository storage.Repository, planQu
 }
 
 func plansCriteria(ctx context.Context, repository storage.Repository, platformID string) (*query.Criterion, error) {
-	objectList, err := repository.List(ctx, types.VisibilityType, query.ByField(query.EqualsOrNilOperator, "platform_id", platformID))
+	objectList, err := repository.ListNoLabels(ctx, types.VisibilityType, query.ByField(query.EqualsOrNilOperator, "platform_id", platformID))
 	if err != nil {
 		return nil, err
 	}
