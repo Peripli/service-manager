@@ -107,38 +107,20 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 			}
 		}
 
-		criteria := []query.Criterion{
-			query.ByField(query.EqualsOperator, "platform_id", platform.ID),
-			query.ByField(query.EqualsOperator, "service_plan_id", planID),
-			query.ByLabel(query.EqualsOperator, "organization_guid", payloadOrgGUID),
-		}
-
-		visibilityList, err := p.repository.List(ctx, types.VisibilityType, criteria...)
+		list, err := p.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForLabelLessVisibilitiesByPlatformAndPlan, map[string]interface{}{
+			"platform_id":     platform.ID,
+			"service_plan_id": planID,
+			"key":             "organization_guid",
+			"val":             payloadOrgGUID,
+		})
 
 		if err != nil {
 			return nil, err
 		}
 
-		if visibilityList.Len() > 0 {
+		if list.Len() > 0 {
 			return next.Handle(req)
 		}
-	}
-
-	visibilityList, err := p.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForLabelLessVisibilitiesByPlatformAndPlan, map[string]interface{}{
-		"platform_id":     platform.ID,
-		"service_plan_id": planID,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	if visibilityList.Len() > 0 && visibilityList.ItemAt(0).(*types.Visibility).PlatformID == platform.ID && platform.Type != types.CFPlatformType {
-		return next.Handle(req)
-	}
-
-	if visibilityList.Len() != 0 && visibilityList.ItemAt(0).GetLabels() == nil {
-		return next.Handle(req)
 	}
 
 	log.C(ctx).Errorf("Service plan %v is not visible on platform %v", planID, platform.ID)
