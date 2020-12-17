@@ -102,7 +102,7 @@ var _ = Describe("force cascade delete", func() {
 					registerBindingLastOPHandlers(tenantBrokerServer, http.StatusInternalServerError, types.FAILED)
 					registerBindingLastOPHandlers(globalBrokerServer, http.StatusInternalServerError, types.FAILED)
 
-					newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKey{}, "containerID")
+					newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKeys{}, []string{"containerID"})
 					rootID := triggerCascadeOperation(newCtx, types.TenantType, tenantID, true)
 
 					waitCascadingProcessToFinish(actionTimeout+pollCascade, subaccountResourcesCount(), 1, queryForRoot(rootID), querySucceeded)

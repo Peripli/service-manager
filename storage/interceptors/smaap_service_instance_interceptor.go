@@ -41,7 +41,10 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-const ServiceInstanceCreateInterceptorProviderName = "ServiceInstanceCreateInterceptorProvider"
+const (
+	ServiceInstanceCreateInterceptorProviderName = "ServiceInstanceCreateInterceptorProvider"
+	OperatedByLabelKey                           = "operated_by"
+)
 
 type BaseSMAAPInterceptorProvider struct {
 	OSBClientCreateFunc osbc.CreateFunc
@@ -119,8 +122,9 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		instance := obj.(*types.ServiceInstance)
 		instance.Usable = false
+		smaapOperated := instance.Labels != nil && len(instance.Labels[OperatedByLabelKey]) > 0
 
-		if instance.PlatformID != types.SMPlatform {
+		if instance.PlatformID != types.SMPlatform && !smaapOperated {
 			return f(ctx, obj)
 		}
 
@@ -226,7 +230,9 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 	return func(ctx context.Context, updatedObj types.Object, labelChanges ...*types.LabelChange) (object types.Object, err error) {
 		updatedInstance := updatedObj.(*types.ServiceInstance)
-		if updatedInstance.PlatformID != types.SMPlatform {
+		smaapOperated := updatedInstance.Labels != nil && len(updatedInstance.Labels[OperatedByLabelKey]) > 0
+
+		if updatedInstance.PlatformID != types.SMPlatform && !smaapOperated {
 			return f(ctx, updatedObj, labelChanges...)
 		}
 

@@ -63,6 +63,10 @@ func (c *generatePlatformCredentialsInterceptor) AroundTxCreate(h storage.Interc
 			return nil, errors.New("created object is not a platform")
 		}
 
+		if platform.Technical {
+			return h(ctx, obj)
+		}
+
 		if err := generateCredentials(ctx, platform); err != nil {
 			return nil, err
 		}
@@ -75,6 +79,10 @@ func (c *generatePlatformCredentialsInterceptor) AroundTxUpdate(h storage.Interc
 		platform, ok := obj.(*types.Platform)
 		if !ok {
 			return nil, errors.New("created object is not a platform")
+		}
+
+		if platform.Technical {
+			return h(ctx, platform, labelChanges...)
 		}
 
 		if web.IsGeneratePlatformCredentialsRequired(ctx) {

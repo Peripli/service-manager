@@ -56,6 +56,7 @@ type Platform struct {
 	LastActive        time.Time    `json:"-"`
 	Integrity         []byte       `json:"-"`
 	CredentialsActive bool         `json:"credentials_active,omitempty"`
+	Technical         bool         `json:"technical,omitempty"` //technical platforms are only used for managing visibilities, and are excluded in notification and credential management flows
 }
 
 func (e *Platform) Equals(obj Object) bool {
@@ -82,6 +83,7 @@ func (e *Platform) Sanitize(ctx context.Context) {
 	}
 	e.OldCredentials = nil
 	e.CredentialsActive = false
+	e.Technical = false
 }
 
 func (e *Platform) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {
@@ -124,7 +126,10 @@ func (e *Platform) IntegralData() []byte {
 	if e.OldCredentials != nil && e.OldCredentials.Basic != nil {
 		oldCredentials = fmt.Sprintf(":%s:%s", e.OldCredentials.Basic.Username, e.OldCredentials.Basic.Password)
 	}
-	integrity := fmt.Sprintf("%s:%s%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, oldCredentials)
+	integrity := ""
+	if e.Credentials != nil {
+		integrity = fmt.Sprintf("%s:%s%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, oldCredentials)
+	}
 	return []byte(integrity)
 }
 

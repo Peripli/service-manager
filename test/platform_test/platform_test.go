@@ -227,6 +227,26 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						reply.Value("description").String().Contains("api doesn't support asynchronous operations")
 					})
 				})
+
+				Context("Technical Platform", func() {
+					AfterEach(func() {
+						ctx.SMWithOAuthForTenant.DELETE(web.PlatformsURL + "/1234").
+							Expect().Status(http.StatusOK)
+					})
+
+					It("should succeed", func() {
+						result := ctx.SMWithOAuthForTenant.POST(web.PlatformsURL).
+							WithJSON(common.Object{
+								"name":        "technical",
+								"technical":   true,
+								"type":        "kubernetes",
+								"description": "none",
+								"id":          "1234",
+							}).Expect().Status(http.StatusCreated).JSON().Object()
+						result.Value("id").String().Equal("1234")
+						result.NotContainsKey("credentials")
+					})
+				})
 			})
 
 			Describe("PATCH", func() {
@@ -601,6 +621,45 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				})
 
+			})
+
+			Describe("GET", func() {
+				Context("Technical Platform", func() {
+					var opID string
+					BeforeEach(func() {
+						result := ctx.SMWithOAuthForTenant.POST(web.PlatformsURL).
+							WithJSON(common.Object{
+								"name":        "technical",
+								"technical":   true,
+								"type":        "kubernetes",
+								"description": "none",
+								"id":          "1234",
+							}).Expect().Status(http.StatusCreated).JSON().Object()
+						opID = result.Value("last_operation").Object().Value("id").String().Raw()
+					})
+
+					AfterEach(func() {
+						ctx.SMWithOAuthForTenant.DELETE(web.PlatformsURL + "/1234").
+							Expect().Status(http.StatusOK)
+					})
+
+					It("should be not found", func() {
+						ctx.SMWithOAuthForTenant.GET(web.PlatformsURL + "/1234").
+							Expect().Status(http.StatusNotFound)
+					})
+
+					It("should be filtered out from list", func() {
+						result := ctx.SMWithOAuthForTenant.GET(web.PlatformsURL).
+							Expect().Status(http.StatusOK).JSON().Object()
+						result.NotEmpty().Value("items").Path("$[*].id").Array().
+							NotContains("1234")
+					})
+
+					It("should not find last operation", func() {
+						ctx.SMWithOAuthForTenant.GET(web.PlatformsURL + "/1234/operations/" + opID).
+							Expect().Status(http.StatusNotFound)
+					})
+				})
 			})
 		})
 	},
