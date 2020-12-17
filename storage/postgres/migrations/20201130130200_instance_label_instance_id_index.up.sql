@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS instance_lbl_instance_id ON service_instance_labels (service_instance_id);
