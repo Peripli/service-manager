@@ -22,8 +22,6 @@ type monitoredPlatformsIndicator struct {
 	monitoredPlatformsThreshold int
 }
 
-
-
 // Name returns the name of the indicator
 func (pi *monitoredPlatformsIndicator) Name() string {
 	return health.MonitoredPlatformsHealthIndicatorName
@@ -36,7 +34,7 @@ func (pi *monitoredPlatformsIndicator) Status() (interface{}, error) {
 		return nil, fmt.Errorf("unable to query for monitored platforms: %v", err)
 	}
 	monitoredPlatforms := objList.(*types.Platforms).Platforms
-	details, inactivePlatforms, _ := CheckPlatformsState(monitoredPlatforms,nil)
+	details, inactivePlatforms, _ := CheckPlatformsState(monitoredPlatforms, nil)
 	return details, isHealthy(monitoredPlatforms, inactivePlatforms, pi, err)
 }
 

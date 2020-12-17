@@ -83,7 +83,7 @@ var _ = Describe("Monitored Platforms Indicator", func() {
 		})
 		AfterEach(func() {
 			//clear array
-			platforms=platforms[:0]
+			platforms = platforms[:0]
 		})
 		Context("all platforms are active", func() {
 			BeforeEach(func() {
@@ -91,7 +91,7 @@ var _ = Describe("Monitored Platforms Indicator", func() {
 			})
 			It("should not return an error", func() {
 				details, err := indicator.Status()
-				detailsH:= details.(map[string]*health.Health)
+				detailsH := details.(map[string]*health.Health)
 				Expect(len(detailsH)).To(Equal(2))
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(detailsH[platforms[0].Name]).NotTo(BeNil())
@@ -110,7 +110,7 @@ var _ = Describe("Monitored Platforms Indicator", func() {
 			})
 			It("Should return error", func() {
 				details, err := indicator.Status()
-				detailsH:= details.(map[string]*health.Health)
+				detailsH := details.(map[string]*health.Health)
 				Expect(err).Should(HaveOccurred())
 				Expect(err.Error()).Should(ContainSubstring("50% of the monitored platforms are failing"))
 				Expect(len(detailsH)).To(Equal(4))
@@ -124,7 +124,7 @@ var _ = Describe("Monitored Platforms Indicator", func() {
 			})
 			It("Should not return error", func() {
 				details, err := indicator.Status()
-				detailsH:= details.(map[string]*health.Health)
+				detailsH := details.(map[string]*health.Health)
 				Expect(len(detailsH)).To(Equal(3))
 				Expect(err).ShouldNot(HaveOccurred())
 

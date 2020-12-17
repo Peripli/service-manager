@@ -22,7 +22,7 @@ func CheckPlatformsState(platforms []*types.Platform, fatal func(*types.Platform
 		}
 		details[platform.Name] = health.New().
 			WithDetail("type", platform.Type).
-			WithDetail("since",platform.LastActive).
+			WithDetail("since", platform.LastActive).
 			WithStatus(status)
 
 	}
