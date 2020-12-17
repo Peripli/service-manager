@@ -1012,8 +1012,8 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 				qb.NewQuery(entity).Query(ctx, storage.QueryForLabelLessVisibilities, params)
 				Expect(executedQuery).Should(Equal(`
 	SELECT v.* FROM visibilities v
-	LEFT OUTER JOIN visibility_labels vl on v.id = vl.visibility_id
-	WHERE (vl.id IS NULL and v.platform_id in (?, ?)) OR v.platform_id IS NULL`))
+	WHERE (v.platform_id in (?, ?) OR v.platform_id IS NULL) AND
+	NOT EXISTS(SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id LIMIT 1)`))
 			})
 		})
 

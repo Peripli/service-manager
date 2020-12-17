@@ -55,9 +55,8 @@ var namedQueries = map[NamedQuery]string{
 	WHERE resource_id IN (:id_list)`,
 	QueryForLabelLessVisibilities: `
 	SELECT v.* FROM visibilities v
-	LEFT OUTER JOIN visibility_labels vl on v.id = vl.visibility_id
-	WHERE (vl.id IS NULL and v.platform_id in (:platform_ids)) OR v.platform_id IS NULL`,
-
+	WHERE (v.platform_id in (:platform_ids) OR v.platform_id IS NULL) AND
+	NOT EXISTS(SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id LIMIT 1)`,
 	QueryForLabelLessVisibilitiesByPlatformAndPlan: `
 	SELECT visibilities.*,
 	visibility_labels.id         "visibility_labels.id",
