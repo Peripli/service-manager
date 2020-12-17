@@ -17,6 +17,7 @@
 package filters
 
 import (
+	"github.com/Peripli/service-manager/pkg/query"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -71,12 +72,13 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		return next.Handle(req)
 	}
 
-	list, err := f.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForVisibility, map[string]interface{}{
-		"platform_id":     visibilityMetadata.PlatformID,
-		"service_plan_id": planID,
-		"key":             visibilityMetadata.LabelKey,
-		"val":             visibilityMetadata.LabelValue,
-	})
+	criteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, platformIDProperty, visibilityMetadata.PlatformID),
+		query.ByField(query.EqualsOperator, planIDProperty, planID),
+		query.ByLabel(query.EqualsOperator, visibilityMetadata.LabelKey, visibilityMetadata.LabelValue),
+	}
+
+	list, err := f.repository.ListNoLabels(ctx, types.VisibilityType, criteria...)
 
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.VisibilityType.String())
@@ -86,7 +88,7 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		return next.Handle(req)
 	}
 
-	list, err = f.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForLabelLessVisibilitiesForPlatformAndPlan, map[string]interface{}{
+	list, err = f.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForLabelLessVisibilitiesByPlatformAndPlan, map[string]interface{}{
 		"platform_id":     visibilityMetadata.PlatformID,
 		"service_plan_id": planID,
 	})

@@ -107,12 +107,13 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 			}
 		}
 
-		visibilityList, err := p.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForVisibility, map[string]interface{}{
-			"platform_id":     platform.ID,
-			"service_plan_id": planID,
-			"key":             "organization_guid",
-			"val":             payloadOrgGUID,
-		})
+		criteria := []query.Criterion{
+			query.ByField(query.EqualsOperator, "platform_id", platform.ID),
+			query.ByField(query.EqualsOperator, "service_plan_id", planID),
+			query.ByLabel(query.EqualsOperator, "organization_guid", payloadOrgGUID),
+		}
+
+		visibilityList, err := p.repository.List(ctx, types.VisibilityType, criteria...)
 
 		if err != nil {
 			return nil, err
@@ -123,7 +124,7 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 		}
 	}
 
-	visibilityList, err := p.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForLabelLessVisibilitiesForPlatformAndPlan, map[string]interface{}{
+	visibilityList, err := p.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForLabelLessVisibilitiesByPlatformAndPlan, map[string]interface{}{
 		"platform_id":     platform.ID,
 		"service_plan_id": planID,
 	})
