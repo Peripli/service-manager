@@ -88,7 +88,8 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 		return nil, err
 	}
 
-	if platform.Type == types.CFPlatformType {
+	switch platform.Type {
+	case "cloudfoundry":
 		if len(osbContext) == 0 {
 			log.C(ctx).Errorf("Could not find context in the osb request.")
 			return nil, &util.HTTPError{
