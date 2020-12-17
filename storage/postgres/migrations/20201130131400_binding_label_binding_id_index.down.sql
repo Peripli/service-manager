@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS binding_lbl_binding_id;
