@@ -680,6 +680,10 @@ func (ctx *TestContext) RegisterBrokerWithRandomCatalogAndTLS(expect *SMExpect) 
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatalog, brokerData Object, expect *SMExpect) *BrokerUtils {
+	return ctx.RegisterBrokerWithNameCatalogAndLabelsExpect("", catalog, brokerData, expect)
+}
+
+func (ctx *TestContext) RegisterBrokerWithNameCatalogAndLabelsExpect(brokerName string, catalog SBCatalog, brokerData Object, expect *SMExpect) *BrokerUtils {
 	brokerServer := NewBrokerServerWithCatalog(catalog)
 	generatedCatalog := NewRandomSBCatalog()
 	brokerServerWithTLS := NewBrokerServerWithTLSAndCatalog(generatedCatalog)
@@ -692,8 +696,14 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatal
 	if err != nil {
 		panic(err)
 	}
+	var name string
+	if len(brokerName) > 0 {
+		name = brokerName
+	} else {
+		name = UUID.String()
+	}
 	brokerJSON := Object{
-		"name":        UUID.String(),
+		"name":        name,
 		"broker_url":  brokerServer.URL(),
 		"description": UUID2.String(),
 		"credentials": Object{
