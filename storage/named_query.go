@@ -58,14 +58,14 @@ var namedQueries = map[NamedQuery]string{
 	WHERE (v.platform_id in (:platform_ids) OR v.platform_id IS NULL) AND
 	NOT EXISTS(SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id LIMIT 1)`,
 	QueryForLabelLessVisibilitiesByPlatformAndPlan: `
-	SELECT visibilities.*,
+	SELECT visibilities.*
 	FROM visibilities
 	LEFT JOIN visibility_labels
 	ON visibilities.id = visibility_labels.visibility_id
 	WHERE service_plan_id = :service_plan_id and (
 	platform_id IS NULL
 	OR ( platform_id=:platform_id AND NOT EXISTS (SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = visibilities.id))
-	OR ( platform_id = :platform_id and exists (SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = visibilities.id and vl.key=:key and vl.val =:value ))
+	OR ( platform_id = :platform_id and exists (SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = visibilities.id and vl.key=:key and vl.val =:val ))
     )`,
 }
 
