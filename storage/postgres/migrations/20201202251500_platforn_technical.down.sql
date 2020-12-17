@@ -1,0 +1,5 @@
+BEGIN;
+
+ALTER TABLE platforms DROP COLUMN IF EXISTS technical;
+
+COMMIT;

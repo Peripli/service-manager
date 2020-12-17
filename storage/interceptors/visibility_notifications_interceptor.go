@@ -13,7 +13,13 @@ import (
 func NewVisibilityNotificationsInterceptor() *NotificationsInterceptor {
 	return &NotificationsInterceptor{
 		PlatformIDsProviderFunc: func(ctx context.Context, obj types.Object, _ storage.Repository) ([]string, error) {
-			return []string{obj.(*types.Visibility).PlatformID}, nil
+			platformID := obj.(*types.Visibility).PlatformID
+			platformIDS := make([]string, 0)
+			if platformID != types.SMPlatform {
+				platformIDS = append(platformIDS, platformID)
+			}
+			//TODO: filter platforms with technical=true
+			return platformIDS, nil
 		},
 		AdditionalDetailsFunc: func(ctx context.Context, objects types.ObjectList, repository storage.Repository) (objectDetails, error) {
 			var visibilities []*types.Visibility

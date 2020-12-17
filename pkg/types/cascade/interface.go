@@ -11,7 +11,7 @@ type ChildrenCriterion = map[types.ObjectType][]query.Criterion
 type CascadeChildren = map[types.ObjectType]types.ObjectList
 
 // key for configurable hierarchies
-type ParentInstanceLabelKey struct{}
+type ParentInstanceLabelKeys struct{}
 
 type Cascade interface {
 	GetChildrenCriterion() ChildrenCriterion
@@ -55,12 +55,12 @@ func GetCascadeObject(ctx context.Context, object types.Object) (Cascade, bool) 
 	case types.ServiceBrokerType:
 		return &ServiceBrokerCascade{object.(*types.ServiceBroker)}, true
 	case types.ServiceInstanceType:
-		parentInstanceLabelKey := ctx.Value(ParentInstanceLabelKey{})
-		var parentInstanceLabelKeyStr = ""
-		if id, ok := parentInstanceLabelKey.(string); ok {
-			parentInstanceLabelKeyStr = id
+		parentInstanceLabelKeysInterface := ctx.Value(ParentInstanceLabelKeys{})
+		var parentInstanceKeys []string
+		if keys, ok := parentInstanceLabelKeysInterface.([]string); ok {
+			parentInstanceKeys = keys
 		}
-		return &ServiceInstanceCascade{object.(*types.ServiceInstance), parentInstanceLabelKeyStr}, true
+		return &ServiceInstanceCascade{object.(*types.ServiceInstance), parentInstanceKeys}, true
 	}
 	return nil, false
 }

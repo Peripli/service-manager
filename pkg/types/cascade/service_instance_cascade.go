@@ -20,21 +20,28 @@ package cascade
 import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
+	"strings"
 )
 
 type ServiceInstanceCascade struct {
 	*types.ServiceInstance
 
 	// some implementations may implement instance nesting using parent references based on label
-	parentInstanceLabelKey string
+	parentInstanceLabelKeys []string
 }
 
 func (si *ServiceInstanceCascade) GetChildrenCriterion() ChildrenCriterion {
 	criterion := ChildrenCriterion{
 		types.ServiceBindingType: {query.ByField(query.EqualsOperator, "service_instance_id", si.ID)},
 	}
-	if len(si.parentInstanceLabelKey) > 0 {
-		criterion[types.ServiceInstanceType] = []query.Criterion{query.ByLabel(query.EqualsOperator, si.parentInstanceLabelKey, si.ID)}
+	if len(si.parentInstanceLabelKeys) > 0 {
+		params := storage.SubQueryParams{
+			"PARENT_ID":   si.ID,
+			"PARENT_KEYS": "'" + strings.Join(si.parentInstanceLabelKeys, "','") + "'",
+		}
+		subQuery, _ := storage.GetSubQueryWithParams(storage.QueryForInstanceChildrenByLabel, params)
+		criterion[types.ServiceInstanceType] = []query.Criterion{query.ByExists(subQuery)}
 	}
 	return criterion
 }

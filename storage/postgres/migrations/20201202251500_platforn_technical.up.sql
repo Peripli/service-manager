@@ -1,0 +1,5 @@
+BEGIN;
+
+ALTER TABLE platforms ADD COLUMN IF NOT EXISTS technical boolean NOT NULL DEFAULT '0';
+
+COMMIT;

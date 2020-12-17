@@ -675,6 +675,7 @@ LIMIT ?;`)))
 			})
 		})
 	})
+
 	Describe("CountLabelValues", func() {
 		Context("when entity does not have an associated label entity", func() {
 			It("returns error", func() {
@@ -1038,6 +1039,66 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 	(SELECT ID FROM visibility_labels 
 				WHERE key=?
 				AND visibilities.id = visibility_labels.visibility_id)`))
+			})
+		})
+	})
+
+	Describe("Field Criteria on JSON Type", func() {
+		var entity *postgres.ServiceInstance
+		BeforeEach(func() {
+			entity = &postgres.ServiceInstance{}
+			qb = postgres.NewQueryBuilder(db)
+		})
+
+		Context("when query for json field", func() {
+			It("builds a valid query", func() {
+				criteria := query.ByField(query.EqualsOperator, "context/origin", "kubernetes")
+				_, err := qb.NewQuery(entity).WithCriteria(criteria).List(ctx)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(executedQuery).Should(Equal(trim(`
+WITH matching_resources as (SELECT DISTINCT service_instances.paging_sequence 
+							FROM service_instances 
+							WHERE service_instances.context->>'origin' = ? ) 
+SELECT service_instances.*, 
+	   service_instance_labels.id "service_instance_labels.id", 
+       service_instance_labels.key "service_instance_labels.key", 
+       service_instance_labels.val "service_instance_labels.val", 
+       service_instance_labels.created_at "service_instance_labels.created_at", 
+       service_instance_labels.updated_at "service_instance_labels.updated_at",
+       service_instance_labels.service_instance_id "service_instance_labels.service_instance_id" 
+FROM service_instances 
+LEFT JOIN service_instance_labels 
+	ON service_instances.id = service_instance_labels.service_instance_id 
+WHERE service_instances.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources) 
+ORDER BY service_instances.paging_sequence ASC ;`)))
+				Expect(queryArgs).To(HaveLen(1))
+				Expect(queryArgs[0]).Should(Equal("kubernetes"))
+			})
+		})
+
+		Context("when query for compound json field", func() {
+			It("builds a valid query", func() {
+				criteria := query.ByField(query.EqualsOperator, "context/a/b", "kubernetes")
+				_, err := qb.NewQuery(entity).WithCriteria(criteria).List(ctx)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(executedQuery).Should(Equal(trim(`
+WITH matching_resources as (SELECT DISTINCT service_instances.paging_sequence 
+							FROM service_instances 
+							WHERE service_instances.context->'a'->>'b' = ? ) 
+SELECT service_instances.*, 
+	   service_instance_labels.id "service_instance_labels.id", 
+       service_instance_labels.key "service_instance_labels.key", 
+       service_instance_labels.val "service_instance_labels.val", 
+       service_instance_labels.created_at "service_instance_labels.created_at", 
+       service_instance_labels.updated_at "service_instance_labels.updated_at",
+       service_instance_labels.service_instance_id "service_instance_labels.service_instance_id" 
+FROM service_instances 
+LEFT JOIN service_instance_labels 
+	ON service_instances.id = service_instance_labels.service_instance_id 
+WHERE service_instances.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources) 
+ORDER BY service_instances.paging_sequence ASC ;`)))
+				Expect(queryArgs).To(HaveLen(1))
+				Expect(queryArgs[0]).Should(Equal("kubernetes"))
 			})
 		})
 	})
