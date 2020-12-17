@@ -47,7 +47,7 @@ func NewBrokerNotificationsInterceptor(tenantKey string, notificationsKeepFor ti
 
 			supportedPlatformIDs := make([]string, 0)
 			for id, platform := range supportedPlatforms {
-				if platform.Active || platform.LastActive.After(time.Now().Add(-notificationsKeepFor)) {
+				if !platform.Technical && (platform.Active || platform.LastActive.After(time.Now().Add(-notificationsKeepFor))) {
 					// only platforms that are active or were active in the time period we keep notifications for are notified
 					supportedPlatformIDs = append(supportedPlatformIDs, id)
 				}

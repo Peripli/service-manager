@@ -14,7 +14,18 @@ const (
 	authorizationErrorKey
 	shouldStoreBindingsKey
 	generatePlatformCredentialsKey
+	smaapOperatedKey
 )
+
+// IsSMAAPOperated indicates whether resource from another platform operated by SMAAP
+func IsSMAAPOperated(ctx context.Context) bool {
+	smaapOperated := ctx.Value(smaapOperatedKey)
+	return smaapOperated != nil && smaapOperated.(bool)
+}
+
+func ContextWithSMAAPOperatedFlag(ctx context.Context, operated bool) context.Context {
+	return context.WithValue(ctx, smaapOperatedKey, operated)
+}
 
 func IsGeneratePlatformCredentialsRequired(ctx context.Context) bool {
 	generateRequired := ctx.Value(generatePlatformCredentialsKey)

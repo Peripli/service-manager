@@ -8,6 +8,7 @@ const (
 	QueryForAllLastOperationsPerResource SubQuery = iota
 	QueryForOperationsWithResource
 	QueryForTenantScopedServiceOfferings
+	QueryForInstanceChildrenByLabel
 )
 
 // The sub-queries are dedicated to be used with ByExists/ByNotExists Criterion to allow additional querying/filtering
@@ -45,7 +46,11 @@ var subQueries = map[SubQuery]string{
     WHERE operations.resource_id = {{.RESOURCE_TABLE}}.id`,
 	QueryForTenantScopedServiceOfferings: `
 	SELECT id FROM broker_labels l
-	where l.broker_id = service_offerings.broker_id AND l.key = '{{.TENANT_KEY}}'`,
+	WHERE l.broker_id = service_offerings.broker_id AND l.key = '{{.TENANT_KEY}}'`,
+	QueryForInstanceChildrenByLabel: `
+		SELECT 1 FROM service_instances i
+        INNER JOIN service_instance_labels l ON i.id = l.service_instance_id
+		WHERE  l.key IN ({{.PARENT_KEYS}}) AND l.val = '{{.PARENT_ID}}' AND i.id = service_instances.id`,
 }
 
 func GetSubQuery(query SubQuery) string {
