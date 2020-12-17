@@ -67,7 +67,7 @@ var namedQueries = map[NamedQuery]string{
 	visibility_labels.updated_at "visibility_labels.updated_at",
 	visibility_labels.visibility_id "visibility_labels.visibility_id"
 	FROM visibilities
-		INNER JOIN visibility_labels
+		 LEFT JOIN visibility_labels
 	ON visibilities.id = visibility_labels.visibility_id
 	WHERE service_plan_id = :service_plan_id and platform_id IS NULL OR service_plan_id = :service_plan_id and platform_id=:platform_id LIMIT 1`,
 }
