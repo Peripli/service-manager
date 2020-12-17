@@ -51,7 +51,6 @@ func (*serviceInstanceVisibilityFilter) Name() string {
 	return ServiceInstanceVisibilityFilterName
 }
 
-//@todo improve label selection
 func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 

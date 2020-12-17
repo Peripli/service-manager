@@ -88,8 +88,10 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 		return nil, err
 	}
 
-	switch platform.Type {
-	case "cloudfoundry":
+	var payloadOrgGUID string
+	var tenantKey string
+
+	if platform.Type == "cloudfoundry" {
 		if len(osbContext) == 0 {
 			log.C(ctx).Errorf("Could not find context in the osb request.")
 			return nil, &util.HTTPError{
@@ -98,7 +100,7 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 				StatusCode:  http.StatusBadRequest,
 			}
 		}
-		payloadOrgGUID := gjson.GetBytes(osbContext, "organization_guid").String()
+		payloadOrgGUID = gjson.GetBytes(osbContext, "organization_guid").String()
 		if len(payloadOrgGUID) == 0 {
 			log.C(ctx).Errorf("Could not find organization_guid in the context of the osb request.")
 			return nil, &util.HTTPError{
@@ -108,20 +110,22 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 			}
 		}
 
-		list, err := p.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForLabelLessVisibilitiesByPlatformAndPlan, map[string]interface{}{
-			"platform_id":     platform.ID,
-			"service_plan_id": planID,
-			"key":             "organization_guid",
-			"val":             payloadOrgGUID,
-		})
+		tenantKey = "organization_guid"
+	}
 
-		if err != nil {
-			return nil, err
-		}
+	list, err := p.repository.QueryForList(ctx, types.VisibilityType, storage.QueryForLabelLessVisibilitiesByPlatformAndPlan, map[string]interface{}{
+		"platform_id":     platform.ID,
+		"service_plan_id": planID,
+		"key":             tenantKey,
+		"val":             payloadOrgGUID,
+	})
 
-		if list.Len() > 0 {
-			return next.Handle(req)
-		}
+	if err != nil {
+		return nil, err
+	}
+
+	if list.Len() > 0 {
+		return next.Handle(req)
 	}
 
 	log.C(ctx).Errorf("Service plan %v is not visible on platform %v", planID, platform.ID)
