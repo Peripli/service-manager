@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS vis_lbl_visibility_id ON visibility_labels (visibility_id);

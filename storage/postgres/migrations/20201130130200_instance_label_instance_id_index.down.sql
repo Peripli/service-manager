@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS instance_lbl_instance_id;
