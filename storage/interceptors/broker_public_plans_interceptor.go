@@ -113,6 +113,11 @@ func (p *publicPlanUpdateInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFu
 }
 
 func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.Repository, isCatalogPlanPublicFunc publicPlanProcessor, supportedPlatforms supportedPlatformsProcessor, tenantKey string) error {
+	labelLessVisibilitiesByID, err := getLabelLessVisibilitiesByID(broker, txStorage, ctx)
+	if err != nil {
+		return err
+	}
+
 	for _, serviceOffering := range broker.Services {
 		for _, servicePlan := range serviceOffering.Plans {
 			planID := servicePlan.ID
@@ -123,7 +128,7 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 			}
 
 			byServicePlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
-			planVisibilities, err := txStorage.List(ctx, types.VisibilityType, byServicePlanID)
+			planVisibilities, err := txStorage.ListNoLabels(ctx, types.VisibilityType, byServicePlanID)
 			if err != nil {
 				return err
 			}
@@ -142,13 +147,38 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 				return err
 			}
 
-			err = resyncPlanVisibilitiesWithSupportedPlatforms(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker, supportedPlatformIDs, tenantKey)
+			err = resyncPlanVisibilitiesWithSupportedPlatforms(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker, supportedPlatformIDs, tenantKey, labelLessVisibilitiesByID)
 			if err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+func getLabelLessVisibilitiesByID(broker *types.ServiceBroker, txStorage storage.Repository, ctx context.Context) (map[string]bool, error) {
+	var planIDs []string
+	for _, serviceOffering := range broker.Services {
+		for _, servicePlan := range serviceOffering.Plans {
+			planIDs = append(planIDs, servicePlan.ID)
+		}
+	}
+	labelLessVisibilitiesByID := make(map[string]bool)
+	if len(planIDs) > 0 {
+		labelLessVisibilities, err := txStorage.QueryForList(ctx, types.VisibilityType, storage.QueryForLabelLessPlanVisibilities, map[string]interface{}{
+			"service_plan_ids": planIDs,
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		for i := 0; i < labelLessVisibilities.Len(); i++ {
+			visibility := labelLessVisibilities.ItemAt(i).(*types.Visibility)
+			labelLessVisibilitiesByID[visibility.ID] = true
+		}
+	}
+	return labelLessVisibilitiesByID, nil
 }
 
 func resyncPublicPlanVisibilities(ctx context.Context, txStorage storage.Repository, planVisibilities types.ObjectList, isPlanPublic bool, planID string, broker *types.ServiceBroker) error {
@@ -186,7 +216,7 @@ func resyncPublicPlanVisibilities(ctx context.Context, txStorage storage.Reposit
 	return nil
 }
 
-func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage storage.Repository, planVisibilities types.ObjectList, isPlanPublic bool, planID string, broker *types.ServiceBroker, supportedPlatforms map[string]*types.Platform, tenantKey string) error {
+func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage storage.Repository, planVisibilities types.ObjectList, isPlanPublic bool, planID string, broker *types.ServiceBroker, supportedPlatforms map[string]*types.Platform, tenantKey string, labelLessVisibilitiesByID map[string]bool) error {
 	for i := 0; i < planVisibilities.Len(); i++ {
 		visibility := planVisibilities.ItemAt(i).(*types.Visibility)
 
@@ -194,13 +224,13 @@ func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage
 
 		platform := findPlatformByVisibility(supportedPlatforms, visibility)
 		if isPlanPublic || platform != nil && isTenantScoped(platform, tenantKey) { // trying to match the current visibility to one of the supported platforms that should have visibilities
-			if platform != nil && len(visibility.Labels) == 0 { // visibility is present, no need to create a new one or delete this one
+			if platform != nil && labelLessVisibilitiesByID[visibility.ID] { // visibility is present, no need to create a new one or delete this one
 				delete(supportedPlatforms, platform.ID)
 				shouldDeleteVisibility = false
 			}
 		} else {
 			// trying to match the current visibility to one of the supported platforms - if match is found and it has no labels - it's a public visibility and it has to be deleted
-			if platform != nil && len(visibility.Labels) != 0 { // visibility is present, but has labels -> visibility for paid so don't delete it
+			if platform != nil && !labelLessVisibilitiesByID[visibility.ID] { // visibility is present, but has labels -> visibility for paid so don't delete it
 				shouldDeleteVisibility = false
 			}
 		}

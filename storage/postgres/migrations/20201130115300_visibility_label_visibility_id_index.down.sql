@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS vis_lbl_visibility_id;
