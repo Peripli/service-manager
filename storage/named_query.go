@@ -63,15 +63,11 @@ var namedQueries = map[NamedQuery]string{
 	LEFT OUTER JOIN visibility_labels vl on v.id = vl.visibility_id
 	WHERE (vl.id IS NULL and v.service_plan_id in (:service_plan_ids))`,
 	QueryForLabelLessVisibilitiesByPlatformAndPlan: `
-	SELECT visibilities.*
-	FROM visibilities
-	LEFT JOIN visibility_labels
-	ON visibilities.id = visibility_labels.visibility_id
-	WHERE service_plan_id = :service_plan_id and (
-	platform_id IS NULL
-	OR ( platform_id=:platform_id AND NOT EXISTS (SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = visibilities.id))
-	OR ( platform_id = :platform_id and exists (SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = visibilities.id and vl.key=:key and vl.val =:val ))
-    )`,
+	SELECT v.* FROM visibilities v
+	WHERE v.service_plan_id = :service_plan_id
+	AND (v.platform_id IS NULL
+	OR (v.platform_id = :platform_id AND ( NOT EXISTS ( SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id )
+	OR EXISTS ( SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id AND vl.key = :key and vl.val = :val ))))`,
 }
 
 func GetNamedQuery(query NamedQuery) string {
