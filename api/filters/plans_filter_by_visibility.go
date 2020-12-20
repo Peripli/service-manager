@@ -30,9 +30,15 @@ type PlanFilterByVisibility struct {
 
 func isPlanVisibile(repository storage.Repository) func(ctx context.Context, planID, platformID string) (bool, error) {
 	return func(ctx context.Context, planID, platformID string) (bool, error) {
-		cnt, err := repository.Count(ctx, types.VisibilityType, query.ByField(query.EqualsOperator, "service_plan_id", planID),
-			query.ByField(query.EqualsOrNilOperator, "platform_id", platformID))
-		return cnt > 0, err
+		visibilities, err := repository.QueryForList(ctx, types.VisibilityType, storage.QueryForVisibilitiesWithLabelsByPlan, map[string]interface{}{
+			"service_plan_ids": []string{platformID},
+		})
+
+		if err != nil {
+			return false, err
+		}
+
+		return visibilities.Len() > 0, nil
 	}
 }
 

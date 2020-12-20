@@ -8,6 +8,8 @@ const (
 	QueryForLastOperationsPerResource
 	QueryForLabelLessVisibilities
 	QueryForLabelLessPlanVisibilities
+	QueryForVisibilitiesWithLabelsByPlan
+	QueryForVisibilitiesWithLabelsByPlatformsAndServiceIds
 	QueryForVisibilityWithPlatformAndPlan
 )
 
@@ -62,6 +64,14 @@ var namedQueries = map[NamedQuery]string{
 	SELECT v.* FROM visibilities v
 	WHERE (v.service_plan_id in (:service_plan_ids)) AND
 	NOT EXISTS(SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id)`,
+	QueryForVisibilitiesWithLabelsByPlan: `
+	SELECT v.* FROM visibilities v
+	WHERE (v.service_plan_id in (:service_plan_ids)) AND
+	EXISTS(SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id)`,
+	QueryForVisibilitiesWithLabelsByPlatformsAndServiceIds: `
+	SELECT v.* FROM visibilities v
+	WHERE (v.service_plan_id in (:service_plan_ids)) AND (v.platform_id in (:platform_ids) OR v.platform_id IS NULL)) AND
+	EXISTS(SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id)`,
 	QueryForVisibilityWithPlatformAndPlan: `
 	SELECT v.*
 	FROM visibilities v

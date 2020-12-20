@@ -37,9 +37,16 @@ func isServiceVisible(repository storage.Repository) func(ctx context.Context, s
 		for i := 0; i < plansList.Len(); i++ {
 			planIds = append(planIds, plansList.ItemAt(i).GetID())
 		}
+		visibilities, err := repository.QueryForList(ctx, types.VisibilityType, storage.QueryForVisibilitiesWithLabelsByPlatformsAndServiceIds, map[string]interface{}{
+			"service_plan_ids": planIds,
+			"platform_ids":     []string{platformID},
+		})
 
-		cnt, err := repository.Count(ctx, types.VisibilityType, query.ByField(query.InOperator, "service_plan_id", planIds...), query.ByField(query.EqualsOrNilOperator, "platform_id", platformID))
-		return cnt > 0, err
+		if err != nil {
+			return false, err
+		}
+
+		return visibilities.Len() > 0, nil
 	}
 }
 
