@@ -259,8 +259,8 @@
     "zlib",
   ]
   pruneopts = "UT"
-  revision = "ff4a4acf3be7ac7b0b1c3381000e0216eb9e956f"
-  version = "v1.11.3"
+  revision = "156c8d0eb96e404e0870865fc7b102b1cccde45a"
+  version = "v1.11.4"
 
 [[projects]]
   digest = "1:09cb61dc19af93deae01587e2fdb1c081e0bf48f1a5ad5fa24f48750dc57dce8"
@@ -315,7 +315,7 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:ca308f4c851aa6e596b2be0e483a294e613bc3f18c2c39c3bbd343fafc0d1c99"
+  digest = "1:77cc7d2fe922ee87cd0db73f3bf99f78de8fa04fa2db2610b0ac7f2142a3d5a5"
   name = "github.com/nxadm/tail"
   packages = [
     ".",
@@ -325,8 +325,8 @@
     "winfile",
   ]
   pruneopts = "UT"
-  revision = "2683a83f3fb0c35b4908abeecadf6704cede46d1"
-  version = "v1.4.5"
+  revision = "ed4934787418681691173f6f7aa0499582e7611a"
+  version = "v1.4.6"
 
 [[projects]]
   digest = "1:96df5bdca983e4b8c62682af5b67100b187d582ac6db0968d8af52e84138d1e6"
@@ -493,20 +493,20 @@
   version = "v1.6.1"
 
 [[projects]]
-  digest = "1:cd5e64affa068abdd9c93fc4beb6ba17bb5e2d7e4eecab0caf0925fb21996a58"
+  digest = "1:56d62b6854607de2bd71a7ba7e508308e1a96ec4e11d5013e742ae5126951f36"
   name = "github.com/tidwall/gjson"
   packages = ["."]
   pruneopts = "UT"
-  revision = "f0ee9ebde4b619767ae4ac03e8e42addb530f6bc"
-  version = "v1.6.4"
+  revision = "97ec619cbe9546828dc45cb856a5938dcf3d74e1"
+  version = "v1.6.7"
 
 [[projects]]
-  digest = "1:eed1c98b70dcc500db2484f998bf64ae5ec159d95fd412ba6833a65081d8b4d5"
+  digest = "1:5413669d0fb5cdfd63e693dbd1c41152b1450c31e8aecfecd842686513fbd20e"
   name = "github.com/tidwall/match"
   packages = ["."]
   pruneopts = "UT"
-  revision = "9e52e9e068387201730ec4876bac3a1902d0eef8"
-  version = "v1.0.2"
+  revision = "c2f534168b739a7ec1821a33839fb2f029f26bbc"
+  version = "v1.0.3"
 
 [[projects]]
   digest = "1:f63bab79e68e805cdd9bf70daa09e8c430cfbddf29d14b567a92fb12581b9b95"
@@ -517,12 +517,12 @@
   version = "v1.0.2"
 
 [[projects]]
-  digest = "1:e1e1706c04f799a5d62fe9553b49d6729f2e496a3bd7806f8ad7e974d65ad9d7"
+  digest = "1:52fc61734e99bb775061495ea989347a052a055e787e329ba0e00d1873f1b3a3"
   name = "github.com/tidwall/sjson"
   packages = ["."]
   pruneopts = "UT"
-  revision = "79e91a7eec3a55412e56e0116504baf268d259fa"
-  version = "v1.1.2"
+  revision = "b547b7aea4b0c9a8ed8885f0790aea039483f337"
+  version = "v1.1.4"
 
 [[projects]]
   digest = "1:46b32b8bb81eff9edd36937c2f7e486221fd3f93f17045385971f966e697f971"
@@ -619,7 +619,7 @@
     "pbkdf2",
   ]
   pruneopts = "UT"
-  revision = "9d1352758620574fd6fc23c31c59c4333b4b3fff"
+  revision = "eec23a3978adcfd26c29f4153eaa3e3d9b2cc53a"
 
 [[projects]]
   branch = "master"
@@ -635,7 +635,7 @@
     "publicsuffix",
   ]
   pruneopts = "UT"
-  revision = "986b41b23924a168277bf3df55a4fd462154f916"
+  revision = "6772e930b67bb09bf22262c7378e7d2f67cf59d1"
 
 [[projects]]
   branch = "master"
@@ -650,14 +650,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4e5c719f1eba95eb3fa8bcb8659dec91b95e3b4d3992e7d2218102606a37ac0f"
+  digest = "1:820c064c636c598601366f7cd5dd9cd4042cab1cf813ab63a780bb71be677dfe"
   name = "golang.org/x/sys"
   packages = [
     "internal/unsafeheader",
     "unix",
   ]
   pruneopts = "UT"
-  revision = "f9fddec55a1e5ebe479d5259f4982995b3194ebc"
+  revision = "0d417f6369309be088e227ead8736fb722d759d3"
 
 [[projects]]
   digest = "1:b8df5da6a9ef5cfef65d10ed33dbb877cbff969a0cee4934e5603eb405b2eb8f"
