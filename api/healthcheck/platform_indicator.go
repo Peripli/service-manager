@@ -57,7 +57,6 @@ func (pi *platformIndicator) Status() (interface{}, error) {
 		query.ByField(query.NotEqualsOperator, "id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "technical", "false"),
 	}
-
 	objList, err := pi.repository.List(pi.ctx, types.PlatformType, criteria...)
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch platforms health from storage: %v", err)
