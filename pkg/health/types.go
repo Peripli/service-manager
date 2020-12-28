@@ -44,7 +44,6 @@ const MonitoredPlatformsHealthIndicatorName = "monitored_platforms"
 // but later not registered nothing will happen.
 var indicatorNames = [...]string{
 	StorageIndicatorName,
-	PlatformsIndicatorName,
 	MonitoredPlatformsHealthIndicatorName,
 }
 
@@ -53,6 +52,7 @@ type Settings struct {
 	Indicators                  map[string]*IndicatorSettings `mapstructure:"indicators"`
 	PlatformMaxInactive         time.Duration                 `mapstructure:"platform_max_inactive"`
 	MonitoredPlatformsThreshold int                           `mapstructure:"monitored_platforms_threshold"`
+	EnablePlatformIndicator     bool                          `mapstructure:"enable_platforms_indicator"`
 }
 
 // DefaultSettings returns default values for health settings

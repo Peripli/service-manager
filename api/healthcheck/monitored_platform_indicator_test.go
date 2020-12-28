@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/types"
-	storagefakes2 "github.com/Peripli/service-manager/storage/storagefakes"
+	storagefakes "github.com/Peripli/service-manager/storage/storagefakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"time"
@@ -14,13 +14,13 @@ import (
 
 var _ = Describe("Monitored Platforms Indicator", func() {
 	var indicator health.Indicator
-	var repository *storagefakes2.FakeStorage
+	var repository *storagefakes.FakeStorage
 	var ctx context.Context
 	var platforms []*types.Platform
 	var createPlatform func(string, bool, bool)
 	BeforeEach(func() {
 		ctx = context.TODO()
-		repository = &storagefakes2.FakeStorage{}
+		repository = &storagefakes.FakeStorage{}
 		createPlatform = func(name string, active bool, monitored bool) {
 			platform := &types.Platform{
 				Name: name,
