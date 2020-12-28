@@ -10,6 +10,9 @@ func CheckPlatformsState(platforms []*types.Platform, fatal func(*types.Platform
 	inactivePlatforms := 0
 	fatalInactivePlatforms := 0
 	for _, platform := range platforms {
+		if platform.ID == types.SMPlatform {
+			continue
+		}
 		healthObj := health.New().WithDetail("type", platform.Type)
 		if platform.Active {
 			healthObj = healthObj.WithStatus(health.StatusUp)
