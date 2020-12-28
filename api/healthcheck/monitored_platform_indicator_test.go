@@ -127,7 +127,6 @@ var _ = Describe("Monitored Platforms Indicator", func() {
 				detailsH := details.(map[string]*health.Health)
 				Expect(len(detailsH)).To(Equal(3))
 				Expect(err).ShouldNot(HaveOccurred())
-
 			})
 		})
 
