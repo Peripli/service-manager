@@ -53,7 +53,7 @@ type Settings struct {
 	Indicators                  map[string]*IndicatorSettings `mapstructure:"indicators"`
 	PlatformMaxInactive         time.Duration                 `mapstructure:"platform_max_inactive"`
 	MonitoredPlatformsThreshold int                           `mapstructure:"monitored_platforms_threshold"`
-	EnablePlatformIndicator bool                          	  `mapstructure:"enable_platforms_indicator"`
+	EnablePlatformIndicator     bool                          `mapstructure:"enable_platforms_indicator"`
 }
 
 // DefaultSettings returns default values for health settings
@@ -66,7 +66,7 @@ func DefaultSettings() *Settings {
 		Indicators:                  defaultIndicatorSettings,
 		PlatformMaxInactive:         60 * 24 * time.Hour,
 		MonitoredPlatformsThreshold: 10,
-		EnablePlatformIndicator: false,
+		EnablePlatformIndicator:     false,
 	}
 }
 
