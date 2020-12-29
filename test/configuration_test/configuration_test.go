@@ -55,6 +55,8 @@ var _ = Describe("Service Manager Config API", func() {
 					"name": "application"
 				},
 				"health": {
+					"monitored_platforms_threshold" : 10,
+					"enable_platforms_indicator": false,
 					"indicators": {
 						"platforms": {
 							"failures_threshold": 3,
