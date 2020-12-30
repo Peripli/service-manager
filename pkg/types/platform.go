@@ -30,6 +30,7 @@ import (
 const CFPlatformType = "cloudfoundry"
 const K8sPlatformType = "kubernetes"
 const SMPlatform = "service-manager"
+const Monitored = "monitored"
 
 var smSupportedPlatformType = SMPlatform
 

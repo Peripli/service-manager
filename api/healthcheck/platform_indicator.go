@@ -57,34 +57,14 @@ func (pi *platformIndicator) Status() (interface{}, error) {
 		query.ByField(query.NotEqualsOperator, "id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "technical", "false"),
 	}
-
 	objList, err := pi.repository.List(pi.ctx, types.PlatformType, criteria...)
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch platforms health from storage: %v", err)
 	}
 	platforms := objList.(*types.Platforms).Platforms
-
-	details := make(map[string]*health.Health)
-	inactivePlatforms := 0
-	fatalInactivePlatforms := 0
-	for _, platform := range platforms {
-		if platform.Active {
-			details[platform.Name] = health.New().WithStatus(health.StatusUp).
-				WithDetail("type", platform.Type)
-		} else {
-			details[platform.Name] = health.New().WithStatus(health.StatusDown).
-				WithDetail("since", platform.LastActive).
-				WithDetail("type", platform.Type)
-			inactivePlatforms++
-			if pi.fatal(platform) {
-				fatalInactivePlatforms++
-			}
-		}
-	}
-
+	details, inactivePlatforms, fatalInactivePlatforms := CheckPlatformsState(platforms, pi.fatal)
 	if fatalInactivePlatforms > 0 {
 		err = fmt.Errorf("there are %d inactive platforms %d of them are fatal", inactivePlatforms, fatalInactivePlatforms)
 	}
-
 	return details, err
 }

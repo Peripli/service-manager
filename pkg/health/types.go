@@ -34,6 +34,7 @@ const StorageIndicatorName = "storage"
 
 // PlatformsIndicatorName is the name of platforms indicator
 const PlatformsIndicatorName = "platforms"
+const MonitoredPlatformsHealthIndicatorName = "monitored_platforms"
 
 // indicatorNames is a list of names of indicators which will be registered with default settings
 // as part of default health settings, this will allow binding them as part of environment.
@@ -44,12 +45,15 @@ const PlatformsIndicatorName = "platforms"
 var indicatorNames = [...]string{
 	StorageIndicatorName,
 	PlatformsIndicatorName,
+	MonitoredPlatformsHealthIndicatorName,
 }
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	Indicators          map[string]*IndicatorSettings `mapstructure:"indicators"`
-	PlatformMaxInactive time.Duration                 `mapstructure:"platform_max_inactive"`
+	Indicators                  map[string]*IndicatorSettings `mapstructure:"indicators"`
+	PlatformMaxInactive         time.Duration                 `mapstructure:"platform_max_inactive"`
+	MonitoredPlatformsThreshold int                           `mapstructure:"monitored_platforms_threshold"`
+	EnablePlatformIndicator     bool                          `mapstructure:"enable_platforms_indicator"`
 }
 
 // DefaultSettings returns default values for health settings
@@ -59,8 +63,10 @@ func DefaultSettings() *Settings {
 		defaultIndicatorSettings[name] = DefaultIndicatorSettings()
 	}
 	return &Settings{
-		Indicators:          defaultIndicatorSettings,
-		PlatformMaxInactive: 60 * 24 * time.Hour,
+		Indicators:                  defaultIndicatorSettings,
+		PlatformMaxInactive:         60 * 24 * time.Hour,
+		MonitoredPlatformsThreshold: 10,
+		EnablePlatformIndicator:     false,
 	}
 }
 
