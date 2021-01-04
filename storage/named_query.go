@@ -8,6 +8,7 @@ const (
 	QueryForLastOperationsPerResource
 	QueryForLabelLessVisibilities
 	QueryForLabelLessPlanVisibilities
+	QueryForVisibilityWithPlatformAndPlan
 )
 
 var namedQueries = map[NamedQuery]string{
@@ -61,6 +62,13 @@ var namedQueries = map[NamedQuery]string{
 	SELECT v.* FROM visibilities v
 	WHERE (v.service_plan_id in (:service_plan_ids)) AND
 	NOT EXISTS(SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id)`,
+	QueryForVisibilityWithPlatformAndPlan: `
+	SELECT v.*
+	FROM visibilities v
+	WHERE v.service_plan_id = :service_plan_id
+	AND (v.platform_id IS NULL
+		OR (v.platform_id = :platform_id AND (:key = '' IS TRUE OR NOT EXISTS(SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id)))
+		OR EXISTS(SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id AND vl.key = :key AND vl.val = :val))`,
 }
 
 func GetNamedQuery(query NamedQuery) string {
