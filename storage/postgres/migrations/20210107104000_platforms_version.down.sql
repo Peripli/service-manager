@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE platforms DROP COLUMN version;
+
+
+COMMIT;

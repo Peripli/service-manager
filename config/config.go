@@ -18,6 +18,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/agents"
 
 	"github.com/Peripli/service-manager/pkg/multitenancy"
 
@@ -46,6 +47,7 @@ type Settings struct {
 	HTTPClient   *httpclient.Settings
 	Health       *health.Settings
 	Multitenancy *multitenancy.Settings
+	Agents       *agents.Settings
 }
 
 // AddPFlags adds the SM config flags to the provided flag set

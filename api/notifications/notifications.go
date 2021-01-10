@@ -32,9 +32,19 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		return nil, errors.New("user details not found in request context")
 	}
 
+
 	platform, err := extractPlatformFromContext(user)
 	if err != nil {
 		return nil, err
+	}
+	version:= req.Header.Get("X-Version")
+	if version!=""{
+		 platform.Version = version
+		 _,err=c.repository.Update(ctx, platform, nil)
+		if err != nil {
+			logger.Errorf("Could not update platform version for platform %s: %v", platform.ID, err)
+			return nil, err
+		}
 	}
 
 	if user.Name == platform.Credentials.Basic.Username && !platform.CredentialsActive {
@@ -47,7 +57,6 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 	}
-
 	revisionKnownToProxy := types.InvalidRevision
 	revisionKnownToProxyStr := req.URL.Query().Get(LastKnownRevisionQueryParam)
 	if revisionKnownToProxyStr != "" {
