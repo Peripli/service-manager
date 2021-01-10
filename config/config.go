@@ -68,6 +68,7 @@ func DefaultSettings() *Settings {
 		HTTPClient:   httpclient.DefaultSettings(),
 		Health:       health.DefaultSettings(),
 		Multitenancy: multitenancy.DefaultSettings(),
+		Agents: agents.DefaultSettings(),
 	}
 }
 
