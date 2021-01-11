@@ -143,6 +143,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		Notificator:       pgNotificator,
 		WaitGroup:         waitGroup,
 		TenantLabelKey:    cfg.Multitenancy.LabelKey,
+		Agents: cfg.Agents,
 	}
 	API, err := api.New(ctx, e, apiOptions)
 	if err != nil {
@@ -334,6 +335,7 @@ func (smb *ServiceManagerBuilder) registerSMPlatform() error {
 
 	return nil
 }
+
 
 func (smb *ServiceManagerBuilder) installHealth() error {
 	healthz, thresholds, err := health.Configure(smb.ctx, smb.HealthIndicators, smb.cfg.Health)
