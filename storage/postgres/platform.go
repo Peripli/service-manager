@@ -42,7 +42,7 @@ type Platform struct {
 	CredentialsActive bool           `db:"credentials_active"`
 	LastActive        time.Time      `db:"last_active"`
 	Technical         bool           `db:"technical"`
-	Version           string 	     `db:"version"`
+	Version           string         `db:"version"`
 }
 
 func (p *Platform) FromObject(object types.Object) (storage.Entity, error) {
@@ -105,7 +105,7 @@ func (p *Platform) ToObject() (types.Object, error) {
 		LastActive:        p.LastActive,
 		Technical:         p.Technical,
 		Integrity:         p.Integrity,
-		Version: 		   p.Version,
+		Version:           p.Version,
 	}
 	if len(p.Username) > 0 || len(p.Password) > 0 {
 		platform.Credentials = &types.Credentials{

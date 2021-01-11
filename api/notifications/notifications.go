@@ -22,6 +22,7 @@ import (
 const (
 	LastKnownRevisionHeader     = "last_notification_revision"
 	LastKnownRevisionQueryParam = "last_notification_revision"
+	AgentVersionHeader          = "X-Peripli-Agent-Version"
 )
 
 func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
@@ -37,7 +38,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	version:= req.Header.Get("X-Version")
+	version:= req.Header.Get(AgentVersionHeader)
 	if version!=""{
 		 platform.Version = version
 		 _,err=c.repository.Update(ctx, platform, nil)
