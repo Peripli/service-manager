@@ -1,6 +1,6 @@
 BEGIN;
 
-ALTER TABLE platforms ADD COLUMN IF NOT EXISTS version varchar(100);
+ALTER TABLE platforms ADD COLUMN IF NOT EXISTS version varchar(250);
 
 COMMIT;
 

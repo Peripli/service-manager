@@ -1,6 +1,6 @@
 BEGIN;
 
-ALTER TABLE platforms DROP COLUMN version;
+ALTER TABLE platforms DROP COLUMN IF EXISTS version;
 
 
 COMMIT;
