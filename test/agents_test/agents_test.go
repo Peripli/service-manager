@@ -41,12 +41,7 @@ var _ = Describe("agents API", func() {
 	Context("when versions are set", func() {
 		BeforeEach(func() {
 			postHook = func(e env.Environment, servers map[string]common.FakeServer) {
-				versions := map[string][]string{
-					"cf-versions":  {"1.0.0", "1.0.1", "1.0.2"},
-					"k8s-versions": {"2.0.0", "2.0.1"},
-				}
-				e.Set("agents.versions", versions)
-
+				e.Set("agents.versions", `{"cf-versions":["1.0.0", "1.0.1", "1.0.2"], "k8s-versions": ["2.0.0", "2.0.1"]}`)
 			}
 			ctx = ctxBuilder.WithEnvPostExtensions(postHook).Build()
 		})

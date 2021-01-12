@@ -38,7 +38,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 	version := req.Header.Get(AgentVersionHeader)
-	if version != "" {
+	if platform.Version != version {
 		platform.Version = version
 		_, err = c.repository.Update(ctx, platform, nil)
 		if err != nil {

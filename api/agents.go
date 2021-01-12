@@ -18,7 +18,7 @@ func NewAgentsController(agentsConfig *agents.Settings) *AgentsController {
 }
 func (c *AgentsController) GetSupportedVersions(req *web.Request) (resp *web.Response, err error) {
 	if c.agentsConfig != nil {
-		return util.NewJSONResponse(http.StatusOK, c.agentsConfig.Versions)
+		return util.NewJSONResponse(http.StatusOK, c.agentsConfig.SupportedVersions)
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
 }
