@@ -408,7 +408,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								},
 							},
 						}
-						_, _, err := ctx.ConnectWebSocket(platform, nil,nil)
+						_, _, err := ctx.ConnectWebSocket(platform, nil, nil)
 						Expect(err).To(Not(HaveOccurred()))
 					}
 

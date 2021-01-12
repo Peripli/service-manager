@@ -15,7 +15,6 @@ func TestAgents(t *testing.T) {
 	RunSpecs(t, "Agents API Tests Suite")
 }
 
-
 var _ = Describe("agents API", func() {
 	var (
 		ctxBuilder *common.TestContextBuilder
@@ -25,8 +24,6 @@ var _ = Describe("agents API", func() {
 
 	BeforeEach(func() {
 		ctxBuilder = common.NewTestContextBuilder()
-
-
 
 	})
 
@@ -45,17 +42,16 @@ var _ = Describe("agents API", func() {
 		BeforeEach(func() {
 			postHook = func(e env.Environment, servers map[string]common.FakeServer) {
 				versions := map[string][]string{
-					"cf-versions":[]string{"1.0.0","1.0.1","1.0.2"},
-					"k8s-versions": []string{"2.0.0","2.0.1"},
+					"cf-versions":  {"1.0.0", "1.0.1", "1.0.2"},
+					"k8s-versions": {"2.0.0", "2.0.1"},
 				}
-				e.Set("agents.versions",versions)
-
+				e.Set("agents.versions", versions)
 
 			}
 			ctx = ctxBuilder.WithEnvPostExtensions(postHook).Build()
 		})
 		It("should return supported veresions", func() {
-			jsonResponse:=ctx.SM.GET(web.AgentsURL).
+			jsonResponse := ctx.SM.GET(web.AgentsURL).
 				Expect().
 				Status(http.StatusOK).
 				JSON().Object()
