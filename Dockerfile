@@ -12,12 +12,10 @@ RUN go get github.com/golang/dep/cmd/dep
 # Directory in workspace
 WORKDIR "/go/src/github.com/Peripli/service-manager"
 
-# Copy dep files only and ensure dependencies are satisfied
-COPY Gopkg.lock Gopkg.toml ./
-RUN dep ensure --vendor-only -v
 
 # Copy and build source code
 COPY . ./
+RUN export GO111MODULE="on" && go mod vendor
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags "$(build/ldflags)" -o /main main.go
 
 ########################################################
