@@ -30,6 +30,8 @@ var _ = Describe("Monitored Platforms Indicator", func() {
 			platform.Active = active
 			if !active {
 				platform.LastActive = time.Now().Add(-61 * 24 * time.Hour)
+			}else{
+				platform.LastActive = time.Now().Add(20 * time.Second)
 			}
 			if monitored {
 				labels := types.Labels{}
