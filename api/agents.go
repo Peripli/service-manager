@@ -19,13 +19,18 @@ func NewAgentsController(agentsConfig *agents.Settings) *AgentsController {
 }
 func (c *AgentsController) GetSupportedVersions(req *web.Request) (resp *web.Response, err error) {
 	if c.agentsConfig != nil && len(c.agentsConfig.Versions) > 0 {
-		var supportedVersions = make(map[string]interface{})
+		var supportedVersions = make(map[string][]string)
 		if err := json.Unmarshal([]byte(c.agentsConfig.Versions), &supportedVersions); err != nil {
-			panic(err)
+			return nil, &util.HTTPError{
+				ErrorType:   http.StatusText(http.StatusInternalServerError),
+				Description: "failed to retrieve agents supported versions",
+				StatusCode:  http.StatusInternalServerError,
+			}
+
 		}
 		return util.NewJSONResponse(http.StatusOK, supportedVersions)
 	}
-	return util.NewJSONResponse(http.StatusOK, map[string]string{})
+	return util.NewJSONResponse(http.StatusOK, map[string][]string{})
 }
 
 func (c *AgentsController) Routes() []web.Route {
