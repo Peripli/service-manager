@@ -18,7 +18,7 @@ func NewAgentsController(agentsConfig *agents.Settings) *AgentsController {
 	}
 }
 func (c *AgentsController) GetSupportedVersions(req *web.Request) (resp *web.Response, err error) {
-	if c.agentsConfig != nil && len(c.agentsConfig.Versions)>0{
+	if c.agentsConfig != nil && len(c.agentsConfig.Versions) > 0 {
 		var supportedVersions = make(map[string]interface{})
 		if err := json.Unmarshal([]byte(c.agentsConfig.Versions), &supportedVersions); err != nil {
 			panic(err)

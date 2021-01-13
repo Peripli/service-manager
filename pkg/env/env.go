@@ -137,7 +137,6 @@ func (v *ViperEnv) Unmarshal(value interface{}) error {
 
 }
 
-
 func (v *ViperEnv) setupConfigFile(ctx context.Context, onConfigChangeHandlers ...func(env Environment) func(op fsnotify.Event)) error {
 	cfg := struct{ File File }{File: File{}}
 	if err := v.Unmarshal(&cfg); err != nil {
