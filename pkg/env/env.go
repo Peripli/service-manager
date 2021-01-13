@@ -124,7 +124,6 @@ func (v *ViperEnv) AllSettings() map[string]interface{} {
 // Unmarshal exposes viper's Unmarshal. Prior to unmarshaling it creates the necessary pflag and env var bindings
 // so that pflag / env var values are also used during the unmarshaling.
 func (v *ViperEnv) Unmarshal(value interface{}) error {
-	v.parseJson()
 	parameters := buildParameters(value)
 	for _, parameter := range parameters {
 		// These bindings are required in case the value for a particular configuration property that is a field of the specified value struct
@@ -138,13 +137,7 @@ func (v *ViperEnv) Unmarshal(value interface{}) error {
 
 }
 
-func (v *ViperEnv) parseJson() {
-	versions := v.Viper.GetStringMapStringSlice("agents.versions")
-	if len(versions) != 0 {
-		v.Viper.Set("agents.supported_versions", versions)
-	}
 
-}
 func (v *ViperEnv) setupConfigFile(ctx context.Context, onConfigChangeHandlers ...func(env Environment) func(op fsnotify.Event)) error {
 	cfg := struct{ File File }{File: File{}}
 	if err := v.Unmarshal(&cfg); err != nil {

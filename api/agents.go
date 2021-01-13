@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"github.com/Peripli/service-manager/pkg/agents"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -17,8 +18,12 @@ func NewAgentsController(agentsConfig *agents.Settings) *AgentsController {
 	}
 }
 func (c *AgentsController) GetSupportedVersions(req *web.Request) (resp *web.Response, err error) {
-	if c.agentsConfig != nil {
-		return util.NewJSONResponse(http.StatusOK, c.agentsConfig.SupportedVersions)
+	if c.agentsConfig != nil && len(c.agentsConfig.Versions)>0{
+		var supportedVersions = make(map[string]interface{})
+		if err := json.Unmarshal([]byte(c.agentsConfig.Versions), &supportedVersions); err != nil {
+			panic(err)
+		}
+		return util.NewJSONResponse(http.StatusOK, supportedVersions)
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
 }

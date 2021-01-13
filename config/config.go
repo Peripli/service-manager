@@ -78,7 +78,6 @@ func New(env env.Environment) (*Settings, error) {
 	if err := env.Unmarshal(config); err != nil {
 		return nil, fmt.Errorf("error loading configuration: %s", err)
 	}
-
 	return config, nil
 }
 
