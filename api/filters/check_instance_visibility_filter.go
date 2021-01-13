@@ -59,7 +59,7 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		return nil, err
 	}
 
-	if visibilityMetadata.LabelKey == "" || visibilityMetadata.LabelValue == "" || req.Method == http.MethodDelete {
+	if req.Method == http.MethodDelete {
 		return next.Handle(req)
 	}
 
