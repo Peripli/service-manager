@@ -39,22 +39,6 @@ var _ = Describe("agents API", func() {
 		})
 	})
 
-	Context("when json in invalid", func() {
-		BeforeEach(func() {
-			postHook = func(e env.Environment, servers map[string]common.FakeServer) {
-				e.Set("agents.versions", `rsions":["1.0.0", "1.0.1", "1.0.2"],"k8s-versions":["2.0.0", "2.0.1"]}`)
-			}
-			ctx = ctxBuilder.WithEnvPostExtensions(postHook).Build()
-		})
-		It("should return an error", func() {
-			jsonResponse := ctx.SM.GET(web.AgentsURL).
-				Expect().
-				Status(http.StatusInternalServerError).
-				JSON().Object()
-			jsonResponse.Value("description").String().Equal("failed to retrieve agents supported versions")
-
-		})
-	})
 	Context("when versions are set", func() {
 		BeforeEach(func() {
 			postHook = func(e env.Environment, servers map[string]common.FakeServer) {

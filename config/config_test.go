@@ -18,6 +18,7 @@ package config_test
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/agents"
 	"testing"
 	"time"
 
@@ -293,6 +294,13 @@ var _ = Describe("config", func() {
 				assertErrorDuringValidate()
 			})
 		})
+		Context("when agents versions json is malformed", func() {
+			It("should return an error", func() {
+				config.Agents.Versions = `rsions":["1.0.0", "1.0.1", "1.0.2"],"k8s-versions":["2.0.0", "2.0.1"]}`
+				assertErrorDuringValidate()
+			})
+
+		})
 
 		Context("when multitenancy label key is empty", func() {
 			It("returns an error", func() {
@@ -383,6 +391,9 @@ var _ = Describe("config", func() {
 					API: &api.Settings{
 						TokenIssuerURL: "http://example.com",
 						ClientID:       "sm",
+					},
+					Agents: &agents.Settings{
+						Versions: `{"cf-versions":["1.0.0", "1.0.1", "1.0.2"],"k8s-versions":["2.0.0", "2.0.1"]}`,
 					},
 				}
 
