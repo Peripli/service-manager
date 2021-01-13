@@ -133,8 +133,8 @@ func (v *ViperEnv) Unmarshal(value interface{}) error {
 			return err
 		}
 	}
-
 	return v.Viper.Unmarshal(value)
+
 }
 
 func (v *ViperEnv) setupConfigFile(ctx context.Context, onConfigChangeHandlers ...func(env Environment) func(op fsnotify.Event)) error {

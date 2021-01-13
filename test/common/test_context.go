@@ -878,21 +878,28 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	ctx.wsConnections = nil
 }
 
-func (ctx *TestContext) ConnectWebSocket(platform *types.Platform, queryParams map[string]string) (*websocket.Conn, *http.Response, error) {
+func (ctx *TestContext) ConnectWebSocket(platform *types.Platform,
+	queryParams map[string]string,
+	withHeaders map[string]string) (*websocket.Conn, *http.Response, error) {
 	smURL := ctx.Servers[SMServer].URL()
 	smEndpoint, _ := url.Parse(smURL)
 	smEndpoint.Scheme = "ws"
 	smEndpoint.Path = web.NotificationsURL
 	q := smEndpoint.Query()
+
 	for k, v := range queryParams {
 		q.Add(k, v)
 	}
-	smEndpoint.RawQuery = q.Encode()
 
+	smEndpoint.RawQuery = q.Encode()
 	headers := http.Header{}
 	encodedPlatform := base64.StdEncoding.EncodeToString([]byte(platform.Credentials.Basic.Username + ":" + platform.Credentials.Basic.Password))
 	headers.Add("Authorization", "Basic "+encodedPlatform)
-
+	if withHeaders != nil {
+		for k, v := range withHeaders {
+			headers.Add(k, v)
+		}
+	}
 	wsEndpoint := smEndpoint.String()
 	conn, resp, err := websocket.DefaultDialer.Dial(wsEndpoint, headers)
 	if conn != nil {

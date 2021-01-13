@@ -47,13 +47,13 @@
   version = "v1.5.1"
 
 [[projects]]
-  digest = "1:3076a0751f5648f3ab1838abfba18bc5bf514cde7e3957500b62fba90633479a"
+  digest = "1:30f419fcfc6050c320f770be89ba1b41d781665abfb5f6105322e8844b7ea118"
   name = "github.com/antlr/antlr4"
   packages = ["runtime/Go/antlr"]
   pruneopts = "UT"
-  revision = "7a3f40bc341ddfb463d6e0aa1a6265064d020cb6"
+  revision = "5c2b686f95e1a42f302fefd99271863bf25b2e06"
   source = "https://github.com/antlr/antlr4"
-  version = "4.8"
+  version = "4.9.1"
 
 [[projects]]
   branch = "master"
@@ -259,8 +259,8 @@
     "zlib",
   ]
   pruneopts = "UT"
-  revision = "156c8d0eb96e404e0870865fc7b102b1cccde45a"
-  version = "v1.11.4"
+  revision = "39a5f72b371c3ae939c279678a03ccf10ab19bf5"
+  version = "v1.11.6"
 
 [[projects]]
   digest = "1:09cb61dc19af93deae01587e2fdb1c081e0bf48f1a5ad5fa24f48750dc57dce8"
@@ -474,12 +474,12 @@
   version = "v1.0.1"
 
 [[projects]]
-  digest = "1:11118bd196646c6515fea3d6c43f66162833c6ae4939bfb229b9956d91c6cf17"
+  digest = "1:b3027d4cb73b6576e8818c1012389dbcd8385e34bb8e4ee024891214c4338725"
   name = "github.com/spf13/viper"
   packages = ["."]
   pruneopts = "UT"
-  revision = "b5bf975e5823809fb22c7644d008757f78a4259e"
-  version = "v1.4.0"
+  revision = "3826be313591f83193f048520482a7b3cf17d506"
+  version = "v1.7.1"
 
 [[projects]]
   digest = "1:729f65378817684798e53068862397c12daffa0757abbe073f6620a560fc6fb5"
@@ -491,6 +491,14 @@
   pruneopts = "UT"
   revision = "f654a9112bbeac49ca2cd45bfbe11533c4666cf8"
   version = "v1.6.1"
+
+[[projects]]
+  digest = "1:f4b32291cad5efac2bfdba89ccde6aa04618b62ce06c1a571da2dc4f3f2677fb"
+  name = "github.com/subosito/gotenv"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2ef7124db659d49edac6aa459693a15ae36c671a"
+  version = "v1.2.0"
 
 [[projects]]
   digest = "1:56d62b6854607de2bd71a7ba7e508308e1a96ec4e11d5013e742ae5126951f36"
@@ -650,17 +658,17 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:820c064c636c598601366f7cd5dd9cd4042cab1cf813ab63a780bb71be677dfe"
+  digest = "1:cf291c57c2998074f6e9ef31d7872efe7434ef7c56d530cd448e2eec86a474be"
   name = "golang.org/x/sys"
   packages = [
     "internal/unsafeheader",
     "unix",
   ]
   pruneopts = "UT"
-  revision = "0d417f6369309be088e227ead8736fb722d759d3"
+  revision = "59c308dcf3cce479e66405f7f4ed446c39cbe82d"
 
 [[projects]]
-  digest = "1:b8df5da6a9ef5cfef65d10ed33dbb877cbff969a0cee4934e5603eb405b2eb8f"
+  digest = "1:e8955cd29d668878de0082fda242a1fa9fd5db3cdb9e816ba610f8e705486f4a"
   name = "golang.org/x/text"
   packages = [
     "collate",
@@ -693,8 +701,8 @@
     "unicode/rangetable",
   ]
   pruneopts = "UT"
-  revision = "22f1617af38ed4cd65b3b96e02bab267e560155c"
-  version = "v0.3.4"
+  revision = "75a595aef632b07c6eeaaa805adb6f0f66e4130e"
+  version = "v0.3.5"
 
 [[projects]]
   digest = "1:15bbb120d95283019f8891f2762fab3e735075b2cf9b378497277d2fe6c4abca"
@@ -748,6 +756,14 @@
   version = "v1.25.0"
 
 [[projects]]
+  digest = "1:f7059e57af5fc848220ebfbfb61e4d333179a6a07e70bc01f7ae5bc873586537"
+  name = "gopkg.in/ini.v1"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5e97220809ffaa826f787728501264e9114cb834"
+  version = "v1.62.0"
+
+[[projects]]
   digest = "1:c864e49942441f23f2b51ba1eacf4d43dedec45b76f06800207b20fc8642ad78"
   name = "gopkg.in/square/go-jose.v2"
   packages = [
@@ -777,11 +793,11 @@
 
 [[projects]]
   branch = "v3"
-  digest = "1:229cb0f6192914f518cc1241ede6d6f1f458b31debfa18bf3a5c9e4f7b01e24b"
+  digest = "1:107a619d3c3bcca214b2b7db810a5dffcd74b5d0262813cb2986e063fae2722f"
   name = "gopkg.in/yaml.v3"
   packages = ["."]
   pruneopts = "UT"
-  revision = "eeeca48fe7764f320e4870d231902bf9c1be2c08"
+  revision = "496545a6307b2a7d7a710fd516e5e16e8ab62dbc"
 
 [solve-meta]
   analyzer-name = "dep"
