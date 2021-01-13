@@ -299,12 +299,12 @@
   version = "v1.8.4"
 
 [[projects]]
-  digest = "1:4bba0efb9a537243bc62a0f816d75a068ea45816824e36706e20fb507b986a9c"
+  digest = "1:2a3c9556884d94bdbcdcdc62350f8cf466cf7eb39669fe7a0640f2600f61ceaf"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
   pruneopts = "UT"
-  revision = "95075d6e1a88d608e5258a054d7f0de9401f255e"
-  version = "v1.4.0"
+  revision = "8ebf2d61a8b4adcce25fc9fc9b76e8452a00672f"
+  version = "v1.4.1"
 
 [[projects]]
   digest = "1:7aefb397a53fc437c90f0fdb3e1419c751c5a3a165ced52325d5d797edf1aca6"
@@ -474,31 +474,23 @@
   version = "v1.0.1"
 
 [[projects]]
-  digest = "1:b3027d4cb73b6576e8818c1012389dbcd8385e34bb8e4ee024891214c4338725"
+  digest = "1:11118bd196646c6515fea3d6c43f66162833c6ae4939bfb229b9956d91c6cf17"
   name = "github.com/spf13/viper"
   packages = ["."]
   pruneopts = "UT"
-  revision = "3826be313591f83193f048520482a7b3cf17d506"
-  version = "v1.7.1"
+  revision = "b5bf975e5823809fb22c7644d008757f78a4259e"
+  version = "v1.4.0"
 
 [[projects]]
-  digest = "1:729f65378817684798e53068862397c12daffa0757abbe073f6620a560fc6fb5"
+  digest = "1:5c7b4a9fefe5b7b160d2cf0ec8457de81db92038c45c88d7d59493568308cc5d"
   name = "github.com/stretchr/testify"
   packages = [
     "assert",
     "require",
   ]
   pruneopts = "UT"
-  revision = "f654a9112bbeac49ca2cd45bfbe11533c4666cf8"
-  version = "v1.6.1"
-
-[[projects]]
-  digest = "1:f4b32291cad5efac2bfdba89ccde6aa04618b62ce06c1a571da2dc4f3f2677fb"
-  name = "github.com/subosito/gotenv"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "2ef7124db659d49edac6aa459693a15ae36c671a"
-  version = "v1.2.0"
+  revision = "acba37e5db06f0093b465a7d47822bf13644b66c"
+  version = "v1.7.0"
 
 [[projects]]
   digest = "1:56d62b6854607de2bd71a7ba7e508308e1a96ec4e11d5013e742ae5126951f36"
@@ -654,18 +646,18 @@
     "internal",
   ]
   pruneopts = "UT"
-  revision = "08078c50e5b5244ec123a6b69facdbc13b21a548"
+  revision = "01de73cf58bdca33ccc181d1bd6d63ebcf21ccca"
 
 [[projects]]
   branch = "master"
-  digest = "1:cf291c57c2998074f6e9ef31d7872efe7434ef7c56d530cd448e2eec86a474be"
+  digest = "1:372ca75621a054dd28ec7428891f9dd50c88c85f173e6a459940c52d7dbeb264"
   name = "golang.org/x/sys"
   packages = [
     "internal/unsafeheader",
     "unix",
   ]
   pruneopts = "UT"
-  revision = "59c308dcf3cce479e66405f7f4ed446c39cbe82d"
+  revision = "3196cb8d8e45180446c28482af5ee4f10c928b4c"
 
 [[projects]]
   digest = "1:e8955cd29d668878de0082fda242a1fa9fd5db3cdb9e816ba610f8e705486f4a"
@@ -754,14 +746,6 @@
   pruneopts = "UT"
   revision = "3f7a61f89bb6813f89d981d1870ed68da0b3c3f1"
   version = "v1.25.0"
-
-[[projects]]
-  digest = "1:f7059e57af5fc848220ebfbfb61e4d333179a6a07e70bc01f7ae5bc873586537"
-  name = "gopkg.in/ini.v1"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "5e97220809ffaa826f787728501264e9114cb834"
-  version = "v1.62.0"
 
 [[projects]]
   digest = "1:c864e49942441f23f2b51ba1eacf4d43dedec45b76f06800207b20fc8642ad78"
