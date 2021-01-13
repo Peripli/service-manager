@@ -39,7 +39,7 @@ branch = "master"
 
 [[constraint]]
 name = "github.com/spf13/viper"
-version = "=1.7.1"
+version = "=1.4.0"
 
 [[constraint]]
 name = "github.com/lib/pq"
