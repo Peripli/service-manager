@@ -1,7 +1,7 @@
 package agents
 
 type Settings struct {
-	Versions string `mapstructure:versions"`
+	Versions string `mapstructure:"versions"`
 }
 
 func DefaultSettings() *Settings {
