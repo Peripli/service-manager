@@ -53,6 +53,7 @@ type Platform struct {
 	Description       string       `json:"description"`
 	Credentials       *Credentials `json:"credentials,omitempty"`
 	OldCredentials    *Credentials `json:"old_credentials,omitempty"`
+	Version           string       `json:"-"`
 	Active            bool         `json:"-"`
 	LastActive        time.Time    `json:"-"`
 	Integrity         []byte       `json:"-"`
@@ -70,6 +71,7 @@ func (e *Platform) Equals(obj Object) bool {
 		e.Type != platform.Type ||
 		e.Name != platform.Name ||
 		e.Active != platform.Active ||
+		e.Version != platform.Version ||
 		!e.LastActive.Equal(platform.LastActive) ||
 		!reflect.DeepEqual(e.Credentials, platform.Credentials) {
 		return false

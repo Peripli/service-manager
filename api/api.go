@@ -23,6 +23,7 @@ import (
 	"github.com/Peripli/service-manager/api/configuration"
 	"github.com/Peripli/service-manager/api/profile"
 	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/agents"
 	"github.com/Peripli/service-manager/pkg/env"
 	"sync"
 
@@ -96,6 +97,7 @@ type Options struct {
 	Notificator       storage.Notificator
 	WaitGroup         *sync.WaitGroup
 	TenantLabelKey    string
+	Agents            *agents.Settings
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
@@ -125,6 +127,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			NewServiceOfferingController(ctx, options),
 			NewServicePlanController(ctx, options),
 			NewOperationsController(ctx, options),
+			NewAgentsController(options.Agents),
 
 			&credentialsController{
 				repository: options.Repository,
