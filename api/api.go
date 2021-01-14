@@ -108,7 +108,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 		return nil, err
 	}
 	api := &web.API{
-		// Default controllers - more filters can be registered using the relevant API methods
+		// DefaultLogger controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
 			NewAsyncController(ctx, options, web.ServiceBrokersURL, types.ServiceBrokerType, false, func() types.Object {
 				return &types.ServiceBroker{}
@@ -152,7 +152,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			},
 			&profile.Controller{},
 		},
-		// Default filters - more filters can be registered using the relevant API methods
+		// DefaultLogger filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
 			&filters.Logging{},
 			&filters.SupportedEncodingsFilter{},
