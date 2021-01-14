@@ -85,11 +85,11 @@ prepare-counterfeiter:
 	@chmod a+x ${GOPATH}/bin/counterfeiter
 
 prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gometalinter, cover, goveralls)
-ifeq ($(shell which dep),)
-	@echo "Installing dep..."
-	@go get -u github.com/golang/dep/cmd/dep
-	@chmod a+x ${GOPATH}/bin/dep
-endif
+#ifeq ($(shell which dep),)
+#	@echo "Installing dep..."
+#	@go get -u github.com/golang/dep/cmd/dep
+#	@chmod a+x ${GOPATH}/bin/dep
+#endif
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter..."
 	@go get -u github.com/alecthomas/gometalinter
@@ -112,20 +112,25 @@ endif
 # Builds and dependency management
 #-----------------------------------------------------------------------------
 
-build: .init dep-vendor-only service-manager ## Downloads vendored dependecies and builds the service-manager binary
+#build: .init dep-vendor-only service-manager ## Downloads vendored dependecies and builds the service-manager binary
 
-dep-check:
-	@which dep 2>/dev/null || (echo dep is required to build the project; exit 1)
+#dep-check:
+#	@which dep 2>/dev/null || (echo dep is required to build the project; exit 1)
 
-dep: dep-check ## Runs dep ensure -v
-	@dep ensure -v
-	@dep status
+#dep: dep-check ## Runs dep ensure -v
+#	@dep ensure -v
+#	@dep status
 
-dep-vendor-only: dep-check ## Runs dep ensure --vendor-only -v
-	@dep ensure --vendor-only -v
-	@dep status
+#dep-vendor-only: dep-check ## Runs dep ensure --vendor-only -v
+#	@dep ensure --vendor-only -v
+#	@dep status
 
-dep-reload: dep-check clean-vendor dep ## Recreates the vendored dependencies
+#dep-reload: dep-check clean-vendor dep ## Recreates the vendored dependencies
+
+build: .init gomod-vendor service-manager ## Downloads vendored dependecies and builds the service-manager binary
+
+gomod-vendor:
+	@go mod vendor
 
 service-manager: $(BINDIR)/service-manager
 
