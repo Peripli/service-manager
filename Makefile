@@ -155,7 +155,7 @@ clean-bin: ## Cleans up the binaries
 clean-vendor: ## Cleans up the vendor folder and prints out the Gopkg.lock
 	@echo Deleting vendor folder...
 	@rm -rf vendor
-	@echo > Gopkg.lock
+	@echo > go.mod
 
 build-gen-binary:
 	@go install github.com/Peripli/service-manager/cmd/smgen

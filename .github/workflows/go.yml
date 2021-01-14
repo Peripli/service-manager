@@ -25,10 +25,10 @@ jobs:
       with:
         path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
         
-    - name: Get dependencies
-      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
-      run: |
-        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+    #- name: Get dependencies
+    #  working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+    #  run: |
+    #    curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
     
     - name: Test
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
@@ -69,10 +69,10 @@ jobs:
       with:
         path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
 
-    - name: Get dependencies
-      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
-      run: |
-        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+    #- name: Get dependencies
+    #  working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+    #  run: |
+    #    curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 
     - name: Test
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
@@ -113,10 +113,10 @@ jobs:
       with:
         path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
 
-    - name: Get dependencies
-      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
-      run: |
-        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+    #- name: Get dependencies
+    #  working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+    #  run: |
+    #    curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 
     - name: Test
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
@@ -157,10 +157,10 @@ jobs:
       with:
         path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
 
-    - name: Get dependencies
-      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
-      run: |
-        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+    #- name: Get dependencies
+    #  working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+    #  run: |
+    #    curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 
     - name: Test
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
@@ -201,10 +201,10 @@ jobs:
       with:
         path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
 
-    - name: Get dependencies
-      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
-      run: |
-        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+    #- name: Get dependencies
+    #  working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+    #  run: |
+    #    curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 
     - name: Test
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
