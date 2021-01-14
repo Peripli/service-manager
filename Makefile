@@ -90,11 +90,11 @@ prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gom
 #	@go get -u github.com/golang/dep/cmd/dep
 #	@chmod a+x ${GOPATH}/bin/dep
 #endif
-ifeq ($(shell which gometalinter),)
-	@echo "Installing gometalinter..."
-	@go get github.com/alecthomas/gometalinter
-	@gometalinter --install
-endif
+#ifeq ($(shell which gometalinter),)
+#	@echo "Installing gometalinter..."
+#	@go get github.com/alecthomas/gometalinter
+#	@gometalinter --install
+#endif
 ifeq ($(shell which cover),)
 	@echo "Installing cover tool..."
 	@go get -u golang.org/x/tools/cmd/cover
