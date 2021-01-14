@@ -92,7 +92,7 @@ prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gom
 #endif
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter..."
-	@go get -u github.com/alecthomas/gometalinter/v3
+	@go get github.com/alecthomas/gometalinter
 	@gometalinter --install
 endif
 ifeq ($(shell which cover),)
