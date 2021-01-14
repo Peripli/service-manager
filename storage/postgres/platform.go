@@ -42,7 +42,7 @@ type Platform struct {
 	CredentialsActive bool           `db:"credentials_active"`
 	LastActive        time.Time      `db:"last_active"`
 	Technical         bool           `db:"technical"`
-	Version           string         `db:"version"`
+	Version           sql.NullString `db:"version"`
 }
 
 func (p *Platform) FromObject(object types.Object) (storage.Entity, error) {
