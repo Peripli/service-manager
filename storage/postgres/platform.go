@@ -64,7 +64,7 @@ func (p *Platform) FromObject(object types.Object) (storage.Entity, error) {
 		Active:            platform.Active,
 		CredentialsActive: platform.CredentialsActive,
 		Technical:         platform.Technical,
-		Version:           platform.Version,
+		Version:           toNullString(platform.Version),
 		LastActive:        platform.LastActive,
 	}
 
@@ -105,7 +105,7 @@ func (p *Platform) ToObject() (types.Object, error) {
 		LastActive:        p.LastActive,
 		Technical:         p.Technical,
 		Integrity:         p.Integrity,
-		Version:           p.Version,
+		Version:           p.Version.String,
 	}
 	if len(p.Username) > 0 || len(p.Password) > 0 {
 		platform.Credentials = &types.Credentials{
