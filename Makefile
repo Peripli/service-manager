@@ -74,7 +74,7 @@ COUNTERFEITER   ?= "v6.0.2"
 
 prepare-counterfeiter:
 	@echo "Installing counterfeiter $(COUNTERFEITER)..."
-	@go get github.com/maxbrunsfeld/counterfeiter
+	@go get github.com/maxbrunsfeld/counterfeiter/v6
 	@cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter;\
 		counterfeiterBranch=$(shell cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter && git symbolic-ref --short HEAD);\
 		git checkout tags/$(COUNTERFEITER) >/dev/null 2>&1;\
