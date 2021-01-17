@@ -14,6 +14,7 @@ WORKDIR "/go/src/github.com/Peripli/service-manager"
 
 # Copy go.mod file and ensure dependencies are satisfied
 COPY go.mod ./
+COPY go.sum ./
 ENV GO111MODULE=on
 RUN go mod vendor
 
