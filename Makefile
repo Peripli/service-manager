@@ -75,11 +75,6 @@ COUNTERFEITER   ?= "v6.0.2"
 prepare-counterfeiter:
 	@echo "Installing counterfeiter $(COUNTERFEITER)..."
 	@go get -u github.com/maxbrunsfeld/counterfeiter/v6
-	#@echo "==========================================================================="
-	#@ls ${GOPATH}/src/github.com
-	#@ls ${GOPATH}/src/github.com/maxbrunsfeld/
-	#@ls ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter
-	#@echo "==========================================================================="
 	#@cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter;\
 	#	counterfeiterBranch=$(shell cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter && git symbolic-ref --short HEAD);\
 	#	git checkout tags/$(COUNTERFEITER) >/dev/null 2>&1;\
@@ -90,15 +85,10 @@ prepare-counterfeiter:
 	@chmod a+x ${GOPATH}/bin/counterfeiter
 
 prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gometalinter, cover, goveralls)
-#ifeq ($(shell which dep),)
-#	@echo "Installing dep..."
-#	@go get -u github.com/golang/dep/cmd/dep
-#	@chmod a+x ${GOPATH}/bin/dep
-#endif
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter..."
-	#@curl -L https://git.io/vp6lP | sh
-	@go get -u gopkg.in/alecthomas/gometalinter.v3
+	@curl -L https://git.io/vp6lP | sh
+	@chmod a+x ${GOPATH}/bin/gometalinter
 endif
 ifeq ($(shell which cover),)
 	@echo "Installing cover tool..."
