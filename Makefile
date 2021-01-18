@@ -92,8 +92,7 @@ prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gom
 #endif
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter..."
-	#@curl -L https://git.io/vp6lP | sh
-	go get gopkg.in/alecthomas/gometalinter.v3
+	@curl -L https://git.io/vp6lP | sh
 endif
 ifeq ($(shell which cover),)
 	@echo "Installing cover tool..."
