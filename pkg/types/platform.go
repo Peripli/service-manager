@@ -90,11 +90,17 @@ func (e *Platform) Sanitize(ctx context.Context) {
 }
 
 func (e *Platform) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {
-	return e.transform(ctx, encryptionFunc)
+	if !e.Technical {
+		return e.transform(ctx, encryptionFunc)
+	}
+	return nil
 }
 
 func (e *Platform) Decrypt(ctx context.Context, decryptionFunc func(context.Context, []byte) ([]byte, error)) error {
-	return e.transform(ctx, decryptionFunc)
+	if !e.Technical {
+		return e.transform(ctx, decryptionFunc)
+	}
+	return nil
 }
 
 func (e *Platform) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
@@ -125,13 +131,16 @@ func (e *Platform) transform(ctx context.Context, transformationFunc func(contex
 }
 
 func (e *Platform) IntegralData() []byte {
-	oldCredentials := ""
-	if e.OldCredentials != nil && e.OldCredentials.Basic != nil {
-		oldCredentials = fmt.Sprintf(":%s:%s", e.OldCredentials.Basic.Username, e.OldCredentials.Basic.Password)
-	}
 	integrity := ""
-	if e.Credentials != nil {
-		integrity = fmt.Sprintf("%s:%s%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, oldCredentials)
+	if !e.Technical {
+		oldCredentials := ""
+		if e.OldCredentials != nil && e.OldCredentials.Basic != nil {
+			oldCredentials = fmt.Sprintf(":%s:%s", e.OldCredentials.Basic.Username, e.OldCredentials.Basic.Password)
+		}
+
+		if e.Credentials != nil {
+			integrity = fmt.Sprintf("%s:%s%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, oldCredentials)
+		}
 	}
 	return []byte(integrity)
 }
