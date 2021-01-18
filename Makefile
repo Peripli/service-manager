@@ -85,11 +85,6 @@ prepare-counterfeiter:
 	@chmod a+x ${GOPATH}/bin/counterfeiter
 
 prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gometalinter, cover, goveralls)
-#ifeq ($(shell which dep),)
-#	@echo "Installing dep..."
-#	@go get -u github.com/golang/dep/cmd/dep
-#	@chmod a+x ${GOPATH}/bin/dep
-#endif
 #ifeq ($(shell which gometalinter),)
 #	@echo "Installing gometalinter..."
 #	@curl -L https://git.io/vp6lP | sh
