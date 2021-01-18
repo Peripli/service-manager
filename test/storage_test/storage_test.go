@@ -328,18 +328,18 @@ var _ = Describe("Test", func() {
 
 	Context("when storing technical platform", func() {
 		It("should be created without credentials", func() {
-			ctx.SMRepository.Create(context.Background(), &types.Platform{
+			_, err := ctx.SMRepository.Create(context.Background(), &types.Platform{
 				Base: types.Base{
 					ID: "id_1234",
 				},
 				Name:      "platform",
 				Technical: true,
 			})
-
+			Expect(err).To(Not(HaveOccurred()))
 			obj, err := ctx.SMRepository.Get(context.Background(), types.PlatformType, query.ByField(query.EqualsOperator, "id", "id_1234"))
 			Expect(err).NotTo(HaveOccurred())
 			platform := obj.(*types.Platform)
-			Expect(platform.Credentials).To(BeNil())
+			Expect(platform.Credentials.Basic.Username).To(Equal(platform.ID))
 			Expect(platform.OldCredentials).To(BeNil())
 		})
 	})
