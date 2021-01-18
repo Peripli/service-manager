@@ -244,7 +244,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								"id":          "1234",
 							}).Expect().Status(http.StatusCreated).JSON().Object()
 						result.Value("id").String().Equal("1234")
-						result.NotContainsKey("credentials")
+						result.Value("technical").Boolean().Equal(true)
 					})
 				})
 			})
