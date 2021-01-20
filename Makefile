@@ -74,15 +74,15 @@ COUNTERFEITER   ?= "v6.0.2"
 
 prepare-counterfeiter:
 	@echo "Installing counterfeiter $(COUNTERFEITER)..."
-	@go get github.com/maxbrunsfeld/counterfeiter/v6
-	@cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter;\
-		counterfeiterBranch=$(shell cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter && git symbolic-ref --short HEAD);\
-		git checkout tags/$(COUNTERFEITER) >/dev/null 2>&1;\
-		go install;\
-		echo "Revert to last known branch: $$counterfeiterBranch";\
-		git checkout $$counterfeiterBranch >/dev/null 2>&1
-
-	@chmod a+x ${GOPATH}/bin/counterfeiter
+	@go get -u github.com/maxbrunsfeld/counterfeiter/v6
+	#@cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter;\
+	#	counterfeiterBranch=$(shell cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter && git symbolic-ref --short HEAD);\
+	#	git checkout tags/$(COUNTERFEITER) >/dev/null 2>&1;\
+	#	go install;\
+	#	echo "Revert to last known branch: $$counterfeiterBranch";\
+	#	git checkout $$counterfeiterBranch >/dev/null 2>&1
+	#
+	#@chmod a+x ${GOPATH}/bin/counterfeiter
 
 prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gometalinter, cover, goveralls)
 #ifeq ($(shell which gometalinter),)
