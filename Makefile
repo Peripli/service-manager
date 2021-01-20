@@ -247,7 +247,8 @@ format-check: ## Checks for style violation using gofmt
 
 lint-check: ## Runs some linters and static code checks
 	@echo Running linter checks...
-	@gometalinter --vendor ./...
+	#@gometalinter --vendor ./...
+	@golangci-lint run
 
 #-----------------------------------------------------------------------------
 # Useful utility targets
