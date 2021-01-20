@@ -1,0 +1,10 @@
+{
+    "Enable": ["deadcode", "vet", "gotype", "errcheck", "misspell", "staticcheck", "ineffassign"],
+    "Exclude": ["test", "fake_*"],
+    "Format": "[{{.Severity}}]: {{.Path}}: {{.Line}}:{{if .Col}}{{.Col}}{{end}}: {{.Message}} ({{.Linter}})",
+    "Deadline": "10m",
+    "Aggregate": true,
+    "Sort": ["severity", "path", "line", "message"],
+    "Checkstyle": false,
+    "Cyclo": 12
+}

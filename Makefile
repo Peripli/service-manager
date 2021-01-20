@@ -85,16 +85,16 @@ prepare-counterfeiter:
 	#@chmod a+x ${GOPATH}/bin/counterfeiter
 
 prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gometalinter, cover, goveralls)
-#ifeq ($(shell which gometalinter),)
-#	@echo "Installing gometalinter..."
-#	@curl -L https://git.io/vp6lP | sh
-#endif
-
-# golangci-lint replacing depricated gometalinter
-ifeq ($(shell which golangci-lint),)
-	@echo "Installing golangci-lint..."
-	@go get github.com/golangci/golangci-lint/cmd/golangci-lint
+ifeq ($(shell which gometalinter),)
+	@echo "Installing gometalinter..."
+	@curl -L https://git.io/vp6lP | sh
+	@which gometalinter
 endif
+# golangci-lint replacing depricated gometalinter implementation will be postponed
+#ifeq ($(shell which golangci-lint),)
+#	@echo "Installing golangci-lint..."
+#	@go get github.com/golangci/golangci-lint/cmd/golangci-lint
+#endif
 ifeq ($(shell which cover),)
 	@echo "Installing cover tool..."
 	@go get -u golang.org/x/tools/cmd/cover
@@ -246,8 +246,8 @@ format-check: ## Checks for style violation using gofmt
 
 lint-check: ## Runs some linters and static code checks
 	@echo Running linter checks...
-	#@gometalinter --vendor ./...
-	@golangci-lint run
+	@gometalinter --vendor ./...
+	#@golangci-lint run
 
 #-----------------------------------------------------------------------------
 # Useful utility targets
