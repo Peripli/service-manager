@@ -64,6 +64,9 @@ func (c *generatePlatformCredentialsInterceptor) AroundTxCreate(h storage.Interc
 		}
 
 		if platform.Technical {
+			platform.Credentials = &types.Credentials{
+				Basic: &types.Basic{Username: platform.ID},
+			}
 			return h(ctx, obj)
 		}
 
