@@ -87,8 +87,8 @@ prepare-counterfeiter:
 prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gometalinter, cover, goveralls)
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter..."
-	@go get -u github.com/alecthomas/gometalinter.v3
-	#@curl -L https://git.io/vp6lP | sh
+	@curl -L https://git.io/vp6lP | sh
+	@export PATH=$PATH:$GOPATH/bin
 endif
 # golangci-lint replacing depricated gometalinter implementation will be postponed
 #ifeq ($(shell which golangci-lint),)
@@ -246,7 +246,7 @@ format-check: ## Checks for style violation using gofmt
 
 lint-check: ## Runs some linters and static code checks
 	@echo Running linter checks...
-	@./bin/gometalinter --vendor ./...
+	@gometalinter --vendor ./...
 	#@golangci-lint run
 
 #-----------------------------------------------------------------------------
