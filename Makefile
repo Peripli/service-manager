@@ -89,6 +89,12 @@ prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gom
 #	@echo "Installing gometalinter..."
 #	@curl -L https://git.io/vp6lP | sh
 #endif
+
+# golangci-lint replacing depricated gometalinter
+ifeq ($(shell which golangci-lint),)
+	@echo "Installing gometalinter..."
+	@go get github.com/golangci/golangci-lint/cmd/golangci-lint
+endif
 ifeq ($(shell which cover),)
 	@echo "Installing cover tool..."
 	@go get -u golang.org/x/tools/cmd/cover
