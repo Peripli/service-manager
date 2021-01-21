@@ -86,9 +86,7 @@ prepare-counterfeiter:
 
 prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (gometalinter, cover, goveralls)
 ifeq ($(shell which gometalinter),)
-	@echo "Installing gometalinter..."
-	@echo "========== BINDIR: $(BINDIR) ============="
-	@export PATH=$(PATH):$(BINDIR) && echo $(PATH)
+	@echo "Installing gometalinter to $(BINDIR) ..."
 	@curl -L https://git.io/vp6lP | sh
 
 endif
@@ -154,7 +152,7 @@ clean-bin: ## Cleans up the binaries
 	@rm -rf $(BINDIR)
 
 
-clean-vendor: ## Cleans up the vendor folder and prints out the Gopkg.lock
+clean-vendor: ## Cleans up the vendor folder and prints out the go.mod
 	@echo Deleting vendor folder...
 	@rm -rf vendor
 	@echo > go.mod
@@ -248,7 +246,8 @@ format-check: ## Checks for style violation using gofmt
 
 lint-check: ## Runs some linters and static code checks
 	@echo Running linter checks...
-	@export PATH=$(PATH):$(BINDIR) && gometalinter --vendor ./...
+	@export PATH=$(PATH):$(BINDIR)
+	@gometalinter --vendor ./...
 	#@golangci-lint run
 
 #-----------------------------------------------------------------------------
