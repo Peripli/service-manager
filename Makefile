@@ -83,15 +83,8 @@ ifeq ($(shell which gometalinter),)
 	@cd ${GOPATH}/src;\
 		go get -u github.com/alecthomas/gometalinter;\
 		cd ${GOPATH}/src/github.com/alecthomas/gometalinter;\
-		go mod vendor;\
 		go install;\
-		gometalinter -i -u;\
-		echo "CURRENT DIR: $(PWD)";\
-		echo "============= list GOPATH ===============";\
-		ls ${GOPATH};\
-		echo "============= list bin directory ===============";\
-		ls ${GOPATH}/bin
-
+		gometalinter -i -u
 endif
 # golangci-lint replacing depricated gometalinter implementation will be postponed
 #ifeq ($(shell which golangci-lint),)
