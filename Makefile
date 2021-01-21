@@ -87,9 +87,9 @@ prepare-counterfeiter:
 prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (gometalinter, cover, goveralls)
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter to ..."
-	@cd ${GOPATH}/src/github.com;\
-		BINDIR=/usr/local/bin && curl -L https://git.io/vp6lP | sh;\
-		echo "CURRENT DIR: $(PWD)" && ls $(PWD)
+	@cd ${GOPATH}/src;\
+		BINDIR=${GOPATH}/bin && curl -L https://git.io/vp6lP | sh;\
+		echo "CURRENT DIR: $(PWD)" && ls ${GOPATH}
 
 endif
 # golangci-lint replacing depricated gometalinter implementation will be postponed
