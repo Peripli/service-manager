@@ -74,7 +74,9 @@ COUNTERFEITER   ?= "v6.0.2"
 
 prepare-counterfeiter:
 	@echo "Installing counterfeiter $(COUNTERFEITER)..."
-	@go get -u github.com/maxbrunsfeld/counterfeiter/v6
+	@cd ${GOPATH}/src;\
+		go get -u github.com/maxbrunsfeld/counterfeiter/v6;\
+		go install
 	#@cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter;\
 	#	counterfeiterBranch=$(shell cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter && git symbolic-ref --short HEAD);\
 	#	git checkout tags/$(COUNTERFEITER) >/dev/null 2>&1;\
@@ -90,15 +92,8 @@ ifeq ($(shell which gometalinter),)
 	@cd ${GOPATH}/src;\
 		go get -u github.com/alecthomas/gometalinter;\
 		cd ${GOPATH}/src/github.com/alecthomas/gometalinter;\
-		go mod vendor;\
 		go install;\
-		gometalinter -i -u;\
-		echo "CURRENT DIR: $(PWD)";\
-		echo "============= list GOPATH ===============";\
-		ls ${GOPATH};\
-		echo "============= list bin directory ===============";\
-		ls ${GOPATH}/bin
-
+		gometalinter -i -u
 endif
 # golangci-lint replacing depricated gometalinter implementation will be postponed
 #ifeq ($(shell which golangci-lint),)
