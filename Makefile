@@ -84,11 +84,11 @@ prepare-counterfeiter:
 	#
 	#@chmod a+x ${GOPATH}/bin/counterfeiter
 
-prepare: .init prepare-counterfeiter build-gen-binary ## Installs some tools (gometalinter, cover, goveralls)
+prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (gometalinter, cover, goveralls)
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter..."
-	@curl -L https://git.io/vp6lP | sh
-	@echo "================" && echo $(PATH) echo "================" && env && echo "================" 
+	#@curl -L https://git.io/vp6lP | sh
+	@go get -u github.com/alecthomas/gometalinter && gometalinter -i -u
 endif
 # golangci-lint replacing depricated gometalinter implementation will be postponed
 #ifeq ($(shell which golangci-lint),)
@@ -127,7 +127,7 @@ endif
 
 #dep-reload: dep-check clean-vendor dep ## Recreates the vendored dependencies
 
-build: gomod-vendor service-manager ## Downloads vendored dependecies and builds the service-manager binary
+build: .init gomod-vendor service-manager ## Downloads vendored dependecies and builds the service-manager binary
 
 gomod-vendor:
 	@go mod vendor
