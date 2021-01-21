@@ -84,7 +84,7 @@ prepare-counterfeiter:
 	#
 	#@chmod a+x ${GOPATH}/bin/counterfeiter
 
-prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (gometalinter, cover, goveralls)
+prepare: .init prepare-counterfeiter build-gen-binary ## Installs some tools (gometalinter, cover, goveralls)
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter..."
 	@curl -L https://git.io/vp6lP | sh
@@ -127,7 +127,7 @@ endif
 
 #dep-reload: dep-check clean-vendor dep ## Recreates the vendored dependencies
 
-build: .init gomod-vendor service-manager ## Downloads vendored dependecies and builds the service-manager binary
+build: gomod-vendor service-manager ## Downloads vendored dependecies and builds the service-manager binary
 
 gomod-vendor:
 	@go mod vendor
