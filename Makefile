@@ -88,9 +88,13 @@ prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (gometali
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter to ..."
 	@cd ${GOPATH}/src;\
-		curl -L https://git.io/vp6lP | sh;\
-		echo "CURRENT DIR: $(PWD)" && ls ${GOPATH};
-		echo "============= list bin directory ==============="
+		curl -o ${GOPATH}/src/install_gometalinter.sh https://git.io/vp6lP;\
+		chmod +x ${GOPATH}/src/install_gometalinter.sh;\
+		${GOPATH}/src/install_gometalinter.sh -b ${GOPATH}/bin;\
+		echo "CURRENT DIR: $(PWD)";\
+		echo "============= list GOPATH ===============";\ 
+		ls ${GOPATH};\
+		echo "============= list bin directory ===============";\
 		ls ${GOPATH}/bin
 
 endif
