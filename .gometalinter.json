@@ -6,5 +6,6 @@
     "Aggregate": true,
     "Sort": ["severity", "path", "line", "message"],
     "Checkstyle": false,
-    "Cyclo": 12
+    "Cyclo": 12,
+    "Exclude": ["exported type (\\w+) should have comment or be unexported"]
 }

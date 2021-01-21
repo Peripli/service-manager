@@ -29,7 +29,7 @@ jobs:
       uses: Jerome1337/golint-action@v1.0.2
       with:
         # Path used by golint command
-        golint-path: ${{ github.workspace }}
+        golint-path: ./...
 
     
     - name: Test
