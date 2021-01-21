@@ -92,7 +92,7 @@ ifeq ($(shell which gometalinter),)
 		chmod +x ${GOPATH}/src/install_gometalinter.sh;\
 		${GOPATH}/src/install_gometalinter.sh -b ${GOPATH}/bin;\
 		echo "CURRENT DIR: $(PWD)";\
-		echo "============= list GOPATH ===============";\ 
+		echo "============= list GOPATH ===============";\
 		ls ${GOPATH};\
 		echo "============= list bin directory ===============";\
 		ls ${GOPATH}/bin
