@@ -24,7 +24,13 @@ jobs:
       uses: actions/checkout@v2
       with:
         path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
-        
+
+    - name: Go-linter
+      uses: Jerome1337/golint-action@v1.0.2
+      with:
+        # Path used by golint command
+        golint-path: ${{ github.workspace }}
+
     #- name: Get dependencies
     #  working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
     #  run: |
