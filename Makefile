@@ -84,12 +84,12 @@ prepare-counterfeiter:
 	#
 	#@chmod a+x ${GOPATH}/bin/counterfeiter
 
-prepare: .init prepare-counterfeiter build-gen-binary ## Installs some tools (gometalinter, cover, goveralls)
-ifeq ($(shell which gometalinter),)
-	@echo "Installing gometalinter..."
-	@curl -L https://git.io/vp6lP | sh
-	@echo "================" && echo $(PATH) echo "================" && env && echo "================" 
-endif
+prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (gometalinter, cover, goveralls)
+#ifeq ($(shell which gometalinter),)
+#	@echo "Installing gometalinter..."
+#	#@curl -L https://git.io/vp6lP | sh
+#	@go get -u github.com/alecthomas/gometalinter && gometalinter -i -u
+#endif
 # golangci-lint replacing depricated gometalinter implementation will be postponed
 #ifeq ($(shell which golangci-lint),)
 #	@echo "Installing golangci-lint..."
@@ -127,7 +127,7 @@ endif
 
 #dep-reload: dep-check clean-vendor dep ## Recreates the vendored dependencies
 
-build: gomod-vendor service-manager ## Downloads vendored dependecies and builds the service-manager binary
+build: .init gomod-vendor service-manager ## Downloads vendored dependecies and builds the service-manager binary
 
 gomod-vendor:
 	@go mod vendor
@@ -229,7 +229,7 @@ precommit-integration-tests-osb-and-plugin: build test-int-osb-and-plugin ## Run
 precommit-integration-tests-service-instance-and-binding: build test-int-service-instance-and-binding ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
 precommit-integration-tests-other: build test-int-other ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
 precommit-unit-tests: build test-unit format-check lint-check ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
-precommit-new-unit-tets: prepare build test-unit format-check lint-check
+precommit-new-unit-tets: prepare build test-unit format-check ## lint-check
 #precommit-new-unit-tets: prepare build test-unit format-check lint-check # Duplicate row
 precommit-new-integration-tests-broker: prepare build  test-int-broker
 precommit-new-integration-tests-osb-and-plugin: prepare build test-int-osb-and-plugin
