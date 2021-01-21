@@ -32,7 +32,9 @@ jobs:
     
     - name: Test
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
-      run: make precommit-new-unit-tets
+      run: |
+        echo "${{ env.GOPATH }}/bin" >> $GITHUB_PATH
+        make precommit-new-unit-tets
 
     - name: Send coverage
       uses: shogo82148/actions-goveralls@v1
