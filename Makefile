@@ -248,7 +248,8 @@ format-check: ## Checks for style violation using gofmt
 
 lint-check: ## Runs some linters and static code checks
 	@echo Running linter checks...
-	@gometalinter --vendor ./...
+	@export PATH=$(PATH):${GOPATH}/bin && gometalinter --vendor ./...
+	@echo "============ PATH ================\n$(PATH)\n"
 	#@golangci-lint run
 
 #-----------------------------------------------------------------------------
