@@ -16,7 +16,7 @@ all: build test-unit ## Default target that builds SM and runs unit-tests
 
 GO 					?= go
 GOFMT 				?= gofmt
-BINDIR 				?= bin
+BINDIR 				?= ${GOPATH}/bin
 PROJECT_PKG 		?= github.com/Peripli/service-manager
 
 PLATFORM 			?= linux
@@ -88,8 +88,10 @@ prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (gometali
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter to ..."
 	@cd ${GOPATH}/src;\
-		BINDIR=${GOPATH}/bin && curl -L https://git.io/vp6lP | sh;\
-		echo "CURRENT DIR: $(PWD)" && ls ${GOPATH}
+		curl -L https://git.io/vp6lP | sh;\
+		echo "CURRENT DIR: $(PWD)" && ls ${GOPATH};
+		echo "============= list bin directory ==============="
+		ls ${GOPATH}/bin
 
 endif
 # golangci-lint replacing depricated gometalinter implementation will be postponed
