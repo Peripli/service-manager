@@ -16,7 +16,7 @@ all: build test-unit ## Default target that builds SM and runs unit-tests
 
 GO 					?= go
 GOFMT 				?= gofmt
-BINDIR 				?= ${GOPATH}/bin
+BINDIR 				?= bin
 PROJECT_PKG 		?= github.com/Peripli/service-manager
 
 PLATFORM 			?= linux
@@ -75,15 +75,15 @@ COUNTERFEITER   ?= "v6.0.2"
 prepare-counterfeiter:
 	@echo "Installing counterfeiter $(COUNTERFEITER)..."
 	@GO111MODULE=off go get -u github.com/maxbrunsfeld/counterfeiter
-	@chmod a+x ${GOPATH}/bin/counterfeiter
+	@chmod a+x bin/counterfeiter
 
 ## Installs some tools (gometalinter, cover, goveralls)
 prepare: prepare-counterfeiter build-gen-binary
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter to ..."
-	@cd ${GOPATH}/src;\
+	@cd $(CURDIR)/src;\
 		go get -u github.com/alecthomas/gometalinter;\
-		cd ${GOPATH}/src/github.com/alecthomas/gometalinter;\
+		cd $(CURDIR)/src/github.com/alecthomas/gometalinter;\
 		go install;\
 		gometalinter -i -u
 endif
@@ -222,9 +222,7 @@ format-check: ## Checks for style violation using gofmt
 
 lint-check: ## Runs some linters and static code checks
 	@echo Running linter checks...
-	@export PATH=$(PATH):${GOPATH}/bin && gometalinter --vendor ./...
-	@echo "============ PATH ================\n$(PATH)\n"
-	#@golangci-lint run
+	@export PATH=$(PATH):bin && gometalinter --vendor ./...
 
 #-----------------------------------------------------------------------------
 # Useful utility targets
