@@ -77,7 +77,8 @@ prepare-counterfeiter:
 	@GO111MODULE=off go get -u github.com/maxbrunsfeld/counterfeiter
 	@chmod a+x ${GOPATH}/bin/counterfeiter
 
-prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (gometalinter, cover, goveralls)
+## Installs some tools (gometalinter, cover, goveralls)
+prepare: prepare-counterfeiter build-gen-binary
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter to ..."
 	@cd ${GOPATH}/src;\
@@ -86,11 +87,6 @@ ifeq ($(shell which gometalinter),)
 		go install;\
 		gometalinter -i -u
 endif
-# golangci-lint replacing depricated gometalinter implementation will be postponed
-#ifeq ($(shell which golangci-lint),)
-#	@echo "Installing golangci-lint..."
-#	@go get github.com/golangci/golangci-lint/cmd/golangci-lint
-#endif
 ifeq ($(shell which cover),)
 	@echo "Installing cover tool..."
 	@go get -u golang.org/x/tools/cmd/cover
@@ -107,21 +103,6 @@ endif
 #-----------------------------------------------------------------------------
 # Builds and dependency management
 #-----------------------------------------------------------------------------
-
-#build: .init dep-vendor-only service-manager ## Downloads vendored dependecies and builds the service-manager binary
-
-#dep-check:
-#	@which dep 2>/dev/null || (echo dep is required to build the project; exit 1)
-
-#dep: dep-check ## Runs dep ensure -v
-#	@dep ensure -v
-#	@dep status
-
-#dep-vendor-only: dep-check ## Runs dep ensure --vendor-only -v
-#	@dep ensure --vendor-only -v
-#	@dep status
-
-#dep-reload: dep-check clean-vendor dep ## Recreates the vendored dependencies
 
 build: .init gomod-vendor service-manager ## Downloads vendored dependecies and builds the service-manager binary
 
@@ -226,11 +207,10 @@ precommit-integration-tests-service-instance-and-binding: build test-int-service
 precommit-integration-tests-other: build test-int-other ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
 precommit-unit-tests: build test-unit format-check lint-check ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
 precommit-new-unit-tets: prepare build test-unit format-check lint-check
-#precommit-new-unit-tets: prepare build test-unit format-check lint-check # Duplicate row
 precommit-new-integration-tests-broker: prepare build  test-int-broker
 precommit-new-integration-tests-osb-and-plugin: prepare build test-int-osb-and-plugin
 precommit-new-integration-tests-service-instance-and-binding: prepare build test-int-service-instance-and-binding
-precommit-integration-tests-other: prepare build test-int-other
+#precommit-integration-tests-other: prepare build test-int-other
 
 format: ## Formats the source code files with gofmt
 	@echo The following files were reformated:

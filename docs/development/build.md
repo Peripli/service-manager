@@ -31,7 +31,7 @@ Navigate to the project root directory.
 First fetch all dependencies:
 
 ```console
-dep ensure -v --vendor-only
+go mod vendor
 ```
 
 To build an executable run the following command:

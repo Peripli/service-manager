@@ -170,7 +170,7 @@ Follow the [installation steps](./../installation/cli.md) to install the binary.
 * install dependencies
 
     ```console
-    dep ensure --vendor-only
+    go mod vendor
     ```
 
 * Run/debug a command by executing `go run main.go` followed by the command

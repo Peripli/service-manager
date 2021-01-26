@@ -24,7 +24,7 @@ $ git clone https://github.com/Peripli/service-broker-proxy-cf.git $GOPATH/src/g
 ## Install dependencies
 
 ```console
-dep ensure --vendor-only
+go mod vendor
 ```
 
 ## Register CF in Service Manager
