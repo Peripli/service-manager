@@ -502,6 +502,7 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 // markStuckOperationsFailed checks for operations which are stuck in state IN_PROGRESS, updates their status to FAILED and schedules a delete action
 func (om *Maintainer) markStuckOperationsFailed() {
 	log.C(om.smCtx).Errorln("start markStuckOperationsFailed")
+	log.C(om.smCtx).Errorf("action timeout is %s", om.settings.ActionTimeout.String())
 	currentTime := time.Now()
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
