@@ -190,8 +190,8 @@ func (v *ViperEnv) setupConfigFile(ctx context.Context, onConfigChangeHandlers .
 	return nil
 }
 
-// Default creates a default environment that can be used to boot up a Service Manager
-func Default(ctx context.Context, additionalPFlags ...func(set *pflag.FlagSet)) (Environment, error) {
+// DefaultLogger creates a default environment that can be used to boot up a Service Manager
+func DefaultLogger(ctx context.Context, additionalPFlags ...func(set *pflag.FlagSet)) (Environment, error) {
 	set := EmptyFlagSet()
 
 	for _, addFlags := range additionalPFlags {

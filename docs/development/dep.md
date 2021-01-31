@@ -1,28 +1,24 @@
 # Manage Dependencies
-We use [dep](https://golang.github.io/dep) to manage the project dependencies.
+We use `go modules` to manage the project dependencies.
 
-Currently we do not commit the vendor directory. If a new branch is pulled, delete your local vendor directory and then run `dep ensure -v --vendor-only` to install the dependencies.
+Currently we do not use a vendor directory. If a new branch is pulled, run `go get` to install the dependencies.
 
-* Gopkg.toml - the dep manifest, this is intended to be hand-edited and contains a set of constraints and other rules for dep to apply when selecting appropriate versions of dependencies.
-* Gopkg.lock - the dep lockfile, do not edit because it is a generated file.
-
-If you use [VS Code](https://code.visualstudio.com), we recommend installing the [dep extension](https://marketplace.visualstudio.com/items?itemName=carolynvs.dep).
-It provides snippets and improved highlighting that makes it easier to work with dep.
+* go.mod - defines the dependency requirements, which are the other modules needed for a successful build. Each dependency requirement is written as a module path and a specific semantic version.
+* go.sum- containing the expected cryptographic hashes of the content of specific module versions and ensures that this versions will be used on each build
 
 ## Selecting the version for a dependency
 
 * Use released versions of a dependency, for example v1.2.3.
 * Use the master branch when a dependency does not tag releases, or we require an unreleased change.
 * Include an explanatory comment with a link to any relevant issues anytime a dependency is
-  pinned to a specific revision in Gopkg.toml.
+  pinned to a specific revision in go.mod.
 
 ## Add a new dependency
 
-1. Run `dep ensure -add github.com/example/project/pkg/foo`. This adds a constraint to Gopkg.toml and downloads the dependency to vendor/.
-2. Import the package in the code and use it.
-3. Run `dep ensure -v` to sync Gopkg.lock and vendor/ with your changes.
+[How to add new dependencies](https://blog.golang.org/using-go-modules) to go.mod as needed.
 
 ## Change the version of a dependency
 
-1. Edit Gopkg.toml and update the version for the project. If the project is not in Gopkg.toml already, add a constraint for it and set the version.
-2. Run `dep ensure -v` to sync Gopkg.lock and vendor/ with the updated version.
+1. Edit go.mod and update the version for the project.
+2. Delete go.sum
+3. Run `go get to sync go.sum and donwload the dependency version.

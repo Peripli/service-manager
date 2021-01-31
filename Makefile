@@ -74,26 +74,18 @@ COUNTERFEITER   ?= "v6.0.2"
 
 prepare-counterfeiter:
 	@echo "Installing counterfeiter $(COUNTERFEITER)..."
-	@go get github.com/maxbrunsfeld/counterfeiter
-	@cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter;\
-		counterfeiterBranch=$(shell cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter && git symbolic-ref --short HEAD);\
-		git checkout tags/$(COUNTERFEITER) >/dev/null 2>&1;\
-		go install;\
-		echo "Revert to last known branch: $$counterfeiterBranch";\
-		git checkout $$counterfeiterBranch >/dev/null 2>&1
+	@GO111MODULE=off go get -u github.com/maxbrunsfeld/counterfeiter
+	@chmod a+x $(GOPATH)/bin/counterfeiter
 
-	@chmod a+x ${GOPATH}/bin/counterfeiter
-
-prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gometalinter, cover, goveralls)
-ifeq ($(shell which dep),)
-	@echo "Installing dep..."
-	@go get -u github.com/golang/dep/cmd/dep
-	@chmod a+x ${GOPATH}/bin/dep
-endif
+## Installs some tools (gometalinter, cover, goveralls)
+prepare: prepare-counterfeiter build-gen-binary
 ifeq ($(shell which gometalinter),)
-	@echo "Installing gometalinter..."
-	@go get -u github.com/alecthomas/gometalinter
-	@gometalinter --install
+	@echo "Installing gometalinter ...";\
+		cd $(GOPATH)/src;\
+		go get -u github.com/alecthomas/gometalinter;\
+		cd $(GOPATH)/src/github.com/alecthomas/gometalinter;\
+		go install;\
+		gometalinter -i -u
 endif
 ifeq ($(shell which cover),)
 	@echo "Installing cover tool..."
@@ -112,20 +104,10 @@ endif
 # Builds and dependency management
 #-----------------------------------------------------------------------------
 
-build: .init dep-vendor-only service-manager ## Downloads vendored dependecies and builds the service-manager binary
+build: .init gomod-vendor service-manager ## Downloads vendored dependecies and builds the service-manager binary
 
-dep-check:
-	@which dep 2>/dev/null || (echo dep is required to build the project; exit 1)
-
-dep: dep-check ## Runs dep ensure -v
-	@dep ensure -v
-	@dep status
-
-dep-vendor-only: dep-check ## Runs dep ensure --vendor-only -v
-	@dep ensure --vendor-only -v
-	@dep status
-
-dep-reload: dep-check clean-vendor dep ## Recreates the vendored dependencies
+gomod-vendor:
+	@go mod vendor
 
 service-manager: $(BINDIR)/service-manager
 
@@ -147,10 +129,10 @@ clean-bin: ## Cleans up the binaries
 	@rm -rf $(BINDIR)
 
 
-clean-vendor: ## Cleans up the vendor folder and prints out the Gopkg.lock
+clean-vendor: ## Cleans up the vendor folder and clears out the go.mod
 	@echo Deleting vendor folder...
 	@rm -rf vendor
-	@echo > Gopkg.lock
+	@echo > go.sum
 
 build-gen-binary:
 	@go install github.com/Peripli/service-manager/cmd/smgen
@@ -225,12 +207,9 @@ precommit-integration-tests-service-instance-and-binding: build test-int-service
 precommit-integration-tests-other: build test-int-other ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
 precommit-unit-tests: build test-unit format-check lint-check ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
 precommit-new-unit-tets: prepare build test-unit format-check lint-check
-
-precommit-new-unit-tets: prepare build test-unit format-check lint-check
 precommit-new-integration-tests-broker: prepare build  test-int-broker
 precommit-new-integration-tests-osb-and-plugin: prepare build test-int-osb-and-plugin
 precommit-new-integration-tests-service-instance-and-binding: prepare build test-int-service-instance-and-binding
-precommit-integration-tests-other: prepare build test-int-other
 
 format: ## Formats the source code files with gofmt
 	@echo The following files were reformated:
@@ -242,7 +221,7 @@ format-check: ## Checks for style violation using gofmt
 
 lint-check: ## Runs some linters and static code checks
 	@echo Running linter checks...
-	@gometalinter --vendor ./...
+	@export PATH=$(PATH):bin && gometalinter --vendor ./...
 
 #-----------------------------------------------------------------------------
 # Useful utility targets
