@@ -501,7 +501,7 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 
 // markStuckOperationsFailed checks for operations which are stuck in state IN_PROGRESS, updates their status to FAILED and schedules a delete action
 func (om *Maintainer) markStuckOperationsFailed() {
-	log.C(om.smCtx).Infof("start markStuckOperationsFailed")
+	log.C(om.smCtx).Errorln("start markStuckOperationsFailed")
 	currentTime := time.Now()
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
@@ -513,7 +513,7 @@ func (om *Maintainer) markStuckOperationsFailed() {
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
-	log.C(om.smCtx).Infof("found stuck operations")
+	log.C(om.smCtx).Errorln("found stuck operations")
 	if err != nil {
 		log.C(om.smCtx).Debugf("Failed to fetch stuck operations: %s", err)
 		return
