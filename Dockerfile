@@ -14,7 +14,6 @@ ENV GO111MODULE=on
 # Copy and build source code
 COPY . ./
 # Ensure dependencies are satisfied
-RUN go mod vendor
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags "$(build/ldflags)" -o /main main.go
 
 ########################################################

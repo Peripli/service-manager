@@ -129,10 +129,10 @@ clean-bin: ## Cleans up the binaries
 	@rm -rf $(BINDIR)
 
 
-clean-vendor: ## Cleans up the vendor folder and prints out the go.mod
+clean-vendor: ## Cleans up the vendor folder and clears out the go.mod
 	@echo Deleting vendor folder...
 	@rm -rf vendor
-	@echo > go.mod
+	@echo > go.sum
 
 build-gen-binary:
 	@go install github.com/Peripli/service-manager/cmd/smgen
@@ -210,7 +210,6 @@ precommit-new-unit-tets: prepare build test-unit format-check lint-check
 precommit-new-integration-tests-broker: prepare build  test-int-broker
 precommit-new-integration-tests-osb-and-plugin: prepare build test-int-osb-and-plugin
 precommit-new-integration-tests-service-instance-and-binding: prepare build test-int-service-instance-and-binding
-#precommit-integration-tests-other: prepare build test-int-other
 
 format: ## Formats the source code files with gofmt
 	@echo The following files were reformated:

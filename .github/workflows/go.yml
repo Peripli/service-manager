@@ -25,11 +25,14 @@ jobs:
       with:
         path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
     
-    - name: Test
+    - name: Get dependencies
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
       run: |
-        echo "${{ env.GOPATH }}/bin" >> $GITHUB_PATH
-        make precommit-new-unit-tets
+        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+
+    - name: Test
+      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+      run: make precommit-new-unit-tets
 
     - name: Send coverage
       uses: shogo82148/actions-goveralls@v1
@@ -182,11 +185,6 @@ jobs:
       uses: actions/checkout@v2
       with:
         path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
-    
-    - name: Get dependencies
-      working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
-      run: |
-        go mod vendor
 
     - name: Test
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
