@@ -15,6 +15,7 @@ func NewRecoveryMiddleware() mux.MiddlewareFunc {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := recover(); err != nil {
+					log.C(r.Context()).Errorln("start NewRecoveryMiddleware")
 					httpError := &util.HTTPError{
 						StatusCode:  http.StatusInternalServerError,
 						Description: "Internal Server Error",
