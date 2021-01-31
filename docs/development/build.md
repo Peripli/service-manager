@@ -28,12 +28,6 @@ docker build -t "service-manager:latest" -f Dockerfile .
 
 Navigate to the project root directory.
 
-First fetch all dependencies:
-
-```console
-go mod vendor
-```
-
 To build an executable run the following command:
 
 ```console

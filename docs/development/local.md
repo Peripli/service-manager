@@ -170,7 +170,7 @@ Follow the [installation steps](./../installation/cli.md) to install the binary.
 * install dependencies
 
     ```console
-    go mod vendor
+    go get
     ```
 
 * Run/debug a command by executing `go run main.go` followed by the command

@@ -36,7 +36,7 @@ This repository contains the source code for the Service Manager component. It a
     ├── go.mod                  # defines the module’s module path
     └── go.sum                  # containing the expected cryptographic hashes of the content of specific module versions
 
-**Note:** vendor folder is not checked out in scm. After cloning the repository `go mod vendor` is required.
+**Note:** vendor folder is not checked out in scm. After cloning the repository `go get` is required.
 
 ## Peripli/service-broker-proxy
 
@@ -63,7 +63,7 @@ This repository provides a framework for writing Service Manager Service Broker 
         ├── go.mod                  # defines the module’s module path
         └── go.sum                  # containing the expected cryptographic hashes of the content of specific module versions
 
-**Note:** vendor folder is not checked out in scm. After cloning the repository `go mod vendor` is required.
+**Note:** vendor folder is not checked out in scm. After cloning the repository `go get` is required.
 
 ## Peripli/service-broker-proxy-cf
 
@@ -76,7 +76,7 @@ necessary interfaces in order to work with service brokers and service access.
     ├── go.mod                  # defines the module’s module path
     └── go.sum                  # containing the expected cryptographic hashes of the content of specific module versions
 
-**Note:** vendor folder is not checked out in scm. After cloning the repository `go mod vendor` is required.
+**Note:** vendor folder is not checked out in scm. After cloning the repository `go get` is required.
 
 ## Peripli/service-broker-proxy-k8s
 
@@ -94,4 +94,4 @@ This repository contains a K8S specific implementation of the `Peripli/service-b
 
 This repository contains the implementation for the Service Manager CLI `smctl`.
 
-**Note:** vendor folder is not checked out in scm. After cloning the repository `go mod vendor` is required.
+**Note:** vendor folder is not checked out in scm. After cloning the repository `go get` is required.

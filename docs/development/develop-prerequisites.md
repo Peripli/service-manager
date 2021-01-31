@@ -16,7 +16,7 @@ Currently Service Manager requires Go version 1.10. Installation steps can be fo
 
 ### Dep
 
-Most of the Service Manager github repositories do not include a `vendor` folder. You would need to run `go mod vendor` to download the project dependencies.
+You would need to run `go get` to download the project dependencies.
 
 ### GNU Make
 
