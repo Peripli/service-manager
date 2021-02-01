@@ -53,7 +53,7 @@ var namedQueries = map[NamedQuery]string{
 			 GROUP BY resource_id
 		 ) LAST_OPERATIONS
 		 ON {{.ENTITY_TABLE}}.paging_sequence = LAST_OPERATIONS.paging_sequence
-	WHERE resource_id IN (:id_list)`,
+	WHERE resource_id IN (:id_list) and resource_type = :resource_type`,
 	QueryForLabelLessVisibilities: `
 	SELECT v.* FROM visibilities v
 	WHERE (v.platform_id in (:platform_ids) OR v.platform_id IS NULL) AND
