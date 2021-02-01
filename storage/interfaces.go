@@ -79,8 +79,8 @@ func DefaultSettings() *Settings {
 		SkipSSLValidation:  false,
 		MaxIdleConnections: 5,
 		MaxOpenConnections: 30,
-		ReadTimeout:        120000, //15 minutes
-		WriteTimeout:       120000, //15 minutes
+		ReadTimeout:        900000, //15 minutes
+		WriteTimeout:       900000, //15 minutes
 		Notification:       DefaultNotificationSettings(),
 		IntegrityProcessor: &security.HashingIntegrityProcessor{
 			HashingFunc: func(data []byte) []byte {
