@@ -444,7 +444,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 
 	attachLastOps := r.URL.Query().Get("attach_last_operations")
 	if attachLastOps == "true" {
-		if err := attachLastOperations(ctx, objectList, c.repository); err != nil {
+		if err := attachLastOperations(ctx, c.objectType, objectList, c.repository); err != nil {
 			return nil, err
 		}
 	}
@@ -568,8 +568,8 @@ func getResourceIds(resources types.ObjectList) []string {
 	return resourceIds
 }
 
-func attachLastOperations(ctx context.Context, resources types.ObjectList, repository storage.Repository) error {
-	lastOperationsMap, err := getLastOperations(ctx, getResourceIds(resources), repository)
+func attachLastOperations(ctx context.Context, objectType types.ObjectType, resources types.ObjectList, repository storage.Repository) error {
+	lastOperationsMap, err := getLastOperations(ctx, objectType, getResourceIds(resources), repository)
 
 	if err != nil {
 		return err
@@ -586,13 +586,14 @@ func attachLastOperations(ctx context.Context, resources types.ObjectList, repos
 	return nil
 }
 
-func getLastOperations(ctx context.Context, resourceIDs []string, repository storage.Repository) (map[string]*types.Operation, error) {
+func getLastOperations(ctx context.Context, resourceType types.ObjectType, resourceIDs []string, repository storage.Repository) (map[string]*types.Operation, error) {
 	if len(resourceIDs) == 0 {
 		return nil, nil
 	}
 
 	queryParams := map[string]interface{}{
-		"id_list": resourceIDs,
+		"id_list":       resourceIDs,
+		"resource_type": resourceType,
 	}
 
 	resourceLastOps, err := repository.QueryForList(
@@ -616,7 +617,7 @@ func getLastOperations(ctx context.Context, resourceIDs []string, repository sto
 }
 
 func attachLastOperation(ctx context.Context, objectID string, object types.Object, repository storage.Repository) error {
-	ops, err := getLastOperations(ctx, []string{objectID}, repository)
+	ops, err := getLastOperations(ctx, object.GetType(), []string{objectID}, repository)
 
 	if err != nil {
 		return err
