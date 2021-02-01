@@ -212,6 +212,7 @@ func (s *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *t
 }
 
 func (s *Scheduler) getResourceLastOperation(ctx context.Context, operation *types.Operation) (*types.Operation, bool, bool, error) {
+	log.C(ctx).Errorln("start getResourceLastOperation")
 	byResourceID := query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID)
 	byResourceType := query.ByField(query.EqualsOperator, "resource_type", string(operation.ResourceType))
 	orderDesc := query.OrderResultBy("paging_sequence", query.DescOrder)
@@ -231,7 +232,9 @@ func (s *Scheduler) getResourceLastOperation(ctx context.Context, operation *typ
 			currentOperationExists = true
 		}
 	}
+
 	lastOperation := operationsForResourceID.ItemAt(0).(*types.Operation)
+	log.C(ctx).Errorln("end getResourceLastOperation")
 	log.C(ctx).Infof("Last operation for resource with id %s of type %s is %+v", lastOperation.ResourceID, lastOperation.ResourceType, lastOperation)
 
 	return lastOperation, true, currentOperationExists, nil
@@ -387,7 +390,9 @@ func updateTransitiveResources(ctx context.Context, storage storage.Repository, 
 
 func updateResource(ctx context.Context, repository storage.Repository, objectAfterAction types.Object, updateFunc func(obj types.Object)) (types.Object, error) {
 	updateFunc(objectAfterAction)
+	log.C(ctx).Errorln("start operation repository.Update")
 	updatedObject, err := repository.Update(ctx, objectAfterAction, types.LabelChanges{})
+	log.C(ctx).Errorln("end operation repository.Update")
 	if err != nil {
 		return nil, fmt.Errorf("failed to update object with type %s and id %s", objectAfterAction.GetType(), objectAfterAction.GetID())
 	}
@@ -430,7 +435,9 @@ func updateOperationState(ctx context.Context, repository storage.Repository, op
 	}
 
 	// this also updates updated_at which serves as "reporting" that someone is working on the operation
+	log.C(ctx).Errorln("start operation repository.Update")
 	_, err := repository.Update(ctx, operation, types.LabelChanges{})
+	log.C(ctx).Errorln("end operation repository.Update")
 	if err != nil {
 		if err == util.ErrNotFoundInStorage {
 			log.C(ctx).Debugf("Could not find and update operation for resource with id %s and type %s in SMDB. Ignoring missing operation", operation.ResourceID, operation.ResourceType)
@@ -691,9 +698,11 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 		}
 	}
 
+	log.C(ctx).Errorln("start storeOrUpdateOperation")
 	if err := s.storeOrUpdateOperation(ctx, operation, currentOpExists); err != nil {
 		return err
 	}
+	log.C(ctx).Errorln("end storeOrUpdateOperation")
 
 	return nil
 }
