@@ -41,7 +41,9 @@ type ServiceInstance struct {
 
 	Parameters map[string]interface{} `json:"parameters,omitempty"`
 	Usable     bool                   `json:"usable"`
-	Shareable  bool                   `json:"shareable"`
+
+	Shareable           bool   `json:"shareable"`
+	ReferenceInstanceID string `json:"referenced_instance_id"`
 }
 
 type InstanceUpdateValues struct {
