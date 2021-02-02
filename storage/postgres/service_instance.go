@@ -40,6 +40,7 @@ type ServiceInstance struct {
 	PreviousValues  sqlxtypes.JSONText `db:"previous_values"`
 	UpdateValues    sqlxtypes.JSONText `db:"update_values"`
 	Usable          bool               `db:"usable"`
+	Shareable       bool               `db:"shareable"`
 }
 
 func (si *ServiceInstance) ToObject() (types.Object, error) {
@@ -67,6 +68,7 @@ func (si *ServiceInstance) ToObject() (types.Object, error) {
 		PreviousValues:  getJSONRawMessage(si.PreviousValues),
 		UpdateValues:    updateValues,
 		Usable:          si.Usable,
+		Shareable:       si.Shareable,
 	}, nil
 }
 
@@ -98,6 +100,7 @@ func (*ServiceInstance) FromObject(object types.Object) (storage.Entity, error) 
 		PreviousValues:  getJSONText(serviceInstance.PreviousValues),
 		UpdateValues:    newStateBytes,
 		Usable:          serviceInstance.Usable,
+		Shareable:       serviceInstance.Shareable,
 	}
 
 	return si, nil
