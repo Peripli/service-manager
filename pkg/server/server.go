@@ -106,12 +106,8 @@ func registerControllers(API *web.API, router *mux.Router, config *Settings) {
 			apiHandler := api.NewHTTPHandler(handler, config.MaxBodyBytes)
 			if !route.DisableHTTPTimeouts {
 				requestTimeout := config.RequestTimeout
-				if route.Endpoint.Path == web.ServiceBrokersURL && route.Endpoint.Method == http.MethodPatch {
-					log.D().Debugf("Setting request timeout to %s", config.PatchBrokerRequestTimeout.String())
-					requestTimeout = config.PatchBrokerRequestTimeout
-				}
 				if strings.Contains(route.Endpoint.Path, web.ServiceBrokersURL) && route.Endpoint.Method == http.MethodPatch {
-					log.D().Debugf("CONTAINS ---- Setting request timeout to %s", config.PatchBrokerRequestTimeout.String())
+					log.D().Debugf("Setting request timeout to %s for endpoint: %s %s", config.PatchBrokerRequestTimeout.String(), route.Endpoint.Method, route.Endpoint.Path)
 					requestTimeout = config.PatchBrokerRequestTimeout
 				}
 				router.Handle(route.Endpoint.Path, newContentTypeHandler(http.TimeoutHandler(apiHandler, requestTimeout, `{"error":"Timeout", "description": "operation has timed out"}`))).Methods(route.Endpoint.Method)
