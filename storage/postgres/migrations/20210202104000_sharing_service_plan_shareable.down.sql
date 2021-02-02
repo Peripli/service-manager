@@ -1,0 +1,5 @@
+BEGIN;
+
+ALTER TABLE service_plans ALTER COLUMN shareable DROP NOT NULL;
+
+COMMIT;

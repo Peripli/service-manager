@@ -1,1 +1,1 @@
-ALTER TABLE service_instances ADD COLUMN IF NOT EXISTS shareable varchar(250);
+ALTER TABLE service_instances ADD COLUMN IF NOT EXISTS shareable boolean DEFAULT FALSE;
