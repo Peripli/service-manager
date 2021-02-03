@@ -43,6 +43,7 @@ type ServicePlan struct {
 	MaintenanceInfo        sqlxtypes.JSONText `db:"maintenance_info"`
 
 	ServiceOfferingID string `db:"service_offering_id"`
+	Shareable         bool   `db:"shareable"`
 }
 
 func (sp *ServicePlan) ToObject() (types.Object, error) {
