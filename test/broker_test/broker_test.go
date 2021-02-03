@@ -929,6 +929,19 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					brokerServerWithTLS.ResetCallHistory()
 				})
 
+				Context("when broker is responding slow", func() {
+					It("should timeout after long request timeout", func() {
+						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
+							rw.WriteHeader(http.StatusOK)
+							time.Sleep(time.Minute)
+						}
+
+						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+ "/" + brokerID).WithJSON(Object{}).
+							Expect().
+							Status(http.StatusGatewayTimeout)
+					})
+				})
+
 				Context("when content type is not JSON", func() {
 					It("returns 415", func() {
 						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).

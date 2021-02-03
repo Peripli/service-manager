@@ -40,24 +40,24 @@ const (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	Host                      string        `mapstructure:"host" description:"host of the server"`
-	Port                      int           `mapstructure:"port" description:"port of the server"`
-	RequestTimeout            time.Duration `mapstructure:"request_timeout" description:"read and write timeout duration for requests"`
-	PatchBrokerRequestTimeout time.Duration `mapstructure:"patch_broker_request_timeout" description:"read and write timeout duration for patch service-broker requests"`
-	ShutdownTimeout           time.Duration `mapstructure:"shutdown_timeout" description:"time to wait for the server to shutdown"`
-	MaxBodyBytes              int           `mapstructure:"max_body_bytes" description:"maximum bytes size of incoming body"`
-	MaxHeaderBytes            int           `mapstructure:"max_header_bytes" description:"the maximum number of bytes the server will read parsing the request header"`
+	Host               string        `mapstructure:"host" description:"host of the server"`
+	Port               int           `mapstructure:"port" description:"port of the server"`
+	RequestTimeout     time.Duration `mapstructure:"request_timeout" description:"read and write timeout duration for requests"`
+	LongRequestTimeout time.Duration `mapstructure:"long_request_timeout" description:"read and write timeout duration for patch service-broker requests"`
+	ShutdownTimeout    time.Duration `mapstructure:"shutdown_timeout" description:"time to wait for the server to shutdown"`
+	MaxBodyBytes       int           `mapstructure:"max_body_bytes" description:"maximum bytes size of incoming body"`
+	MaxHeaderBytes     int           `mapstructure:"max_header_bytes" description:"the maximum number of bytes the server will read parsing the request header"`
 }
 
 // DefaultSettings returns the default values for configuring the Service Manager
 func DefaultSettings() *Settings {
 	return &Settings{
-		Port:                      8080,
-		RequestTimeout:            time.Second * 3,
-		PatchBrokerRequestTimeout: time.Second * 3,
-		ShutdownTimeout:           time.Second * 3,
-		MaxBodyBytes:              mb,
-		MaxHeaderBytes:            kb,
+		Port:               8080,
+		RequestTimeout:     time.Second * 3,
+		LongRequestTimeout: time.Second * 3,
+		ShutdownTimeout:    time.Second * 3,
+		MaxBodyBytes:       mb,
+		MaxHeaderBytes:     kb,
 	}
 }
 
@@ -72,8 +72,8 @@ func (s *Settings) Validate() error {
 	if s.ShutdownTimeout == 0 {
 		return fmt.Errorf("validate Settings: ShutdownTimeout missing")
 	}
-	if s.PatchBrokerRequestTimeout == 0 {
-		return fmt.Errorf("validate Settings: PatchBrokerRequestTimeout missing")
+	if s.LongRequestTimeout == 0 {
+		return fmt.Errorf("validate Settings: LongRequestTimeout missing")
 	}
 
 	return nil
@@ -107,8 +107,8 @@ func registerControllers(API *web.API, router *mux.Router, config *Settings) {
 			if !route.DisableHTTPTimeouts {
 				requestTimeout := config.RequestTimeout
 				if strings.Contains(route.Endpoint.Path, web.ServiceBrokersURL) && route.Endpoint.Method == http.MethodPatch {
-					log.D().Debugf("Setting request timeout to %s for endpoint: %s %s", config.PatchBrokerRequestTimeout.String(), route.Endpoint.Method, route.Endpoint.Path)
-					requestTimeout = config.PatchBrokerRequestTimeout
+					log.D().Debugf("Setting request timeout to %s for endpoint: %s %s", config.LongRequestTimeout.String(), route.Endpoint.Method, route.Endpoint.Path)
+					requestTimeout = config.LongRequestTimeout
 				}
 				router.Handle(route.Endpoint.Path, newContentTypeHandler(http.TimeoutHandler(apiHandler, requestTimeout, `{"error":"Timeout", "description": "operation has timed out"}`))).Methods(route.Endpoint.Method)
 			} else {

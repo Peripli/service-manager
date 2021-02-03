@@ -163,6 +163,13 @@ var _ = Describe("config", func() {
 			})
 		})
 
+		Context("when long request timeout is missing", func() {
+			It("returns an error", func() {
+				config.Server.LongRequestTimeout = 0
+				assertErrorDuringValidate()
+			})
+		})
+
 		Context("when shutdown timeout is missing", func() {
 			It("returns an error", func() {
 				config.Server.ShutdownTimeout = 0
