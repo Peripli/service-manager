@@ -106,7 +106,7 @@ func registerControllers(API *web.API, router *mux.Router, config *Settings) {
 			apiHandler := api.NewHTTPHandler(handler, config.MaxBodyBytes)
 			if !route.DisableHTTPTimeouts {
 				requestTimeout := config.RequestTimeout
-				if strings.Contains(route.Endpoint.Path, web.ServiceBrokersURL) && route.Endpoint.Method == http.MethodPatch {
+				if strings.HasPrefix(route.Endpoint.Path, web.ServiceBrokersURL) && route.Endpoint.Method == http.MethodPatch {
 					log.D().Debugf("Setting request timeout to %s for endpoint: %s %s", config.LongRequestTimeout.String(), route.Endpoint.Method, route.Endpoint.Path)
 					requestTimeout = config.LongRequestTimeout
 				}
