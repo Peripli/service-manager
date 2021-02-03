@@ -938,7 +938,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(Object{}).
 							Expect().
-							Status(http.StatusGatewayTimeout)
+							Status(http.StatusBadGateway)
+					})
+				})
+
+				Context("when broker is responding slow", func() {
+					It("should not timeout after long request timeout", func() {
+						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
+							rw.WriteHeader(http.StatusOK)
+							time.Sleep(time.Second)
+						}
+
+						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(Object{}).
+							Expect().
+							Status(http.StatusBadGateway)
 					})
 				})
 
