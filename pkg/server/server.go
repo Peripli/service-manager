@@ -54,7 +54,7 @@ func DefaultSettings() *Settings {
 	return &Settings{
 		Port:               8080,
 		RequestTimeout:     time.Second * 3,
-		LongRequestTimeout: time.Second * 3,
+		LongRequestTimeout: time.Second * 10,
 		ShutdownTimeout:    time.Second * 3,
 		MaxBodyBytes:       mb,
 		MaxHeaderBytes:     kb,
