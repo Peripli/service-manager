@@ -424,7 +424,7 @@ var _ = DescribeTestsFor(TestCase{
 					Context(fmt.Sprintf("async = %s", testCase.async), func() {
 						Context("Instance sharing", func() {
 							It("creates binding", func() {
-								resp := createShareableInstance(ctx.SMWithOAuthForTenant, false, http.StatusAccepted)
+								resp := createShareableInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
 								sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 									Category:          types.CREATE,
 									State:             types.SUCCEEDED,
@@ -438,7 +438,7 @@ var _ = DescribeTestsFor(TestCase{
 									Ready: true,
 								})
 
-								refResp := createReferenceInstance(ctx.SMWithOAuthForTenant, false, http.StatusAccepted, sharedInstanceID)
+								refResp := createReferenceInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated, sharedInstanceID)
 								referenceInstanceID, _ = VerifyOperationExists(ctx, refResp.Header("Location").Raw(), OperationExpectations{
 									Category:          types.CREATE,
 									State:             types.SUCCEEDED,
