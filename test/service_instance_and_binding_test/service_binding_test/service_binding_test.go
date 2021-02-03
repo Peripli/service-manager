@@ -432,15 +432,24 @@ var _ = DescribeTestsFor(TestCase{
 									Reschedulable:     false,
 									DeletionScheduled: false,
 								})
+								VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									ID:    sharedInstanceID,
+									Type:  types.ServiceInstanceType,
+									Ready: true,
+								})
 
 								refResp := createReferenceInstance(ctx.SMWithOAuthForTenant, false, http.StatusAccepted, sharedInstanceID)
-								/*referenceInstanceID, _ = */
-								VerifyOperationExists(ctx, refResp.Header("Location").Raw(), OperationExpectations{
+								referenceInstanceID, _ = VerifyOperationExists(ctx, refResp.Header("Location").Raw(), OperationExpectations{
 									Category:          types.CREATE,
 									State:             types.SUCCEEDED,
 									ResourceType:      types.ServiceInstanceType,
 									Reschedulable:     false,
 									DeletionScheduled: false,
+								})
+								VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									ID:    referenceInstanceID,
+									Type:  types.ServiceInstanceType,
+									Ready: true,
 								})
 
 								bindingResp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
@@ -450,6 +459,11 @@ var _ = DescribeTestsFor(TestCase{
 									ResourceType:      types.ServiceBindingType,
 									Reschedulable:     false,
 									DeletionScheduled: false,
+								})
+								VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									ID:    bindingID,
+									Type:  types.ServiceBindingType,
+									Ready: true,
 								})
 							})
 						})
