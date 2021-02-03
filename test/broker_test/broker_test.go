@@ -933,7 +933,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					It("should fail when request duration is more than long_request_timeout", func() {
 						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
 							rw.WriteHeader(http.StatusOK)
-							time.Sleep(time.Second + ctx.Config.Server.LongRequestTimeout)
+							if fl, ok := rw.(http.Flusher); ok {
+								fl.Flush()
+								time.Sleep(time.Second + ctx.Config.Server.LongRequestTimeout)
+							}
 						}
 
 						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(Object{}).
