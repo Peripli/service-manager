@@ -434,7 +434,8 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								refResp := createReferenceInstance(ctx.SMWithOAuthForTenant, false, http.StatusAccepted, sharedInstanceID)
-								referenceInstanceID, _ = VerifyOperationExists(ctx, refResp.Header("Location").Raw(), OperationExpectations{
+								/*referenceInstanceID, _ = */
+								VerifyOperationExists(ctx, refResp.Header("Location").Raw(), OperationExpectations{
 									Category:          types.CREATE,
 									State:             types.SUCCEEDED,
 									ResourceType:      types.ServiceInstanceType,
