@@ -941,7 +941,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(Object{}).
 							Expect().
-							Status(http.StatusBadGateway)
+							Status(http.StatusGatewayTimeout)
 					})
 				})
 
