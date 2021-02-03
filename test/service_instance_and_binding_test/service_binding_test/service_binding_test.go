@@ -106,6 +106,7 @@ var _ = DescribeTestsFor(TestCase{
 		Context("additional non-generic tests", func() {
 			var (
 				postBindingRequest   Object
+				instanceID           string
 				sharedInstanceID     string
 				referenceInstanceID  string
 				instanceName         string
@@ -164,7 +165,7 @@ var _ = DescribeTestsFor(TestCase{
 					obj.ContainsKey("id").
 						ValueEqual("platform_id", types.SMPlatform)
 
-					sharedInstanceID = obj.Value("id").String().Raw()
+					instanceID = obj.Value("id").String().Raw()
 				}
 
 				return resp
@@ -192,7 +193,7 @@ var _ = DescribeTestsFor(TestCase{
 					obj.ContainsKey("id").
 						ValueEqual("platform_id", types.SMPlatform)
 
-					sharedInstanceID = obj.Value("id").String().Raw()
+					instanceID = obj.Value("id").String().Raw()
 				}
 
 				return resp
@@ -220,14 +221,14 @@ var _ = DescribeTestsFor(TestCase{
 					obj.ContainsKey("id").
 						ValueEqual("platform_id", types.SMPlatform)
 
-					sharedInstanceID = obj.Value("id").String().Raw()
+					instanceID = obj.Value("id").String().Raw()
 				}
 
 				return resp
 			}
 
 			deleteInstance := func(smClient *SMExpect, async bool, expectedStatusCode int) *httpexpect.Response {
-				return smClient.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).
+				return smClient.DELETE(web.ServiceInstancesURL+"/"+instanceID).
 					WithQuery("async", async).
 					Expect().
 					Status(expectedStatusCode)
@@ -266,7 +267,7 @@ var _ = DescribeTestsFor(TestCase{
 
 				postBindingRequest = Object{
 					"name":                "test-binding",
-					"service_instance_id": sharedInstanceID,
+					"service_instance_id": instanceID,
 				}
 				syncBindingResponse = Object{
 					"async": false,
@@ -288,7 +289,7 @@ var _ = DescribeTestsFor(TestCase{
 			JustBeforeEach(func() {
 				postBindingRequest = Object{
 					"name":                "test-binding",
-					"service_instance_id": sharedInstanceID,
+					"service_instance_id": instanceID,
 				}
 			})
 
@@ -314,7 +315,7 @@ var _ = DescribeTestsFor(TestCase{
 						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 						createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
 						postBindingRequest["name"] = "test-binding-retrievable-name"
-						postBindingRequest["service_instance_id"] = sharedInstanceID
+						postBindingRequest["service_instance_id"] = instanceID
 						brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusCreated, syncBindingResponse))
 						createBinding(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
 
@@ -538,7 +539,7 @@ var _ = DescribeTestsFor(TestCase{
 										"labels": {
 											"%s":["test-tenant"]
 										}
-									}`, sharedInstanceID, TenantIdentifier))).
+									}`, instanceID, TenantIdentifier))).
 									Expect().
 									Status(http.StatusBadRequest).
 									JSON().Object().
@@ -558,7 +559,7 @@ var _ = DescribeTestsFor(TestCase{
 										"labels": {
 											"%s":["test-tenant"]
 										}
-									}`, sharedInstanceID, TenantIdentifier))).
+									}`, instanceID, TenantIdentifier))).
 										Expect().
 										Status(http.StatusBadRequest).
 										JSON().Object().Value("description").String().Contains("invalid json: duplicate key labels")
@@ -689,7 +690,7 @@ var _ = DescribeTestsFor(TestCase{
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut, ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
 									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut, ParameterizedHandler(http.StatusInternalServerError, Object{}))
 									resp := createInstance(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
-									sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.CREATE,
 										State:             types.FAILED,
 										ResourceType:      types.ServiceInstanceType,
@@ -698,7 +699,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-										ID:    sharedInstanceID,
+										ID:    instanceID,
 										Type:  types.ServiceInstanceType,
 										Ready: false,
 									})
@@ -734,7 +735,7 @@ var _ = DescribeTestsFor(TestCase{
 									resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
 
 									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-										ID:    sharedInstanceID,
+										ID:    instanceID,
 										Type:  types.ServiceInstanceType,
 										Ready: true,
 									})
@@ -742,7 +743,7 @@ var _ = DescribeTestsFor(TestCase{
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete, ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
 									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete, DelayingHandler(doneChannel))
 									resp = deleteInstance(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
-									sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.DELETE,
 										State:             types.IN_PROGRESS,
 										ResourceType:      types.ServiceInstanceType,
@@ -751,7 +752,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-										ID:    sharedInstanceID,
+										ID:    instanceID,
 										Type:  types.ServiceInstanceType,
 										Ready: true,
 									})
@@ -829,7 +830,7 @@ var _ = DescribeTestsFor(TestCase{
 										EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 										resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
 
-										sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 											Category:          types.CREATE,
 											State:             types.SUCCEEDED,
 											ResourceType:      types.ServiceInstanceType,
@@ -838,13 +839,13 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-											ID:    sharedInstanceID,
+											ID:    instanceID,
 											Type:  types.ServiceInstanceType,
 											Ready: true,
 										})
 
 										postBindingRequest["name"] = "test-binding-retrievable-name"
-										postBindingRequest["service_instance_id"] = sharedInstanceID
+										postBindingRequest["service_instance_id"] = instanceID
 									})
 
 									It("successfully creates binding", func() {
@@ -1803,7 +1804,7 @@ var _ = DescribeTestsFor(TestCase{
 
 										resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
 
-										sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 											Category:          types.CREATE,
 											State:             types.SUCCEEDED,
 											ResourceType:      types.ServiceInstanceType,
@@ -1812,13 +1813,13 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-											ID:    sharedInstanceID,
+											ID:    instanceID,
 											Type:  types.ServiceInstanceType,
 											Ready: true,
 										})
 
 										postBindingRequest["name"] = "test-binding-retrievable-name"
-										postBindingRequest["service_instance_id"] = sharedInstanceID
+										postBindingRequest["service_instance_id"] = instanceID
 										resp = createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
 
 										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
