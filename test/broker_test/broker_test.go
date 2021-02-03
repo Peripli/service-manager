@@ -936,7 +936,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							time.Sleep(time.Minute)
 						}
 
-						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+ "/" + brokerID).WithJSON(Object{}).
+						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(Object{}).
 							Expect().
 							Status(http.StatusGatewayTimeout)
 					})
