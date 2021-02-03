@@ -930,18 +930,22 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("when broker is responding slow", func() {
-					It("should fail when request duration is more than long_request_timeout", func() {
+					BeforeEach(func() {
+						settings := ctx.Config.HTTPClient
+						settings.ResponseHeaderTimeout = ctx.Config.Server.LongRequestTimeout + time.Second
+						httpclient.SetHTTPClientGlobalSettings(settings)
+						httpclient.Configure()
 						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
-							rw.WriteHeader(http.StatusOK)
-							if fl, ok := rw.(http.Flusher); ok {
-								fl.Flush()
-								time.Sleep(time.Second + ctx.Config.Server.LongRequestTimeout)
-							}
+							catalogStopDuration := time.Second + ctx.Config.Server.LongRequestTimeout
+							continueCtx, _ := context.WithTimeout(req.Context(), catalogStopDuration)
+							<-continueCtx.Done()
+							SetResponse(rw, http.StatusOK, Object{})
 						}
-
+					})
+					It("should fail when request duration is more than long_request_timeout", func() {
 						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(Object{}).
 							Expect().
-							Status(http.StatusGatewayTimeout)
+							Status(http.StatusServiceUnavailable)
 					})
 				})
 
