@@ -929,34 +929,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					brokerServerWithTLS.ResetCallHistory()
 				})
 
-				Context("when broker is responding slow", func() {
-					BeforeEach(func() {
-						settings := ctx.Config.HTTPClient
-						settings.ResponseHeaderTimeout = ctx.Config.Server.LongRequestTimeout + time.Second
-						httpclient.SetHTTPClientGlobalSettings(settings)
-						httpclient.Configure()
-					})
-
-					getCatalogHandler := func(sleepDuration time.Duration) func(rw http.ResponseWriter, req *http.Request) {
-						return func(rw http.ResponseWriter, req *http.Request) {
-							time.Sleep(sleepDuration)
-							SetResponse(rw, http.StatusOK, Object{})
-						}
-					}
-					It("should fail when request duration is more than long_request_timeout", func() {
-						brokerServer.CatalogHandler = getCatalogHandler(time.Second + ctx.Config.Server.LongRequestTimeout)
-						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(Object{}).
-							Expect().
-							Status(http.StatusGatewayTimeout)
-					})
-					It("should succeed when request duration is less than long_request_timeout and more than request_timeout", func() {
-						brokerServer.CatalogHandler = getCatalogHandler(ctx.Config.Server.RequestTimeout + time.Second)
-						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(Object{}).
-							Expect().
-							Status(http.StatusOK)
-					})
-				})
-
 				Context("when content type is not JSON", func() {
 					It("returns 415", func() {
 						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
