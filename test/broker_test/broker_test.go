@@ -951,7 +951,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						brokerServer.CatalogHandler = getCatalogHandler(time.Second + ctx.Config.Server.LongRequestTimeout)
 						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(Object{}).
 							Expect().
-							Status(http.StatusBadGateway)
+							Status(http.StatusGatewayTimeout)
 					})
 					It("should succeed when request duration is less than long_request_timeout", func() {
 						brokerServer.CatalogHandler = getCatalogHandler(ctx.Config.Server.LongRequestTimeout - time.Millisecond*100)
