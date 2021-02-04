@@ -31,17 +31,15 @@ import (
 //go:generate smgen storage ServiceInstance github.com/Peripli/service-manager/pkg/types
 type ServiceInstance struct {
 	BaseEntity
-	Name                string             `db:"name"`
-	ServicePlanID       string             `db:"service_plan_id"`
-	PlatformID          string             `db:"platform_id"`
-	DashboardURL        sql.NullString     `db:"dashboard_url"`
-	MaintenanceInfo     sqlxtypes.JSONText `db:"maintenance_info"`
-	Context             sqlxtypes.JSONText `db:"context"`
-	PreviousValues      sqlxtypes.JSONText `db:"previous_values"`
-	UpdateValues        sqlxtypes.JSONText `db:"update_values"`
-	Usable              bool               `db:"usable"`
-	Shareable           bool               `db:"shareable"`
-	ReferenceInstanceID string             `db:"referenced_instance_id"`
+	Name            string             `db:"name"`
+	ServicePlanID   string             `db:"service_plan_id"`
+	PlatformID      string             `db:"platform_id"`
+	DashboardURL    sql.NullString     `db:"dashboard_url"`
+	MaintenanceInfo sqlxtypes.JSONText `db:"maintenance_info"`
+	Context         sqlxtypes.JSONText `db:"context"`
+	PreviousValues  sqlxtypes.JSONText `db:"previous_values"`
+	UpdateValues    sqlxtypes.JSONText `db:"update_values"`
+	Usable          bool               `db:"usable"`
 }
 
 func (si *ServiceInstance) ToObject() (types.Object, error) {
@@ -60,17 +58,15 @@ func (si *ServiceInstance) ToObject() (types.Object, error) {
 			PagingSequence: si.PagingSequence,
 			Ready:          si.Ready,
 		},
-		Name:                si.Name,
-		ServicePlanID:       si.ServicePlanID,
-		PlatformID:          si.PlatformID,
-		DashboardURL:        si.DashboardURL.String,
-		MaintenanceInfo:     getJSONRawMessage(si.MaintenanceInfo),
-		Context:             getJSONRawMessage(si.Context),
-		PreviousValues:      getJSONRawMessage(si.PreviousValues),
-		UpdateValues:        updateValues,
-		Usable:              si.Usable,
-		Shareable:           si.Shareable,
-		ReferenceInstanceID: si.ReferenceInstanceID,
+		Name:            si.Name,
+		ServicePlanID:   si.ServicePlanID,
+		PlatformID:      si.PlatformID,
+		DashboardURL:    si.DashboardURL.String,
+		MaintenanceInfo: getJSONRawMessage(si.MaintenanceInfo),
+		Context:         getJSONRawMessage(si.Context),
+		PreviousValues:  getJSONRawMessage(si.PreviousValues),
+		UpdateValues:    updateValues,
+		Usable:          si.Usable,
 	}, nil
 }
 
@@ -93,17 +89,15 @@ func (*ServiceInstance) FromObject(object types.Object) (storage.Entity, error) 
 			PagingSequence: serviceInstance.PagingSequence,
 			Ready:          serviceInstance.Ready,
 		},
-		Name:                serviceInstance.Name,
-		ServicePlanID:       serviceInstance.ServicePlanID,
-		PlatformID:          serviceInstance.PlatformID,
-		DashboardURL:        toNullString(serviceInstance.DashboardURL),
-		MaintenanceInfo:     getJSONText(serviceInstance.MaintenanceInfo),
-		Context:             getJSONText(serviceInstance.Context),
-		PreviousValues:      getJSONText(serviceInstance.PreviousValues),
-		UpdateValues:        newStateBytes,
-		Usable:              serviceInstance.Usable,
-		Shareable:           serviceInstance.Shareable,
-		ReferenceInstanceID: serviceInstance.ReferenceInstanceID,
+		Name:            serviceInstance.Name,
+		ServicePlanID:   serviceInstance.ServicePlanID,
+		PlatformID:      serviceInstance.PlatformID,
+		DashboardURL:    toNullString(serviceInstance.DashboardURL),
+		MaintenanceInfo: getJSONText(serviceInstance.MaintenanceInfo),
+		Context:         getJSONText(serviceInstance.Context),
+		PreviousValues:  getJSONText(serviceInstance.PreviousValues),
+		UpdateValues:    newStateBytes,
+		Usable:          serviceInstance.Usable,
 	}
 
 	return si, nil
