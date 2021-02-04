@@ -936,24 +936,25 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						httpclient.SetHTTPClientGlobalSettings(settings)
 						httpclient.Configure()
 					})
-					It("should fail when request duration is more than long_request_timeout", func() {
-						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
-							catalogStopDuration := time.Second + ctx.Config.Server.LongRequestTimeout
-							continueCtx, _ := context.WithTimeout(req.Context(), catalogStopDuration)
-							<-continueCtx.Done()
-							SetResponse(rw, http.StatusOK, Object{})
+
+					getCatalogHandler := func(catalogStopDuration time.Duration) func(rw http.ResponseWriter, req *http.Request) {
+						return func(rw http.ResponseWriter, req *http.Request) {
+							rw.WriteHeader(http.StatusOK)
+							if fl, ok := rw.(http.Flusher); ok {
+								fmt.Fprintf(rw, "Chunk %d", 0)
+								fl.Flush()
+								time.Sleep(catalogStopDuration)
+							}
 						}
+					}
+					It("should fail when request duration is more than long_request_timeout", func() {
+						brokerServer.CatalogHandler = getCatalogHandler(time.Second + ctx.Config.Server.LongRequestTimeout)
 						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(Object{}).
 							Expect().
 							Status(http.StatusBadGateway)
 					})
 					It("should succeed when request duration is less than long_request_timeout", func() {
-						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
-							catalogStopDuration := ctx.Config.Server.LongRequestTimeout - time.Millisecond*100
-							continueCtx, _ := context.WithTimeout(req.Context(), catalogStopDuration)
-							<-continueCtx.Done()
-							SetResponse(rw, http.StatusOK, Object{})
-						}
+						brokerServer.CatalogHandler = getCatalogHandler(ctx.Config.Server.LongRequestTimeout - time.Millisecond*100)
 						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(Object{}).
 							Expect().
 							Status(http.StatusOK)
