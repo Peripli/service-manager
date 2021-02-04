@@ -164,9 +164,10 @@ var _ = Describe("config", func() {
 		})
 
 		Context("when long request timeout is missing", func() {
-			It("returns an error", func() {
+			It("does not return an error", func() {
 				config.Server.LongRequestTimeout = 0
-				assertErrorDuringValidate()
+				err = config.Validate()
+				Expect(err).ToNot(HaveOccurred())
 			})
 		})
 

@@ -54,7 +54,6 @@ func DefaultSettings() *Settings {
 	return &Settings{
 		Port:               8080,
 		RequestTimeout:     time.Second * 3,
-		LongRequestTimeout: time.Second * 10,
 		ShutdownTimeout:    time.Second * 3,
 		MaxBodyBytes:       mb,
 		MaxHeaderBytes:     kb,
@@ -71,9 +70,6 @@ func (s *Settings) Validate() error {
 	}
 	if s.ShutdownTimeout == 0 {
 		return fmt.Errorf("validate Settings: ShutdownTimeout missing")
-	}
-	if s.LongRequestTimeout == 0 {
-		return fmt.Errorf("validate Settings: LongRequestTimeout missing")
 	}
 
 	return nil
@@ -106,7 +102,7 @@ func registerControllers(API *web.API, router *mux.Router, config *Settings) {
 			apiHandler := api.NewHTTPHandler(handler, config.MaxBodyBytes)
 			if !route.DisableHTTPTimeouts {
 				requestTimeout := config.RequestTimeout
-				if strings.HasPrefix(route.Endpoint.Path, web.ServiceBrokersURL) && route.Endpoint.Method == http.MethodPatch {
+				if config.LongRequestTimeout != 0 && strings.HasPrefix(route.Endpoint.Path, web.ServiceBrokersURL) && route.Endpoint.Method == http.MethodPatch {
 					log.D().Debugf("Setting request timeout to %s for endpoint: %s %s", config.LongRequestTimeout.String(), route.Endpoint.Method, route.Endpoint.Path)
 					requestTimeout = config.LongRequestTimeout
 				}
