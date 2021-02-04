@@ -52,11 +52,11 @@ type Settings struct {
 // DefaultSettings returns the default values for configuring the Service Manager
 func DefaultSettings() *Settings {
 	return &Settings{
-		Port:               8080,
-		RequestTimeout:     time.Second * 3,
-		ShutdownTimeout:    time.Second * 3,
-		MaxBodyBytes:       mb,
-		MaxHeaderBytes:     kb,
+		Port:            8080,
+		RequestTimeout:  time.Second * 3,
+		ShutdownTimeout: time.Second * 3,
+		MaxBodyBytes:    mb,
+		MaxHeaderBytes:  kb,
 	}
 }
 
