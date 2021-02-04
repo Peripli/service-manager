@@ -32,13 +32,14 @@ const K8sPlatformType = "kubernetes"
 const SMPlatform = "service-manager"
 const Monitored = "monitored"
 
-var smSupportedPlatformType = SMPlatform
+var smSupportedPlatformType = []string{SMPlatform}
 
-func GetSMSupportedPlatformType() string {
+// Returns aliases of service manager platform
+func GetSMSupportedPlatformTypes() []string {
 	return smSupportedPlatformType
 }
 
-func SetSMSupportedPlatformType(typee string) {
+func SetSMSupportedPlatformTypes(typee []string) {
 	smSupportedPlatformType = typee
 }
 
