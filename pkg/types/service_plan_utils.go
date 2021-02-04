@@ -70,8 +70,9 @@ func (e *ServicePlan) ExcludedPlatformNames() []string {
 
 // ExcludedPlatformNames returns the excludedPlatformNames provided in a plan's metadata (if a value is provided at all).
 // If there are no excluded platforms names, empty array is returned
-func (e *ServicePlan) SharingInstancesConfig() []string {
-	return e.metadataPropertyAsStringArray("sharingInstances")
+func (e *ServicePlan) IsShareablePlan() bool {
+	// todo : retrieve read shareable value
+	return len(e.metadataPropertyAsStringArray("supportInstanceSharing")) > 0
 }
 
 func (e *ServicePlan) metadataPropertyAsStringArray(propertyKey string) []string {

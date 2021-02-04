@@ -819,12 +819,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("Supported platforms", func() {
-					Context("When a plan has sharingInstances in metadata", func() {
-						verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
-							r.Status(http.StatusCreated)
-						}, "services.1.plans.1.metadata.supportInstanceSharing", common.Object{"shareable": true})
-					})
-
 					Context("When a plan has supportedPlatforms in metadata", func() {
 						verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
 							r.Status(http.StatusCreated)
@@ -835,6 +829,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
 							r.Status(http.StatusCreated)
 						}, "services.0.plans.0.metadata", common.Object{"supportedPlatformNames": []string{"a"}})
+					})
+				})
+
+				Context("Sharing Instances", func() {
+					Context("When a plan has supportInstanceSharing in metadata", func() {
+						verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+							r.Status(http.StatusCreated)
+						}, "services.1.plans.1.metadata.supportInstanceSharing", common.Object{"shareable": true})
 					})
 				})
 

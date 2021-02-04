@@ -73,6 +73,14 @@ func (c *brokerCreateCatalogInterceptor) OnTxCreate(f storage.InterceptCreateOnT
 				return nil, err
 			}
 			for _, servicePlan := range service.Plans {
+				hasShareables := false
+				if !hasShareables && servicePlan.IsShareablePlan() {
+					hasShareables = true
+					referencePlan := generateReferencePlan()
+					if _, err := storage.Create(ctx, referencePlan); err != nil {
+						return nil, err
+					}
+				}
 				if _, err := storage.Create(ctx, servicePlan); err != nil {
 					return nil, err
 				}
@@ -81,6 +89,16 @@ func (c *brokerCreateCatalogInterceptor) OnTxCreate(f storage.InterceptCreateOnT
 
 		return createdObj, nil
 	}
+}
+
+func generateReferencePlan() *types.ServicePlan {
+	referencePlan := new(types.ServicePlan)
+	identity := "reference-plan"
+	referencePlan.Name = identity
+	referencePlan.CatalogID = identity
+	referencePlan.CatalogName = identity
+	referencePlan.ID = identity
+	return referencePlan
 }
 
 func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fetcher func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error)) error {

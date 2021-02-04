@@ -259,6 +259,24 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
+				Context("with shareable plan", func() {
+					var plan common.Object
+					var planID string
+					var referencePlanId string
+					BeforeEach(func() {
+						plan = sharingInstanceBlueprint(ctx, ctx.SMWithOAuth, false)
+						planID = plan["id"].(string)
+						referencePlanId = "reference-plan"
+					})
+
+					It("should return a reference-plan", func() {
+						assertPlansForPlatformWithQuery(k8sAgent,
+							map[string]interface{}{
+								"fieldQuery": fmt.Sprintf("catalog_name in ('%s', '%s')", referencePlanId),
+							}, referencePlanId)
+					})
+				})
+
 			})
 
 			Describe("Labelled", func() {
@@ -508,6 +526,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
 	cPaidPlan := common.GeneratePaidTestPlan()
 	cService := common.GenerateTestServiceWithPlans(cPaidPlan)
+	catalog := common.NewEmptySBCatalog()
+	catalog.AddService(cService)
+	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
+
+	so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", id)).First()
+
+	sp := auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).First()
+
+	return sp.Object().Raw()
+}
+
+func sharingInstanceBlueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
+	cShareablePlan := common.GenerateFreeShareableTestPlan()
+	cService := common.GenerateTestServiceWithPlans(cShareablePlan)
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(cService)
 	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
