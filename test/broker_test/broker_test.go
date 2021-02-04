@@ -937,14 +937,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						httpclient.Configure()
 					})
 
-					getCatalogHandler := func(catalogStopDuration time.Duration) func(rw http.ResponseWriter, req *http.Request) {
+					getCatalogHandler := func(sleepDuration time.Duration) func(rw http.ResponseWriter, req *http.Request) {
 						return func(rw http.ResponseWriter, req *http.Request) {
-							rw.WriteHeader(http.StatusOK)
-							if fl, ok := rw.(http.Flusher); ok {
-								fmt.Fprintf(rw, "Chunk %d", 0)
-								fl.Flush()
-								time.Sleep(catalogStopDuration)
-							}
+							time.Sleep(sleepDuration)
+							SetResponse(rw, http.StatusOK, Object{})
 						}
 					}
 					It("should fail when request duration is more than long_request_timeout", func() {
