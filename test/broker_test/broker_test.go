@@ -935,17 +935,28 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						settings.ResponseHeaderTimeout = ctx.Config.Server.LongRequestTimeout + time.Second
 						httpclient.SetHTTPClientGlobalSettings(settings)
 						httpclient.Configure()
+					})
+					It("should fail when request duration is more than long_request_timeout", func() {
 						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
 							catalogStopDuration := time.Second + ctx.Config.Server.LongRequestTimeout
 							continueCtx, _ := context.WithTimeout(req.Context(), catalogStopDuration)
 							<-continueCtx.Done()
 							SetResponse(rw, http.StatusOK, Object{})
 						}
-					})
-					It("should fail when request duration is more than long_request_timeout", func() {
 						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(Object{}).
 							Expect().
-							Status(http.StatusServiceUnavailable)
+							Status(http.StatusBadGateway)
+					})
+					It("should succeed when request duration is less than long_request_timeout", func() {
+						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
+							catalogStopDuration := ctx.Config.Server.LongRequestTimeout - time.Millisecond*100
+							continueCtx, _ := context.WithTimeout(req.Context(), catalogStopDuration)
+							<-continueCtx.Done()
+							SetResponse(rw, http.StatusOK, Object{})
+						}
+						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(Object{}).
+							Expect().
+							Status(http.StatusOK)
 					})
 				})
 
