@@ -61,6 +61,39 @@ var testFreePlan = `
     }
 `
 
+var testShareableFreePlan = `
+	{
+      "name": "another-free-plan-name-%[1]s",
+      "id": "%[1]s",
+      "description": "test-description",
+	  "free": true,
+	  "bindable": true,
+      "metadata": {
+        "max_storage_tb": 5,
+		"supportInstanceSharing": {
+			"shareable": true
+		},
+        "costs":[
+            {
+               "amount":{
+                  "usd":199.0
+               },
+               "unit":"MONTHLY"
+            },
+            {
+               "amount":{
+                  "usd":0.99
+               },
+               "unit":"1GB of messages over 20GB"
+            }
+         ],
+        "bullets": [
+          "40 concurrent connections"
+        ]
+      }
+    }
+`
+
 var testPaidPlan = `
 	{
       "name": "another-paid-plan-name-%[1]s",
@@ -169,6 +202,7 @@ func NewRandomSBCatalog() SBCatalog {
 	plan3 := GenerateFreeTestPlan()
 	plan4 := GenerateFreeTestPlan()
 	plan5 := GenerateFreeTestPlan()
+	plan6 := GenerateFreeShareableTestPlan()
 	var err error
 	plan4, err = sjson.Set(plan4, "bindable", false)
 	if err != nil {
@@ -176,7 +210,7 @@ func NewRandomSBCatalog() SBCatalog {
 	}
 
 	service1 := GenerateTestServiceWithPlans(plan1, plan2, plan3, plan4)
-	service2 := GenerateTestServiceWithPlans(plan5)
+	service2 := GenerateTestServiceWithPlans(plan5, plan6)
 	service2, err = sjson.Set(service2, "bindings_retrievable", false)
 	if err != nil {
 		panic(err)
@@ -246,6 +280,13 @@ func GenerateFreeTestPlan() string {
 		panic(err)
 	}
 	return GenerateTestPlanFromTemplate(UUID.String(), testFreePlan)
+}
+func GenerateFreeShareableTestPlan() string {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	return GenerateTestPlanFromTemplate(UUID.String(), testShareableFreePlan)
 }
 
 func GeneratePaidTestPlan() string {
