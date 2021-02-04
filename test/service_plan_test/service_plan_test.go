@@ -259,7 +259,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				Context("with shareable plan", func() {
+				/*Context("with shareable plan", func() {
 					var plan common.Object
 					var planID string
 					var referencePlanId string
@@ -275,7 +275,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								"fieldQuery": fmt.Sprintf("catalog_name in ('%s', '%s')", referencePlanId),
 							}, referencePlanId)
 					})
-				})
+				})*/
 
 			})
 
