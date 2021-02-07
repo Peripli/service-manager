@@ -45,7 +45,7 @@ type Settings struct {
 	DefaultCascadePollingPoolSize int            `mapstructure:"default_cascade_polling_pool_size" description:"default worker pool size"`
 	Pools                         []PoolSettings `mapstructure:"pools" description:"defines the different available worker pools"`
 
-	SMSupportedPlatformType string `mapstructure:"sm_supported_platform_type" description:"defines the value of the supported platform for the SM platform"`
+	SMSupportedPlatformType []string `mapstructure:"sm_supported_platform_type" description:"defines the value of the supported platform aliases for the SM platform"`
 }
 
 // DefaultSettings returns default values for API settings
@@ -63,7 +63,7 @@ func DefaultSettings() *Settings {
 		DefaultPoolSize:                20,
 		DefaultCascadePollingPoolSize:  20,
 		Pools:                          []PoolSettings{},
-		SMSupportedPlatformType:        types.SMPlatform,
+		SMSupportedPlatformType:        []string{types.SMPlatform},
 	}
 }
 
