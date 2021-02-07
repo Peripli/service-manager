@@ -63,7 +63,7 @@ func DefaultSettings() *Settings {
 		DefaultPoolSize:                20,
 		DefaultCascadePollingPoolSize:  20,
 		Pools:                          []PoolSettings{},
-		SMSupportedPlatformType:        []string{types.SMPlatform, "bla"},
+		SMSupportedPlatformType:        []string{types.SMPlatform},
 	}
 }
 
