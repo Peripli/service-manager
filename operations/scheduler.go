@@ -213,8 +213,9 @@ func (s *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *t
 
 func (s *Scheduler) getResourceLastOperation(ctx context.Context, operation *types.Operation) (*types.Operation, bool, bool, error) {
 	byResourceID := query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID)
+	byResourceType := query.ByField(query.EqualsOperator, "resource_type", string(operation.ResourceType))
 	orderDesc := query.OrderResultBy("paging_sequence", query.DescOrder)
-	operationsForResourceID, err := s.repository.List(ctx, types.OperationType, byResourceID, orderDesc)
+	operationsForResourceID, err := s.repository.List(ctx, types.OperationType, byResourceID, byResourceType, orderDesc)
 	if err != nil {
 		return nil, false, false, util.HandleStorageError(err, types.OperationType.String())
 	}

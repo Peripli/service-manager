@@ -17,6 +17,7 @@
 package filters
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -25,7 +26,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/tidwall/gjson"
 )
 
 const ProtectedLabelsFilterName = "ProtectedLabelsFilter"
@@ -56,20 +56,25 @@ func (flo *ProtectedLabelsFilter) Run(req *web.Request, next web.Handler) (*web.
 	}
 
 	if req.Method == http.MethodPost {
-		body := gjson.ParseBytes(req.Body).Map()
-		if _, found := body["labels"]; !found {
-			return next.Handle(req)
-		}
-
-		labelsBytes := []byte(body["labels"].String())
-		if len(labelsBytes) == 0 {
-			return next.Handle(req)
-		}
-
-		labels := types.Labels{}
-		if err := util.BytesToObject(labelsBytes, &labels); err != nil {
+		isJSON, err := util.IsJSONContentType(req.Header.Get("Content-Type"))
+		if err != nil {
 			return nil, err
 		}
+
+		if !isJSON {
+			return next.Handle(req)
+		}
+
+		var result types.Base
+		if err := json.Unmarshal(req.Body, &result); err != nil {
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: fmt.Sprintf("Invalid JSON body"),
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+
+		labels := result.Labels
 		for lKey := range labels {
 			_, found := flo.protectedLabels[lKey]
 			if !found {

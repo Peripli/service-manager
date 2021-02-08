@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	secFilters "github.com/Peripli/service-manager/pkg/security/filters"
 	"math"
 	"net/http"
 	"sync"
@@ -141,17 +142,21 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		WSSettings:        cfg.WebSocket,
 		Notificator:       pgNotificator,
 		WaitGroup:         waitGroup,
+		TenantLabelKey:    cfg.Multitenancy.LabelKey,
+		Agents:            cfg.Agents,
 	}
 	API, err := api.New(ctx, e, apiOptions)
 	if err != nil {
 		return nil, fmt.Errorf("error creating core api: %s", err)
 	}
 
-	types.SetSMSupportedPlatformType(cfg.Operations.SMSupportedPlatformType)
+	types.SetSMSupportedPlatformTypes(cfg.Operations.SMSupportedPlatformType)
 
 	securityBuilder, securityFilters := NewSecurityBuilder()
 	API.RegisterFiltersAfter(filters.LoggingFilterName, securityFilters...)
-	API.RegisterFilters(&filters.RegeneratePlatformCredentialsFilter{})
+	API.RegisterFilters(&filters.RegeneratePlatformCredentialsFilter{}, &filters.TechnicalPlatformFilter{Storage: interceptableRepository})
+
+	API.RegisterFiltersAfter(secFilters.AuthorizationFilterName, &filters.ForceDeleteValidationFilter{})
 
 	storageHealthIndicator, err := storage.NewSQLHealthIndicator(storage.PingFunc(smStorage.PingContext))
 	if err != nil {
@@ -159,10 +164,13 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	API.SetIndicator(storageHealthIndicator)
-	API.SetIndicator(healthcheck.NewPlatformIndicator(ctx, interceptableRepository, func(p *types.Platform) bool {
-		hours := time.Since(p.LastActive).Hours()
-		return hours > cfg.Health.PlatformMaxInactive.Hours()
-	}))
+	if cfg.Health.EnablePlatformIndicator {
+		API.SetIndicator(healthcheck.NewPlatformIndicator(ctx, interceptableRepository, func(p *types.Platform) bool {
+			hours := time.Since(p.LastActive).Hours()
+			return hours > cfg.Health.PlatformMaxInactive.Hours()
+		}))
+	}
+	API.SetIndicator(healthcheck.NewMonitoredPlatformsIndicator(ctx, interceptableRepository, cfg.Health.MonitoredPlatformsThreshold))
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,

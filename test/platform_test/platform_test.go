@@ -18,6 +18,7 @@ package platform_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -226,6 +227,26 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						reply.Value("description").String().Contains("api doesn't support asynchronous operations")
 					})
 				})
+
+				Context("Technical Platform", func() {
+					AfterEach(func() {
+						ctx.SMWithOAuthForTenant.DELETE(web.PlatformsURL + "/1234").
+							Expect().Status(http.StatusOK)
+					})
+
+					It("should succeed", func() {
+						result := ctx.SMWithOAuthForTenant.POST(web.PlatformsURL).
+							WithJSON(common.Object{
+								"name":        "technical",
+								"technical":   true,
+								"type":        "kubernetes",
+								"description": "none",
+								"id":          "1234",
+							}).Expect().Status(http.StatusCreated).JSON().Object()
+						result.Value("id").String().Equal("1234")
+						result.Value("technical").Boolean().Equal(true)
+					})
+				})
 			})
 
 			Describe("PATCH", func() {
@@ -368,7 +389,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					getPlatformFromDB := func() *types.Platform {
 						platformObj, err := ctx.SMRepository.Get(context.Background(), types.PlatformType, query.ByField(query.EqualsOperator, "id", id))
 						Expect(err).NotTo(HaveOccurred())
-						return platformObj.(*types.Platform)
+						dbPlatform := platformObj.(*types.Platform)
+						//unmarshaling from json in order to validate this functionality
+						data, err := json.Marshal(dbPlatform)
+						Expect(err).ToNot(HaveOccurred())
+						pl := &types.Platform{}
+						err = json.Unmarshal(data, pl)
+						Expect(err).ToNot(HaveOccurred())
+						return pl
 					}
 
 					activatePlatformCredentials := func(user string, password string) {
@@ -380,7 +408,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								},
 							},
 						}
-						_, _, err := ctx.ConnectWebSocket(platform, nil)
+						_, _, err := ctx.ConnectWebSocket(platform, nil, nil)
 						Expect(err).To(Not(HaveOccurred()))
 					}
 
@@ -410,7 +438,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					When("credentials are inactive", func() {
-						Context("no old credentials", func() {
+						Context("No old credentials", func() {
 							It("should return new credentials", func() {
 								ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
 									WithJSON(common.Object{}).
@@ -465,6 +493,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							dbPlatform := getPlatformFromDB()
 							Expect(dbPlatform.OldCredentials).To(BeNil())
 							Expect(dbPlatform.CredentialsActive).To(BeTrue())
+						})
+
+						It("should sanitize sensitive from response", func() {
+							reply := ctx.SMWithOAuth.GET(web.PlatformsURL + "/" + id).
+								Expect().
+								Status(http.StatusOK).JSON().Object()
+							reply.NotContainsKey("credentials")
+							reply.NotContainsKey("credentials_active")
 						})
 
 						It("should return new credentials and keep current as old", func() {
@@ -585,6 +621,45 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				})
 
+			})
+
+			Describe("GET", func() {
+				Context("Technical Platform", func() {
+					var opID string
+					BeforeEach(func() {
+						result := ctx.SMWithOAuthForTenant.POST(web.PlatformsURL).
+							WithJSON(common.Object{
+								"name":        "technical",
+								"technical":   true,
+								"type":        "kubernetes",
+								"description": "none",
+								"id":          "1234",
+							}).Expect().Status(http.StatusCreated).JSON().Object()
+						opID = result.Value("last_operation").Object().Value("id").String().Raw()
+					})
+
+					AfterEach(func() {
+						ctx.SMWithOAuthForTenant.DELETE(web.PlatformsURL + "/1234").
+							Expect().Status(http.StatusOK)
+					})
+
+					It("should be not found", func() {
+						ctx.SMWithOAuthForTenant.GET(web.PlatformsURL + "/1234").
+							Expect().Status(http.StatusNotFound)
+					})
+
+					It("should be filtered out from list", func() {
+						result := ctx.SMWithOAuthForTenant.GET(web.PlatformsURL).
+							Expect().Status(http.StatusOK).JSON().Object()
+						result.NotEmpty().Value("items").Path("$[*].id").Array().
+							NotContains("1234")
+					})
+
+					It("should not find last operation", func() {
+						ctx.SMWithOAuthForTenant.GET(web.PlatformsURL + "/1234/operations/" + opID).
+							Expect().Status(http.StatusNotFound)
+					})
+				})
 			})
 		})
 	},

@@ -2244,6 +2244,28 @@ var _ = DescribeTestsFor(TestCase{
 										Ready: true,
 									})
 								})
+
+								It("deletes the binding and marks operation with success when cascade and force are passed", func() {
+									resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceBindingsURL+"/"+bindingID).
+										WithQuery("async", testCase.async).
+										WithQuery("force", true).
+										WithQuery("cascade", true).
+										Expect().
+										Status(http.StatusAccepted)
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.DELETE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   bindingID,
+										Type: types.ServiceBindingType,
+									})
+								})
 							})
 
 							When("unbind responds with error that does not require orphan mitigation", func() {
@@ -2269,6 +2291,28 @@ var _ = DescribeTestsFor(TestCase{
 										ID:    bindingID,
 										Type:  types.ServiceBindingType,
 										Ready: true,
+									})
+								})
+
+								It("deletes the binding and marks operation with success when cascade and force are passed", func() {
+									resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceBindingsURL+"/"+bindingID).
+										WithQuery("async", testCase.async).
+										WithQuery("force", true).
+										WithQuery("cascade", true).
+										Expect().
+										Status(http.StatusAccepted)
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.DELETE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   bindingID,
+										Type: types.ServiceBindingType,
 									})
 								})
 							})

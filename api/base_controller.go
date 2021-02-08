@@ -151,6 +151,10 @@ func (c *BaseController) Routes() []web.Route {
 
 // CreateObject handles the creation of a new object
 func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
+	if err := util.ValidateJSONContentType(r.Header.Get("Content-Type")); err != nil {
+		return nil, err
+	}
+
 	ctx := r.Context()
 	log.C(ctx).Debugf("Creating new %s", c.objectType)
 
@@ -301,12 +305,19 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 			return util.NewLocationResponse(concurrentOp.GetID(), resourceID, c.resourceBaseURL)
 		}
 	}
+
+	isForce := r.URL.Query().Get(web.QueryParamForce) == "true"
+	labels := types.Labels{}
+	if isForce {
+		labels["force"] = []string{"true"}
+	}
+
 	operation := &types.Operation{
 		Base: types.Base{
 			ID:        UUID.String(),
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
-			Labels:    make(map[string][]string),
+			Labels:    labels,
 			Ready:     true,
 		},
 		Type:          types.DELETE,
@@ -433,7 +444,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 
 	attachLastOps := r.URL.Query().Get("attach_last_operations")
 	if attachLastOps == "true" {
-		if err := attachLastOperations(ctx, objectList, c.repository); err != nil {
+		if err := attachLastOperations(ctx, c.objectType, objectList, c.repository); err != nil {
 			return nil, err
 		}
 	}
@@ -457,6 +468,10 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 
 // PatchObject handles the update of the object with the id specified in the request
 func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
+	if err := util.ValidateJSONContentType(r.Header.Get("Content-Type")); err != nil {
+		return nil, err
+	}
+
 	objectID := r.PathParams[web.PathParamResourceID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Updating %s with id %s", c.objectType, objectID)
@@ -553,8 +568,8 @@ func getResourceIds(resources types.ObjectList) []string {
 	return resourceIds
 }
 
-func attachLastOperations(ctx context.Context, resources types.ObjectList, repository storage.Repository) error {
-	lastOperationsMap, err := getLastOperations(ctx, getResourceIds(resources), repository)
+func attachLastOperations(ctx context.Context, objectType types.ObjectType, resources types.ObjectList, repository storage.Repository) error {
+	lastOperationsMap, err := getLastOperations(ctx, objectType, getResourceIds(resources), repository)
 
 	if err != nil {
 		return err
@@ -571,13 +586,14 @@ func attachLastOperations(ctx context.Context, resources types.ObjectList, repos
 	return nil
 }
 
-func getLastOperations(ctx context.Context, resourceIDs []string, repository storage.Repository) (map[string]*types.Operation, error) {
+func getLastOperations(ctx context.Context, resourceType types.ObjectType, resourceIDs []string, repository storage.Repository) (map[string]*types.Operation, error) {
 	if len(resourceIDs) == 0 {
 		return nil, nil
 	}
 
 	queryParams := map[string]interface{}{
-		"id_list": resourceIDs,
+		"id_list":       resourceIDs,
+		"resource_type": resourceType,
 	}
 
 	resourceLastOps, err := repository.QueryForList(
@@ -601,7 +617,7 @@ func getLastOperations(ctx context.Context, resourceIDs []string, repository sto
 }
 
 func attachLastOperation(ctx context.Context, objectID string, object types.Object, repository storage.Repository) error {
-	ops, err := getLastOperations(ctx, []string{objectID}, repository)
+	ops, err := getLastOperations(ctx, object.GetType(), []string{objectID}, repository)
 
 	if err != nil {
 		return err

@@ -18,6 +18,7 @@ package config_test
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/agents"
 	"testing"
 	"time"
 
@@ -162,6 +163,14 @@ var _ = Describe("config", func() {
 			})
 		})
 
+		Context("when long request timeout is missing", func() {
+			It("does not return an error", func() {
+				config.Server.LongRequestTimeout = 0
+				err = config.Validate()
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+
 		Context("when shutdown timeout is missing", func() {
 			It("returns an error", func() {
 				config.Server.ShutdownTimeout = 0
@@ -293,6 +302,13 @@ var _ = Describe("config", func() {
 				assertErrorDuringValidate()
 			})
 		})
+		Context("when agents versions json is malformed", func() {
+			It("should return an error", func() {
+				config.Agents.Versions = `rsions":["1.0.0", "1.0.1", "1.0.2"],"k8s-versions":["2.0.0", "2.0.1"]}`
+				assertErrorDuringValidate()
+			})
+
+		})
 
 		Context("when multitenancy label key is empty", func() {
 			It("returns an error", func() {
@@ -300,6 +316,43 @@ var _ = Describe("config", func() {
 				assertErrorDuringValidate()
 			})
 		})
+
+		Context("rate limiter activated", func() {
+			BeforeEach(func() {
+				config.API.RateLimitingEnabled = true
+			})
+			When("invalid configuration specified", func() {
+				It("returns error", func() {
+					config.API.RateLimit = "5"
+					assertErrorDuringValidate()
+				})
+			})
+			When("empty path in configuration specified", func() {
+				It("returns error", func() {
+					config.API.RateLimit = "5-M:"
+					assertErrorDuringValidate()
+				})
+			})
+			When("empty element in configuration specified", func() {
+				It("Returns error", func() {
+					config.API.RateLimit = "5-M:/aaa,"
+					assertErrorDuringValidate()
+				})
+			})
+			When("path with multiple slashes in configuration specified", func() {
+				It("returns error", func() {
+					config.API.RateLimit = "5-M:///,"
+					assertErrorDuringValidate()
+				})
+			})
+			When("path not starts from slash in configuration specified", func() {
+				It("returns error", func() {
+					config.API.RateLimit = "5-M:v1/aaa,"
+					assertErrorDuringValidate()
+				})
+			})
+		})
+
 	})
 
 	Describe("New", func() {
@@ -346,6 +399,9 @@ var _ = Describe("config", func() {
 					API: &api.Settings{
 						TokenIssuerURL: "http://example.com",
 						ClientID:       "sm",
+					},
+					Agents: &agents.Settings{
+						Versions: `{"cf-versions":["1.0.0", "1.0.1", "1.0.2"],"k8s-versions":["2.0.0", "2.0.1"]}`,
 					},
 				}
 

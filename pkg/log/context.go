@@ -58,8 +58,8 @@ var (
 
 	// C is an alias for ForContext
 	C = ForContext
-	// D is an alias for Default
-	D = Default
+	// D is an alias for DefaultLogger
+	D = DefaultLogger
 )
 
 func init() {
@@ -164,8 +164,8 @@ func ForContext(ctx context.Context) *logrus.Entry {
 	return copyEntry(entry.(*logrus.Entry))
 }
 
-// Default returns the default logger
-func Default() *logrus.Entry {
+// DefaultLogger returns the default logger
+func DefaultLogger() *logrus.Entry {
 	return ForContext(context.Background())
 }
 

@@ -35,7 +35,7 @@ var _ = Describe("Forbidden label operations filter", func() {
 	var protectedLabels []string
 
 	BeforeEach(func() {
-		protectedLabels = []string{"forbidden"}
+		protectedLabels = []string{"forbidden", "alsoforbidden"}
 	})
 
 	JustBeforeEach(func() {
@@ -55,6 +55,17 @@ var _ = Describe("Forbidden label operations filter", func() {
 				Expect(handler.HandleCallCount()).To(Equal(0))
 			})
 		})
+		When("entity has forbidden labels with upper case property", func() {
+			It("should return 400", func() {
+				req := mockedRequest(http.MethodPost, `{"Labels": {"alsoforbidden": ["forbidden_value"]}, "labels": {}}`)
+				_, err := filter.Run(req, handler)
+				httpErr, ok := err.(*util.HTTPError)
+				Expect(ok).To(BeTrue())
+				Expect(httpErr.StatusCode).To(Equal(http.StatusBadRequest))
+				Expect(httpErr.Description).To(ContainSubstring("Set/Add values for label alsoforbidden is not allowed"))
+				Expect(handler.HandleCallCount()).To(Equal(0))
+			})
+		})
 
 		When("entity has no forbidden labels", func() {
 			It("should call next filter in chain", func() {
@@ -70,7 +81,7 @@ var _ = Describe("Forbidden label operations filter", func() {
 				protectedLabels = []string{}
 			})
 			It("should call next filter in chain", func() {
-				req := mockedRequest(http.MethodPost, `{"labels": {"forbidden": ["forbidden_value"]}}`)
+				req := mockedRequest(http.MethodPost, `{"labels": {"alsoforbidden": ["forbidden_value"]}}`)
 				_, err := filter.Run(req, handler)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(handler.HandleCallCount()).To(Equal(1))
@@ -88,7 +99,7 @@ var _ = Describe("Forbidden label operations filter", func() {
 
 		When("empty labels are provided", func() {
 			It("should call next filter in chain", func() {
-				req := mockedRequest(http.MethodPost, `{"labels":nil}`)
+				req := mockedRequest(http.MethodPost, `{"labels":{}}`)
 				_, err := filter.Run(req, handler)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(handler.HandleCallCount()).To(Equal(1))
@@ -100,7 +111,7 @@ var _ = Describe("Forbidden label operations filter", func() {
 				req := mockedRequest(http.MethodPost, `{"labels": "invalid"}`)
 				_, err := filter.Run(req, handler)
 				Expect(err).Should(HaveOccurred())
-				Expect(err.Error()).Should(ContainSubstring("Failed to decode"))
+				Expect(err.Error()).Should(ContainSubstring("Invalid JSON body"))
 				Expect(handler.HandleCallCount()).To(Equal(0))
 			})
 		})

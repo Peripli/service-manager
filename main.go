@@ -35,7 +35,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	env, err := env.Default(ctx, config.AddPFlags)
+	env, err := env.DefaultLogger(ctx, config.AddPFlags)
 	if err != nil {
 		panic(err)
 	}

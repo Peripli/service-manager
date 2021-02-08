@@ -20,13 +20,12 @@ package api
 import (
 	"context"
 	"fmt"
-	"sync"
-
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/env"
-
 	"github.com/Peripli/service-manager/api/configuration"
 	"github.com/Peripli/service-manager/api/profile"
+	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/agents"
+	"github.com/Peripli/service-manager/pkg/env"
+	"sync"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -49,27 +48,36 @@ const osbVersion = "2.13"
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	TokenIssuerURL         string   `mapstructure:"token_issuer_url" description:"url of the token issuer which to use for validating tokens"`
-	ClientID               string   `mapstructure:"client_id" description:"id of the client from which the token must be issued"`
-	TokenBasicAuth         bool     `mapstructure:"token_basic_auth" description:"specifies if client credentials to the authorization server should be sent in the header as basic auth (true) or in the body (false)"`
-	ProtectedLabels        []string `mapstructure:"protected_labels" description:"defines labels which cannot be modified/added by REST API requests"`
-	OSBVersion             string   `mapstructure:"-"`
-	MaxPageSize            int      `mapstructure:"max_page_size" description:"maximum number of items that could be returned in a single page"`
-	DefaultPageSize        int      `mapstructure:"default_page_size" description:"default number of items returned in a single page if not specified in request"`
-	EnableInstanceTransfer bool     `mapstructure:"enable_instance_transfer" description:"whether service instance transfer is enabled or not"`
+	TokenIssuerURL             string   `mapstructure:"token_issuer_url" description:"url of the token issuer which to use for validating tokens"`
+	ClientID                   string   `mapstructure:"client_id" description:"id of the client from which the token must be issued"`
+	TokenBasicAuth             bool     `mapstructure:"token_basic_auth" description:"specifies if client credentials to the authorization server should be sent in the header as basic auth (true) or in the body (false)"`
+	ProtectedLabels            []string `mapstructure:"protected_labels" description:"defines labels which cannot be modified/added by REST API requests"`
+	OSBVersion                 string   `mapstructure:"-"`
+	MaxPageSize                int      `mapstructure:"max_page_size" description:"maximum number of items that could be returned in a single page"`
+	DefaultPageSize            int      `mapstructure:"default_page_size" description:"default number of items returned in a single page if not specified in request"`
+	EnableInstanceTransfer     bool     `mapstructure:"enable_instance_transfer" description:"whether service instance transfer is enabled or not"`
+	RateLimit                  string   `mapstructure:"rate_limit" description:"rate limiter configuration defined in format: rate<:path><,rate<:path>,...>"`
+	RateLimitingEnabled        bool     `mapstructure:"rate_limiting_enabled" description:"enable rate limiting"`
+	RateLimitExcludeClients    []string `mapstructure:"rate_limit_exclude_clients" description:"define client users that should be excluded from the rate limiter processing"`
+	RateLimitExcludePaths      []string `mapstructure:"rate_limit_exclude_paths" description:"define paths that should be excluded from the rate limiter processing"`
+	RateLimitUsageLogThreshold int64    `mapstructure:"rate_limiting_usage_log_threshold" description:"defines a threshold for log notification trigger about requests limit usage. Accepts value in range from 0 to 100 (percents)"`
 }
 
 // DefaultSettings returns default values for API settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		TokenIssuerURL:         "",
-		ClientID:               "",
-		TokenBasicAuth:         true, // RFC 6749 section 2.3.1
-		ProtectedLabels:        []string{},
-		OSBVersion:             osbVersion,
-		MaxPageSize:            200,
-		DefaultPageSize:        50,
-		EnableInstanceTransfer: false,
+		TokenIssuerURL:             "",
+		ClientID:                   "",
+		TokenBasicAuth:             true, // RFC 6749 section 2.3.1
+		ProtectedLabels:            []string{},
+		OSBVersion:                 osbVersion,
+		MaxPageSize:                200,
+		DefaultPageSize:            50,
+		EnableInstanceTransfer:     false,
+		RateLimit:                  "10000-H,1000-M",
+		RateLimitingEnabled:        false,
+		RateLimitExcludeClients:    []string{},
+		RateLimitUsageLogThreshold: 10,
 	}
 }
 
@@ -78,7 +86,7 @@ func (s *Settings) Validate() error {
 	if (len(s.TokenIssuerURL)) == 0 {
 		return fmt.Errorf("validate Settings: APITokenIssuerURL missing")
 	}
-	return nil
+	return validateRateLimiterConfiguration(s.RateLimit)
 }
 
 type Options struct {
@@ -88,11 +96,18 @@ type Options struct {
 	WSSettings        *ws.Settings
 	Notificator       storage.Notificator
 	WaitGroup         *sync.WaitGroup
+	TenantLabelKey    string
+	Agents            *agents.Settings
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
 func New(ctx context.Context, e env.Environment, options *Options) (*web.API, error) {
-	return &web.API{
+
+	rateLimiters, err := initRateLimiters(options)
+	if err != nil {
+		return nil, err
+	}
+	api := &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
 			NewAsyncController(ctx, options, web.ServiceBrokersURL, types.ServiceBrokerType, false, func() types.Object {
@@ -112,6 +127,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			NewServiceOfferingController(ctx, options),
 			NewServicePlanController(ctx, options),
 			NewOperationsController(ctx, options),
+			NewAgentsController(options.Agents),
 
 			&credentialsController{
 				repository: options.Repository,
@@ -156,5 +172,20 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			filters.NewPlatformTerminationFilter(options.Repository),
 		},
 		Registry: health.NewDefaultRegistry(),
-	}, nil
+	}
+
+	if rateLimiters != nil {
+		api.RegisterFiltersAfter(
+			filters.LoggingFilterName,
+			filters.NewRateLimiterFilter(
+				rateLimiters,
+				options.APISettings.RateLimitExcludeClients,
+				options.APISettings.RateLimitExcludePaths,
+				options.APISettings.RateLimitUsageLogThreshold,
+				options.TenantLabelKey,
+			),
+		)
+	}
+
+	return api, nil
 }

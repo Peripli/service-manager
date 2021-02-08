@@ -30,14 +30,16 @@ import (
 const CFPlatformType = "cloudfoundry"
 const K8sPlatformType = "kubernetes"
 const SMPlatform = "service-manager"
+const Monitored = "monitored"
 
-var smSupportedPlatformType = SMPlatform
+var smSupportedPlatformType = []string{SMPlatform}
 
-func GetSMSupportedPlatformType() string {
+// Returns aliases of service manager platform
+func GetSMSupportedPlatformTypes() []string {
 	return smSupportedPlatformType
 }
 
-func SetSMSupportedPlatformType(typee string) {
+func SetSMSupportedPlatformTypes(typee []string) {
 	smSupportedPlatformType = typee
 }
 
@@ -52,10 +54,12 @@ type Platform struct {
 	Description       string       `json:"description"`
 	Credentials       *Credentials `json:"credentials,omitempty"`
 	OldCredentials    *Credentials `json:"old_credentials,omitempty"`
+	Version           string       `json:"-"`
 	Active            bool         `json:"-"`
 	LastActive        time.Time    `json:"-"`
 	Integrity         []byte       `json:"-"`
-	CredentialsActive bool         `json:"-"`
+	CredentialsActive bool         `json:"credentials_active,omitempty"`
+	Technical         bool         `json:"technical,omitempty"` //technical platforms are only used for managing visibilities, and are excluded in notification and credential management flows
 }
 
 func (e *Platform) Equals(obj Object) bool {
@@ -68,6 +72,7 @@ func (e *Platform) Equals(obj Object) bool {
 		e.Type != platform.Type ||
 		e.Name != platform.Name ||
 		e.Active != platform.Active ||
+		e.Version != platform.Version ||
 		!e.LastActive.Equal(platform.LastActive) ||
 		!reflect.DeepEqual(e.Credentials, platform.Credentials) {
 		return false
@@ -81,14 +86,22 @@ func (e *Platform) Sanitize(ctx context.Context) {
 		e.Credentials = nil
 	}
 	e.OldCredentials = nil
+	e.CredentialsActive = false
+	e.Technical = false
 }
 
 func (e *Platform) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {
-	return e.transform(ctx, encryptionFunc)
+	if !e.Technical {
+		return e.transform(ctx, encryptionFunc)
+	}
+	return nil
 }
 
 func (e *Platform) Decrypt(ctx context.Context, decryptionFunc func(context.Context, []byte) ([]byte, error)) error {
-	return e.transform(ctx, decryptionFunc)
+	if !e.Technical {
+		return e.transform(ctx, decryptionFunc)
+	}
+	return nil
 }
 
 func (e *Platform) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
@@ -119,11 +132,17 @@ func (e *Platform) transform(ctx context.Context, transformationFunc func(contex
 }
 
 func (e *Platform) IntegralData() []byte {
-	oldCredentials := ""
-	if e.OldCredentials != nil && e.OldCredentials.Basic != nil {
-		oldCredentials = fmt.Sprintf(":%s:%s", e.OldCredentials.Basic.Username, e.OldCredentials.Basic.Password)
+	integrity := ""
+	if !e.Technical {
+		oldCredentials := ""
+		if e.OldCredentials != nil && e.OldCredentials.Basic != nil {
+			oldCredentials = fmt.Sprintf(":%s:%s", e.OldCredentials.Basic.Username, e.OldCredentials.Basic.Password)
+		}
+
+		if e.Credentials != nil {
+			integrity = fmt.Sprintf("%s:%s%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, oldCredentials)
+		}
 	}
-	integrity := fmt.Sprintf("%s:%s%s", e.Credentials.Basic.Username, e.Credentials.Basic.Password, oldCredentials)
 	return []byte(integrity)
 }
 

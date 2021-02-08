@@ -16,7 +16,7 @@ Currently Service Manager requires Go version 1.10. Installation steps can be fo
 
 ### Dep
 
-Most of the Service Manager github repositories do not include a `vendor` folder. You would need to have `dep` installed and run `dep ensure --vendor-only` to download the project dependencies. Installation details can be found [here](https://github.com/golang/dep#installation).
+You would need run `go get vendor` to download the project dependencies.
 
 ### smctl
 

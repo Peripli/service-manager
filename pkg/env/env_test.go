@@ -278,7 +278,7 @@ var _ = Describe("Env", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 		}
 
-		environment, err = env.Default(context.TODO(), func(set *pflag.FlagSet) {
+		environment, err = env.DefaultLogger(context.TODO(), func(set *pflag.FlagSet) {
 			set.AddFlagSet(testFlags)
 		})
 		return err

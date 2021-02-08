@@ -57,4 +57,5 @@ const (
 	ProfileURL = "/" + apiVersion + "/profile"
 
 	TenantURL = "/" + apiVersion + "/tenants"
+	AgentsURL = "/" + apiVersion + "/agents/versions"
 )

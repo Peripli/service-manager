@@ -22,6 +22,7 @@ import (
 const (
 	LastKnownRevisionHeader     = "last_notification_revision"
 	LastKnownRevisionQueryParam = "last_notification_revision"
+	AgentVersionHeader          = "X-Peripli-Agent-Version"
 )
 
 func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
@@ -36,6 +37,15 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	version := req.Header.Get(AgentVersionHeader)
+	if platform.Version != version {
+		platform.Version = version
+		_, err = c.repository.Update(ctx, platform, nil)
+		if err != nil {
+			logger.Errorf("Could not update platform version for platform %s: %v", platform.ID, err)
+			return nil, err
+		}
+	}
 
 	if user.Name == platform.Credentials.Basic.Username && !platform.CredentialsActive {
 		logger.Debugf("Activating credentials for platform %s", platform.ID)
@@ -47,7 +57,6 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 	}
-
 	revisionKnownToProxy := types.InvalidRevision
 	revisionKnownToProxyStr := req.URL.Query().Get(LastKnownRevisionQueryParam)
 	if revisionKnownToProxyStr != "" {

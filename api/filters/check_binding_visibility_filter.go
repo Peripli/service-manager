@@ -74,8 +74,13 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 		return next.Handle(req)
 	}
 
+	platformID := types.SMPlatform
+	if web.IsSMAAPOperated(req.Context()) {
+		platformID = gjson.GetBytes(req.Body, "platform_id").String()
+	}
+
 	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, platformIDProperty, types.SMPlatform),
+		query.ByField(query.EqualsOperator, platformIDProperty, platformID),
 		query.ByField(query.EqualsOperator, "id", instanceID),
 		query.ByLabel(query.EqualsOperator, f.tenantIdentifier, tenantID),
 	}

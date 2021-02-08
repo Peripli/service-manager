@@ -18,6 +18,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/agents"
 
 	"github.com/Peripli/service-manager/pkg/multitenancy"
 
@@ -46,6 +47,7 @@ type Settings struct {
 	HTTPClient   *httpclient.Settings
 	Health       *health.Settings
 	Multitenancy *multitenancy.Settings
+	Agents       *agents.Settings
 }
 
 // AddPFlags adds the SM config flags to the provided flag set
@@ -66,6 +68,7 @@ func DefaultSettings() *Settings {
 		HTTPClient:   httpclient.DefaultSettings(),
 		Health:       health.DefaultSettings(),
 		Multitenancy: multitenancy.DefaultSettings(),
+		Agents:       agents.DefaultSettings(),
 	}
 }
 
@@ -75,7 +78,6 @@ func New(env env.Environment) (*Settings, error) {
 	if err := env.Unmarshal(config); err != nil {
 		return nil, fmt.Errorf("error loading configuration: %s", err)
 	}
-
 	return config, nil
 }
 
@@ -83,7 +85,7 @@ func New(env env.Environment) (*Settings, error) {
 func (c *Settings) Validate() error {
 	validatable := []interface {
 		Validate() error
-	}{c.Server, c.Storage, c.Log, c.Health, c.API, c.Operations, c.WebSocket, c.Multitenancy}
+	}{c.Server, c.Storage, c.Log, c.Health, c.API, c.Operations, c.WebSocket, c.Multitenancy, c.Agents}
 
 	for _, item := range validatable {
 		if err := item.Validate(); err != nil {

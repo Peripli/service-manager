@@ -41,6 +41,8 @@ type Platform struct {
 	Active            bool           `db:"active"`
 	CredentialsActive bool           `db:"credentials_active"`
 	LastActive        time.Time      `db:"last_active"`
+	Technical         bool           `db:"technical"`
+	Version           sql.NullString `db:"version"`
 }
 
 func (p *Platform) FromObject(object types.Object) (storage.Entity, error) {
@@ -61,6 +63,8 @@ func (p *Platform) FromObject(object types.Object) (storage.Entity, error) {
 		Description:       toNullString(platform.Description),
 		Active:            platform.Active,
 		CredentialsActive: platform.CredentialsActive,
+		Technical:         platform.Technical,
+		Version:           toNullString(platform.Version),
 		LastActive:        platform.LastActive,
 	}
 
@@ -93,19 +97,23 @@ func (p *Platform) ToObject() (types.Object, error) {
 			PagingSequence: p.PagingSequence,
 			Ready:          p.Ready,
 		},
-		Type:        p.Type,
-		Name:        p.Name,
-		Description: p.Description.String,
-		Credentials: &types.Credentials{
+		Type:              p.Type,
+		Name:              p.Name,
+		Description:       p.Description.String,
+		Active:            p.Active,
+		CredentialsActive: p.CredentialsActive,
+		LastActive:        p.LastActive,
+		Technical:         p.Technical,
+		Integrity:         p.Integrity,
+		Version:           p.Version.String,
+	}
+	if len(p.Username) > 0 || len(p.Password) > 0 {
+		platform.Credentials = &types.Credentials{
 			Basic: &types.Basic{
 				Username: p.Username,
 				Password: p.Password,
 			},
-		},
-		Active:            p.Active,
-		CredentialsActive: p.CredentialsActive,
-		LastActive:        p.LastActive,
-		Integrity:         p.Integrity,
+		}
 	}
 	if len(p.OldUsername) > 0 || len(p.OldPassword) > 0 {
 		platform.OldCredentials = &types.Credentials{

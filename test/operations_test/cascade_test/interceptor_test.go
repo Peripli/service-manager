@@ -136,7 +136,7 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 		Context("should succeed", func() {
 			It("validate tree hierarchy", func() {
 				container := createContainerWithChildren()
-				newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKey{}, "containerID")
+				newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKeys{}, []string{"containerID"})
 				rootID := triggerCascadeOperation(newCtx, types.TenantType, tenantID, false)
 
 				tree, err := fetchFullTree(ctx.SMRepository, rootID)

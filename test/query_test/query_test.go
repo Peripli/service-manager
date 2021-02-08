@@ -64,7 +64,8 @@ var _ = Describe("Service Manager Query", func() {
 
 			It("should return the last operation for a newly created resource", func() {
 				queryParams := map[string]interface{}{
-					"id_list": []string{serviceInstance1.ID},
+					"id_list":       []string{serviceInstance1.ID},
+					"resource_type": types.ServiceInstanceType,
 				}
 
 				list, err := repository.QueryForList(context.Background(), types.OperationType, storage.QueryForLastOperationsPerResource, queryParams)
@@ -102,7 +103,8 @@ var _ = Describe("Service Manager Query", func() {
 				})
 				It("should return the new operation as last operation", func() {
 					queryParams := map[string]interface{}{
-						"id_list": []string{serviceInstance1.ID},
+						"id_list":       []string{serviceInstance1.ID},
+						"resource_type": types.ServiceInstanceType,
 					}
 					list, err := repository.QueryForList(context.Background(), types.OperationType, storage.QueryForLastOperationsPerResource, queryParams)
 					Expect(err).ShouldNot(HaveOccurred())
@@ -142,7 +144,8 @@ var _ = Describe("Service Manager Query", func() {
 
 				It("should return only the last operations associated to the resource in query", func() {
 					queryParams := map[string]interface{}{
-						"id_list": []string{serviceInstance1.ID},
+						"id_list":       []string{serviceInstance1.ID},
+						"resource_type": types.ServiceInstanceType,
 					}
 					list, err := repository.QueryForList(context.Background(), types.OperationType, storage.QueryForLastOperationsPerResource, queryParams)
 					Expect(err).ShouldNot(HaveOccurred())
@@ -154,7 +157,8 @@ var _ = Describe("Service Manager Query", func() {
 
 			It("should return the last operation for every instances in the query", func() {
 				queryParams := map[string]interface{}{
-					"id_list": []string{serviceInstance2.ID, serviceInstance1.ID},
+					"id_list":       []string{serviceInstance2.ID, serviceInstance1.ID},
+					"resource_type": types.ServiceInstanceType,
 				}
 				list, err := repository.QueryForList(context.Background(), types.OperationType, storage.QueryForLastOperationsPerResource, queryParams)
 				Expect(err).ShouldNot(HaveOccurred())
