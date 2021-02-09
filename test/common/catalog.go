@@ -61,15 +61,16 @@ var testFreePlan = `
     }
 `
 
-var testShareableFreePlan = `
+var testShareablePaidPlan = `
 	{
-      "name": "another-free-plan-name-%[1]s",
+      "name": "shareable-plan-name-%[1]s",
       "id": "%[1]s",
       "description": "test-description",
-	  "free": true,
+	  "free": false,
 	  "bindable": true,
       "metadata": {
         "max_storage_tb": 5,
+		"supportedPlatforms": [],
 		"supportInstanceSharing": {
 			"shareable": true
 		},
@@ -286,7 +287,7 @@ func GenerateFreeShareableTestPlan() string {
 	if err != nil {
 		panic(err)
 	}
-	return GenerateTestPlanFromTemplate(UUID.String(), testShareableFreePlan)
+	return GenerateTestPlanFromTemplate(UUID.String(), testShareablePaidPlan)
 }
 
 func GeneratePaidTestPlan() string {

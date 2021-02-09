@@ -259,23 +259,25 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				/*Context("with shareable plan", func() {
-					var plan common.Object
-					var planID string
+				FContext("with shareable plan", func() {
+					//var plan common.Object
+					//var planID string
 					var referencePlanId string
 					BeforeEach(func() {
-						plan = sharingInstanceBlueprint(ctx, ctx.SMWithOAuth, false)
-						planID = plan["id"].(string)
+						sharingInstanceBlueprint(ctx, ctx.SMWithOAuth, false)
+						//plan = sharingInstanceBlueprint(ctx, ctx.SMWithOAuth, false)
+						//planID = plan["id"].(string)
 						referencePlanId = "reference-plan"
 					})
 
 					It("should return a reference-plan", func() {
+						common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, referencePlanId, "")
 						assertPlansForPlatformWithQuery(k8sAgent,
 							map[string]interface{}{
-								"fieldQuery": fmt.Sprintf("catalog_name in ('%s', '%s')", referencePlanId),
+								"fieldQuery": fmt.Sprintf("catalog_name in ('%s')", referencePlanId),
 							}, referencePlanId)
 					})
-				})*/
+				})
 
 			})
 
