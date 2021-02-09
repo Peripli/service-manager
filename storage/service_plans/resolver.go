@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/storage"
 )
 
@@ -59,7 +60,7 @@ func ResolveSupportedPlatformsForPlans(ctx context.Context, plans []*types.Servi
 			// plan explicitly defined supported platform types
 			supportedPlatformTypes := make([]string, 0)
 			for _, platformType := range planSupportedPlatformTypes {
-				if platformType == types.GetSMSupportedPlatformType() {
+				if slice.StringsAnyEquals(types.GetSMSupportedPlatformTypes(), platformType) {
 					platformType = types.SMPlatform
 				}
 				supportedPlatformTypes = append(supportedPlatformTypes, platformType)
