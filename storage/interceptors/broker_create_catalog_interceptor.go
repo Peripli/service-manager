@@ -68,14 +68,7 @@ func (c *brokerCreateCatalogInterceptor) OnTxCreate(f storage.InterceptCreateOnT
 		}
 		broker := obj.(*types.ServiceBroker)
 
-		for _, service := range broker.Services {
-			for _, servicePlan := range service.Plans {
-				if servicePlan.IsShareablePlan() {
-					service.Plans = append(service.Plans, generateReferencePlanObject(servicePlan.ServiceOfferingID))
-					break
-				}
-			}
-		}
+		generateReferencePlanForShareableOfferings(broker)
 
 		for _, service := range broker.Services {
 			if _, err := storage.Create(ctx, service); err != nil {
@@ -92,16 +85,15 @@ func (c *brokerCreateCatalogInterceptor) OnTxCreate(f storage.InterceptCreateOnT
 	}
 }
 
-func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
-	referencePlan := new(types.ServicePlan)
-	identity := "reference-plan"
-	referencePlan.ID = "reference-plan-id"
-	referencePlan.CatalogName = identity
-	referencePlan.CatalogID = identity
-	referencePlan.ServiceOfferingID = serviceOfferingId
-	referencePlan.Name = identity
-	referencePlan.ID = identity
-	return referencePlan
+func generateReferencePlanForShareableOfferings(broker *types.ServiceBroker) {
+	for _, service := range broker.Services {
+		for _, servicePlan := range service.Plans {
+			if servicePlan.IsShareablePlan() {
+				service.Plans = append(service.Plans, generateReferencePlanObject(servicePlan.ServiceOfferingID))
+				break
+			}
+		}
+	}
 }
 
 func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fetcher func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error)) error {
@@ -161,4 +153,15 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 	broker.Services = catalogResponse.Services
 
 	return nil
+}
+func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
+	referencePlan := new(types.ServicePlan)
+	identity := "reference-plan"
+	referencePlan.ID = "reference-plan-id"
+	referencePlan.CatalogName = identity
+	referencePlan.CatalogID = identity
+	referencePlan.ServiceOfferingID = serviceOfferingId
+	referencePlan.Name = identity
+	referencePlan.ID = identity
+	return referencePlan
 }
