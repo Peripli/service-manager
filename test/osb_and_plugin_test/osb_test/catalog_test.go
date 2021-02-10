@@ -93,7 +93,7 @@ var _ = Describe("Catalog", func() {
 				resp.Path("$.services[*].plans[*].random_extension").Array().Contains("random_extension")
 			})
 
-			FIt("should return the SM offering id in the catalog metadata", func() {
+			It("should return the SM offering id in the catalog metadata", func() {
 				resp := ctx.SMWithBasic.GET(smUrlToSimpleBrokerCatalogBroker+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().
 					Status(http.StatusOK).JSON()
