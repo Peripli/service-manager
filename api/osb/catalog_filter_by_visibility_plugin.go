@@ -125,7 +125,7 @@ func getOfferingIDsByBrokerID(ctx context.Context, repository storage.Repository
 		return nil, nil, err
 	}
 
-	offeringMap := make(map[string]string, 0)
+	offeringMap := make(map[string]string)
 	offeringIDs := make([]string, 0, offerings.Len())
 	for i := 0; i < offerings.Len(); i++ {
 		offering, ok := offerings.ItemAt(i).(*types.ServiceOffering)
