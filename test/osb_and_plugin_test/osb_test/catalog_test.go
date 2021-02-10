@@ -92,6 +92,17 @@ var _ = Describe("Catalog", func() {
 				resp.Path("$.services[*].dashboard_client[*]").Array().Contains("id", "secret", "redirect_uri")
 				resp.Path("$.services[*].plans[*].random_extension").Array().Contains("random_extension")
 			})
+
+			FIt("should return the SM offering id in the catalog metadata", func() {
+				resp := ctx.SMWithBasic.GET(smUrlToSimpleBrokerCatalogBroker+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().
+					Status(http.StatusOK).JSON()
+
+				metadata := resp.Path("$.services[*].metadata").Array().First().Raw()
+				metadataMap, ok := metadata.(map[string]interface{})
+				Expect(ok).To(BeTrue())
+				Expect(metadataMap["sm_offering_id"]).ToNot(BeEmpty())
+			})
 		})
 
 		It("should not reach service broker", func() {
