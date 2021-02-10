@@ -140,9 +140,6 @@ func getOfferingIDsByBrokerID(ctx context.Context, repository storage.Repository
 
 func filterCatalogByVisiblePlans(catalog []byte, visibleCatalogPlans map[string]bool, serviceOfferings map[string]string) ([]byte, error) {
 	var err error
-	if len(visibleCatalogPlans) == 0 {
-		return catalog, nil
-	}
 	services := gjson.GetBytes(catalog, "services").Array()
 
 	// loop services in reverse order to ease the removal of elements

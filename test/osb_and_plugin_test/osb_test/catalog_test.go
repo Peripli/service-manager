@@ -78,7 +78,7 @@ var _ = Describe("Catalog", func() {
 				req.Status(http.StatusOK)
 
 				service := req.JSON().Object().Value("services").Array().First().Object()
-				service.Keys().NotContains("tags", "metadata", "requires")
+				service.Keys().NotContains("tags", "requires")
 
 				plan := service.Value("plans").Array().First().Object()
 				plan.Keys().NotContains("metadata", "schemas")
