@@ -39,6 +39,7 @@ import (
 )
 
 const serviceCatalogID = "acb56d7c-XXXX-XXXX-XXXX-feb140a59a67"
+
 var simpleCatalog = fmt.Sprintf(`
 {
   "services": [{
@@ -106,9 +107,6 @@ var _ = Describe("Catalog", func() {
 				metadataMap, ok := metadata.(map[string]interface{})
 				Expect(ok).To(BeTrue())
 				Expect(metadataMap["sm_offering_id"]).To(Equal(serviceOfferingID))
-
-
-
 			})
 		})
 
