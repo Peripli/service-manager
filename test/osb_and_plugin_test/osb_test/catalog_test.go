@@ -38,11 +38,12 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-const simpleCatalog = `
+const serviceCatalogID = "acb56d7c-XXXX-XXXX-XXXX-feb140a59a67"
+var simpleCatalog = fmt.Sprintf(`
 {
   "services": [{
 		"name": "no-tags-no-metadata",
-		"id": "acb56d7c-XXXX-XXXX-XXXX-feb140a59a67",
+		"id": "%s",
 		"description": "A fake service.",
 		"dashboard_client": {
 			"id": "id",
@@ -58,8 +59,7 @@ const simpleCatalog = `
 		}]
 	}]
 }
-`
-
+`, serviceCatalogID)
 var _ = Describe("Catalog", func() {
 	Context("when call to working service broker", func() {
 		It("should succeed", func() {
@@ -98,7 +98,7 @@ var _ = Describe("Catalog", func() {
 					Expect().
 					Status(http.StatusOK).JSON()
 
-				offerings := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, "fieldQuery="+fmt.Sprintf("catalog_id eq '%s'", "acb56d7c-XXXX-XXXX-XXXX-feb140a59a67"))
+				offerings := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, "fieldQuery="+fmt.Sprintf("catalog_id eq '%s'", serviceCatalogID))
 				Expect(offerings.Length().Equal(1))
 				serviceOfferingID := offerings.First().Object().Value("id").String().Raw()
 
