@@ -93,15 +93,22 @@ var _ = Describe("Catalog", func() {
 				resp.Path("$.services[*].plans[*].random_extension").Array().Contains("random_extension")
 			})
 
-			It("should return the SM offering id in the catalog metadata", func() {
+			FIt("should return the SM offering id in the catalog metadata", func() {
 				resp := ctx.SMWithBasic.GET(smUrlToSimpleBrokerCatalogBroker+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().
 					Status(http.StatusOK).JSON()
 
+				offerings := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, "fieldQuery="+fmt.Sprintf("catalog_id eq '%s'", "acb56d7c-XXXX-XXXX-XXXX-feb140a59a67"))
+				Expect(offerings.Length().Equal(1))
+				serviceOfferingID := offerings.First().Object().Value("id").String().Raw()
+
 				metadata := resp.Path("$.services[*].metadata").Array().First().Raw()
 				metadataMap, ok := metadata.(map[string]interface{})
 				Expect(ok).To(BeTrue())
-				Expect(metadataMap["sm_offering_id"]).ToNot(BeEmpty())
+				Expect(metadataMap["sm_offering_id"]).To(Equal(serviceOfferingID))
+
+
+
 			})
 		})
 
