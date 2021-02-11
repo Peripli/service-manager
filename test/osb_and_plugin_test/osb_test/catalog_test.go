@@ -38,11 +38,13 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-const simpleCatalog = `
+const serviceCatalogID = "acb56d7c-XXXX-XXXX-XXXX-feb140a59a67"
+
+var simpleCatalog = fmt.Sprintf(`
 {
   "services": [{
 		"name": "no-tags-no-metadata",
-		"id": "acb56d7c-XXXX-XXXX-XXXX-feb140a59a67",
+		"id": "%s",
 		"description": "A fake service.",
 		"dashboard_client": {
 			"id": "id",
@@ -58,8 +60,7 @@ const simpleCatalog = `
 		}]
 	}]
 }
-`
-
+`, serviceCatalogID)
 var _ = Describe("Catalog", func() {
 	Context("when call to working service broker", func() {
 		It("should succeed", func() {
@@ -78,7 +79,7 @@ var _ = Describe("Catalog", func() {
 				req.Status(http.StatusOK)
 
 				service := req.JSON().Object().Value("services").Array().First().Object()
-				service.Keys().NotContains("tags", "metadata", "requires")
+				service.Keys().NotContains("tags", "requires")
 
 				plan := service.Value("plans").Array().First().Object()
 				plan.Keys().NotContains("metadata", "schemas")
@@ -91,6 +92,21 @@ var _ = Describe("Catalog", func() {
 
 				resp.Path("$.services[*].dashboard_client[*]").Array().Contains("id", "secret", "redirect_uri")
 				resp.Path("$.services[*].plans[*].random_extension").Array().Contains("random_extension")
+			})
+
+			It("should return the SM offering id in the catalog metadata", func() {
+				resp := ctx.SMWithBasic.GET(smUrlToSimpleBrokerCatalogBroker+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().
+					Status(http.StatusOK).JSON()
+
+				offerings := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, "fieldQuery="+fmt.Sprintf("catalog_id eq '%s'", serviceCatalogID))
+				Expect(offerings.Length().Equal(1))
+				serviceOfferingID := offerings.First().Object().Value("id").String().Raw()
+
+				metadata := resp.Path("$.services[*].metadata").Array().First().Raw()
+				metadataMap, ok := metadata.(map[string]interface{})
+				Expect(ok).To(BeTrue())
+				Expect(metadataMap["sm_offering_id"]).To(Equal(serviceOfferingID))
 			})
 		})
 
