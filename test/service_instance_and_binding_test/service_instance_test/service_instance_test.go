@@ -18,6 +18,7 @@ package service_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -1516,6 +1517,95 @@ var _ = DescribeTestsFor(TestCase{
 			})
 
 			Describe("PATCH", func() {
+				Context("Unsharing instance", func() {
+					When("platform is service-manager", func() {
+						BeforeEach(func() {
+							postInstanceRequestTLS["name"] = "shareable-instance-id"
+
+							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanIDWithTLS, TenantIDValue)
+
+							byID := query.ByField(query.EqualsOperator, "id", servicePlanIDWithTLS)
+							planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID)
+							plan := planObject.(*types.ServicePlan)
+
+							shareableMetadata := `{"supportInstanceSharing": { "shareable": true }}`
+							plan.Metadata = json.RawMessage(shareableMetadata)
+							ctx.SMRepository.Update(context.TODO(), plan, nil)
+
+							resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+								WithQuery("async", false).
+								WithJSON(postInstanceRequestTLS).
+								Expect().Status(http.StatusCreated)
+
+							instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+								Category:          types.CREATE,
+								State:             types.SUCCEEDED,
+								ResourceType:      types.ServiceInstanceType,
+								Reschedulable:     false,
+								DeletionScheduled: false,
+							})
+
+							postInstanceRequestTLS["shared"] = true
+							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
+								WithQuery("async", "false").
+								WithJSON(postInstanceRequestTLS).
+								Expect().
+								Status(http.StatusOK).
+								JSON().Object().ValueEqual("shared", true)
+
+						})
+						It("unshares the instance successfully", func() {
+							postInstanceRequestTLS["shared"] = false
+							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
+								WithQuery("async", "false").
+								WithJSON(postInstanceRequestTLS).
+								Expect().
+								Status(http.StatusOK).
+								JSON().Object().ValueEqual("shared", false)
+						})
+					})
+					When("platform is not service-manager", func() {})
+				})
+				Context("Sharing instance", func() {
+					When("platform is service-manager", func() {
+						BeforeEach(func() {
+							postInstanceRequestTLS["name"] = "shareable-instance-id"
+
+							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanIDWithTLS, TenantIDValue)
+
+							byID := query.ByField(query.EqualsOperator, "id", servicePlanIDWithTLS)
+							planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID)
+							plan := planObject.(*types.ServicePlan)
+
+							shareableMetadata := `{"supportInstanceSharing": { "shareable": true }}`
+							plan.Metadata = json.RawMessage(shareableMetadata)
+							ctx.SMRepository.Update(context.TODO(), plan, nil)
+
+							resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+								WithQuery("async", false).
+								WithJSON(postInstanceRequestTLS).
+								Expect().Status(http.StatusCreated)
+
+							instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+								Category:          types.CREATE,
+								State:             types.SUCCEEDED,
+								ResourceType:      types.ServiceInstanceType,
+								Reschedulable:     false,
+								DeletionScheduled: false,
+							})
+						})
+						It("shares the instance successfully", func() {
+							postInstanceRequestTLS["shared"] = true
+							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
+								WithQuery("async", "false").
+								WithJSON(postInstanceRequestTLS).
+								Expect().
+								Status(http.StatusOK).
+								JSON().Object().ValueEqual("shared", true)
+						})
+					})
+					When("platform is not service-manager", func() {})
+				})
 				for _, testCase := range testCases {
 					testCase := testCase
 					Context(fmt.Sprintf("async = %s", testCase.async), func() {
