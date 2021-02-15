@@ -110,6 +110,17 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	return next.Handle(req)
 }
 
+func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
+		{
+			Matchers: []web.Matcher{
+				web.Path(web.ServiceInstancesURL + "/**"),
+				web.Methods(http.MethodPatch),
+			},
+		},
+	}
+}
+
 func (f *sharingInstanceFilter) shareInstance(ctx context.Context, instance *types.ServiceInstance, shared bool) error {
 	logger := log.C(ctx)
 	instance.Shared = shared
@@ -131,15 +142,4 @@ func (f *sharingInstanceFilter) setVisibilityLabelOfReferencePlan() error {
 func isSMPlatform(platformID string) bool {
 	return platformID == types.SMPlatform
 
-}
-
-func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
-	return []web.FilterMatcher{
-		{
-			Matchers: []web.Matcher{
-				web.Path(web.ServiceInstancesURL + "/**"),
-				web.Methods(http.MethodPatch),
-			},
-		},
-	}
 }
