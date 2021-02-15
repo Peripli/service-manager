@@ -259,23 +259,21 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				FContext("with shareable plan", func() {
-					//var plan common.Object
-					//var planID string
-					var referencePlanId string
+				Context("sharing instances", func() {
+					var referencePlanID string
 					BeforeEach(func() {
 						sharingInstanceBlueprint(ctx, ctx.SMWithOAuth, false)
-						//plan = sharingInstanceBlueprint(ctx, ctx.SMWithOAuth, false)
-						//planID = plan["id"].(string)
-						referencePlanId = "reference-plan"
+						referencePlanID = "reference-plan"
 					})
 
-					It("should return a reference-plan", func() {
-						common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, referencePlanId, "")
-						assertPlansForPlatformWithQuery(k8sAgent,
-							map[string]interface{}{
-								"fieldQuery": fmt.Sprintf("catalog_name in ('%s')", referencePlanId),
-							}, referencePlanId)
+					When("catalog contains a shareable plan", func() {
+						It("should create a new reference plan", func() {
+							common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, referencePlanID, "")
+							assertPlansForPlatformWithQuery(k8sAgent,
+								map[string]interface{}{
+									"fieldQuery": fmt.Sprintf("catalog_name in ('%s')", referencePlanID),
+								}, referencePlanID)
+						})
 					})
 				})
 
