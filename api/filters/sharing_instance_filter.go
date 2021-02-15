@@ -69,11 +69,7 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	}
 	instance := instanceObject.(*types.ServiceInstance)
 
-	if isSMPlatform(instance.PlatformID) {
-		if req.Body, err = sjson.DeleteBytes(req.Body, "shared"); err != nil {
-			return nil, err
-		}
-	} else if len(req.Body) > 1 {
+	if !isSMPlatform(instance.PlatformID) && len(req.Body) > 1 {
 		return nil, errors.New("could not modify the 'shared' property with other changes at the same time")
 	}
 
@@ -104,6 +100,14 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 		if err != nil {
 			logger.Errorf("Could not set a visibility label of reference plan when sharing the instance (%s): %v", instanceID, err)
 			return nil, err
+		}
+
+		if isSMPlatform(instance.PlatformID) {
+			if req.Body, err = sjson.DeleteBytes(req.Body, "shared"); err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, nil // Finish process for other platforms
 		}
 	}
 
