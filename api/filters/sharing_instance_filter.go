@@ -33,7 +33,7 @@ import (
 
 const SharingInstanceFilterName = "SharingInstanceFilter"
 
-// ServiceInstanceStripFilter checks post/patch request body for unmodifiable properties
+// ServiceInstanceStripFilter checks patch request body for unmodifiable properties
 type sharingInstanceFilter struct {
 	repository storage.TransactionalRepository
 }
@@ -124,6 +124,10 @@ func (f *sharingInstanceFilter) shareInstance(ctx context.Context, instance *typ
 	return sharingErr
 }
 
+func (f *sharingInstanceFilter) setVisibilityLabelOfReferencePlan() error {
+	return nil
+}
+
 func isSMPlatform(platformID string) bool {
 	return platformID == types.SMPlatform
 
@@ -138,8 +142,4 @@ func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
 			},
 		},
 	}
-}
-
-func (f *sharingInstanceFilter) setVisibilityLabelOfReferencePlan() error {
-	return nil
 }
