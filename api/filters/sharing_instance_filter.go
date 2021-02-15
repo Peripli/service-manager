@@ -23,7 +23,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"net/http"
@@ -94,7 +93,7 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	}
 
 	if plan.IsShareablePlan() {
-		err = f.shareInstance(instance, shared, err, ctx, logger, instanceID)
+		err = f.shareInstance(ctx, instance, shared)
 		// todo: return error to client
 		if err != nil {
 			logger.Errorf("Could not update shared property for instance (%s): %v", instanceID, err)
@@ -111,17 +110,18 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	return next.Handle(req)
 }
 
-func (f *sharingInstanceFilter) shareInstance(instance *types.ServiceInstance, shared bool, err error, ctx context.Context, logger *logrus.Entry, instanceID string) error {
+func (f *sharingInstanceFilter) shareInstance(ctx context.Context, instance *types.ServiceInstance, shared bool) error {
+	logger := log.C(ctx)
 	instance.Shared = shared
-	err = f.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
+	sharingErr := f.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
 		_, err := storage.Update(ctx, instance, nil)
 		if err != nil {
-			logger.Errorf("Could not update shared property for instance (%s): %v", instanceID, err)
+			logger.Errorf("Could not update shared property for instance (%s): %v", instance.ID, err)
 			return err
 		}
 		return nil
 	})
-	return err
+	return sharingErr
 }
 
 func isSMPlatform(platformID string) bool {
