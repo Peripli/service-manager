@@ -18,6 +18,7 @@ package osb_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -405,6 +406,30 @@ var _ = Describe("Provision", func() {
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
 					Expect().Status(http.StatusCreated)
+			})
+			FIt("should return 201 if plan is visible in the org", func() {
+				resp := ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
+					Expect().Status(http.StatusCreated)
+				fmt.Print(resp)
+
+				byID := query.ByField(query.EqualsOperator, "catalog_id", plan1CatalogID)
+				planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID)
+				plan := planObject.(*types.ServicePlan)
+
+				shareableMetadata := `{"supportInstanceSharing": { "shareable": true }}`
+				plan.Metadata = json.RawMessage(shareableMetadata)
+				ctx.SMRepository.Update(context.TODO(), plan, nil)
+
+				sharedJson := json.RawMessage(`{"shared": true}`)
+
+				ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+					WithQuery("async", "false").
+					WithJSON(sharedJson).
+					Expect().
+					Status(http.StatusOK).
+					JSON().Object().ValueEqual("shared", true)
 			})
 		})
 
