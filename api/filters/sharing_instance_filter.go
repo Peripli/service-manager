@@ -33,7 +33,7 @@ import (
 
 const SharingInstanceFilterName = "SharingInstanceFilter"
 
-// ServiceInstanceStripFilter checks post/patch request body for unmodifiable properties
+// ServiceInstanceStripFilter checks patch request body for unmodifiable properties
 type sharingInstanceFilter struct {
 	repository storage.TransactionalRepository
 }
@@ -69,11 +69,7 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	}
 	instance := instanceObject.(*types.ServiceInstance)
 
-	if isSMPlatform(instance.PlatformID) {
-		if req.Body, err = sjson.DeleteBytes(req.Body, "shared"); err != nil {
-			return nil, err
-		}
-	} else if len(req.Body) > 1 {
+	if !isSMPlatform(instance.PlatformID) && len(req.Body) > 1 {
 		return nil, errors.New("could not modify the 'shared' property with other changes at the same time")
 	}
 
@@ -105,9 +101,28 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 			logger.Errorf("Could not set a visibility label of reference plan when sharing the instance (%s): %v", instanceID, err)
 			return nil, err
 		}
+
+		if isSMPlatform(instance.PlatformID) {
+			if req.Body, err = sjson.DeleteBytes(req.Body, "shared"); err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, nil // Finish process for other platforms
+		}
 	}
 
 	return next.Handle(req)
+}
+
+func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
+		{
+			Matchers: []web.Matcher{
+				web.Path(web.ServiceInstancesURL + "/**"),
+				web.Methods(http.MethodPatch),
+			},
+		},
+	}
 }
 
 func (f *sharingInstanceFilter) shareInstance(ctx context.Context, instance *types.ServiceInstance, shared bool) error {
@@ -124,22 +139,11 @@ func (f *sharingInstanceFilter) shareInstance(ctx context.Context, instance *typ
 	return sharingErr
 }
 
+func (f *sharingInstanceFilter) setVisibilityLabelOfReferencePlan() error {
+	return nil
+}
+
 func isSMPlatform(platformID string) bool {
 	return platformID == types.SMPlatform
 
-}
-
-func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
-	return []web.FilterMatcher{
-		{
-			Matchers: []web.Matcher{
-				web.Path(web.ServiceInstancesURL + "/**"),
-				web.Methods(http.MethodPatch),
-			},
-		},
-	}
-}
-
-func (f *sharingInstanceFilter) setVisibilityLabelOfReferencePlan() error {
-	return nil
 }
