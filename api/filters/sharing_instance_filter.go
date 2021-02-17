@@ -63,7 +63,6 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	}
 
 	ctx := req.Context()
-	logger := log.C(ctx)
 
 	instanceID := req.PathParams["resource_id"]
 	shared := sharedBytes.Bool()
@@ -100,44 +99,108 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	//}
 	//visibility := instanceObject.(*types.ServiceInstance)
 
-	if shared && !plan.IsShareablePlan() {
+	if !plan.IsShareablePlan() {
 		return nil, &util.UnsupportedQueryError{
 			Message: "Plan is non-shared",
 		}
 	}
 
-	if plan.IsShareablePlan() {
-		err = f.shareInstance(ctx, instance, shared)
-		// todo: return error to client
-		if err != nil {
-			logger.Errorf("Could not update shared property for instance (%s): %v", instanceID, err)
-			return nil, err
-		}
+	var resp *web.Response
+	if shared == true {
+		resp, err = f.executeShareFlow(req, instance, plan)
+	} else {
+		resp, err = f.executeUnshareFlow(req, instance, plan)
+	}
 
-		plans := make([]*types.ServicePlan, 0)
-		plans = append(plans, plan)
-
-		platforms, _ := service_plans.ResolveSupportedPlatformsForPlans(ctx, plans, f.storageRepository)
-
-		//additionalLabel := "org_id"
-
-		err = f.setVisibilityOfReferencePlan(ctx, platforms)
-
-		if err != nil {
-			logger.Errorf("Could not set a visibility label of reference plan when sharing the instance (%s): %v", instanceID, err)
-			return nil, err
-		}
-
-		if isSMPlatform(instance.PlatformID) {
-			if req.Body, err = sjson.DeleteBytes(req.Body, "shared"); err != nil {
-				return nil, err
-			}
-		} else {
-			return util.NewJSONResponse(http.StatusOK, instance)
-		}
+	if resp != nil {
+		return resp, nil
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	return next.Handle(req)
+}
+
+func (f *sharingInstanceFilter) executeShareFlow(req *web.Request, instance *types.ServiceInstance, plan *types.ServicePlan) (*web.Response, error) {
+	ctx := req.Context()
+	err := f.shareInstance(ctx, instance, true)
+	// todo: return error to client
+	if err != nil {
+		log.C(ctx).Errorf("Could not update shared property for instance (%s): %v", instance.ID, err)
+		return nil, err
+	}
+
+	plans := make([]*types.ServicePlan, 0)
+	plans = append(plans, plan)
+
+	platforms, _ := service_plans.ResolveSupportedPlatformsForPlans(ctx, plans, f.storageRepository)
+
+	//additionalLabel := "org_id"
+
+	err = f.setVisibilityOfReferencePlan(ctx, platforms)
+
+	if err != nil {
+		log.C(ctx).Errorf("Could not set a visibility label of reference plan when sharing the instance (%s): %v", instance.ID, err)
+		return nil, err
+	}
+
+	if isSMPlatform(instance.PlatformID) {
+		if req.Body, err = sjson.DeleteBytes(req.Body, "shared"); err != nil {
+			return nil, err
+		}
+	} else {
+		return util.NewJSONResponse(http.StatusOK, instance)
+	}
+	return nil, nil
+}
+
+func (f *sharingInstanceFilter) executeUnshareFlow(req *web.Request, instance *types.ServiceInstance, plan *types.ServicePlan) (*web.Response, error) {
+	/*
+		the unshare function should validate whether the instance has references or not
+		if has references:
+			* block the action
+
+		the function should validate whether the shareable plan has more shared instances
+		if has more shared instances of the plan:
+			* keep the visibility
+			* remove the unnecessary visibility labels
+		else:
+			* remove visibility and visibilities labels
+
+		the function should not pass the "shared" property as on share flow.
+	*/
+
+	ctx := req.Context()
+	err := f.shareInstance(ctx, instance, true)
+	// todo: return error to client
+	if err != nil {
+		log.C(ctx).Errorf("Could not update shared property for instance (%s): %v", instance.ID, err)
+		return nil, err
+	}
+
+	plans := make([]*types.ServicePlan, 0)
+	plans = append(plans, plan)
+
+	platforms, _ := service_plans.ResolveSupportedPlatformsForPlans(ctx, plans, f.storageRepository)
+
+	//additionalLabel := "org_id"
+
+	err = f.setVisibilityOfReferencePlan(ctx, platforms)
+
+	if err != nil {
+		log.C(ctx).Errorf("Could not set a visibility label of reference plan when sharing the instance (%s): %v", instance.ID, err)
+		return nil, err
+	}
+
+	if isSMPlatform(instance.PlatformID) {
+		if req.Body, err = sjson.DeleteBytes(req.Body, "shared"); err != nil {
+			return nil, err
+		}
+	} else {
+		return util.NewJSONResponse(http.StatusOK, instance)
+	}
+	return nil, nil
 }
 
 func (f *sharingInstanceFilter) retrieveTenantID(ctx context.Context) (string, error) {
