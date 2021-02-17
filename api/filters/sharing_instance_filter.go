@@ -117,11 +117,11 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 		plans := make([]*types.ServicePlan, 0)
 		plans = append(plans, plan)
 
-		platformIDs, _ := service_plans.ResolveSupportedPlatformIDsForPlans(ctx, plans, f.storageRepository)
+		platforms, _ := service_plans.ResolveSupportedPlatformsForPlans(ctx, plans, f.storageRepository)
 
 		//additionalLabel := "org_id"
 
-		err = f.setVisibilityOfReferencePlan(ctx, platformIDs)
+		err = f.setVisibilityOfReferencePlan(ctx, platforms)
 
 		if err != nil {
 			logger.Errorf("Could not set a visibility label of reference plan when sharing the instance (%s): %v", instanceID, err)
@@ -178,25 +178,34 @@ func (f *sharingInstanceFilter) shareInstance(ctx context.Context, instance *typ
 	return sharingErr
 }
 
-func (f *sharingInstanceFilter) setVisibilityOfReferencePlan(ctx context.Context, platformIDs []string) error {
-	tenantID, tenantErr := f.retrieveTenantID(ctx)
-	if tenantErr != nil {
-		return tenantErr
+func (f *sharingInstanceFilter) setVisibilityOfReferencePlan(ctx context.Context, platformIDs map[string]*types.Platform) error {
+	tenantID, err := f.retrieveTenantID(ctx)
+	if err != nil {
+		return err
 	}
-	type SharingInstanceAdditionalLabels struct{}
-	additionalLabelsObj := ctx.Value(SharingInstanceAdditionalLabels{})
-	var additionalLabel map[string][]string
-	if additionalLabelsObj != nil {
-		additionalLabel = additionalLabelsObj.(map[string][]string)
-	} else {
-		additionalLabel = make(map[string][]string)
-		var orgList []string
-		additionalLabel["organization_id"] = append(orgList, "org_id")
+	type SharingInstanceOverrideLabels struct{}
+	overrideLabelsObj := ctx.Value(SharingInstanceOverrideLabels{})
+	var overrideLabels map[string]map[string][]string
+	if overrideLabelsObj != nil {
+		overrideLabels = overrideLabelsObj.(map[string]map[string][]string)
 	}
+	//else {
+	//	overrideLabels = make(map[string]map[string][]string)
+	//	var cfLabels = make(map[string][]string)
+	//	var orgList []string
+	//	cfLabels["organization_id"] = append(orgList, "org_id")
+	//	overrideLabels["platform-type"] = cfLabels
+	//}
 
-	for _, platformID := range platformIDs {
+	for _, platform := range platformIDs {
+		var platformOverrideLabels map[string][]string
+		for platformType := range overrideLabels {
+			if platform.Type == platformType {
+				platformOverrideLabels = overrideLabels[platformType]
+			}
+		}
 		sharingErr := f.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-			visibility := f.generateVisibility(platformID, "reference-plan", tenantID, additionalLabel)
+			visibility := f.generateVisibility(platform.ID, "reference-plan", tenantID, platformOverrideLabels)
 			_, err := storage.Create(ctx, visibility)
 			if err != nil {
 				return err
@@ -210,20 +219,21 @@ func (f *sharingInstanceFilter) setVisibilityOfReferencePlan(ctx context.Context
 	return nil
 }
 
-func (f *sharingInstanceFilter) generateVisibility(platformID, planID, tenantID string, additionalLabels map[string][]string) *types.Visibility {
+func (f *sharingInstanceFilter) generateVisibility(platformID, planID, tenantID string, overrideLabels map[string][]string) *types.Visibility {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		//return fmt.Errorf("could not generate GUID for visibility: %s", err)
 	}
 
-	labels := types.Labels{
-		f.labelKey: {
-			tenantID,
-		},
-	}
-	// todo: add additional labels when needed (cloud foundry)
-	for key, label := range additionalLabels {
-		labels[key] = label
+	var labels types.Labels
+	if overrideLabels != nil {
+		labels = overrideLabels
+	} else {
+		labels = types.Labels{
+			f.labelKey: {
+				tenantID,
+			},
+		}
 	}
 
 	currentTime := time.Now().UTC()
