@@ -87,6 +87,11 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			interval: options.CleanupInterval,
 		},
 		{
+			name:     "cleanupInstanceUpdateOperations",
+			execute:  maintainer.CleanupForInstanceUpdateOperations,
+			interval: options.CleanupInterval,
+		},
+		{
 			name:     "cleanupResourcelessOperations",
 			execute:  maintainer.CleanupResourcelessOperations,
 			interval: options.CleanupInterval,
@@ -187,6 +192,30 @@ func (om *Maintainer) cleanupExternalOperations() {
 		return
 	}
 	log.C(om.smCtx).Debug("Finished cleaning up external operations")
+}
+
+func (om *Maintainer) CleanupForInstanceUpdateOperations() {
+	currentTime := time.Now()
+	rootsCriteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
+		query.ByField(query.EqualsOperator, "type", string(types.UPDATE)),
+		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
+	}
+
+	roots, err := om.repository.List(om.smCtx, types.OperationType, rootsCriteria...)
+	if err != nil {
+		log.C(om.smCtx).Debugf("Failed to fetch finished cascade operations: %s", err)
+		return
+	}
+	for i := 0; i < roots.Len(); i++ {
+		root := roots.ItemAt(i)
+		byRootID := query.ByField(query.EqualsOperator, "cascade_root_id", root.GetID())
+		if err := om.repository.Delete(om.smCtx, types.OperationType, byRootID); err != nil && err != util.ErrNotFoundInStorage {
+			log.C(om.smCtx).Errorf("Failed to cleanup instance update root operation: %s", err)
+		}
+	}
+	log.C(om.smCtx).Debug("Finished cleaning up successful instance update operations")
 }
 
 // cleanupFinishedCascadeOperations cleans up all successful/failed internal cascade operations which are older than some specified time

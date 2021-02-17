@@ -287,7 +287,13 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			}
 			oldServicePlan := oldServicePlanObj.(*types.ServicePlan)
 			var updateInstanceResponse *osbc.UpdateInstanceResponse
-			updateInstanceRequest, err := i.prepareUpdateInstanceRequest(updatedInstance, service.CatalogID, plan.CatalogID, oldServicePlan.CatalogID)
+			var updateInstanceRequest *osbc.UpdateInstanceRequest
+			if len(operation.CascadeRootID) != 0 {
+				updateInstanceRequest, err = i.prepareUpdateInstanceContextRequest(updatedInstance, service.CatalogID)
+			} else {
+				updateInstanceRequest, err = i.prepareUpdateInstanceRequest(updatedInstance, service.CatalogID, plan.CatalogID, oldServicePlan.CatalogID)
+			}
+
 			if err != nil {
 				return nil, fmt.Errorf("faied to prepare update instance request: %s", err)
 			}
@@ -752,6 +758,22 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.Ser
 	}
 
 	return provisionRequest, nil
+}
+
+func (i *ServiceInstanceInterceptor) prepareUpdateInstanceContextRequest(instance *types.ServiceInstance, serviceCatalogID string) (*osbc.UpdateInstanceRequest, error) {
+	instanceContext := make(map[string]interface{})
+	if len(instance.Context) != 0 {
+		if err := json.Unmarshal(instance.Context, &instanceContext); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal already present OSB context: %s", err)
+		}
+	}
+
+	return &osbc.UpdateInstanceRequest{
+		ServiceID:         serviceCatalogID,
+		InstanceID:        instance.GetID(),
+		AcceptsIncomplete: true,
+		Context:           instanceContext,
+	}, nil
 }
 
 func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID, oldCatalogPlanID string) (*osbc.UpdateInstanceRequest, error) {
