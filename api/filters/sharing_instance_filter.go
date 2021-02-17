@@ -23,9 +23,12 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/storage/service_plans"
+	"github.com/gofrs/uuid"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"net/http"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -35,12 +38,16 @@ const SharingInstanceFilterName = "SharingInstanceFilter"
 
 // ServiceInstanceStripFilter checks patch request body for unmodifiable properties
 type sharingInstanceFilter struct {
-	repository storage.TransactionalRepository
+	repository        storage.TransactionalRepository
+	storageRepository storage.Repository
+	labelKey          string
 }
 
-func NewSharingInstanceFilter(repository storage.TransactionalRepository) *sharingInstanceFilter {
+func NewSharingInstanceFilter(repository storage.TransactionalRepository, storageRepository storage.Repository, labelKey string) *sharingInstanceFilter {
 	return &sharingInstanceFilter{
-		repository: repository,
+		repository:        repository,
+		storageRepository: storageRepository,
+		labelKey:          labelKey,
 	}
 }
 
@@ -69,7 +76,10 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	}
 	instance := instanceObject.(*types.ServiceInstance)
 
-	if !isSMPlatform(instance.PlatformID) && len(req.Body) > 1 {
+	body := map[string]bool{}
+	util.BytesToObject(req.Body, body)
+
+	if !isSMPlatform(instance.PlatformID) && len(body) > 1 {
 		return nil, errors.New("could not modify the 'shared' property with other changes at the same time")
 	}
 
@@ -81,6 +91,14 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 		return nil, util.HandleStorageError(err, types.ServicePlanType.String())
 	}
 	plan := planObject.(*types.ServicePlan)
+
+	// Get instance from database
+	//byID = query.ByField(query.EqualsOperator, "id", "reference-plan")
+	//entityObject, err := f.repository.Get(ctx, types.ServiceInstanceType, byID)
+	//if err != nil {
+	//	return nil, util.HandleStorageError(err, types.Entity.String())
+	//}
+	//visibility := instanceObject.(*types.ServiceInstance)
 
 	if shared && !plan.IsShareablePlan() {
 		return nil, &util.UnsupportedQueryError{
@@ -96,7 +114,15 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 			return nil, err
 		}
 
-		err = f.setVisibilityLabelOfReferencePlan()
+		plans := make([]*types.ServicePlan, 0)
+		plans = append(plans, plan)
+
+		platformIDs, _ := service_plans.ResolveSupportedPlatformIDsForPlans(ctx, plans, f.storageRepository)
+
+		//additionalLabel := "org_id"
+
+		err = f.setVisibilityOfReferencePlan(ctx, platformIDs)
+
 		if err != nil {
 			logger.Errorf("Could not set a visibility label of reference plan when sharing the instance (%s): %v", instanceID, err)
 			return nil, err
@@ -107,11 +133,24 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 				return nil, err
 			}
 		} else {
-			return nil, nil // Finish process for other platforms
+			return util.NewJSONResponse(http.StatusOK, instance)
 		}
 	}
 
 	return next.Handle(req)
+}
+
+func (f *sharingInstanceFilter) retrieveTenantID(ctx context.Context) (string, error) {
+	tenantID := query.RetrieveFromCriteria(f.labelKey, query.CriteriaForContext(ctx)...)
+	if tenantID == "" {
+		log.C(ctx).Errorf("Tenant identifier not found in request criteria.")
+		return "", &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "no tenant identifier provided",
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+	return tenantID, nil
 }
 
 func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
@@ -139,11 +178,74 @@ func (f *sharingInstanceFilter) shareInstance(ctx context.Context, instance *typ
 	return sharingErr
 }
 
-func (f *sharingInstanceFilter) setVisibilityLabelOfReferencePlan() error {
+func (f *sharingInstanceFilter) setVisibilityOfReferencePlan(ctx context.Context, platformIDs []string) error {
+	tenantID, tenantErr := f.retrieveTenantID(ctx)
+	if tenantErr != nil {
+		return tenantErr
+	}
+	type SharingInstanceAdditionalLabels struct{}
+	additionalLabelsObj := ctx.Value(SharingInstanceAdditionalLabels{})
+	var additionalLabel map[string][]string
+	if additionalLabelsObj != nil {
+		additionalLabel = additionalLabelsObj.(map[string][]string)
+	} else {
+		additionalLabel = make(map[string][]string)
+		var orgList []string
+		additionalLabel["organization_id"] = append(orgList, "org_id")
+	}
+
+	for _, platformID := range platformIDs {
+		sharingErr := f.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
+			visibility := f.generateVisibility(platformID, "reference-plan", tenantID, additionalLabel)
+			_, err := storage.Create(ctx, visibility)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		if sharingErr != nil {
+			return sharingErr
+		}
+	}
 	return nil
+}
+
+func (f *sharingInstanceFilter) generateVisibility(platformID, planID, tenantID string, additionalLabels map[string][]string) *types.Visibility {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		//return fmt.Errorf("could not generate GUID for visibility: %s", err)
+	}
+
+	labels := types.Labels{
+		f.labelKey: {
+			tenantID,
+		},
+	}
+	// todo: add additional labels when needed (cloud foundry)
+	for key, label := range additionalLabels {
+		labels[key] = label
+	}
+
+	currentTime := time.Now().UTC()
+	visibility := &types.Visibility{
+		Base: types.Base{
+			ID:        UUID.String(),
+			UpdatedAt: currentTime,
+			CreatedAt: currentTime,
+			Ready:     true,
+			Labels:    labels,
+		},
+		ServicePlanID: planID,
+		PlatformID:    platformID,
+	}
+
+	return visibility
 }
 
 func isSMPlatform(platformID string) bool {
 	return platformID == types.SMPlatform
+}
 
+type shareInstanceType struct {
+	shared bool
 }

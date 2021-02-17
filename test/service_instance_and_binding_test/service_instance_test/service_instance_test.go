@@ -1594,14 +1594,15 @@ var _ = DescribeTestsFor(TestCase{
 								DeletionScheduled: false,
 							})
 						})
-						It("shares the instance successfully", func() {
+						FIt("shares the instance successfully", func() {
 							postInstanceRequestTLS["shared"] = true
-							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
+							resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
 								WithQuery("async", "false").
 								WithJSON(postInstanceRequestTLS).
 								Expect().
 								Status(http.StatusOK).
 								JSON().Object().ValueEqual("shared", true)
+							fmt.Print(resp)
 						})
 					})
 					When("platform is not service-manager", func() {})
