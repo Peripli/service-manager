@@ -92,8 +92,8 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			interval: options.CleanupInterval,
 		},
 		{
-			name:     "pollInstanceCascadeUpdateRootOperations",
-			execute:  maintainer.PollInstanceCascadeUpdateRootOperations,
+			name:     "pollUpdateCascadeOperations",
+			execute:  maintainer.PollUpdateCascadeOperations,
 			interval: options.PollCascadeInterval,
 		},
 		{
@@ -199,7 +199,7 @@ func (om *Maintainer) cleanupExternalOperations() {
 	log.C(om.smCtx).Debug("Finished cleaning up external operations")
 }
 
-func (om *Maintainer) PollInstanceCascadeUpdateRootOperations() {
+func (om *Maintainer) PollUpdateCascadeOperations() {
 	rootsCriteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "type", string(types.UPDATE)),
