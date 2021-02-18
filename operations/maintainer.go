@@ -92,8 +92,8 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			interval: options.CleanupInterval,
 		},
 		{
-			name:     "completeInstanceUpdateRootOperations",
-			execute:  maintainer.CompleteRootInstanceUpdateOperations,
+			name:     "pollInstanceCascadeUpdateRootOperations",
+			execute:  maintainer.PollInstanceCascadeUpdateRootOperations,
 			interval: options.PollCascadeInterval,
 		},
 		{
@@ -199,7 +199,7 @@ func (om *Maintainer) cleanupExternalOperations() {
 	log.C(om.smCtx).Debug("Finished cleaning up external operations")
 }
 
-func (om *Maintainer) CompleteRootInstanceUpdateOperations() {
+func (om *Maintainer) PollInstanceCascadeUpdateRootOperations() {
 	rootsCriteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "type", string(types.UPDATE)),
@@ -214,31 +214,36 @@ func (om *Maintainer) CompleteRootInstanceUpdateOperations() {
 	}
 	for i := 0; i < roots.Len(); i++ {
 		root := roots.ItemAt(i).(*types.Operation)
-		findChildOperations := query.ByField(query.EqualsOperator, "parent_id", root.GetID())
-		childOperations, err := om.repository.List(om.smCtx, types.OperationType, findChildOperations)
+		logger := log.C(om.smCtx).WithField(log.FieldCorrelationID, root.CorrelationID)
+		subOperations, err := GetSubOperations(om.smCtx, root, om.repository)
 		if err != nil {
-			log.C(om.smCtx).Debugf("Failed to fetch in progress root update operations: %s", err)
+			log.C(om.smCtx).Debugf("Failed to get sub operations: %s", err)
 			return
 		}
 
-		root.State = types.SUCCEEDED
-		for i := 0; i < childOperations.Len(); i++ {
-			op := childOperations.ItemAt(i).(*types.Operation)
-			if op.State == types.FAILED {
-				root.State = types.FAILED
-				break
-			} else if op.State == types.IN_PROGRESS {
-				root.State = types.IN_PROGRESS
-				break
+		byRootID := query.ByField(query.EqualsOperator, "cascade_root_id", root.GetID())
+		if len(subOperations.FailedOperations) > 0 && len(subOperations.FailedOperations)+len(subOperations.SucceededOperations) == subOperations.AllOperationsCount {
+			errorsJson, err := PrepareAggregatedErrorsArray(subOperations.FailedOperations, root.ResourceID, root.ResourceType)
+			if err != nil {
+				logger.Errorf("Couldn't aggregate errors for failed operation with id %s: %s", root.ResourceID, err)
 			}
+
+			root.Errors = errorsJson
+			root.State = types.FAILED
+			if _, err := om.repository.Update(om.smCtx, root, nil, byRootID); err != nil && err != util.ErrNotFoundInStorage {
+				log.C(om.smCtx).Errorf("Failed to update root operation: %s", err)
+			}
+			log.C(om.smCtx).Debug("Finished updating a cascade update operation state")
 		}
 
-		byRootID := query.ByField(query.EqualsOperator, "cascade_root_id", root.GetID())
-		if _, err := om.repository.Update(om.smCtx, root, nil, byRootID); err != nil && err != util.ErrNotFoundInStorage {
-			log.C(om.smCtx).Errorf("Failed to cleanup an instance update root operation: %s", err)
+		if len(subOperations.SucceededOperations) == subOperations.AllOperationsCount {
+			root.State = types.SUCCEEDED
+			if _, err := om.repository.Update(om.smCtx, root, nil, byRootID); err != nil && err != util.ErrNotFoundInStorage {
+				log.C(om.smCtx).Errorf("Failed to cleanup an instance update root operation: %s", err)
+			}
+			log.C(om.smCtx).Debug("Finished updating a cascade update operation state")
 		}
 	}
-	log.C(om.smCtx).Debug("Finished cleaning up successful instance update operations")
 }
 
 func (om *Maintainer) CleanupForInstanceUpdateOperations() {
