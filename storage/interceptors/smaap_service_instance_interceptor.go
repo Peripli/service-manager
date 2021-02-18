@@ -287,8 +287,7 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			}
 			oldServicePlan := oldServicePlanObj.(*types.ServicePlan)
 			var updateInstanceResponse *osbc.UpdateInstanceResponse
-			var updateInstanceRequest *osbc.UpdateInstanceRequest
-			updateInstanceRequest, err = i.prepareUpdateInstanceRequest(updatedInstance, service.CatalogID, plan.CatalogID, oldServicePlan.CatalogID)
+			updateInstanceRequest, err := i.prepareUpdateInstanceRequest(updatedInstance, service.CatalogID, plan.CatalogID, oldServicePlan.CatalogID)
 			if err != nil {
 				return nil, fmt.Errorf("faied to prepare update instance request: %s", err)
 			}

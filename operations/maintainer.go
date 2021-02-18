@@ -87,11 +87,6 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			interval: options.CleanupInterval,
 		},
 		{
-			name:     "cleanupInstanceUpdateOperations",
-			execute:  maintainer.CleanupForInstanceUpdateOperations,
-			interval: options.CleanupInterval,
-		},
-		{
 			name:     "pollUpdateCascadeOperations",
 			execute:  maintainer.PollUpdateCascadeOperations,
 			interval: options.PollCascadeInterval,
@@ -246,37 +241,12 @@ func (om *Maintainer) PollUpdateCascadeOperations() {
 	}
 }
 
-func (om *Maintainer) CleanupForInstanceUpdateOperations() {
-	currentTime := time.Now()
-	rootsCriteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
-		query.ByField(query.EqualsOperator, "type", string(types.UPDATE)),
-		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(currentTime.Add(-om.settings.Lifespan))),
-	}
-
-	roots, err := om.repository.List(om.smCtx, types.OperationType, rootsCriteria...)
-	if err != nil {
-		log.C(om.smCtx).Debugf("Failed to fetch finished cascade operations: %s", err)
-		return
-	}
-	for i := 0; i < roots.Len(); i++ {
-		root := roots.ItemAt(i)
-		byRootID := query.ByField(query.EqualsOperator, "cascade_root_id", root.GetID())
-		if err := om.repository.Delete(om.smCtx, types.OperationType, byRootID); err != nil && err != util.ErrNotFoundInStorage {
-			log.C(om.smCtx).Errorf("Failed to cleanup instance update root operation: %s", err)
-		}
-	}
-	log.C(om.smCtx).Debug("Finished cleaning up successful instance update operations")
-}
-
 // cleanupFinishedCascadeOperations cleans up all successful/failed internal cascade operations which are older than some specified time
 func (om *Maintainer) CleanupFinishedCascadeOperations() {
 	currentTime := time.Now()
 	rootsCriteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOrNilOperator, "parent_id", ""),
-		query.ByField(query.EqualsOperator, "type", string(types.DELETE)),
 		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
 		query.ByField(query.InOperator, "state", string(types.SUCCEEDED), string(types.FAILED)),
 		// check if operation hasn't been updated for the operation's maximum allowed time to live in DB//
