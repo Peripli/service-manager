@@ -212,7 +212,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
 	}
 
-	if err := attachLastOperation(ctx, createdObj.GetID(), createdObj, c.repository); err != nil {
+	if err := storage.AttachLastOperation(ctx, createdObj.GetID(), createdObj, c.repository); err != nil {
 		return nil, err
 	}
 
@@ -363,7 +363,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 
 	cleanObject(ctx, object)
 
-	if err := attachLastOperation(ctx, objectID, object, c.repository); err != nil {
+	if err := storage.AttachLastOperation(ctx, objectID, object, c.repository); err != nil {
 		return nil, err
 	}
 
@@ -444,7 +444,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 
 	attachLastOps := r.URL.Query().Get("attach_last_operations")
 	if attachLastOps == "true" {
-		if err := attachLastOperations(ctx, c.objectType, objectList, c.repository); err != nil {
+		if err := storage.AttachLastOperations(ctx, c.objectType, objectList, c.repository); err != nil {
 			return nil, err
 		}
 	}
@@ -545,7 +545,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		return util.NewLocationResponse(operation.GetID(), operation.ResourceID, c.resourceBaseURL)
 	}
 
-	if err := attachLastOperation(ctx, object.GetID(), object, c.repository); err != nil {
+	if err := storage.AttachLastOperation(ctx, object.GetID(), object, c.repository); err != nil {
 		return nil, err
 	}
 
@@ -558,77 +558,6 @@ func cleanObject(ctx context.Context, object types.Object) {
 	if secured, ok := object.(types.Strip); ok {
 		secured.Sanitize(ctx)
 	}
-}
-func getResourceIds(resources types.ObjectList) []string {
-	var resourceIds []string
-	for i := 0; i < resources.Len(); i++ {
-		resource := resources.ItemAt(i)
-		resourceIds = append(resourceIds, resource.GetID())
-	}
-	return resourceIds
-}
-
-func attachLastOperations(ctx context.Context, objectType types.ObjectType, resources types.ObjectList, repository storage.Repository) error {
-	lastOperationsMap, err := getLastOperations(ctx, objectType, getResourceIds(resources), repository)
-
-	if err != nil {
-		return err
-	}
-
-	for i := 0; i < resources.Len(); i++ {
-		resource := resources.ItemAt(i)
-		if LastOp, ok := lastOperationsMap[resource.GetID()]; ok {
-			LastOp.TransitiveResources = nil
-			resource.SetLastOperation(LastOp)
-		}
-	}
-
-	return nil
-}
-
-func getLastOperations(ctx context.Context, resourceType types.ObjectType, resourceIDs []string, repository storage.Repository) (map[string]*types.Operation, error) {
-	if len(resourceIDs) == 0 {
-		return nil, nil
-	}
-
-	queryParams := map[string]interface{}{
-		"id_list":       resourceIDs,
-		"resource_type": resourceType,
-	}
-
-	resourceLastOps, err := repository.QueryForList(
-		ctx,
-		types.OperationType,
-		storage.QueryForLastOperationsPerResource,
-		queryParams)
-
-	if err != nil {
-		return nil, util.HandleStorageError(err, types.OperationType.String())
-	}
-
-	instanceLastOpsMap := make(map[string]*types.Operation)
-
-	for i := 0; i < resourceLastOps.Len(); i++ {
-		lastOp := resourceLastOps.ItemAt(i).(*types.Operation)
-		instanceLastOpsMap[lastOp.ResourceID] = lastOp
-	}
-
-	return instanceLastOpsMap, nil
-}
-
-func attachLastOperation(ctx context.Context, objectID string, object types.Object, repository storage.Repository) error {
-	ops, err := getLastOperations(ctx, object.GetType(), []string{objectID}, repository)
-
-	if err != nil {
-		return err
-	}
-
-	if lastOperation, ok := ops[objectID]; ok {
-		lastOperation.TransitiveResources = nil
-		object.SetLastOperation(lastOperation)
-	}
-
-	return nil
 }
 
 func (c *BaseController) parseMaxItemsQuery(maxItems string) (int, error) {

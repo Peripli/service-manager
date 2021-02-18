@@ -92,6 +92,11 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 			interval: options.CleanupInterval,
 		},
 		{
+			name:     "completeInstanceUpdateRootOperations",
+			execute:  maintainer.CompleteRootInstanceUpdateOperations,
+			interval: options.PollCascadeInterval,
+		},
+		{
 			name:     "cleanupResourcelessOperations",
 			execute:  maintainer.CleanupResourcelessOperations,
 			interval: options.CleanupInterval,
@@ -192,6 +197,48 @@ func (om *Maintainer) cleanupExternalOperations() {
 		return
 	}
 	log.C(om.smCtx).Debug("Finished cleaning up external operations")
+}
+
+func (om *Maintainer) CompleteRootInstanceUpdateOperations() {
+	rootsCriteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
+		query.ByField(query.EqualsOperator, "type", string(types.UPDATE)),
+		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
+		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
+	}
+
+	roots, err := om.repository.List(om.smCtx, types.OperationType, rootsCriteria...)
+	if err != nil {
+		log.C(om.smCtx).Debugf("Failed to fetch finished cascade operations: %s", err)
+		return
+	}
+	for i := 0; i < roots.Len(); i++ {
+		root := roots.ItemAt(i).(*types.Operation)
+		findChildOperations := query.ByField(query.EqualsOperator, "parent_id", root.GetID())
+		childOperations, err := om.repository.List(om.smCtx, types.OperationType, findChildOperations)
+		if err != nil {
+			log.C(om.smCtx).Debugf("Failed to fetch in progress root update operations: %s", err)
+			return
+		}
+
+		root.State = types.SUCCEEDED
+		for i := 0; i < childOperations.Len(); i++ {
+			op := childOperations.ItemAt(i).(*types.Operation)
+			if op.State == types.FAILED {
+				root.State = types.FAILED
+				break
+			} else if op.State == types.IN_PROGRESS {
+				root.State = types.IN_PROGRESS
+				break
+			}
+		}
+
+		byRootID := query.ByField(query.EqualsOperator, "cascade_root_id", root.GetID())
+		if _, err := om.repository.Update(om.smCtx, root, nil, byRootID); err != nil && err != util.ErrNotFoundInStorage {
+			log.C(om.smCtx).Errorf("Failed to cleanup an instance update root operation: %s", err)
+		}
+	}
+	log.C(om.smCtx).Debug("Finished cleaning up successful instance update operations")
 }
 
 func (om *Maintainer) CleanupForInstanceUpdateOperations() {
