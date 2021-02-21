@@ -39,6 +39,7 @@ type Platform struct {
 	OldPassword       string         `db:"old_password"`
 	Integrity         []byte         `db:"integrity"`
 	Active            bool           `db:"active"`
+	Suspended         bool           `db:"suspended"`
 	CredentialsActive bool           `db:"credentials_active"`
 	LastActive        time.Time      `db:"last_active"`
 	Technical         bool           `db:"technical"`
@@ -62,6 +63,7 @@ func (p *Platform) FromObject(object types.Object) (storage.Entity, error) {
 		Name:              platform.Name,
 		Description:       toNullString(platform.Description),
 		Active:            platform.Active,
+		Suspended:         platform.Suspended,
 		CredentialsActive: platform.CredentialsActive,
 		Technical:         platform.Technical,
 		Version:           toNullString(platform.Version),
@@ -101,6 +103,7 @@ func (p *Platform) ToObject() (types.Object, error) {
 		Name:              p.Name,
 		Description:       p.Description.String,
 		Active:            p.Active,
+		Suspended:         p.Suspended,
 		CredentialsActive: p.CredentialsActive,
 		LastActive:        p.LastActive,
 		Technical:         p.Technical,
