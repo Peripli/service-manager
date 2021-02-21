@@ -46,7 +46,7 @@ var _ = Describe("TenantFilters", func() {
 			When("extractTenantFunc is not provided", func() {
 				It("should fail with appropriate message", func() {
 					var err error
-					multitenancyFilters, err = filters.NewMultitenancyFilters(labelKey, nil)
+					multitenancyFilters, err = filters.NewMultitenancyFilters(nil, labelKey, nil)
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("extractTenantFunc should be provided"))
 				})
@@ -56,7 +56,7 @@ var _ = Describe("TenantFilters", func() {
 		Describe("creation succeeds", func() {
 			JustBeforeEach(func() {
 				var err error
-				multitenancyFilters, err = filters.NewMultitenancyFilters(labelKey, func(request *web.Request) (string, error) {
+				multitenancyFilters, err = filters.NewMultitenancyFilters(nil, labelKey, func(request *web.Request) (string, error) {
 					return tenant, nil
 				})
 				Expect(err).ToNot(HaveOccurred())
@@ -64,7 +64,7 @@ var _ = Describe("TenantFilters", func() {
 
 			Describe("TenantLabelingFilterName", func() {
 				It("should return the name of the tenant labeling filter", func() {
-					actualFilterName := multitenancyFilters[1].Name()
+					actualFilterName := multitenancyFilters[2].Name()
 					Expect(filters.TenantLabelingFilterName()).To(BeEquivalentTo(actualFilterName))
 				})
 			})
@@ -81,7 +81,7 @@ var _ = Describe("TenantFilters", func() {
 								Name:               "test",
 								AccessLevel:        web.TenantAccess,
 							}))
-							_, err = multitenancyFilters[0].Run(fakeRequest, fakeHandler)
+							_, err = multitenancyFilters[1].Run(fakeRequest, fakeHandler)
 							Expect(err).ToNot(HaveOccurred())
 							Expect(fakeHandler.HandleCallCount()).To(Equal(1))
 							actualRequest := fakeHandler.HandleArgsForCall(0)
@@ -101,7 +101,7 @@ var _ = Describe("TenantFilters", func() {
 								Name:               "test",
 								AccessLevel:        web.GlobalAccess,
 							}))
-							_, err = multitenancyFilters[0].Run(fakeRequest, fakeHandler)
+							_, err = multitenancyFilters[1].Run(fakeRequest, fakeHandler)
 							Expect(err).ToNot(HaveOccurred())
 							Expect(fakeHandler.HandleCallCount()).To(Equal(1))
 							actualRequest := fakeHandler.HandleArgsForCall(0)
@@ -116,7 +116,7 @@ var _ = Describe("TenantFilters", func() {
 							Expect(err).ShouldNot(HaveOccurred())
 							fakeRequest.Request = newReq
 							fakeRequest.Request = fakeRequest.WithContext(web.ContextWithUser(context.Background(), nil))
-							_, err = multitenancyFilters[0].Run(fakeRequest, fakeHandler)
+							_, err = multitenancyFilters[1].Run(fakeRequest, fakeHandler)
 							Expect(err).ToNot(HaveOccurred())
 							Expect(fakeHandler.HandleCallCount()).To(Equal(1))
 							actualRequest := fakeHandler.HandleArgsForCall(0)
@@ -204,7 +204,7 @@ var _ = Describe("TenantFilters", func() {
 							AccessLevel:        web.TenantAccess,
 						}))
 						fakeRequest.Body = []byte(t.actualRequestBody)
-						_, err = multitenancyFilters[1].Run(fakeRequest, fakeHandler)
+						_, err = multitenancyFilters[2].Run(fakeRequest, fakeHandler)
 						Expect(err).ToNot(HaveOccurred())
 						Expect(string(fakeRequest.Body)).To(unmarshalledmatchers.MatchOrderedJSON(t.expectedRequestBody))
 					}, entries...)
@@ -256,7 +256,7 @@ var _ = Describe("TenantFilters", func() {
 							AccessLevel:        web.GlobalAccess,
 						}))
 						fakeRequest.Body = []byte(t.actualRequestBody)
-						_, err = multitenancyFilters[1].Run(fakeRequest, fakeHandler)
+						_, err = multitenancyFilters[2].Run(fakeRequest, fakeHandler)
 						Expect(err).ToNot(HaveOccurred())
 						Expect(string(fakeRequest.Body)).To(unmarshalledmatchers.MatchOrderedJSON(t.actualRequestBody))
 					}, entries...)

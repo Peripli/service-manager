@@ -548,13 +548,15 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 		log.D().Panic("extractTenantFunc should be provided")
 	}
 
-	multitenancyFilters, err := filters.NewMultitenancyFilters(labelKey, extractTenantFunc)
+	multitenancyFilters, err := filters.NewMultitenancyFilters(smb.Storage, labelKey, extractTenantFunc)
 	if err != nil {
 		return nil, err
 	}
+	//smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, filters.NewExtractPlanIDByServiceAndPlanNameFilter(smb.Storage, DefaultGetVisibilityMetadataFunc(labelKey), nil))
+	//smb.RegisterFiltersAfter(filters.ExtractPlanIDByServiceAndPlanName, multitenancyFilters...)
 	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
 	smb.RegisterFilters(
-		filters.NewServiceInstanceVisibilityFilter(smb.Storage, DefaultInstanceVisibilityFunc(labelKey)),
+		filters.NewServiceInstanceVisibilityFilter(smb.Storage, DefaultGetVisibilityMetadataFunc(labelKey)),
 		filters.NewServiceBindingVisibilityFilter(smb.Storage, labelKey),
 	)
 
@@ -606,7 +608,7 @@ func (smb *ServiceManagerBuilder) calculateIntegrity() error {
 	})
 }
 
-func DefaultInstanceVisibilityFunc(labelKey string) func(req *web.Request, repository storage.Repository) (metadata *filters.VisibilityMetadata, err error) {
+func DefaultGetVisibilityMetadataFunc(labelKey string) func(req *web.Request, repository storage.Repository) (metadata *filters.VisibilityMetadata, err error) {
 	return func(req *web.Request, repository storage.Repository) (metadata *filters.VisibilityMetadata, err error) {
 		tenantID := query.RetrieveFromCriteria(labelKey, query.CriteriaForContext(req.Context())...)
 		user, ok := web.UserFromContext(req.Context())
