@@ -156,6 +156,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 		Filters: []web.Filter{
 			&filters.Logging{},
 			&filters.SupportedEncodingsFilter{},
+			&filters.NotImplementedOperationFilter{},
 			&filters.SelectionCriteria{},
 			&filters.ServiceInstanceStripFilter{},
 			&filters.ServiceBindingStripFilter{},
