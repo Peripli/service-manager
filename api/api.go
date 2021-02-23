@@ -61,6 +61,7 @@ type Settings struct {
 	RateLimitExcludeClients    []string `mapstructure:"rate_limit_exclude_clients" description:"define client users that should be excluded from the rate limiter processing"`
 	RateLimitExcludePaths      []string `mapstructure:"rate_limit_exclude_paths" description:"define paths that should be excluded from the rate limiter processing"`
 	RateLimitUsageLogThreshold int64    `mapstructure:"rate_limiting_usage_log_threshold" description:"defines a threshold for log notification trigger about requests limit usage. Accepts value in range from 0 to 100 (percents)"`
+	FeaturesExtended           bool     `mapstructure:"features_extended" description:"whether features that are not implemented by service manager are extended"`
 }
 
 // DefaultSettings returns default values for API settings
@@ -156,7 +157,6 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 		Filters: []web.Filter{
 			&filters.Logging{},
 			&filters.SupportedEncodingsFilter{},
-			&filters.NotImplementedOperationFilter{},
 			&filters.SelectionCriteria{},
 			&filters.ServiceInstanceStripFilter{},
 			&filters.ServiceBindingStripFilter{},
@@ -173,6 +173,9 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			filters.NewPlatformTerminationFilter(options.Repository),
 		},
 		Registry: health.NewDefaultRegistry(),
+	}
+	if !options.APISettings.FeaturesExtended {
+		api.RegisterFiltersBefore(filters.ProtectedLabelsFilterName, &filters.NotImplementedOperationFilter{})
 	}
 
 	if rateLimiters != nil {

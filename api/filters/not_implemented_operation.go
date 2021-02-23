@@ -1,11 +1,9 @@
 package filters
 
-
 import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/tidwall/gjson"
 	"net/http"
 )
 
@@ -25,31 +23,30 @@ import (
  * limitations under the License.
  */
 
-
-
 const NotImplementedOperationName = "NotImplementedOperation"
 
 type NotImplementedOperationFilter struct {
 }
 
-func (*NotImplementedOperationFilter) Name() string {
+func (f *NotImplementedOperationFilter) Name() string {
 	return NotImplementedOperationName
 }
 
-func (*NotImplementedOperationFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	environmentParam:=req.URL.Query().Get(web.QueryParamEnvironment)
-	if environmentParam!="" {
+func (f *NotImplementedOperationFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+	environmentParam := req.URL.Query().Get(web.QueryParamEnvironment)
+	if environmentParam != "" {
 		return nil, &util.HTTPError{
 			ErrorType:   "NotImplemented",
 			Description: fmt.Sprintf("The server doesn't support %s operation. You should extend service manager to support it.", web.QueryParamEnvironment),
 			StatusCode:  http.StatusNotImplemented,
 		}
+
 	}
 
 	return next.Handle(req)
 }
 
-func (*NotImplementedOperationFilter) FilterMatchers() []web.FilterMatcher {
+func (f *NotImplementedOperationFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
@@ -65,4 +62,3 @@ func (*NotImplementedOperationFilter) FilterMatchers() []web.FilterMatcher {
 		},
 	}
 }
-
