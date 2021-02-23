@@ -41,7 +41,7 @@ const (
 	QueryParamCascade = "cascade"
 
 	// QueryParamForce is the value used to denote if the requested resource should be purged from db
-	QueryParamForce = "force"
+	QueryParamForce       = "force"
 	QueryParamEnvironment = "environment"
 )
 
