@@ -31,20 +31,18 @@ import (
 const ExtractPlanIDByServiceAndPlanName = "ExtractPlanIDByServiceAndPlanName"
 
 // NewExtractPlanIDByServiceAndPlanNameFilter creates a new extractPlanIDByServiceAndPlanNameFilter filter
-func NewExtractPlanIDByServiceAndPlanNameFilter(repository storage.Repository, extractTenantFunc func(request *web.Request) (string, error), labelKey string) *extractPlanIDByServiceAndPlanNameFilter {
+func NewExtractPlanIDByServiceAndPlanNameFilter(repository storage.Repository, getVisibilityMetadata func(req *web.Request, repository storage.Repository) (*VisibilityMetadata, error)) *extractPlanIDByServiceAndPlanNameFilter {
 	return &extractPlanIDByServiceAndPlanNameFilter{
-		repository:        repository,
-		extractTenantFunc: extractTenantFunc,
-		labelKey:          labelKey,
+		repository:            repository,
+		getVisibilityMetadata: getVisibilityMetadata,
 	}
 }
 
 // extractPlanIDByServiceAndPlanNameFilter replace service and plan name to plan id in the
 // provision request body
 type extractPlanIDByServiceAndPlanNameFilter struct {
-	repository        storage.Repository
-	extractTenantFunc func(request *web.Request) (string, error)
-	labelKey          string
+	repository            storage.Repository
+	getVisibilityMetadata func(req *web.Request, repository storage.Repository) (*VisibilityMetadata, error)
 }
 
 func (*extractPlanIDByServiceAndPlanNameFilter) Name() string {
@@ -54,7 +52,7 @@ func (*extractPlanIDByServiceAndPlanNameFilter) Name() string {
 func (f *extractPlanIDByServiceAndPlanNameFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 
-	tenantID, err := f.extractTenantFunc(req)
+	visibilityMetadata, err := f.getVisibilityMetadata(req, f.repository)
 	if err != nil {
 		return nil, err
 	}
@@ -68,11 +66,11 @@ func (f *extractPlanIDByServiceAndPlanNameFilter) Run(req *web.Request, next web
 	} else if !servicePlanID.Exists() && servicePlanName.Exists() && serviceOfferingName.Exists() {
 
 		plansList, err := f.repository.QueryForList(ctx, types.ServicePlanType, storage.QueryForPlanByNameAndOfferingsWithVisibility, map[string]interface{}{
-			"platform_id":           types.SMPlatform,
+			"platform_id":           visibilityMetadata.PlatformID,
 			"service_plan_name":     servicePlanName.String(),
 			"service_offering_name": serviceOfferingName.String(),
-			"key":                   f.labelKey,
-			"val":                   tenantID,
+			"key":                   visibilityMetadata.LabelKey,
+			"val":                   visibilityMetadata.LabelValue,
 		})
 		if err != nil {
 			return nil, util.HandleStorageError(err, types.ServicePlanType.String())

@@ -548,13 +548,12 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 		log.D().Panic("extractTenantFunc should be provided")
 	}
 
-	multitenancyFilters, err := filters.NewMultitenancyFilters(smb.Storage, labelKey, extractTenantFunc)
+	multitenancyFilters, err := filters.NewMultitenancyFilters(labelKey, extractTenantFunc)
 	if err != nil {
 		return nil, err
 	}
-	//smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, filters.NewExtractPlanIDByServiceAndPlanNameFilter(smb.Storage, DefaultGetVisibilityMetadataFunc(labelKey), nil))
-	//smb.RegisterFiltersAfter(filters.ExtractPlanIDByServiceAndPlanName, multitenancyFilters...)
 	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
+	smb.RegisterFiltersAfter(fmt.Sprintf("%s%s", filters.LabelName, filters.ResourceLabelingFilterNameSuffix), filters.NewExtractPlanIDByServiceAndPlanNameFilter(smb.Storage, DefaultGetVisibilityMetadataFunc(labelKey)))
 	smb.RegisterFilters(
 		filters.NewServiceInstanceVisibilityFilter(smb.Storage, DefaultGetVisibilityMetadataFunc(labelKey)),
 		filters.NewServiceBindingVisibilityFilter(smb.Storage, labelKey),
