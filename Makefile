@@ -84,7 +84,7 @@ ifeq ($(shell which gometalinter),)
     export GOBIN=$(GOPATH)/bin;\
     brew tap alecthomas/homebrew-tap;\
     brew install gometalinter;\
-    gometalinter -i -u;\
+    gometalinter -i -u;
 endif
 ifeq ($(shell which cover),)
 	@echo "Installing cover tool..."
