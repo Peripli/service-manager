@@ -82,9 +82,7 @@ prepare: prepare-counterfeiter build-gen-binary
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter ...";\
 		cd $(GOPATH)/src;\
-		curl https://git.io/vp6lP | sh \
-		cd $(GOPATH)/src/github.com/alecthomas/gometalinter;\
-		go install;\
+		curl -s -L https://git.io/vp6lP | sh
 		gometalinter -i -u
 endif
 ifeq ($(shell which cover),)
