@@ -137,8 +137,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				assertOfferingsForPlatform := func(agent *common.SMExpect, offerings ...interface{}) {
 					assertOfferingsForPlatformWithQuery(agent, nil, offerings...)
 				}
-				Context("with environment query", func() {
-					Context("feature is not extended", func() {
+				Context("with environment query param", func() {
+					Context("environment query is disabled", func() {
 						It("should return an error", func() {
 							ctx.SMWithOAuth.GET(web.ServiceOfferingsURL).WithQuery("environment", "cloudfoundry").
 								Expect().

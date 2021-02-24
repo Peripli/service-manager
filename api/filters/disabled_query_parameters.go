@@ -23,30 +23,32 @@ import (
  * limitations under the License.
  */
 
-const NotImplementedOperationName = "NotImplementedOperation"
+const DisabledQueryParametersName= "DisabledQueryParameter"
 
-type NotImplementedOperationFilter struct {
+type DisabledQueryParametersFilter struct {
+	DisabledQueryParameters []string
 }
 
-func (f *NotImplementedOperationFilter) Name() string {
-	return NotImplementedOperationName
+func (f *DisabledQueryParametersFilter) Name() string {
+	return DisabledQueryParametersName
 }
 
-func (f *NotImplementedOperationFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	environmentParam := req.URL.Query().Get(web.QueryParamEnvironment)
-	if environmentParam != "" {
-		return nil, &util.HTTPError{
-			ErrorType:   "NotImplemented",
-			Description: fmt.Sprintf("The server doesn't support %s operation. You should extend service manager to support it.", web.QueryParamEnvironment),
-			StatusCode:  http.StatusNotImplemented,
+func (f *DisabledQueryParametersFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+	for _, param := range f.DisabledQueryParameters {
+		paramValue := req.URL.Query().Get(param)
+		if paramValue != "" {
+			return nil, &util.HTTPError{
+				ErrorType:   "NotImplemented",
+				Description: fmt.Sprintf("The '%s' parameter is not supported in this service manager installation.", param),
+				StatusCode:  http.StatusNotImplemented,
+			}
+
 		}
-
 	}
-
 	return next.Handle(req)
 }
 
-func (f *NotImplementedOperationFilter) FilterMatchers() []web.FilterMatcher {
+func (f *DisabledQueryParametersFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{

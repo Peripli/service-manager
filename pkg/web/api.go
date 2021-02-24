@@ -42,7 +42,6 @@ const (
 
 	// QueryParamForce is the value used to denote if the requested resource should be purged from db
 	QueryParamForce       = "force"
-	QueryParamEnvironment = "environment"
 )
 
 // API is the primary point for REST API registration
