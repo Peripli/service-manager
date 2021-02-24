@@ -80,12 +80,14 @@ prepare-counterfeiter:
 ## Installs some tools (gometalinter, cover, goveralls)
 prepare: prepare-counterfeiter build-gen-binary
 ifeq ($(shell which gometalinter),)
+	@export GO111MODULE=off
 	@echo "Installing gometalinter ...";\
 		cd $(GOPATH)/src;\
-		GO111MODULE=off go get -u github.com/alecthomas/gometalinter;\
+		go get -u github.com/alecthomas/gometalinter;\
 		cd $(GOPATH)/src/github.com/alecthomas/gometalinter;\
 		go install;\
 		gometalinter -i -u
+	@export GO111MODULE=on
 endif
 ifeq ($(shell which cover),)
 	@echo "Installing cover tool..."
