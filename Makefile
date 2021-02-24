@@ -81,9 +81,9 @@ prepare-counterfeiter:
 prepare: prepare-counterfeiter build-gen-binary
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter ...";\
-    export GOBIN=$(GOPATH)/bin;\
     brew tap alecthomas/homebrew-tap;\
     brew install gometalinter;\
+    chmod a+x $(GOPATH)/bin/gometalinter;\
     gometalinter -i -u;
 endif
 ifeq ($(shell which cover),)
