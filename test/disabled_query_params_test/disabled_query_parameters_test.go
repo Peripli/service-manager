@@ -35,8 +35,11 @@ var _ = Describe("disable query parameter", func() {
 		})
 
 		Context("the query param is provided", func() {
-			It("Returns return an error", func() {
+			It("should succeed", func() {
 				ctx.SMWithOAuth.GET(web.ServicePlansURL).WithQuery("environment", "cf").
+					Expect().
+					Status(http.StatusOK)
+				ctx.SMWithOAuth.GET(web.ServiceOfferingsURL).WithQuery("environment", "cf").
 					Expect().
 					Status(http.StatusOK)
 			})
@@ -51,21 +54,44 @@ var _ = Describe("disable query parameter", func() {
 
 		BeforeEach(func() {
 			ctxBuilder = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-				Expect(set.Set("api.disabled_query_parameters", "environment")).ToNot(HaveOccurred())
+				Expect(set.Set("api.disabled_query_parameters", "environment,someotherqueryparam")).ToNot(HaveOccurred())
 			})
 			ctx = ctxBuilder.Build()
 		})
 
 		Context("the query param is provided", func() {
-			It("Returns return an error", func() {
+			It("returns an error", func() {
 				ctx.SMWithOAuth.GET(web.ServicePlansURL).WithQuery("environment", "cf").
+					Expect().
+					Status(http.StatusNotImplemented)
+				ctx.SMWithOAuth.GET(web.ServicePlansURL).WithQuery("someotherqueryparam", "value").
+					Expect().
+					Status(http.StatusNotImplemented)
+				ctx.SMWithOAuth.GET(web.ServiceOfferingsURL).WithQuery("environment", "cf").
+					Expect().
+					Status(http.StatusNotImplemented)
+				ctx.SMWithOAuth.GET(web.ServiceOfferingsURL).WithQuery("someotherqueryparam", "value").
 					Expect().
 					Status(http.StatusNotImplemented)
 			})
 		})
+
+		Context("query param is not in disabled query params settings", func() {
+			It("succeed", func() {
+				ctx.SMWithOAuth.GET(web.ServicePlansURL).WithQuery("check", "somevalue").
+					Expect().
+					Status(http.StatusOK)
+				ctx.SMWithOAuth.GET(web.ServiceOfferingsURL).WithQuery("check", "somevalue").
+					Expect().
+					Status(http.StatusOK)
+			})
+		})
 		Context("the query param is not provided", func() {
-			It("Returns return an error", func() {
+			It("should succeed", func() {
 				ctx.SMWithOAuth.GET(web.ServicePlansURL).
+					Expect().
+					Status(http.StatusOK)
+				ctx.SMWithOAuth.GET(web.ServiceOfferingsURL).
 					Expect().
 					Status(http.StatusOK)
 			})
