@@ -86,7 +86,6 @@ ifeq ($(shell which gometalinter),)
 		GO111MODULE=off cd $(GOPATH)/src/github.com/alecthomas/gometalinter;\
 		GO111MODULE=off go install;\
 		GO111MODULE=off gometalinter -i -u
-	@export GO111MODULE=on
 endif
 ifeq ($(shell which cover),)
 	@echo "Installing cover tool..."
