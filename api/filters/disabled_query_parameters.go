@@ -23,7 +23,7 @@ import (
  * limitations under the License.
  */
 
-const DisabledQueryParametersName= "DisabledQueryParameter"
+const DisabledQueryParametersName = "DisabledQueryParameter"
 
 type DisabledQueryParametersFilter struct {
 	DisabledQueryParameters []string
