@@ -81,10 +81,8 @@ prepare-counterfeiter:
 prepare: prepare-counterfeiter build-gen-binary
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter ...";\
-    brew tap alecthomas/homebrew-tap;\
-    brew install gometalinter;\
-    chmod a+x $(GOPATH)/bin/gometalinter;\
-    gometalinter -i -u;
+	cd $(GOPATH);\
+    curl -L https://git.io/vp6lP | sh
 endif
 ifeq ($(shell which cover),)
 	@echo "Installing cover tool..."
