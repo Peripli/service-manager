@@ -47,7 +47,7 @@ var _ = Describe("disable query parameter", func() {
 
 	})
 
-	Describe("query param is disabled", func() {
+	Describe("the query param is disabled", func() {
 		AfterEach(func() {
 			ctx.Cleanup()
 		})
