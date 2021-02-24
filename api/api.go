@@ -61,7 +61,7 @@ type Settings struct {
 	RateLimitExcludeClients    []string `mapstructure:"rate_limit_exclude_clients" description:"define client users that should be excluded from the rate limiter processing"`
 	RateLimitExcludePaths      []string `mapstructure:"rate_limit_exclude_paths" description:"define paths that should be excluded from the rate limiter processing"`
 	RateLimitUsageLogThreshold int64    `mapstructure:"rate_limiting_usage_log_threshold" description:"defines a threshold for log notification trigger about requests limit usage. Accepts value in range from 0 to 100 (percents)"`
-	FeaturesExtended           bool     `mapstructure:"features_extended" description:"whether features that are not implemented by service manager are extended"`
+	DisabledQueryParameters    []string `mapstructure:"disabled_query_parameters" description:"which query parameters are not implemented by service manager and should be extended"`
 }
 
 // DefaultSettings returns default values for API settings
@@ -79,6 +79,7 @@ func DefaultSettings() *Settings {
 		RateLimitingEnabled:        false,
 		RateLimitExcludeClients:    []string{},
 		RateLimitUsageLogThreshold: 10,
+		DisabledQueryParameters:    []string{},
 	}
 }
 
@@ -174,9 +175,8 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 		},
 		Registry: health.NewDefaultRegistry(),
 	}
-	if !options.APISettings.FeaturesExtended {
-		api.RegisterFiltersBefore(filters.ProtectedLabelsFilterName, &filters.NotImplementedOperationFilter{})
-	}
+
+	api.RegisterFiltersBefore(filters.ProtectedLabelsFilterName, &filters.DisabledQueryParametersFilter{DisabledQueryParameters: options.APISettings.DisabledQueryParameters})
 
 	if rateLimiters != nil {
 		api.RegisterFiltersAfter(
