@@ -82,7 +82,7 @@ prepare: prepare-counterfeiter build-gen-binary
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter ...";\
 		cd $(GOPATH)/src;\
-		@GO111MODULE=off go get -u github.com/alecthomas/gometalinter;\
+		GO111MODULE=off go get -u github.com/alecthomas/gometalinter;\
 		cd $(GOPATH)/src/github.com/alecthomas/gometalinter;\
 		go install;\
 		gometalinter -i -u
