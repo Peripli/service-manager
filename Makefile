@@ -83,9 +83,7 @@ ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter ...";\
 		cd $(GOPATH)/src;\
 		GO111MODULE=off go get -u github.com/alecthomas/gometalinter;\
-		cd $(GOPATH)/src/github.com/alecthomas/gometalinter;\
-		go install;\
-		gometalinter -i -u
+		@chmod a+x $(GOPATH)/bin/gometalinter -i -u
 endif
 ifeq ($(shell which cover),)
 	@echo "Installing cover tool..."
