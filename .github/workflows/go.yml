@@ -12,7 +12,6 @@ jobs:
     name: Unit Test
     env:
       GOPATH: ${{ github.workspace }}
-      GOBIN: ${{ github.workspace}}/bin
     runs-on: ubuntu-latest
     steps:
 
