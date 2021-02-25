@@ -77,7 +77,7 @@ var namedQueries = map[NamedQuery]string{
 			ON so.id = sp.service_offering_id
 		 INNER JOIN visibilities v 
 			ON sp.id = v.service_plan_id
-		 FULL OUTER JOIN visibility_labels vl 
+		 LEFT OUTER JOIN visibility_labels vl 
 			ON v.id = vl.visibility_id
 	WHERE (vl.key = :key AND vl.val = :val AND v.platform_id = :platform_id AND sp.catalog_name = :service_plan_name AND so.catalog_name = :service_offering_name)
 	OR ((v.platform_id = :platform_id OR v.platform_id IS NULL) 

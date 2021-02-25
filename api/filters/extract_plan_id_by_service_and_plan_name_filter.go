@@ -38,7 +38,7 @@ func NewExtractPlanIDByServiceAndPlanNameFilter(repository storage.Repository, g
 	}
 }
 
-// extractPlanIDByServiceAndPlanNameFilter replace service and plan name to plan id in the
+// extractPlanIDByServiceAndPlanNameFilter convert service offering name and plan name to plan id and add it to the
 // provision request body
 type extractPlanIDByServiceAndPlanNameFilter struct {
 	repository            storage.Repository
@@ -89,7 +89,6 @@ func (f *extractPlanIDByServiceAndPlanNameFilter) Run(req *web.Request, next web
 				StatusCode:  http.StatusBadRequest,
 			}
 		}
-
 		bytes, err := sjson.SetBytes(req.Body, "service_plan_id", plansList.(*types.ServicePlans).ServicePlans[0].GetID())
 		if err != nil {
 			return nil, err
