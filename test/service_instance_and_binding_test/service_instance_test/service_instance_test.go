@@ -473,6 +473,10 @@ var _ = DescribeTestsFor(TestCase{
 
 					When("there is more then one plan_id for the requested offering and plan name", func() {
 						It("should fail with status 400 bad request", func() {
+							resp := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_name eq '%s'", servicePlanCatalogName))
+							for _, plan := range resp.Iter() {
+								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, plan.Object().Value("id").String().Raw(), TenantIDValue)
+							}
 							ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 								WithQuery("async", false).
 								WithJSON(prepareCreateInstanceRequestBody(serviceCatalogName, servicePlanCatalogName)).
