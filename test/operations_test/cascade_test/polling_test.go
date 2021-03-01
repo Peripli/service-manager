@@ -8,6 +8,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/types/cascade"
 	"github.com/Peripli/service-manager/test/common"
+	"github.com/gofrs/uuid"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"net/http"
@@ -448,6 +449,111 @@ var _ = Describe("cascade operations", func() {
 			validateParentsRanAfterChildren(fullTree)
 			validateDuplicationHasTheSameState(fullTree)
 			AssertOperationCount(func(count int) { Expect(count).To(Equal(3)) }, queryForOperationsInTheSameTree(rootID))
+		})
+
+		When("cascade root operation does not have sub operations", func() {
+			var rootID string
+			BeforeEach(func() {
+				newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKeys{}, []string{"containerID", "anotherKey"})
+				UUID, err := uuid.NewV4()
+				Expect(err).ToNot(HaveOccurred())
+				rootID = UUID.String()
+				triggerCascadeOperationWithCategory(rootID, newCtx, "my-tenant-id", types.UPDATE)
+			})
+
+			It("should be completed successfully", func() {
+				By("waiting cascading process to finish")
+				Eventually(func() int {
+					count, err := ctx.SMRepository.Count(
+						context.Background(),
+						types.OperationType,
+						queryForRoot(rootID),
+						querySucceeded)
+					Expect(err).NotTo(HaveOccurred())
+
+					return count
+				}, actionTimeout*3+pollCascade*3).Should(Equal(1))
+			})
+		})
+
+		When("cascade root operation sub operations are successfully completed", func() {
+			var rootID string
+			BeforeEach(func() {
+				newCtx := context.Background()
+				UUID, err := uuid.NewV4()
+				Expect(err).ToNot(HaveOccurred())
+				rootID = UUID.String()
+				triggerInstanceUpdateOperation(newCtx, rootID, "instance1", types.SUCCEEDED)
+				triggerInstanceUpdateOperation(newCtx, rootID, "instance2", types.SUCCEEDED)
+				triggerCascadeOperationWithCategory(rootID, newCtx, "my-tenant-id", types.UPDATE)
+			})
+
+			It("should keep the root cascade operation state as in progress", func() {
+				By("waiting cascading process to finish")
+				Eventually(func() int {
+					count, err := ctx.SMRepository.Count(
+						context.Background(),
+						types.OperationType,
+						queryForRoot(rootID),
+						querySucceeded)
+					Expect(err).NotTo(HaveOccurred())
+
+					return count
+				}, actionTimeout*3+pollCascade*3).Should(Equal(1))
+			})
+		})
+
+		When("cascade root operation has sub operations that are in progress", func() {
+			var rootID string
+			BeforeEach(func() {
+				newCtx := context.Background()
+				UUID, err := uuid.NewV4()
+				Expect(err).ToNot(HaveOccurred())
+				rootID = UUID.String()
+				triggerInstanceUpdateOperation(newCtx, rootID, "instance1", types.IN_PROGRESS)
+				triggerInstanceUpdateOperation(newCtx, rootID, "instance2", types.SUCCEEDED)
+				triggerCascadeOperationWithCategory(rootID, newCtx, "my-tenant-id", types.UPDATE)
+			})
+
+			It("should keep the root cascade operation state as in progress", func() {
+				By("waiting cascading process to finish")
+				Eventually(func() int {
+					count, err := ctx.SMRepository.Count(
+						context.Background(),
+						types.OperationType,
+						queryForRoot(rootID),
+						querySucceeded)
+					Expect(err).NotTo(HaveOccurred())
+
+					return count
+				}, actionTimeout*3+pollCascade*3).Should(Equal(0))
+			})
+		})
+
+		When("a cascade root operation has has failed sub operations", func() {
+			var rootID string
+			BeforeEach(func() {
+				newCtx := context.Background()
+				UUID, err := uuid.NewV4()
+				Expect(err).ToNot(HaveOccurred())
+				rootID = UUID.String()
+				triggerInstanceUpdateOperation(newCtx, rootID, "instance1", types.FAILED)
+				triggerInstanceUpdateOperation(newCtx, rootID, "instance2", types.SUCCEEDED)
+				triggerCascadeOperationWithCategory(rootID, newCtx, "my-tenant-id", types.UPDATE)
+			})
+
+			It("should fail the cascade root operation", func() {
+				By("waiting cascading process to finish")
+				Eventually(func() int {
+					count, err := ctx.SMRepository.Count(
+						context.Background(),
+						types.OperationType,
+						queryForRoot(rootID),
+						queryFailures)
+					Expect(err).NotTo(HaveOccurred())
+					return count
+				}, actionTimeout*3+pollCascade*3).Should(Equal(1))
+			})
 		})
 	})
 })

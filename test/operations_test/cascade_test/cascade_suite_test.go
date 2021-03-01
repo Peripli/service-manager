@@ -422,6 +422,67 @@ func generateID() string {
 	return UUID.String()
 }
 
+func triggerInstanceUpdateOperation(repoContext context.Context, rootID, resourceID string, opState types.OperationState) string {
+	UUID, err := uuid.NewV4()
+	Expect(err).ToNot(HaveOccurred())
+	opID := UUID.String()
+
+	instanceUpdateOperation := types.Operation{
+		Base: types.Base{
+			ID:        opID,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Ready:     true,
+		},
+		State:         opState,
+		Description:   "instance_cascade_update",
+		CascadeRootID: rootID,
+		ParentID:      rootID,
+		ResourceID:    resourceID,
+		Type:          types.UPDATE,
+		PlatformID:    types.SMPlatform,
+		ResourceType:  types.ServiceInstanceType,
+	}
+	_, err = ctx.SMRepository.Create(repoContext, &instanceUpdateOperation)
+
+	return opID
+}
+
+func triggerCascadeOperationWithCategory(rootID string, repoCtx context.Context, resourceID string, opType types.OperationCategory) string {
+	cascadeOperation := types.Operation{
+		Base: types.Base{
+			ID:        rootID,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Ready:     true,
+		},
+		State:         types.IN_PROGRESS,
+		Description:   "bla",
+		CascadeRootID: rootID,
+		ResourceID:    resourceID,
+		Type:          opType,
+		PlatformID:    types.SMPlatform,
+		ResourceType:  types.TenantType,
+	}
+	_, err := ctx.SMRepository.Create(repoCtx, &cascadeOperation)
+	//Last operation is never deleted since we keep the last operation for any resource (see: CleanupResourcelessOperations in maintainer.go).
+	//That's why we create here another operation thus allow us to verify the deletion of the cascade operation in the tests.
+	UUID, err := uuid.NewV4()
+	Expect(err).ToNot(HaveOccurred())
+	UUID, err = uuid.NewV4()
+	Expect(err).ToNot(HaveOccurred())
+	lastOperation := types.Operation{
+		Base:         types.Base{ID: UUID.String()},
+		ResourceID:   resourceID,
+		ResourceType: types.TenantType,
+		Type:         types.CREATE,
+		State:        "succeeded",
+	}
+	_, err = ctx.SMRepository.Create(repoCtx, &lastOperation)
+	Expect(err).NotTo(HaveOccurred())
+	return rootID
+}
+
 func triggerCascadeOperation(repoCtx context.Context, resourceType types.ObjectType, resourceID string, force bool) string {
 	UUID, err := uuid.NewV4()
 	Expect(err).ToNot(HaveOccurred())

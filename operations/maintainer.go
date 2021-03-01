@@ -199,6 +199,7 @@ func (om *Maintainer) PollUpdateCascadeOperations() {
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "type", string(types.UPDATE)),
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
+		query.ByField(query.EqualsOrNilOperator, "parent_id", ""),
 		query.ByField(query.NotEqualsOperator, "cascade_root_id", ""),
 	}
 
