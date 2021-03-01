@@ -32,13 +32,14 @@ const K8sPlatformType = "kubernetes"
 const SMPlatform = "service-manager"
 const Monitored = "monitored"
 
-var smSupportedPlatformType = SMPlatform
+var smSupportedPlatformType = []string{SMPlatform}
 
-func GetSMSupportedPlatformType() string {
+// Returns aliases of service manager platform
+func GetSMSupportedPlatformTypes() []string {
 	return smSupportedPlatformType
 }
 
-func SetSMSupportedPlatformType(typee string) {
+func SetSMSupportedPlatformTypes(typee []string) {
 	smSupportedPlatformType = typee
 }
 
@@ -55,6 +56,7 @@ type Platform struct {
 	OldCredentials    *Credentials `json:"old_credentials,omitempty"`
 	Version           string       `json:"-"`
 	Active            bool         `json:"-"`
+	Suspended         bool         `json:"suspended,omitempty"`
 	LastActive        time.Time    `json:"-"`
 	Integrity         []byte       `json:"-"`
 	CredentialsActive bool         `json:"credentials_active,omitempty"`

@@ -96,7 +96,7 @@ var _ = Describe("Service Manager Config API", func() {
 					"pools": "",
 					"reconciliation_operation_timeout": "168h0m0s",
 					"rescheduling_interval": "1ms",
-					"sm_supported_platform_type": "service-manager"
+					"sm_supported_platform_type": ["service-manager"]
 				  },
 				"server": {
 					"host": "",

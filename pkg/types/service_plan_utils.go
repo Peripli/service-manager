@@ -23,13 +23,18 @@ import (
 
 // SupportsPlatform determines whether a specific platform type is among the ones that a plan supports
 func (e *ServicePlan) SupportsPlatformType(platformType string) bool {
+	var inputPlatformTypes []string
 	if platformType == SMPlatform {
-		platformType = GetSMSupportedPlatformType()
+		//check if one of the SM platform aliases is supported
+		inputPlatformTypes = GetSMSupportedPlatformTypes()
+	} else {
+		inputPlatformTypes = []string{platformType}
 	}
 
-	platformTypes := e.SupportedPlatformTypes()
+	supportedPlatformTypes := e.SupportedPlatformTypes()
 
-	return len(platformTypes) == 0 || slice.StringsAnyEquals(platformTypes, platformType)
+	intersect := slice.StringsIntersection(supportedPlatformTypes, inputPlatformTypes)
+	return len(supportedPlatformTypes) == 0 || len(intersect) > 0
 }
 
 // SupportsPlatformInstance determines whether a specific platform instance is among the ones that a plan supports
