@@ -451,7 +451,7 @@ var _ = Describe("cascade operations", func() {
 			AssertOperationCount(func(count int) { Expect(count).To(Equal(3)) }, queryForOperationsInTheSameTree(rootID))
 		})
 
-		When("cascade root operation does not have sub operations", func() {
+		When("cascade root update operation does not have sub operations", func() {
 			var rootID string
 			BeforeEach(func() {
 				newCtx := context.WithValue(context.Background(), cascade.ParentInstanceLabelKeys{}, []string{"containerID", "anotherKey"})
@@ -476,7 +476,7 @@ var _ = Describe("cascade operations", func() {
 			})
 		})
 
-		When("cascade root operation sub operations are successfully completed", func() {
+		When("cascade root update operation sub operations are successfully completed", func() {
 			var rootID string
 			BeforeEach(func() {
 				newCtx := context.Background()
@@ -503,7 +503,7 @@ var _ = Describe("cascade operations", func() {
 			})
 		})
 
-		When("cascade root operation has sub operations that are in progress", func() {
+		When("cascade root update operation has sub operations that are in progress", func() {
 			var rootID string
 			BeforeEach(func() {
 				newCtx := context.Background()
@@ -530,7 +530,7 @@ var _ = Describe("cascade operations", func() {
 			})
 		})
 
-		When("a cascade root operation has has failed sub operations", func() {
+		When("a cascade root update operation has has failed sub operations", func() {
 			var rootID string
 			BeforeEach(func() {
 				newCtx := context.Background()
@@ -542,7 +542,7 @@ var _ = Describe("cascade operations", func() {
 				triggerCascadeOperationWithCategory(rootID, newCtx, "my-tenant-id", types.UPDATE)
 			})
 
-			It("should fail the cascade root operation", func() {
+			It("should fail the cascade root operation and return a cascaded  sub operation error", func() {
 				By("waiting cascading process to finish")
 				Eventually(func() int {
 					count, err := ctx.SMRepository.Count(
@@ -553,6 +553,13 @@ var _ = Describe("cascade operations", func() {
 					Expect(err).NotTo(HaveOccurred())
 					return count
 				}, actionTimeout*3+pollCascade*3).Should(Equal(1))
+
+				tenantOP, err := ctx.SMRepository.Get(context.Background(), types.OperationType, queryForRoot(rootID))
+				Expect(err).NotTo(HaveOccurred())
+				errors := cascade.CascadeErrors{}
+				err = json.Unmarshal(tenantOP.(*types.Operation).Errors, &errors)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(errors.Errors)).To(Equal(1))
 			})
 		})
 	})

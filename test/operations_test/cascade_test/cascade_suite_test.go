@@ -443,6 +443,10 @@ func triggerInstanceUpdateOperation(repoContext context.Context, rootID, resourc
 		PlatformID:    types.SMPlatform,
 		ResourceType:  types.ServiceInstanceType,
 	}
+	if opState == types.FAILED {
+		instanceUpdateOperation.Errors = []byte("{\"error\":\"unable to update service instance\"}")
+	}
+
 	_, err = ctx.SMRepository.Create(repoContext, &instanceUpdateOperation)
 
 	return opID
