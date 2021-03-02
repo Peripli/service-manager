@@ -115,6 +115,7 @@ jobs:
     - name: Send coverage
       uses: shogo82148/actions-goveralls@v1
       with:
+        go-version: 1.13
         parallel: true
         flag-name: osb
         path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-osb-and-plugin.cov
