@@ -155,8 +155,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	securityBuilder, securityFilters := NewSecurityBuilder()
 	API.RegisterFiltersAfter(filters.LoggingFilterName, securityFilters...)
 	API.RegisterFilters(&filters.RegeneratePlatformCredentialsFilter{}, &filters.TechnicalPlatformFilter{Storage: interceptableRepository})
-
-	API.RegisterFiltersAfter(secFilters.AuthorizationFilterName, &filters.ForceDeleteValidationFilter{})
+	API.RegisterFiltersAfter(secFilters.AuthorizationFilterName, &filters.CheckPlatformSuspendedFilter{}, &filters.ForceDeleteValidationFilter{})
 
 	storageHealthIndicator, err := storage.NewSQLHealthIndicator(storage.PingFunc(smStorage.PingContext))
 	if err != nil {
@@ -553,8 +552,9 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 		return nil, err
 	}
 	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
+	smb.RegisterFiltersAfter(fmt.Sprintf("%s%s", filters.LabelName, filters.ResourceLabelingFilterNameSuffix), filters.NewExtractPlanIDByServiceAndPlanNameFilter(smb.Storage, DefaultGetVisibilityMetadataFunc(labelKey)))
 	smb.RegisterFilters(
-		filters.NewServiceInstanceVisibilityFilter(smb.Storage, DefaultInstanceVisibilityFunc(labelKey)),
+		filters.NewServiceInstanceVisibilityFilter(smb.Storage, DefaultGetVisibilityMetadataFunc(labelKey)),
 		filters.NewServiceBindingVisibilityFilter(smb.Storage, labelKey),
 	)
 
@@ -606,7 +606,7 @@ func (smb *ServiceManagerBuilder) calculateIntegrity() error {
 	})
 }
 
-func DefaultInstanceVisibilityFunc(labelKey string) func(req *web.Request, repository storage.Repository) (metadata *filters.VisibilityMetadata, err error) {
+func DefaultGetVisibilityMetadataFunc(labelKey string) func(req *web.Request, repository storage.Repository) (metadata *filters.VisibilityMetadata, err error) {
 	return func(req *web.Request, repository storage.Repository) (metadata *filters.VisibilityMetadata, err error) {
 		tenantID := query.RetrieveFromCriteria(labelKey, query.CriteriaForContext(req.Context())...)
 		user, ok := web.UserFromContext(req.Context())
