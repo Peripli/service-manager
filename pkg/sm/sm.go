@@ -553,6 +553,7 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 	if err != nil {
 		return nil, err
 	}
+	smb.RegisterFiltersBefore(filters.ProtectedLabelsFilterName, filters.NewReferenceInstanceOwnershipFilter(smb.Storage, labelKey))
 	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
 	smb.RegisterFilters(
 		filters.NewServiceInstanceVisibilityFilter(smb.Storage, DefaultInstanceVisibilityFunc(labelKey)),

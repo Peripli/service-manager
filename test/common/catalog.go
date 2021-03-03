@@ -103,6 +103,9 @@ var testPaidPlan = `
       "free": false,
       "bindable": true,
       "metadata": {
+		"supportInstanceSharing": {
+			"shareable": true
+		},
         "max_storage_tb": 5,
         "costs":[
             {

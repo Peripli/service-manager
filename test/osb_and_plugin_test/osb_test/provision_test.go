@@ -407,7 +407,7 @@ var _ = Describe("Provision", func() {
 					WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
 					Expect().Status(http.StatusCreated)
 			})
-			FIt("should return 201 if plan is visible in the org", func() {
+			It("should return 201 if plan is visible in the org", func() {
 				resp := ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).

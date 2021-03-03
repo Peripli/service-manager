@@ -19,12 +19,11 @@ package interceptors
 import (
 	"context"
 	"fmt"
-	"net/http"
-
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
+	"net/http"
 )
 
 const BrokerCreateCatalogInterceptorName = "BrokerCreateCatalogInterceptor"
@@ -157,11 +156,15 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
 	referencePlan := new(types.ServicePlan)
 	identity := "reference-plan"
-	referencePlan.ID = "reference-plan-id"
 	referencePlan.CatalogName = identity
 	referencePlan.CatalogID = identity
 	referencePlan.ServiceOfferingID = serviceOfferingId
 	referencePlan.Name = identity
-	referencePlan.ID = identity
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Errorf("could not generate GUID for ServicePlan: %s", err))
+	}
+	referencePlan.ID = UUID.String()
+
 	return referencePlan
 }

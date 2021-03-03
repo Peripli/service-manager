@@ -30,14 +30,15 @@ import (
 // ServiceInstance struct
 type ServiceInstance struct {
 	Base
-	Name            string               `json:"name"`
-	ServicePlanID   string               `json:"service_plan_id"`
-	PlatformID      string               `json:"platform_id"`
-	DashboardURL    string               `json:"dashboard_url,omitempty"`
-	MaintenanceInfo json.RawMessage      `json:"maintenance_info,omitempty"`
-	Context         json.RawMessage      `json:"context,omitempty"`
-	UpdateValues    InstanceUpdateValues `json:"-"`
-	PreviousValues  json.RawMessage      `json:"-"`
+	Name                 string               `json:"name"`
+	ServicePlanID        string               `json:"service_plan_id"`
+	ReferencedInstanceID string               `json:"referenced_instance_id"`
+	PlatformID           string               `json:"platform_id"`
+	DashboardURL         string               `json:"dashboard_url,omitempty"`
+	MaintenanceInfo      json.RawMessage      `json:"maintenance_info,omitempty"`
+	Context              json.RawMessage      `json:"context,omitempty"`
+	UpdateValues         InstanceUpdateValues `json:"-"`
+	PreviousValues       json.RawMessage      `json:"-"`
 
 	Parameters map[string]interface{} `json:"parameters,omitempty"`
 	Usable     bool                   `json:"usable"`

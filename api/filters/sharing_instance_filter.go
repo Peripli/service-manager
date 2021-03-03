@@ -105,11 +105,25 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 		}
 	}
 
+	byID = query.ByField(query.EqualsOperator, "id", plan.ServiceOfferingID)
+	serviceOfferingObject, err := f.repository.Get(ctx, types.ServiceOfferingType, byID)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceOfferingType.String())
+	}
+	serviceOffering := serviceOfferingObject.(*types.ServiceOffering)
+	byID = query.ByField(query.EqualsOperator, "service_offering_id", serviceOffering.ID)
+	byName := query.ByField(query.EqualsOperator, "name", "reference-plan")
+	referencePlanObject, err := f.repository.Get(ctx, types.ServicePlanType, byID, byName)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServicePlanType.String())
+	}
+	referencePlan := referencePlanObject.(*types.ServicePlan)
+
 	var resp *web.Response
 	if shared == true {
-		resp, err = f.executeShareFlow(req, instance, plan)
+		resp, err = f.executeShareFlow(req, instance, plan, referencePlan.ID)
 	} else {
-		resp, err = f.executeUnshareFlow(req, instance, plan)
+		resp, err = f.executeUnshareFlow(req, instance, plan, referencePlan.ID)
 	}
 
 	if resp != nil {
@@ -122,7 +136,7 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	return next.Handle(req)
 }
 
-func (f *sharingInstanceFilter) executeShareFlow(req *web.Request, instance *types.ServiceInstance, plan *types.ServicePlan) (*web.Response, error) {
+func (f *sharingInstanceFilter) executeShareFlow(req *web.Request, instance *types.ServiceInstance, plan *types.ServicePlan, referencePlanID string) (*web.Response, error) {
 	ctx := req.Context()
 	err := f.shareInstance(ctx, instance, true)
 	// todo: return error to client
@@ -138,7 +152,7 @@ func (f *sharingInstanceFilter) executeShareFlow(req *web.Request, instance *typ
 
 	//additionalLabel := "org_id"
 
-	err = f.setVisibilityOfReferencePlan(ctx, platforms)
+	err = f.setVisibilityOfReferencePlan(ctx, platforms, referencePlanID)
 
 	if err != nil {
 		log.C(ctx).Errorf("Could not set a visibility label of reference plan when sharing the instance (%s): %v", instance.ID, err)
@@ -155,7 +169,7 @@ func (f *sharingInstanceFilter) executeShareFlow(req *web.Request, instance *typ
 	return nil, nil
 }
 
-func (f *sharingInstanceFilter) executeUnshareFlow(req *web.Request, instance *types.ServiceInstance, plan *types.ServicePlan) (*web.Response, error) {
+func (f *sharingInstanceFilter) executeUnshareFlow(req *web.Request, instance *types.ServiceInstance, plan *types.ServicePlan, referencePlanID string) (*web.Response, error) {
 	/*
 		the unshare function should validate whether the instance has references or not
 		if has references:
@@ -186,7 +200,7 @@ func (f *sharingInstanceFilter) executeUnshareFlow(req *web.Request, instance *t
 
 	//additionalLabel := "org_id"
 
-	err = f.setVisibilityOfReferencePlan(ctx, platforms)
+	err = f.setVisibilityOfReferencePlan(ctx, platforms, referencePlanID)
 
 	if err != nil {
 		log.C(ctx).Errorf("Could not set a visibility label of reference plan when sharing the instance (%s): %v", instance.ID, err)
@@ -241,7 +255,7 @@ func (f *sharingInstanceFilter) shareInstance(ctx context.Context, instance *typ
 	return sharingErr
 }
 
-func (f *sharingInstanceFilter) setVisibilityOfReferencePlan(ctx context.Context, platformIDs map[string]*types.Platform) error {
+func (f *sharingInstanceFilter) setVisibilityOfReferencePlan(ctx context.Context, platformIDs map[string]*types.Platform, referencePlanID string) error {
 	tenantID, err := f.retrieveTenantID(ctx)
 	if err != nil {
 		return err
@@ -268,7 +282,7 @@ func (f *sharingInstanceFilter) setVisibilityOfReferencePlan(ctx context.Context
 			}
 		}
 		sharingErr := f.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-			visibility := f.generateVisibility(platform.ID, "reference-plan", tenantID, platformOverrideLabels)
+			visibility := f.generateVisibility(platform.ID, referencePlanID, tenantID, platformOverrideLabels)
 			_, err := storage.Create(ctx, visibility)
 			if err != nil {
 				return err

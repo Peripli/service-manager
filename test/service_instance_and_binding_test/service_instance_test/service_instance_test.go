@@ -412,7 +412,24 @@ var _ = DescribeTestsFor(TestCase{
 
 						When("Create service instance sm as a platform tls broker", func() {
 							It("returns 202", func() {
+
 								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanIDWithTLS, TenantIDValue)
+								resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+									WithQuery("async", false).
+									WithJSON(postInstanceRequestTLS).
+									Expect().Status(http.StatusCreated)
+
+								sharedInstanceID, _ := VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									Category:          types.CREATE,
+									State:             types.SUCCEEDED,
+									ResourceType:      types.ServiceInstanceType,
+									Reschedulable:     false,
+									DeletionScheduled: false,
+								})
+
+								postInstanceRequestTLS["parameters"] = map[string]string{
+									"referenced_instance_id": sharedInstanceID,
+								}
 								ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 									WithQuery("async", true).
 									WithJSON(postInstanceRequestTLS).
@@ -1594,7 +1611,7 @@ var _ = DescribeTestsFor(TestCase{
 								DeletionScheduled: false,
 							})
 						})
-						FIt("shares the instance successfully", func() {
+						It("shares the instance successfully", func() {
 							postInstanceRequestTLS["shared"] = true
 							resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
 								WithQuery("async", "false").
@@ -1603,6 +1620,54 @@ var _ = DescribeTestsFor(TestCase{
 								Status(http.StatusOK).
 								JSON().Object().ValueEqual("shared", true)
 							fmt.Print(resp)
+						})
+						FIt("shares the instance successfully and creates reference to it", func() {
+							//newContext[TenantIdentifier] = TenantIDValue
+							fmt.Print(postInstanceRequestTLS)
+							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanIDWithTLS, TenantIDValue)
+							postInstanceRequestTLS["shared"] = true
+							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
+								WithQuery("async", "false").
+								WithJSON(postInstanceRequestTLS).
+								Expect().
+								Status(http.StatusOK).
+								JSON().Object().ValueEqual("shared", true)
+
+							sharedInstanceResp := ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + instanceID)
+
+							fmt.Print(sharedInstanceResp)
+							sharedInstance := ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + instanceID).
+								Expect().
+								Status(http.StatusOK).
+								JSON().Object().Value("shared").Equal(true)
+
+							fmt.Print(sharedInstance)
+
+							postReferenceInstanceReq := Object{
+								"name":                   "reference-instance",
+								"referenced_instance_id": instanceID,
+								"service_plan_id":        servicePlanID,
+								"parameters": Object{
+									"referenced_instance_id": instanceID,
+								},
+								"contextt": Object{
+									TenantIdentifier: TenantIDValue,
+								},
+								"shared": false,
+							}
+
+							referenceInstanceResp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+								WithQuery("async", false).
+								WithJSON(postReferenceInstanceReq).
+								Expect().Status(http.StatusCreated)
+							referenceInstanceID, _ := VerifyOperationExists(ctx, referenceInstanceResp.Header("Location").Raw(), OperationExpectations{
+								Category:          types.CREATE,
+								State:             types.SUCCEEDED,
+								ResourceType:      types.ServiceInstanceType,
+								Reschedulable:     false,
+								DeletionScheduled: false,
+							})
+							fmt.Print(referenceInstanceID)
 						})
 					})
 					When("platform is not service-manager", func() {})
@@ -1637,6 +1702,9 @@ var _ = DescribeTestsFor(TestCase{
 								planID = ""
 								testCtx = ctx
 								brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut, verificationHandler(map[string]string{
+									"context." + TenantIdentifier: TenantIDValue,
+								}, http.StatusCreated))
+								brokerServer.ServiceInstanceHandlerFunc(http.MethodPost, http.MethodPost, verificationHandler(map[string]string{
 									"context." + TenantIdentifier: TenantIDValue,
 								}, http.StatusCreated))
 								brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut, verificationHandler(map[string]string{
