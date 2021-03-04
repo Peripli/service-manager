@@ -55,7 +55,7 @@ GO_INT_TEST_OTHER = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list
 				$(shell go list ./test/... | egrep -v "broker_test|osb_and_plugin_test|service_instance_and_binding_test") $(TEST_FLAGS) -coverprofile=$(INT_OTHER_TEST_PROFILE)
 
 GO_INT_TEST_BROKER = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
-				./test/broker_test/... $(TEST_FLAGS) -coverprofile=$(INT_BROKER_TEST_PROFILE)
+				./test/info_test/... $(TEST_FLAGS) -coverprofile=$(INT_BROKER_TEST_PROFILE)
 
 GO_INT_TEST_OSB_AND_PLUGIN = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
 				./test/osb_and_plugin_test/... $(TEST_FLAGS) -coverprofile=$(INT_OSB_AND_PLUGIN_TEST_PROFILE)
@@ -147,7 +147,7 @@ generate: prepare-counterfeiter build-gen-binary $(GENERATE_PREREQ_FILES) ## Rec
 
 test-unit:
 	@echo Running unit tests:
-	$(GO_UNIT_TEST)
+	$(GO_INT_TEST_BROKER)
 
 test-int: generate ## Runs the integration tests. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
 	@echo Running integration tests:
@@ -206,7 +206,7 @@ precommit-integration-tests-osb-and-plugin: build test-int-osb-and-plugin ## Run
 precommit-integration-tests-service-instance-and-binding: build test-int-service-instance-and-binding ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
 precommit-integration-tests-other: build test-int-other ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
 precommit-unit-tests: build test-unit format-check lint-check ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
-precommit-new-unit-tests: prepare build test-unit format-check lint-check
+precommit-new-unit-tests: prepare build test-unit
 precommit-new-integration-tests-broker: prepare build  test-int-broker
 precommit-new-integration-tests-osb-and-plugin: prepare build test-int-osb-and-plugin
 precommit-new-integration-tests-service-instance-and-binding: prepare build test-int-service-instance-and-binding
