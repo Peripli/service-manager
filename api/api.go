@@ -129,7 +129,6 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			NewServiceOfferingController(ctx, options),
 			NewServicePlanController(ctx, options),
 			NewOperationsController(ctx, options),
-			NewAgentsController(options.Agents),
 
 			&credentialsController{
 				repository: options.Repository,
