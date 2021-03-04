@@ -754,6 +754,9 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.Ser
 }
 
 func getOriginIdentity(userInfo string, context json.RawMessage) *osbc.OriginatingIdentity {
+	if len(userInfo) == 0 {
+		return nil
+	}
 	platform := gjson.GetBytes(context, "platform")
 	return &osbc.OriginatingIdentity{
 		Platform: platform.Str,

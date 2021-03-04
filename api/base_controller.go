@@ -705,7 +705,9 @@ func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types
 			username = user.Name
 		}
 	}
-	operationContext.UserInfo = fmt.Sprintf(`{"user": "%s"}`, username)
+	if len(username) > 0 {
+		operationContext.UserInfo = fmt.Sprintf(`{"user": "%s"}`, username)
+	}
 
 	async := r.URL.Query().Get(web.QueryParamAsync)
 	cascade := r.URL.Query().Get(web.QueryParamCascade)
