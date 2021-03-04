@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ['1.13', '1.14', '1.15', '1.16']
+        go: ['1.15', '1.16']
         os: [ubuntu-latest]
     steps:
     - name: Set up Go 1.x
@@ -32,13 +32,12 @@ jobs:
 
     - name: Test
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
-      run: make precommit-new-unit-tets
+      run: make precommit-new-unit-tests
 
     - name: Send coverage
       uses: shogo82148/actions-goveralls@v1
       with:
         parallel: true
-        flag-name: unit-${{ matrix.os }}-go-${{ matrix.go }}
         path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-unit.cov
 
   broker:
