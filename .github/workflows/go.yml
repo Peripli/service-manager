@@ -34,7 +34,6 @@ jobs:
       working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
       run: make precommit-new-unit-tests
 
-
     - name: Send coverage
       uses: dmitry-bakaleinik-sap/actions-goveralls@v4.0.1
       with:
