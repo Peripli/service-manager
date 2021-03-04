@@ -25,23 +25,21 @@ jobs:
         with:
           path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
 
+      - name: Get dependencies
+        working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+        run: |
+          curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+
       - name: Test
         working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
         run: make precommit-new-unit-tets
 
-      - name: Convert coverage to lcov
-        uses: jandelgado/gcov2lcov-action@v1.0.6
+      - name: Send coverage
+        uses: shogo82148/actions-goveralls@v1.4.2
         with:
-          infile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-unit.cov
-          outfile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-unit.lcov
-
-      - name: Send Coverage
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.github_token }}
-          path-to-lcov: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-unit.lcov
-          flag-name: unit
           parallel: true
+          flag-name: unit
+          path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-unit.cov
 
   broker:
     name: Broker Test
@@ -75,19 +73,12 @@ jobs:
         working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
         run: make precommit-new-integration-tests-broker
 
-      - name: Convert coverage to lcov
-        uses: jandelgado/gcov2lcov-action@v1.0.6
+      - name: Send coverage
+        uses: shogo82148/actions-goveralls@v1.4.2
         with:
-          infile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-broker.cov
-          outfile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-broker.lcov
-
-      - name: Send Coverage
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.github_token }}
-          path-to-lcov: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-broker.lcov
-          flag-name: broker
           parallel: true
+          flag-name: broker
+          path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-broker.cov
 
   osb:
     name: OSB Test
@@ -121,19 +112,12 @@ jobs:
         working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
         run: make precommit-new-integration-tests-osb-and-plugin
 
-      - name: Convert coverage to lcov
-        uses: jandelgado/gcov2lcov-action@v1.0.6
+      - name: Send coverage
+        uses: shogo82148/actions-goveralls@v1.4.2
         with:
-          infile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-osb-and-plugin.cov
-          outfile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-osb-and-plugin.lcov
-
-      - name: Send Coverage
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.github_token }}
-          path-to-lcov: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-osb-and-plugin.lcov
-          flag-name: osb
           parallel: true
+          flag-name: osb
+          path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-osb-and-plugin.cov
 
   instance-and-binding:
     name: Instance And Binding Test
@@ -167,19 +151,12 @@ jobs:
         working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
         run: make precommit-new-integration-tests-service-instance-and-binding
 
-      - name: Convert coverage to lcov
-        uses: jandelgado/gcov2lcov-action@v1.0.6
+      - name: Send coverage
+        uses: shogo82148/actions-goveralls@v1.4.2
         with:
-          infile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-service-instance-and-bindings.cov
-          outfile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-service-instance-and-bindings.lcov
-
-      - name: Send Coverage
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.github_token }}
-          path-to-lcov: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-service-instance-and-bindings.lcov
-          flag-name: instance-and-binding
           parallel: true
+          flag-name: instance-and-binding
+          path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-service-instance-and-bindings.cov
 
   other:
     name: Other Test
@@ -213,26 +190,17 @@ jobs:
         working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
         run: make precommit-integration-tests-other
 
-      - name: Convert coverage to lcov
-        uses: jandelgado/gcov2lcov-action@v1.0.6
+      - name: Send coverage
+        uses: shogo82148/actions-goveralls@v1.4.2
         with:
-          infile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-other.cov
-          outfile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-other.lcov
-
-      - name: Send Coverage
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.github_token }}
-          path-to-lcov: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-other.lcov
-          flag-name: other
           parallel: true
+          flag-name: other
+          path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-other.cov
 
   coverage:
     needs: [unit, broker, osb, instance-and-binding, other]
     runs-on: ubuntu-latest
     steps:
-      - uses: coverallsapp/github-action@master
+      - uses: shogo82148/actions-goveralls@v1.4.2
         with:
-          github-token: ${{ secrets.github_token }}
           parallel-finished: true
-
