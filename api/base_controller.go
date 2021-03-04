@@ -697,8 +697,8 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types.OperationContext {
 	var username string
 	operationContext := &types.OperationContext{}
-	if len(r.Header[originatingIdentityHeader]) > 0 {
-		username = r.Header[originatingIdentityHeader][0]
+	if len(r.Header.Get(originatingIdentityHeader)) > 0 {
+		username = r.Header.Get(originatingIdentityHeader)
 	} else {
 		user, ok := web.UserFromContext(r.Context())
 		if ok {
