@@ -36,7 +36,7 @@ jobs:
 
 
     - name: Send coverage
-      uses: dmitry-bakaleinik-sap/actions-goveralls@v4
+      uses: dmitry-bakaleinik-sap/actions-goveralls@v4.0.0
       with:
         parallel: true
         path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-unit.cov
