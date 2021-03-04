@@ -150,7 +150,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		var provisionResponse *osbc.ProvisionResponse
 		if !operation.Reschedule {
 			operation.Context.ServicePlanID = instance.ServicePlanID
-			provisionRequest, err := i.prepareProvisionRequest(instance, service.CatalogID, plan.CatalogID, operation.Context.UserInfo)
+			provisionRequest, err := i.prepareProvisionRequest(instance, service.CatalogID, plan.CatalogID, operation.GetUserInfo())
 			if err != nil {
 				return nil, fmt.Errorf("failed to prepare provision request: %s", err)
 			}
@@ -288,7 +288,7 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			}
 			oldServicePlan := oldServicePlanObj.(*types.ServicePlan)
 			var updateInstanceResponse *osbc.UpdateInstanceResponse
-			updateInstanceRequest, err := i.prepareUpdateInstanceRequest(updatedInstance, service.CatalogID, plan.CatalogID, oldServicePlan.CatalogID, operation.Context.UserInfo)
+			updateInstanceRequest, err := i.prepareUpdateInstanceRequest(updatedInstance, service.CatalogID, plan.CatalogID, oldServicePlan.CatalogID, operation.GetUserInfo())
 			if err != nil {
 				return nil, fmt.Errorf("faied to prepare update instance request: %s", err)
 			}
@@ -444,7 +444,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 
 	var deprovisionResponse *osbc.DeprovisionResponse
 	if !operation.Reschedule {
-		deprovisionRequest := prepareDeprovisionRequest(instance, service.CatalogID, plan.CatalogID, operation.Context.UserInfo)
+		deprovisionRequest := prepareDeprovisionRequest(instance, service.CatalogID, plan.CatalogID, operation.GetUserInfo())
 
 		log.C(ctx).Infof("Sending deprovision request %s to broker with name %s", logDeprovisionRequest(deprovisionRequest), broker.Name)
 		deprovisionResponse, err = osbClient.DeprovisionInstance(deprovisionRequest)
@@ -515,7 +515,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 		ServiceID:           &serviceCatalogID,
 		PlanID:              &planCatalogID,
 		OperationKey:        key,
-		OriginatingIdentity: getOriginIdentity(operation.Context.UserInfo, instance.Context),
+		OriginatingIdentity: getOriginIdentity(operation.GetUserInfo(), instance.Context),
 	}
 
 	planMaxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
@@ -754,7 +754,7 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.Ser
 }
 
 func getOriginIdentity(userInfo string, context json.RawMessage) *osbc.OriginatingIdentity {
-	if len(userInfo) == 0 {
+	if len(userInfo) == 0 || len(context) == 0 {
 		return nil
 	}
 	platform := gjson.GetBytes(context, "platform")

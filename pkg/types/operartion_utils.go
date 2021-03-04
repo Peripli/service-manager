@@ -3,3 +3,10 @@ package types
 func (e *Operation) IsAsyncResponse() bool {
 	return e.Context.Async
 }
+
+func (e *Operation) GetUserInfo() string {
+	if e.Context != nil {
+		return e.Context.UserInfo
+	}
+	return ""
+}

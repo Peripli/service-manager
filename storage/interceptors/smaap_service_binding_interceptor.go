@@ -156,7 +156,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		var bindResponse *osbc.BindResponse
 		if !operation.Reschedule {
 			operation.Context.ServiceInstanceID = binding.ServiceInstanceID
-			bindRequest, err := i.prepareBindRequest(instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable, operation.Context.UserInfo)
+			bindRequest, err := i.prepareBindRequest(instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable, operation.GetUserInfo())
 			if err != nil {
 				return nil, fmt.Errorf("failed to prepare bind request: %s", err)
 			}
@@ -323,7 +323,7 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 
 	var unbindResponse *osbc.UnbindResponse
 	if !operation.Reschedule {
-		unbindRequest := prepareUnbindRequest(instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable, operation.Context.UserInfo)
+		unbindRequest := prepareUnbindRequest(instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable, operation.GetUserInfo())
 
 		log.C(ctx).Infof("Sending unbind request %s to broker with name %s", logUnbindRequest(unbindRequest), broker.Name)
 		unbindResponse, err = osbClient.Unbind(unbindRequest)
@@ -509,7 +509,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 		ServiceID:           &serviceCatalogID,
 		PlanID:              &planCatalogID,
 		OperationKey:        key,
-		OriginatingIdentity: getOriginIdentity(operation.Context.UserInfo, instance.Context),
+		OriginatingIdentity: getOriginIdentity(operation.GetUserInfo(), instance.Context),
 	}
 
 	planMaxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
