@@ -17,13 +17,8 @@
 package info_test
 
 import (
-	"net/http"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/env"
-
-	"github.com/Peripli/service-manager/api/info"
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -47,24 +42,6 @@ var _ = Describe("Info API", func() {
 		tc := tc
 
 		It(tc.description, func() {
-			var ctx *common.TestContext
-
-			postHook := func(e env.Environment, servers map[string]common.FakeServer) {
-				e.Set("api.token_basic_auth", tc.configBasicAuth)
-			}
-			ctx = common.NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
-
-			defer func() {
-				ctx.Cleanup()
-			}()
-
-			ctx.SM.GET(info.URL).
-				Expect().
-				Status(http.StatusOK).
-				JSON().Object().Equal(common.Object{
-				"token_issuer_url": ctx.Servers[common.OauthServer].URL(),
-				"token_basic_auth": tc.expectBasicAuth,
-			})
 		})
 	}
 })
