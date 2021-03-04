@@ -95,6 +95,7 @@ type OperationContext struct {
 	Cascade           bool   `json:"-"`
 	ServicePlanID     string `json:"service_plan_id"`
 	ServiceInstanceID string `json:"service_instance_id"`
+	UserInfo          string `json:"user_info"`
 }
 
 func (e *Operation) Equals(obj Object) bool {

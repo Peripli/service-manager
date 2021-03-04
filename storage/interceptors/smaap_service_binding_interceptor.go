@@ -156,7 +156,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		var bindResponse *osbc.BindResponse
 		if !operation.Reschedule {
 			operation.Context.ServiceInstanceID = binding.ServiceInstanceID
-			bindRequest, err := i.prepareBindRequest(instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable)
+			bindRequest, err := i.prepareBindRequest(instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable, operation.Context.UserInfo)
 			if err != nil {
 				return nil, fmt.Errorf("failed to prepare bind request: %s", err)
 			}
@@ -323,7 +323,7 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 
 	var unbindResponse *osbc.UnbindResponse
 	if !operation.Reschedule {
-		unbindRequest := prepareUnbindRequest(instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable)
+		unbindRequest := prepareUnbindRequest(instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable, operation.Context.UserInfo)
 
 		log.C(ctx).Infof("Sending unbind request %s to broker with name %s", logUnbindRequest(unbindRequest), broker.Name)
 		unbindResponse, err = osbClient.Unbind(unbindRequest)
@@ -438,7 +438,7 @@ func getInstanceByID(ctx context.Context, instanceID string, repository storage.
 	return instanceObject.(*types.ServiceInstance), nil
 }
 
-func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool) (*osbc.BindRequest, error) {
+func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool, userInfo string) (*osbc.BindRequest, error) {
 	context := make(map[string]interface{})
 	if len(binding.Context) != 0 {
 		var err error
@@ -470,29 +470,27 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceIn
 	}
 
 	bindRequest := &osbc.BindRequest{
-		BindingID:         binding.ID,
-		InstanceID:        instance.ID,
-		AcceptsIncomplete: bindingRetrievable,
-		ServiceID:         serviceCatalogID,
-		PlanID:            planCatalogID,
-		Parameters:        binding.Parameters,
-		Context:           context,
-		//TODO no OI for SM platform yet
-		OriginatingIdentity: nil,
+		BindingID:           binding.ID,
+		InstanceID:          instance.ID,
+		AcceptsIncomplete:   bindingRetrievable,
+		ServiceID:           serviceCatalogID,
+		PlanID:              planCatalogID,
+		Parameters:          binding.Parameters,
+		Context:             context,
+		OriginatingIdentity: getOriginIdentity(userInfo, instance.Context),
 	}
 
 	return bindRequest, nil
 }
 
-func prepareUnbindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool) *osbc.UnbindRequest {
+func prepareUnbindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool, userInfo string) *osbc.UnbindRequest {
 	unbindRequest := &osbc.UnbindRequest{
-		BindingID:         binding.ID,
-		InstanceID:        instance.ID,
-		AcceptsIncomplete: bindingRetrievable,
-		ServiceID:         serviceCatalogID,
-		PlanID:            planCatalogID,
-		//TODO no OI for SM platform yet
-		OriginatingIdentity: nil,
+		BindingID:           binding.ID,
+		InstanceID:          instance.ID,
+		AcceptsIncomplete:   bindingRetrievable,
+		ServiceID:           serviceCatalogID,
+		PlanID:              planCatalogID,
+		OriginatingIdentity: getOriginIdentity(userInfo, instance.Context),
 	}
 
 	return unbindRequest
@@ -506,13 +504,12 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 	}
 
 	pollingRequest := &osbc.BindingLastOperationRequest{
-		InstanceID:   binding.ServiceInstanceID,
-		BindingID:    binding.ID,
-		ServiceID:    &serviceCatalogID,
-		PlanID:       &planCatalogID,
-		OperationKey: key,
-		//TODO no OI for SM platform yet
-		OriginatingIdentity: nil,
+		InstanceID:          binding.ServiceInstanceID,
+		BindingID:           binding.ID,
+		ServiceID:           &serviceCatalogID,
+		PlanID:              &planCatalogID,
+		OperationKey:        key,
+		OriginatingIdentity: getOriginIdentity(operation.Context.UserInfo, instance.Context),
 	}
 
 	planMaxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
