@@ -37,6 +37,7 @@ jobs:
       - name: Send coverage
         uses: shogo82148/actions-goveralls@v1.4.2
         with:
+          github-token: ${{ secrets.github_token }}
           parallel: true
           flag-name: unit
           path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-unit.cov
@@ -76,6 +77,7 @@ jobs:
       - name: Send coverage
         uses: shogo82148/actions-goveralls@v1.4.2
         with:
+          github-token: ${{ secrets.github_token }}
           parallel: true
           flag-name: broker
           path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-broker.cov
@@ -115,6 +117,7 @@ jobs:
       - name: Send coverage
         uses: shogo82148/actions-goveralls@v1.4.2
         with:
+          github-token: ${{ secrets.github_token }}
           parallel: true
           flag-name: osb
           path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-osb-and-plugin.cov
@@ -154,6 +157,7 @@ jobs:
       - name: Send coverage
         uses: shogo82148/actions-goveralls@v1.4.2
         with:
+          github-token: ${{ secrets.github_token }}
           parallel: true
           flag-name: instance-and-binding
           path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-service-instance-and-bindings.cov
@@ -193,6 +197,7 @@ jobs:
       - name: Send coverage
         uses: shogo82148/actions-goveralls@v1.4.2
         with:
+          github-token: ${{ secrets.github_token }}
           parallel: true
           flag-name: other
           path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-int-other.cov
