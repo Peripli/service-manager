@@ -372,6 +372,13 @@ var _ = DescribeTestsFor(TestCase{
 						})
 					})
 
+					It("sends originating identity to broker", func() {
+						op, err := ctx.SMRepository.Get(context.Background(), types.OperationType, query.ByField(query.EqualsOperator, "resource_id", instanceID))
+						Expect(err).ToNot(HaveOccurred())
+						operation := op.(*types.Operation)
+						Expect(operation.Context.UserInfo).To(ContainSubstring("test-user"))
+					})
+
 					It("returns OSB context with tenant as part of the instance using json query", func() {
 						res := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL).
 							WithQuery("fieldQuery", fmt.Sprintf("context/instance_name eq '%s' and context/platform eq '%s'", instanceName, types.SMPlatform)).

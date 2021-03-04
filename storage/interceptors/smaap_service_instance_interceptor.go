@@ -757,9 +757,13 @@ func getOriginIdentity(userInfo string, context json.RawMessage) *osbc.Originati
 	if len(userInfo) == 0 || len(context) == 0 {
 		return nil
 	}
-	platform := gjson.GetBytes(context, "platform")
+	platform := gjson.GetBytes(context, "platform").String()
+
+	if len(platform) == 0 {
+		platform = types.SMPlatform
+	}
 	return &osbc.OriginatingIdentity{
-		Platform: platform.Str,
+		Platform: platform,
 		Value:    userInfo,
 	}
 }
