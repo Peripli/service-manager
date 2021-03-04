@@ -35,7 +35,7 @@ jobs:
       run: make precommit-new-unit-tests
 
     - name: Send coverage
-      uses: dmitry-bakaleinik-sap/actions-goveralls
+      uses: dmitry-bakaleinik-sap/actions-goveralls@v3
       with:
         parallel: true
         path-to-profile: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}/profile-unit.cov
