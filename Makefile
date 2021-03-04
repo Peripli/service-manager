@@ -55,7 +55,7 @@ GO_INT_TEST_OTHER = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list
 				$(shell go list ./test/... | egrep -v "broker_test|osb_and_plugin_test|service_instance_and_binding_test") $(TEST_FLAGS) -coverprofile=$(INT_OTHER_TEST_PROFILE)
 
 GO_INT_TEST_BROKER = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
-				./test/info_test/... $(TEST_FLAGS) -coverprofile=$(INT_BROKER_TEST_PROFILE)
+				./test/info_test/... $(TEST_FLAGS) -coverprofile=$(UNIT_TEST_PROFILE)
 
 GO_INT_TEST_OSB_AND_PLUGIN = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
 				./test/osb_and_plugin_test/... $(TEST_FLAGS) -coverprofile=$(INT_OSB_AND_PLUGIN_TEST_PROFILE)

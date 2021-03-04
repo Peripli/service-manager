@@ -42,6 +42,7 @@ var _ = Describe("Info API", func() {
 		tc := tc
 
 		It(tc.description, func() {
+			Expect("a").To(BeIdenticalTo("a"))
 		})
 	}
 })
