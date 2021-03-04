@@ -471,8 +471,6 @@ func triggerCascadeOperationWithCategory(rootID string, repoCtx context.Context,
 	_, err := ctx.SMRepository.Create(repoCtx, &cascadeOperation)
 	//Last operation is never deleted since we keep the last operation for any resource (see: CleanupResourcelessOperations in maintainer.go).
 	//That's why we create here another operation thus allow us to verify the deletion of the cascade operation in the tests.
-	UUID, err := uuid.NewV4()
-	Expect(err).ToNot(HaveOccurred())
 	UUID, err = uuid.NewV4()
 	Expect(err).ToNot(HaveOccurred())
 	lastOperation := types.Operation{
