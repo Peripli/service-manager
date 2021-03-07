@@ -360,7 +360,7 @@ var _ = DescribeTestsFor(TestCase{
 						Expect(operation.Context.UserInfo).To(ContainSubstring("test-user"))
 						reqLen := len(brokerServer.BindingEndpointRequests)
 						identity := brokerServer.BindingEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
-						Expect(identity).To(Equal("service-manager eyJ1c2VyIjogInRlc3QtdXNlciJ9"))
+						Expect(identity).To(Equal("service-manager eyJ1c2VybmFtZSI6ICJ0ZXN0LXVzZXIifQ=="))
 					})
 
 					It("returns OSB context with no tenant as part of the binding", func() {

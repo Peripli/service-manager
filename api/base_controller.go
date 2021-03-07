@@ -42,10 +42,7 @@ import (
 // pagingLimitOffset is a constant which is needed to identify if there are more items in the DB.
 // If there is 1 more item than requested, we need to generate a token for the next page.
 // The last item is omitted.
-const (
-	pagingLimitOffset         = 1
-	originatingIdentityHeader = "X-Originating-Identity"
-)
+const pagingLimitOffset = 1
 
 // BaseController provides common CRUD handlers for all object types in the service manager
 type BaseController struct {
@@ -695,18 +692,19 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 }
 
 func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types.OperationContext {
-	var username string
+	var userInfo string
+	originatingIdentity := web.OriginatingIdentityFromContext(r.Context())
 	operationContext := &types.OperationContext{}
-	if len(r.Header.Get(originatingIdentityHeader)) > 0 {
-		username = r.Header.Get(originatingIdentityHeader)
+
+	if len(originatingIdentity) > 0 {
+		userInfo = originatingIdentity
 	} else {
-		user, ok := web.UserFromContext(r.Context())
-		if ok {
-			username = user.Name
+		if user, ok := web.UserFromContext(r.Context()); ok {
+			userInfo = fmt.Sprintf(`{"username": "%s"}`, user.Name)
 		}
 	}
-	if len(username) > 0 {
-		operationContext.UserInfo = fmt.Sprintf(`{"user": "%s"}`, username)
+	if len(userInfo) > 0 {
+		operationContext.UserInfo = userInfo
 	}
 
 	async := r.URL.Query().Get(web.QueryParamAsync)

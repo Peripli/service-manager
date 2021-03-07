@@ -384,7 +384,7 @@ var _ = DescribeTestsFor(TestCase{
 						Expect(operation.Context.UserInfo).To(ContainSubstring("test-user"))
 						reqLen := len(brokerServer.ServiceInstanceEndpointRequests)
 						identity := brokerServer.ServiceInstanceEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
-						Expect(identity).To(Equal("service-manager eyJ1c2VyIjogInRlc3QtdXNlciJ9"))
+						Expect(identity).To(Equal("service-manager eyJ1c2VybmFtZSI6ICJ0ZXN0LXVzZXIifQ=="))
 					})
 
 					It("returns OSB context with tenant as part of the instance using json query", func() {
