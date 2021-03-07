@@ -76,6 +76,7 @@ type ServiceManagerBuilder struct {
 	cfg                  *config.Settings
 	securityBuilder      *SecurityBuilder
 	encryptingRepository storage.TransactionalRepository
+	APIOptions           *api.Options
 }
 
 // ServiceManager  struct
@@ -201,6 +202,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		securityBuilder:      securityBuilder,
 		OSBClientProvider:    osbClientProvider,
 		encryptingRepository: encryptingRepository,
+		APIOptions:           apiOptions,
 	}
 
 	smb.RegisterPlugins(osb.NewCatalogFilterByVisibilityPlugin(interceptableRepository))

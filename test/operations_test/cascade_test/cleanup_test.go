@@ -5,6 +5,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/test/common"
+	"github.com/gofrs/uuid"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"net/http"
@@ -17,6 +18,27 @@ var _ = Describe("cascade operations", func() {
 	})
 
 	Context("cleanup", func() {
+		It("cleans up finished cascade update operations", func() {
+			UUID, err := uuid.NewV4()
+			Expect(err).ToNot(HaveOccurred())
+			rootID := UUID.String()
+			triggerCascadeOperationWithCategory(rootID, context.Background(), tenantID, types.UPDATE)
+			common.VerifyOperationExists(ctx, "", common.OperationExpectations{
+				Category:          types.UPDATE,
+				State:             types.SUCCEEDED,
+				ResourceType:      types.TenantType,
+				Reschedulable:     false,
+				DeletionScheduled: false,
+			})
+			ctx.Maintainer.CleanupFinishedCascadeOperations()
+			count, err := ctx.SMRepository.Count(
+				context.Background(),
+				types.OperationType,
+				queryForOperationsInTheSameTree(rootID))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(count).To(Equal(0))
+		})
+
 		It("finished tree should be deleted", func() {
 			rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, false)
 			common.VerifyOperationExists(ctx, "", common.OperationExpectations{
