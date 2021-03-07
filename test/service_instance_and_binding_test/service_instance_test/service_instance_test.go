@@ -348,10 +348,15 @@ var _ = DescribeTestsFor(TestCase{
 
 				When("service instance contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
+						brokerServer.ShouldRecordRequests(true)
 						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 						resp := createInstance(ctx.SMWithOAuthForTenant, "", http.StatusCreated)
 						instanceName = resp.JSON().Object().Value("name").String().Raw()
 						Expect(instanceName).ToNot(BeEmpty())
+					})
+
+					AfterEach(func() {
+						brokerServer.ShouldRecordRequests(false)
 					})
 
 					It("labels instance with tenant identifier", func() {
@@ -377,6 +382,9 @@ var _ = DescribeTestsFor(TestCase{
 						Expect(err).ToNot(HaveOccurred())
 						operation := op.(*types.Operation)
 						Expect(operation.Context.UserInfo).To(ContainSubstring("test-user"))
+						reqLen := len(brokerServer.ServiceInstanceEndpointRequests)
+						identity := brokerServer.ServiceInstanceEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
+						Expect(identity).To(Equal("service-manager eyJ1c2VyIjogInRlc3QtdXNlciJ9"))
 					})
 
 					It("returns OSB context with tenant as part of the instance using json query", func() {

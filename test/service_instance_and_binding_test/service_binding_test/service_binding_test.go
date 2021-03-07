@@ -338,7 +338,12 @@ var _ = DescribeTestsFor(TestCase{
 			Describe("GET", func() {
 				When("service binding contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
+						brokerServer.ShouldRecordRequests(true)
 						createBinding(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
+					})
+
+					AfterEach(func() {
+						brokerServer.ShouldRecordRequests(false)
 					})
 
 					It("labels instance with tenant identifier", func() {
@@ -346,6 +351,16 @@ var _ = DescribeTestsFor(TestCase{
 							Status(http.StatusOK).
 							JSON().
 							Object().Path(fmt.Sprintf("$.labels[%s][*]", TenantIdentifier)).Array().Contains(TenantIDValue)
+					})
+
+					It("sends originating identity to broker", func() {
+						op, err := ctx.SMRepository.Get(context.Background(), types.OperationType, query.ByField(query.EqualsOperator, "resource_id", bindingID))
+						Expect(err).ToNot(HaveOccurred())
+						operation := op.(*types.Operation)
+						Expect(operation.Context.UserInfo).To(ContainSubstring("test-user"))
+						reqLen := len(brokerServer.BindingEndpointRequests)
+						identity := brokerServer.BindingEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
+						Expect(identity).To(Equal("service-manager eyJ1c2VyIjogInRlc3QtdXNlciJ9"))
 					})
 
 					It("returns OSB context with no tenant as part of the binding", func() {
