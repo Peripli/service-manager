@@ -201,7 +201,7 @@ var _ = DescribeTestsFor(TestCase{
 
 			preparePrerequisitesWithMaxPollingDuration := func(maxPollingDuration int) {
 				brokerID, brokerServer, servicePlanID, servicePlanCatalogID, serviceCatalogID = newServicePlanWithMaxPollingDuration(ctx, true, maxPollingDuration)
-				brokerServer.ShouldRecordRequests(true)
+				brokerServer.ShouldRecordRequests(false)
 				EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 				resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
 				instanceName = resp.JSON().Object().Value("name").String().Raw()
@@ -531,6 +531,14 @@ var _ = DescribeTestsFor(TestCase{
 						})
 
 						Context("originating identity", func() {
+							BeforeEach(func() {
+								brokerServer.ShouldRecordRequests(true)
+							})
+
+							AfterEach(func() {
+								brokerServer.ShouldRecordRequests(true)
+							})
+
 							It("should be passed to broker", func() {
 								resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
 								bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -1654,6 +1662,14 @@ var _ = DescribeTestsFor(TestCase{
 							})
 
 							Context("originating identity", func() {
+								BeforeEach(func() {
+									brokerServer.ShouldRecordRequests(true)
+								})
+
+								AfterEach(func() {
+									brokerServer.ShouldRecordRequests(true)
+								})
+
 								It("should be passed to broker", func() {
 									resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
 									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
