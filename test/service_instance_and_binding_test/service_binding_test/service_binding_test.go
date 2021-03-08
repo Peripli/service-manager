@@ -536,7 +536,7 @@ var _ = DescribeTestsFor(TestCase{
 							})
 
 							AfterEach(func() {
-								brokerServer.ShouldRecordRequests(true)
+								brokerServer.ShouldRecordRequests(false)
 							})
 
 							It("should be passed to broker", func() {
@@ -1667,7 +1667,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								AfterEach(func() {
-									brokerServer.ShouldRecordRequests(true)
+									brokerServer.ShouldRecordRequests(false)
 								})
 
 								It("should be passed to broker", func() {
