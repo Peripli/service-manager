@@ -101,7 +101,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		if err != nil {
 			return nil, err
 		}
-		smaapOperated := instance.Labels != nil && len(instance.Labels[OperatedByLabelKey]) > 0
+		smaapOperated := isOperatedBySmaaP(instance)
 
 		if instance.PlatformID != types.SMPlatform && !smaapOperated {
 			log.C(ctx).Debugf("platform is not %s. Skipping interceptor %s", types.SMPlatform, ServiceBindingDeleteInterceptorProviderName)
@@ -477,7 +477,7 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceIn
 		PlanID:              planCatalogID,
 		Parameters:          binding.Parameters,
 		Context:             context,
-		OriginatingIdentity: getOriginIdentity(userInfo, instance.Context),
+		OriginatingIdentity: getOriginIdentity(userInfo, instance),
 	}
 
 	return bindRequest, nil
@@ -490,7 +490,7 @@ func prepareUnbindRequest(instance *types.ServiceInstance, binding *types.Servic
 		AcceptsIncomplete:   bindingRetrievable,
 		ServiceID:           serviceCatalogID,
 		PlanID:              planCatalogID,
-		OriginatingIdentity: getOriginIdentity(userInfo, instance.Context),
+		OriginatingIdentity: getOriginIdentity(userInfo, instance),
 	}
 
 	return unbindRequest
@@ -509,7 +509,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 		ServiceID:           &serviceCatalogID,
 		PlanID:              &planCatalogID,
 		OperationKey:        key,
-		OriginatingIdentity: getOriginIdentity(operation.GetUserInfo(), instance.Context),
+		OriginatingIdentity: getOriginIdentity(operation.GetUserInfo(), instance),
 	}
 
 	planMaxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second

@@ -348,15 +348,10 @@ var _ = DescribeTestsFor(TestCase{
 
 				When("service instance contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
-						brokerServer.ShouldRecordRequests(true)
 						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 						resp := createInstance(ctx.SMWithOAuthForTenant, "", http.StatusCreated)
 						instanceName = resp.JSON().Object().Value("name").String().Raw()
 						Expect(instanceName).ToNot(BeEmpty())
-					})
-
-					AfterEach(func() {
-						brokerServer.ShouldRecordRequests(false)
 					})
 
 					It("labels instance with tenant identifier", func() {
@@ -375,16 +370,6 @@ var _ = DescribeTestsFor(TestCase{
 							"instance_name":  instanceName,
 							TenantIdentifier: TenantIDValue,
 						})
-					})
-
-					It("sends originating identity to broker", func() {
-						op, err := ctx.SMRepository.Get(context.Background(), types.OperationType, query.ByField(query.EqualsOperator, "resource_id", instanceID))
-						Expect(err).ToNot(HaveOccurred())
-						operation := op.(*types.Operation)
-						Expect(operation.Context.UserInfo).To(ContainSubstring("test-user"))
-						reqLen := len(brokerServer.ServiceInstanceEndpointRequests)
-						identity := brokerServer.ServiceInstanceEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
-						Expect(identity).To(Equal("service-manager eyJ1c2VybmFtZSI6ICJ0ZXN0LXVzZXIifQ=="))
 					})
 
 					It("returns OSB context with tenant as part of the instance using json query", func() {
@@ -603,6 +588,34 @@ var _ = DescribeTestsFor(TestCase{
 										Status(http.StatusBadRequest).
 										JSON().Object().Value("description").String().Contains("invalid json: duplicate key labels")
 								})
+							})
+						})
+
+						When("broker expects originating identity", func() {
+							BeforeEach(func() {
+								brokerServer.ShouldRecordRequests(true)
+								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
+							})
+
+							It("should be sent", func() {
+								resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+								instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									Category:          types.CREATE,
+									State:             types.SUCCEEDED,
+									ResourceType:      types.ServiceInstanceType,
+									Reschedulable:     false,
+									DeletionScheduled: false,
+								})
+
+								VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									ID:    instanceID,
+									Type:  types.ServiceInstanceType,
+									Ready: true,
+								})
+								reqLen := len(brokerServer.ServiceInstanceEndpointRequests)
+								identity := brokerServer.ServiceInstanceEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
+								Expect(identity).To(Equal("service-manager eyJ1c2VybmFtZSI6ICJ0ZXN0LXVzZXIifQ=="))
 							})
 						})
 
@@ -1973,6 +1986,28 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 
+							When("broker expects originating identity", func() {
+								BeforeEach(func() {
+									brokerServer.ShouldRecordRequests(true)
+								})
+
+								It("should be sent", func() {
+									resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.expectedUpdateSuccessStatusCode)
+
+									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.UPDATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									reqLen := len(brokerServer.ServiceInstanceEndpointRequests)
+									identity := brokerServer.ServiceInstanceEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
+									Expect(identity).To(Equal("service-manager eyJ1c2VybmFtZSI6ICJ0ZXN0LXVzZXIifQ=="))
+								})
+							})
+
 							When("content type is not JSON", func() {
 								It("returns 415", func() {
 									testCtx.SMWithOAuth.PATCH(web.ServiceInstancesURL+"/"+instanceID).
@@ -2910,6 +2945,24 @@ var _ = DescribeTestsFor(TestCase{
 										ID:    instanceID,
 										Type:  types.ServiceInstanceType,
 										Ready: true,
+									})
+								})
+
+								When("broker expects originating identity", func() {
+									It("should be sent", func() {
+										resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										reqLen := len(brokerServer.ServiceInstanceEndpointRequests)
+										identity := brokerServer.ServiceInstanceEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
+										Expect(identity).To(Equal("service-manager eyJ1c2VybmFtZSI6ICJ0ZXN0LXVzZXIifQ=="))
 									})
 								})
 

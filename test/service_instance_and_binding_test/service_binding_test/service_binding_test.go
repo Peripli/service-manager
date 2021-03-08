@@ -201,7 +201,7 @@ var _ = DescribeTestsFor(TestCase{
 
 			preparePrerequisitesWithMaxPollingDuration := func(maxPollingDuration int) {
 				brokerID, brokerServer, servicePlanID, servicePlanCatalogID, serviceCatalogID = newServicePlanWithMaxPollingDuration(ctx, true, maxPollingDuration)
-				brokerServer.ShouldRecordRequests(false)
+				brokerServer.ShouldRecordRequests(true)
 				EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 				resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
 				instanceName = resp.JSON().Object().Value("name").String().Raw()
@@ -239,7 +239,7 @@ var _ = DescribeTestsFor(TestCase{
 				ctx.CleanupAdditionalResources()
 			})
 
-			Describe("get parameters", func() {
+			Describe("Get parameters", func() {
 				When("service binding does not exist", func() {
 					It("should return an error", func() {
 						ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + bindingID + web.ParametersURL).Expect().
@@ -338,12 +338,7 @@ var _ = DescribeTestsFor(TestCase{
 			Describe("GET", func() {
 				When("service binding contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
-						brokerServer.ShouldRecordRequests(true)
 						createBinding(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
-					})
-
-					AfterEach(func() {
-						brokerServer.ShouldRecordRequests(false)
 					})
 
 					It("labels instance with tenant identifier", func() {
@@ -351,16 +346,6 @@ var _ = DescribeTestsFor(TestCase{
 							Status(http.StatusOK).
 							JSON().
 							Object().Path(fmt.Sprintf("$.labels[%s][*]", TenantIdentifier)).Array().Contains(TenantIDValue)
-					})
-
-					It("sends originating identity to broker", func() {
-						op, err := ctx.SMRepository.Get(context.Background(), types.OperationType, query.ByField(query.EqualsOperator, "resource_id", bindingID))
-						Expect(err).ToNot(HaveOccurred())
-						operation := op.(*types.Operation)
-						Expect(operation.Context.UserInfo).To(ContainSubstring("test-user"))
-						reqLen := len(brokerServer.BindingEndpointRequests)
-						identity := brokerServer.BindingEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
-						Expect(identity).To(Equal("service-manager eyJ1c2VybmFtZSI6ICJ0ZXN0LXVzZXIifQ=="))
 					})
 
 					It("returns OSB context with no tenant as part of the binding", func() {
@@ -542,6 +527,28 @@ var _ = DescribeTestsFor(TestCase{
 									Expect().
 									Status(http.StatusBadRequest).JSON().Object()
 								Expect(resp.Value("description").String().Raw()).To(ContainSubstring("providing specific resource id is forbidden"))
+							})
+						})
+
+						Context("originating identity", func() {
+							It("should be passed to broker", func() {
+								resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+								bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									Category:          types.CREATE,
+									State:             types.SUCCEEDED,
+									ResourceType:      types.ServiceBindingType,
+									Reschedulable:     false,
+									DeletionScheduled: false,
+								})
+
+								VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									ID:    bindingID,
+									Type:  types.ServiceBindingType,
+									Ready: true,
+								})
+								reqLen := len(brokerServer.BindingEndpointRequests)
+								identity := brokerServer.BindingEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
+								Expect(identity).To(Equal("service-manager eyJ1c2VybmFtZSI6ICJ0ZXN0LXVzZXIifQ=="))
 							})
 						})
 
@@ -1643,6 +1650,42 @@ var _ = DescribeTestsFor(TestCase{
 										Ready: true,
 									})
 
+								})
+							})
+
+							Context("originating identity", func() {
+								It("should be passed to broker", func() {
+									resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    bindingID,
+										Type:  types.ServiceBindingType,
+										Ready: true,
+									})
+
+									resp = deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.DELETE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+									VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:   bindingID,
+										Type: types.ServiceBindingType,
+									})
+
+									reqLen := len(brokerServer.BindingEndpointRequests)
+									identity := brokerServer.BindingEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
+									Expect(identity).To(Equal("service-manager eyJ1c2VybmFtZSI6ICJ0ZXN0LXVzZXIifQ=="))
 								})
 							})
 

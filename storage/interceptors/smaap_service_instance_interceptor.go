@@ -123,7 +123,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		instance := obj.(*types.ServiceInstance)
 		instance.Usable = false
-		smaapOperated := instance.Labels != nil && len(instance.Labels[OperatedByLabelKey]) > 0
+		smaapOperated := isOperatedBySmaaP(instance)
 
 		if instance.PlatformID != types.SMPlatform && !smaapOperated {
 			return f(ctx, obj)
@@ -228,10 +228,14 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 	}
 }
 
+func isOperatedBySmaaP(instance *types.ServiceInstance) bool {
+	return instance.Labels != nil && len(instance.Labels[OperatedByLabelKey]) > 0
+}
+
 func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 	return func(ctx context.Context, updatedObj types.Object, labelChanges ...*types.LabelChange) (object types.Object, err error) {
 		updatedInstance := updatedObj.(*types.ServiceInstance)
-		smaapOperated := updatedInstance.Labels != nil && len(updatedInstance.Labels[OperatedByLabelKey]) > 0
+		smaapOperated := isOperatedBySmaaP(updatedInstance)
 
 		if updatedInstance.PlatformID != types.SMPlatform && !smaapOperated {
 			return f(ctx, updatedObj, labelChanges...)
@@ -515,7 +519,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 		ServiceID:           &serviceCatalogID,
 		PlanID:              &planCatalogID,
 		OperationKey:        key,
-		OriginatingIdentity: getOriginIdentity(operation.GetUserInfo(), instance.Context),
+		OriginatingIdentity: getOriginIdentity(operation.GetUserInfo(), instance),
 	}
 
 	planMaxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
@@ -747,17 +751,23 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.Ser
 		SpaceGUID:           "-",
 		Parameters:          instance.Parameters,
 		Context:             instanceContext,
-		OriginatingIdentity: getOriginIdentity(userInfo, instance.Context),
+		OriginatingIdentity: getOriginIdentity(userInfo, instance),
 	}
 
 	return provisionRequest, nil
 }
 
-func getOriginIdentity(userInfo string, context json.RawMessage) *osbc.OriginatingIdentity {
-	if len(userInfo) == 0 || len(context) == 0 {
+func getOriginIdentity(userInfo string, instance *types.ServiceInstance) *osbc.OriginatingIdentity {
+	if len(userInfo) == 0 || instance == nil {
 		return nil
 	}
-	platform := gjson.GetBytes(context, "platform").String()
+
+	var platform string
+	if isOperatedBySmaaP(instance) {
+		platform = types.K8sPlatformType
+	} else {
+		platform = gjson.GetBytes(instance.Context, "platform").String()
+	}
 
 	if len(platform) == 0 {
 		platform = types.SMPlatform
@@ -803,7 +813,7 @@ func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(instance *type
 		PreviousValues: &osbc.PreviousValues{
 			PlanID: oldCatalogPlanID,
 		},
-		OriginatingIdentity: getOriginIdentity(userInfo, instance.Context),
+		OriginatingIdentity: getOriginIdentity(userInfo, instance),
 	}, nil
 }
 
@@ -813,7 +823,7 @@ func prepareDeprovisionRequest(instance *types.ServiceInstance, serviceCatalogID
 		AcceptsIncomplete:   true,
 		ServiceID:           serviceCatalogID,
 		PlanID:              planCatalogID,
-		OriginatingIdentity: getOriginIdentity(userInfo, instance.Context),
+		OriginatingIdentity: getOriginIdentity(userInfo, instance),
 	}
 }
 
