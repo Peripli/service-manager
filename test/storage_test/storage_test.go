@@ -6,6 +6,7 @@ import (
 	"github.com/gofrs/uuid"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/Peripli/service-manager/storage"
 
@@ -341,6 +342,64 @@ var _ = Describe("Test", func() {
 			platform := obj.(*types.Platform)
 			Expect(platform.Credentials.Basic.Username).To(Equal(platform.ID))
 			Expect(platform.OldCredentials).To(BeNil())
+		})
+	})
+
+	Context("when operation has user info", func() {
+		var operation *types.Operation
+		var operationID string
+		BeforeEach(func() {
+			operationID = "123456"
+			operation = &types.Operation{
+				Base: types.Base{
+					ID:        operationID,
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+					Labels:    make(map[string][]string),
+					Ready:     true,
+				},
+				Description:       "",
+				Type:              types.CREATE,
+				State:             types.IN_PROGRESS,
+				ResourceID:        "test-resource-id",
+				ResourceType:      web.ServiceInstancesURL,
+				CorrelationID:     "test-correlation-id",
+				Reschedule:        false,
+				DeletionScheduled: time.Time{},
+				Context: &types.OperationContext{
+					UserInfo: &types.UserInfo{
+						Platform: "kubernetes",
+						Info:     `{"username":"test-user"}`,
+					},
+				},
+			}
+
+			_, err := ctx.SMRepository.Create(context.Background(), operation)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("should be sanitized when succeeded", func() {
+			contex := context.Background()
+			operation.State = types.SUCCEEDED
+			_, err := ctx.SMRepository.Update(contex, operation, types.LabelChanges{})
+			Expect(err).ToNot(HaveOccurred())
+
+			obj, err := ctx.SMRepository.Get(contex, types.OperationType, query.ByField(query.EqualsOperator, "id", operationID))
+			Expect(err).ToNot(HaveOccurred())
+			newOp := obj.(*types.Operation)
+			Expect(newOp.Context.UserInfo).To(BeNil())
+		})
+
+		It("should be sanitized when failed", func() {
+			contex := context.Background()
+			operation.State = types.FAILED
+			_, err := ctx.SMRepository.Update(contex, operation, types.LabelChanges{})
+			Expect(err).ToNot(HaveOccurred())
+
+			obj, err := ctx.SMRepository.Get(contex, types.OperationType, query.ByField(query.EqualsOperator, "id", operationID))
+			Expect(err).ToNot(HaveOccurred())
+			newOp := obj.(*types.Operation)
+			Expect(newOp.Context.UserInfo).To(BeNil())
 		})
 	})
 })

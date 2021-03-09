@@ -591,6 +591,34 @@ var _ = DescribeTestsFor(TestCase{
 							})
 						})
 
+						When("broker expects originating identity", func() {
+							BeforeEach(func() {
+								brokerServer.ShouldRecordRequests(true)
+								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
+							})
+
+							It("should be sent", func() {
+								resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+								instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									Category:          types.CREATE,
+									State:             types.SUCCEEDED,
+									ResourceType:      types.ServiceInstanceType,
+									Reschedulable:     false,
+									DeletionScheduled: false,
+								})
+
+								VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									ID:    instanceID,
+									Type:  types.ServiceInstanceType,
+									Ready: true,
+								})
+								reqLen := len(brokerServer.ServiceInstanceEndpointRequests)
+								identity := brokerServer.ServiceInstanceEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
+								Expect(identity).To(Equal("service-manager eyJ1c2VybmFtZSI6ICJ0ZXN0LXVzZXIifQ=="))
+							})
+						})
+
 						When("a request body field is missing", func() {
 							assertPOSTWhenFieldIsMissing := func(field string, expectedStatusCode int) {
 								var servicePlanID string
@@ -1958,6 +1986,28 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 
+							When("broker expects originating identity", func() {
+								BeforeEach(func() {
+									brokerServer.ShouldRecordRequests(true)
+								})
+
+								It("should be sent", func() {
+									resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.expectedUpdateSuccessStatusCode)
+
+									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.UPDATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									reqLen := len(brokerServer.ServiceInstanceEndpointRequests)
+									identity := brokerServer.ServiceInstanceEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
+									Expect(identity).To(Equal("service-manager eyJ1c2VybmFtZSI6ICJ0ZXN0LXVzZXIifQ=="))
+								})
+							})
+
 							When("content type is not JSON", func() {
 								It("returns 415", func() {
 									testCtx.SMWithOAuth.PATCH(web.ServiceInstancesURL+"/"+instanceID).
@@ -2895,6 +2945,24 @@ var _ = DescribeTestsFor(TestCase{
 										ID:    instanceID,
 										Type:  types.ServiceInstanceType,
 										Ready: true,
+									})
+								})
+
+								When("broker expects originating identity", func() {
+									It("should be sent", func() {
+										resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										reqLen := len(brokerServer.ServiceInstanceEndpointRequests)
+										identity := brokerServer.ServiceInstanceEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
+										Expect(identity).To(Equal("service-manager eyJ1c2VybmFtZSI6ICJ0ZXN0LXVzZXIifQ=="))
 									})
 								})
 

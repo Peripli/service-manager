@@ -15,6 +15,7 @@ const (
 	shouldStoreBindingsKey
 	generatePlatformCredentialsKey
 	smaapOperatedKey
+	originatingIdentityKey
 )
 
 // IsSMAAPOperated indicates whether resource from another platform operated by SMAAP
@@ -56,6 +57,16 @@ func UserFromContext(ctx context.Context) (*UserContext, bool) {
 // ContextWithUser sets the authenticated user in the context
 func ContextWithUser(ctx context.Context, user *UserContext) context.Context {
 	return context.WithValue(ctx, userKey, user)
+}
+
+// OriginatingIdentityFromContext gets the originating user from the context
+func OriginatingIdentityFromContext(ctx context.Context) interface{} {
+	return ctx.Value(originatingIdentityKey)
+}
+
+// ContextWithOriginatingIdentity sets the originating user in the context
+func ContextWithOriginatingIdentity(ctx context.Context, info interface{}) context.Context {
+	return context.WithValue(ctx, originatingIdentityKey, info)
 }
 
 // IsAuthorized returns whether the request has been authorized

@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/tidwall/gjson"
 	"math"
 	"net"
 	"net/http"
@@ -122,7 +123,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		instance := obj.(*types.ServiceInstance)
 		instance.Usable = false
-		smaapOperated := instance.Labels != nil && len(instance.Labels[OperatedByLabelKey]) > 0
+		smaapOperated := isOperatedBySmaaP(instance)
 
 		if instance.PlatformID != types.SMPlatform && !smaapOperated {
 			return f(ctx, obj)
@@ -149,7 +150,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		var provisionResponse *osbc.ProvisionResponse
 		if !operation.Reschedule {
 			operation.Context.ServicePlanID = instance.ServicePlanID
-			provisionRequest, err := i.prepareProvisionRequest(instance, service.CatalogID, plan.CatalogID)
+			provisionRequest, err := i.prepareProvisionRequest(instance, service.CatalogID, plan.CatalogID, operation.GetUserInfo())
 			if err != nil {
 				return nil, fmt.Errorf("failed to prepare provision request: %s", err)
 			}
@@ -227,10 +228,14 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 	}
 }
 
+func isOperatedBySmaaP(instance *types.ServiceInstance) bool {
+	return instance.Labels != nil && len(instance.Labels[OperatedByLabelKey]) > 0
+}
+
 func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 	return func(ctx context.Context, updatedObj types.Object, labelChanges ...*types.LabelChange) (object types.Object, err error) {
 		updatedInstance := updatedObj.(*types.ServiceInstance)
-		smaapOperated := updatedInstance.Labels != nil && len(updatedInstance.Labels[OperatedByLabelKey]) > 0
+		smaapOperated := isOperatedBySmaaP(updatedInstance)
 
 		if updatedInstance.PlatformID != types.SMPlatform && !smaapOperated {
 			return f(ctx, updatedObj, labelChanges...)
@@ -287,7 +292,7 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			}
 			oldServicePlan := oldServicePlanObj.(*types.ServicePlan)
 			var updateInstanceResponse *osbc.UpdateInstanceResponse
-			updateInstanceRequest, err := i.prepareUpdateInstanceRequest(updatedInstance, service.CatalogID, plan.CatalogID, oldServicePlan.CatalogID)
+			updateInstanceRequest, err := i.prepareUpdateInstanceRequest(updatedInstance, service.CatalogID, plan.CatalogID, oldServicePlan.CatalogID, operation.GetUserInfo())
 			if err != nil {
 				return nil, fmt.Errorf("faied to prepare update instance request: %s", err)
 			}
@@ -443,7 +448,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 
 	var deprovisionResponse *osbc.DeprovisionResponse
 	if !operation.Reschedule {
-		deprovisionRequest := prepareDeprovisionRequest(instance, service.CatalogID, plan.CatalogID)
+		deprovisionRequest := prepareDeprovisionRequest(instance, service.CatalogID, plan.CatalogID, operation.GetUserInfo())
 
 		log.C(ctx).Infof("Sending deprovision request %s to broker with name %s", logDeprovisionRequest(deprovisionRequest), broker.Name)
 		deprovisionResponse, err = osbClient.DeprovisionInstance(deprovisionRequest)
@@ -510,12 +515,11 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 	}
 
 	pollingRequest := &osbc.LastOperationRequest{
-		InstanceID:   instance.ID,
-		ServiceID:    &serviceCatalogID,
-		PlanID:       &planCatalogID,
-		OperationKey: key,
-		//TODO no OI for SM platform yet
-		OriginatingIdentity: nil,
+		InstanceID:          instance.ID,
+		ServiceID:           &serviceCatalogID,
+		PlanID:              &planCatalogID,
+		OperationKey:        key,
+		OriginatingIdentity: getOriginIdentity(operation.GetUserInfo(), instance),
 	}
 
 	planMaxPollingDuration := time.Duration(plan.MaximumPollingDuration) * time.Second
@@ -707,7 +711,7 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 	return osbClient, broker, service, plan, nil
 }
 
-func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string) (*osbc.ProvisionRequest, error) {
+func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string, userInfo *types.UserInfo) (*osbc.ProvisionRequest, error) {
 	instanceContext := make(map[string]interface{})
 	if len(instance.Context) != 0 {
 		var err error
@@ -739,22 +743,42 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.Ser
 	}
 
 	provisionRequest := &osbc.ProvisionRequest{
-		InstanceID:        instance.GetID(),
-		AcceptsIncomplete: true,
-		ServiceID:         serviceCatalogID,
-		PlanID:            planCatalogID,
-		OrganizationGUID:  "-",
-		SpaceGUID:         "-",
-		Parameters:        instance.Parameters,
-		Context:           instanceContext,
-		//TODO no OI for SM platform yet
-		OriginatingIdentity: nil,
+		InstanceID:          instance.GetID(),
+		AcceptsIncomplete:   true,
+		ServiceID:           serviceCatalogID,
+		PlanID:              planCatalogID,
+		OrganizationGUID:    "-",
+		SpaceGUID:           "-",
+		Parameters:          instance.Parameters,
+		Context:             instanceContext,
+		OriginatingIdentity: getOriginIdentity(userInfo, instance),
 	}
 
 	return provisionRequest, nil
 }
 
-func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID, oldCatalogPlanID string) (*osbc.UpdateInstanceRequest, error) {
+func getOriginIdentity(userInfo *types.UserInfo, instance *types.ServiceInstance) *osbc.OriginatingIdentity {
+	if userInfo == nil || instance == nil {
+		return nil
+	}
+
+	var platform string
+	if len(userInfo.Platform) > 0 {
+		platform = userInfo.Platform
+	} else {
+		platform = gjson.GetBytes(instance.Context, "platform").String()
+	}
+
+	if len(platform) == 0 {
+		platform = types.SMPlatform
+	}
+	return &osbc.OriginatingIdentity{
+		Platform: platform,
+		Value:    userInfo.Info,
+	}
+}
+
+func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID, oldCatalogPlanID string, userInfo *types.UserInfo) (*osbc.UpdateInstanceRequest, error) {
 	instanceContext := make(map[string]interface{})
 	if len(instance.Context) != 0 {
 		if err := json.Unmarshal(instance.Context, &instanceContext); err != nil {
@@ -789,19 +813,17 @@ func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(instance *type
 		PreviousValues: &osbc.PreviousValues{
 			PlanID: oldCatalogPlanID,
 		},
-		//TODO no OI for SM platform yet
-		OriginatingIdentity: nil,
+		OriginatingIdentity: getOriginIdentity(userInfo, instance),
 	}, nil
 }
 
-func prepareDeprovisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string) *osbc.DeprovisionRequest {
+func prepareDeprovisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string, userInfo *types.UserInfo) *osbc.DeprovisionRequest {
 	return &osbc.DeprovisionRequest{
-		InstanceID:        instance.ID,
-		AcceptsIncomplete: true,
-		ServiceID:         serviceCatalogID,
-		PlanID:            planCatalogID,
-		//TODO no OI for SM platform yet
-		OriginatingIdentity: nil,
+		InstanceID:          instance.ID,
+		AcceptsIncomplete:   true,
+		ServiceID:           serviceCatalogID,
+		PlanID:              planCatalogID,
+		OriginatingIdentity: getOriginIdentity(userInfo, instance),
 	}
 }
 
