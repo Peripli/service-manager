@@ -94,11 +94,12 @@ var _ = Describe("Catalog", func() {
 				resp.Path("$.services[*].plans[*].random_extension").Array().Contains("random_extension")
 			})
 
-			It("should return the SM offering id in the catalog metadata", func() {
+			It("should return the SM ids in the catalog metadata", func() {
 				resp := ctx.SMWithBasic.GET(smUrlToSimpleBrokerCatalogBroker+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().
 					Status(http.StatusOK).JSON()
 
+				By("validating the sm_offering_id")
 				offerings := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, "fieldQuery="+fmt.Sprintf("catalog_id eq '%s'", serviceCatalogID))
 				Expect(offerings.Length().Equal(1))
 				serviceOfferingID := offerings.First().Object().Value("id").String().Raw()
@@ -107,6 +108,15 @@ var _ = Describe("Catalog", func() {
 				metadataMap, ok := metadata.(map[string]interface{})
 				Expect(ok).To(BeTrue())
 				Expect(metadataMap["sm_offering_id"]).To(Equal(serviceOfferingID))
+
+				By("validating the sm_plan_id")
+				plans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", serviceOfferingID))
+				Expect(plans.Length().Equal(1))
+
+				metadata = resp.Path("$.services[0].plans[*].metadata").Array().First().Raw()
+				metadataMap, ok = metadata.(map[string]interface{})
+				Expect(ok).To(BeTrue())
+				Expect(metadataMap["sm_plan_id"]).To(Equal(plans.First().Object().Value("id").String().Raw()))
 			})
 		})
 
