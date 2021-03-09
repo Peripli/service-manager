@@ -55,40 +55,42 @@ func (c *CatalogFilterByVisibilityPlugin) FetchCatalog(req *web.Request, next we
 	}
 
 	brokerID := req.PathParams[BrokerIDPathParam]
-	visibleCatalogPlans, serviceOfferings, err := getVisiblePlansByBrokerIDAndPlatformID(ctx, c.repository, brokerID, platform)
+	visibleCatalogPlans, serviceOfferings, servicePlans, err := getVisiblePlansByBrokerIDAndPlatformID(ctx, c.repository, brokerID, platform)
 	if err != nil {
 		return nil, err
 	}
-	res.Body, err = filterCatalogByVisiblePlans(res.Body, visibleCatalogPlans, serviceOfferings)
+	res.Body, err = filterCatalogByVisiblePlans(res.Body, visibleCatalogPlans, serviceOfferings, servicePlans)
 	return res, err
 }
 
-func getVisiblePlansByBrokerIDAndPlatformID(ctx context.Context, repository storage.Repository, brokerID string, platform *types.Platform) (map[string]bool, map[string]string, error) {
+func getVisiblePlansByBrokerIDAndPlatformID(ctx context.Context, repository storage.Repository, brokerID string, platform *types.Platform) (map[string]bool, map[string]string, map[string]string, error) {
 	offeringIDs, offeringsMap, err := getOfferingIDsByBrokerID(ctx, repository, brokerID)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	if len(offeringIDs) == 0 {
-		return map[string]bool{}, nil, nil
+		return map[string]bool{}, nil, nil, nil
 	}
 
 	plansList, err := repository.List(ctx, types.ServicePlanType, query.ByField(query.InOperator, "service_offering_id", offeringIDs...))
 	if err != nil {
 		log.C(ctx).Errorf("Could not get %s: %v", types.ServicePlanType, err)
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	visibleCatalogPlans := make(map[string]bool)
+	plansMap := make(map[string]string)
 	if platform.Type == types.CFPlatformType {
 		for i := 0; i < plansList.Len(); i++ {
 			plan := plansList.ItemAt(i).(*types.ServicePlan)
 			if plan.SupportsPlatformInstance(*platform) {
 				visibleCatalogPlans[plan.CatalogID] = true
+				plansMap[fmt.Sprintf("%s_%s", plan.CatalogID, plan.Name)] = plan.ID
 			}
 		}
 
-		return visibleCatalogPlans, offeringsMap, nil
+		return visibleCatalogPlans, offeringsMap, plansMap, nil
 	}
 
 	planIDs := make([]string, 0, plansList.Len())
@@ -101,7 +103,7 @@ func getVisiblePlansByBrokerIDAndPlatformID(ctx context.Context, repository stor
 		query.ByField(query.InOperator, "service_plan_id", planIDs...))
 	if err != nil {
 		log.C(ctx).Errorf("Could not get %s: %v", types.VisibilityType, err)
-		return nil, offeringsMap, err
+		return nil, offeringsMap, plansMap, err
 	}
 	visibilities := (visibilitiesList.(*types.Visibilities)).Visibilities
 	visiblePlans := make(map[string]bool)
@@ -113,9 +115,10 @@ func getVisiblePlansByBrokerIDAndPlatformID(ctx context.Context, repository stor
 	for _, p := range plans {
 		if visiblePlans[p.ID] {
 			visibleCatalogPlans[p.CatalogID] = true
+			plansMap[fmt.Sprintf("%s_%s", p.CatalogID, p.Name)] = p.ID
 		}
 	}
-	return visibleCatalogPlans, offeringsMap, nil
+	return visibleCatalogPlans, offeringsMap, plansMap, nil
 }
 
 func getOfferingIDsByBrokerID(ctx context.Context, repository storage.Repository, brokerID string) ([]string, map[string]string, error) {
@@ -138,7 +141,7 @@ func getOfferingIDsByBrokerID(ctx context.Context, repository storage.Repository
 	return offeringIDs, offeringMap, nil
 }
 
-func filterCatalogByVisiblePlans(catalog []byte, visibleCatalogPlans map[string]bool, serviceOfferings map[string]string) ([]byte, error) {
+func filterCatalogByVisiblePlans(catalog []byte, visibleCatalogPlans map[string]bool, serviceOfferings map[string]string, servicePlans map[string]string) ([]byte, error) {
 	var err error
 	services := gjson.GetBytes(catalog, "services").Array()
 
@@ -165,6 +168,16 @@ func filterCatalogByVisiblePlans(catalog []byte, visibleCatalogPlans map[string]
 
 		if len(gjson.GetBytes(catalog, servicePath+".plans").Array()) == 0 {
 			catalog, err = sjson.DeleteBytes(catalog, servicePath)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		updatedService := gjson.GetBytes(catalog, servicePath)
+		for j, p := range updatedService.Get("plans").Array() {
+			planPath := fmt.Sprintf(servicePath+`.plans.%d`, j)
+			planKey := fmt.Sprintf("%s_%s", p.Get("id").String(), p.Get("name").String())
+			catalog, err = sjson.SetBytes(catalog, fmt.Sprintf(planPath+`.metadata.sm_plan_id`), servicePlans[planKey])
 			if err != nil {
 				return nil, err
 			}
