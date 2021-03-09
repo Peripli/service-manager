@@ -112,11 +112,12 @@ var _ = Describe("Catalog", func() {
 				By("validating the sm_plan_id")
 				plans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", serviceOfferingID))
 				Expect(plans.Length().Equal(1))
+				servicePlanID := plans.First().Object().Value("id").String().Raw()
 
 				metadata = resp.Path("$.services[0].plans[*].metadata").Array().First().Raw()
 				metadataMap, ok = metadata.(map[string]interface{})
 				Expect(ok).To(BeTrue())
-				Expect(metadataMap["sm_plan_id"]).To(Equal(plans.First().Object().Value("id").String().Raw()))
+				Expect(metadataMap["sm_plan_id"]).To(Equal(servicePlanID))
 			})
 		})
 
