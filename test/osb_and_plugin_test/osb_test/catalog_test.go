@@ -82,7 +82,7 @@ var _ = Describe("Catalog", func() {
 				service.Keys().NotContains("tags", "requires")
 
 				plan := service.Value("plans").Array().First().Object()
-				plan.Keys().NotContains("metadata", "schemas")
+				plan.Keys().NotContains("schemas")
 			})
 
 			It("should return valid catalog with all catalog extensions if catalog extensions are present", func() {
