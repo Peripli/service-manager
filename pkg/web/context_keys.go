@@ -59,17 +59,14 @@ func ContextWithUser(ctx context.Context, user *UserContext) context.Context {
 	return context.WithValue(ctx, userKey, user)
 }
 
-// OriginatingIdentityFromContext gets the authenticated user from the context
-func OriginatingIdentityFromContext(ctx context.Context) string {
-	if identity, ok := ctx.Value(originatingIdentityKey).(string); ok {
-		return identity
-	}
-	return ""
+// OriginatingIdentityFromContext gets the originating user from the context
+func OriginatingIdentityFromContext(ctx context.Context) interface{} {
+	return ctx.Value(originatingIdentityKey)
 }
 
-// ContextWithOriginatingIdentity sets the authenticated user in the context
-func ContextWithOriginatingIdentity(ctx context.Context, identity string) context.Context {
-	return context.WithValue(ctx, originatingIdentityKey, identity)
+// ContextWithOriginatingIdentity sets the originating user in the context
+func ContextWithOriginatingIdentity(ctx context.Context, info interface{}) context.Context {
+	return context.WithValue(ctx, originatingIdentityKey, info)
 }
 
 // IsAuthorized returns whether the request has been authorized

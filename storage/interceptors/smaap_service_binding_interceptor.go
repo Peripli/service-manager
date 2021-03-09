@@ -438,7 +438,7 @@ func getInstanceByID(ctx context.Context, instanceID string, repository storage.
 	return instanceObject.(*types.ServiceInstance), nil
 }
 
-func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool, userInfo string) (*osbc.BindRequest, error) {
+func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool, userInfo *types.UserInfo) (*osbc.BindRequest, error) {
 	context := make(map[string]interface{})
 	if len(binding.Context) != 0 {
 		var err error
@@ -483,7 +483,7 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceIn
 	return bindRequest, nil
 }
 
-func prepareUnbindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool, userInfo string) *osbc.UnbindRequest {
+func prepareUnbindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool, userInfo *types.UserInfo) *osbc.UnbindRequest {
 	unbindRequest := &osbc.UnbindRequest{
 		BindingID:           binding.ID,
 		InstanceID:          instance.ID,

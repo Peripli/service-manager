@@ -367,7 +367,10 @@ var _ = Describe("Test", func() {
 				Reschedule:        false,
 				DeletionScheduled: time.Time{},
 				Context: &types.OperationContext{
-					UserInfo: `{"username":"test-user"}`,
+					UserInfo: &types.UserInfo{
+						Platform: "kubernetes",
+						Info:     `{"username":"test-user"}`,
+					},
 				},
 			}
 
@@ -384,7 +387,7 @@ var _ = Describe("Test", func() {
 			obj, err := ctx.SMRepository.Get(contex, types.OperationType, query.ByField(query.EqualsOperator, "id", operationID))
 			Expect(err).ToNot(HaveOccurred())
 			newOp := obj.(*types.Operation)
-			Expect(len(newOp.Context.UserInfo)).To(Equal(0))
+			Expect(newOp.Context.UserInfo).To(BeNil())
 		})
 
 		It("should be sanitized when failed", func() {
@@ -396,7 +399,7 @@ var _ = Describe("Test", func() {
 			obj, err := ctx.SMRepository.Get(contex, types.OperationType, query.ByField(query.EqualsOperator, "id", operationID))
 			Expect(err).ToNot(HaveOccurred())
 			newOp := obj.(*types.Operation)
-			Expect(len(newOp.Context.UserInfo)).To(Equal(0))
+			Expect(newOp.Context.UserInfo).To(BeNil())
 		})
 	})
 })

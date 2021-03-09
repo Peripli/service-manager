@@ -711,7 +711,7 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 	return osbClient, broker, service, plan, nil
 }
 
-func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string, userInfo string) (*osbc.ProvisionRequest, error) {
+func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string, userInfo *types.UserInfo) (*osbc.ProvisionRequest, error) {
 	instanceContext := make(map[string]interface{})
 	if len(instance.Context) != 0 {
 		var err error
@@ -757,14 +757,14 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.Ser
 	return provisionRequest, nil
 }
 
-func getOriginIdentity(userInfo string, instance *types.ServiceInstance) *osbc.OriginatingIdentity {
-	if len(userInfo) == 0 || instance == nil {
+func getOriginIdentity(userInfo *types.UserInfo, instance *types.ServiceInstance) *osbc.OriginatingIdentity {
+	if userInfo == nil || instance == nil {
 		return nil
 	}
 
 	var platform string
-	if isOperatedBySmaaP(instance) {
-		platform = types.K8sPlatformType
+	if len(userInfo.Platform) > 0 {
+		platform = userInfo.Platform
 	} else {
 		platform = gjson.GetBytes(instance.Context, "platform").String()
 	}
@@ -774,11 +774,11 @@ func getOriginIdentity(userInfo string, instance *types.ServiceInstance) *osbc.O
 	}
 	return &osbc.OriginatingIdentity{
 		Platform: platform,
-		Value:    userInfo,
+		Value:    userInfo.Info,
 	}
 }
 
-func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID, oldCatalogPlanID string, userInfo string) (*osbc.UpdateInstanceRequest, error) {
+func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID, oldCatalogPlanID string, userInfo *types.UserInfo) (*osbc.UpdateInstanceRequest, error) {
 	instanceContext := make(map[string]interface{})
 	if len(instance.Context) != 0 {
 		if err := json.Unmarshal(instance.Context, &instanceContext); err != nil {
@@ -817,7 +817,7 @@ func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(instance *type
 	}, nil
 }
 
-func prepareDeprovisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string, userInfo string) *osbc.DeprovisionRequest {
+func prepareDeprovisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string, userInfo *types.UserInfo) *osbc.DeprovisionRequest {
 	return &osbc.DeprovisionRequest{
 		InstanceID:          instance.ID,
 		AcceptsIncomplete:   true,

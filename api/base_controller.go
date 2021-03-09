@@ -692,21 +692,19 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 }
 
 func (c *BaseController) prepareOperationContextByRequest(r *web.Request) *types.OperationContext {
-	var userInfo string
-	originatingIdentity := web.OriginatingIdentityFromContext(r.Context())
+	var userInfo *types.UserInfo
+	userInfoFromContext := web.OriginatingIdentityFromContext(r.Context())
 	operationContext := &types.OperationContext{}
 
-	if len(originatingIdentity) > 0 {
-		userInfo = originatingIdentity
-	} else {
-		if user, ok := web.UserFromContext(r.Context()); ok {
-			userInfo = fmt.Sprintf(`{"username": "%s"}`, user.Name)
+	if userInfoFromContext != nil {
+		userInfo = userInfoFromContext.(*types.UserInfo)
+	} else if user, ok := web.UserFromContext(r.Context()); ok {
+		userInfo = &types.UserInfo{
+			Info: fmt.Sprintf(`{"username": "%s"}`, user.Name),
 		}
 	}
-	if len(userInfo) > 0 {
-		operationContext.UserInfo = userInfo
-	}
 
+	operationContext.UserInfo = userInfo
 	async := r.URL.Query().Get(web.QueryParamAsync)
 	cascade := r.URL.Query().Get(web.QueryParamCascade)
 

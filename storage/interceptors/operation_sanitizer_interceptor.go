@@ -42,8 +42,8 @@ func (c *operationSanitizerInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTx
 	return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
 		op := newObj.(*types.Operation)
 		if op.State == types.SUCCEEDED || op.State == types.FAILED {
-			if op.Context != nil && len(op.Context.UserInfo) > 0 {
-				op.Context.UserInfo = ""
+			if op.Context != nil && op.Context.UserInfo != nil {
+				op.Context.UserInfo = nil
 			}
 		}
 		return h(ctx, txStorage, oldObj, newObj, labelChanges...)
