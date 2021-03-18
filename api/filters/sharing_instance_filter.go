@@ -19,35 +19,29 @@ package filters
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/storage/service_plans"
-	"github.com/gofrs/uuid"
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
-	"net/http"
-	"time"
-
-	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/storage"
+	"github.com/tidwall/gjson"
+	"net/http"
 )
 
 const SharingInstanceFilterName = "SharingInstanceFilter"
 
-// ServiceInstanceStripFilter checks patch request body for unmodifiable properties
+// SharingInstanceFilter validate the un/share request on an existing service instance
 type sharingInstanceFilter struct {
 	repository        storage.TransactionalRepository
 	storageRepository storage.Repository
-	labelKey          string
 }
 
-func NewSharingInstanceFilter(repository storage.TransactionalRepository, storageRepository storage.Repository, labelKey string) *sharingInstanceFilter {
+func NewSharingInstanceFilter(repository storage.TransactionalRepository, storageRepository storage.Repository) *sharingInstanceFilter {
 	return &sharingInstanceFilter{
 		repository:        repository,
 		storageRepository: storageRepository,
-		labelKey:          labelKey,
 	}
 }
 
@@ -63,11 +57,17 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	}
 
 	ctx := req.Context()
-
-	instanceID := req.PathParams["resource_id"]
+	logger := log.C(ctx)
+	body := map[string]bool{}
+	util.BytesToObject(req.Body, body)
 	shared := sharedBytes.Bool()
 
+	if len(body) > 1 {
+		return nil, errors.New("Could not modify the 'shared' property with other changes at the same time")
+	}
+
 	// Get instance from database
+	instanceID := req.PathParams["resource_id"]
 	byID := query.ByField(query.EqualsOperator, "id", instanceID)
 	instanceObject, err := f.repository.Get(ctx, types.ServiceInstanceType, byID)
 	if err != nil {
@@ -75,15 +75,23 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	}
 	instance := instanceObject.(*types.ServiceInstance)
 
-	body := map[string]bool{}
-	util.BytesToObject(req.Body, body)
-
-	if !isSMPlatform(instance.PlatformID) && len(body) > 1 {
-		return nil, errors.New("could not modify the 'shared' property with other changes at the same time")
+	if instance.Shared == shared {
+		return nil, errors.New(fmt.Sprintf("The service instance is already set as shared=%s", sharedBytes))
 	}
 
+	// When un-sharing and has references
+	if shared == false {
+		referencesList, err := f.getInstanceReferencesByID(instance.ID)
+		if err != nil {
+			logger.Errorf("Could not retrieve references of the service instance (%s): %v", instanceID, err)
+		}
+		if referencesList.Len() > 0 {
+			return nil, errors.New(fmt.Sprintf("Could not un-share the service instance. The service instance has %d references which should be deleted first", referencesList.Len()))
+		}
+	}
+
+	// Get plan object from database, on service_instance patch flow
 	planID := instance.ServicePlanID
-	// get plan object from database, on service_instance patch flow
 	byID = query.ByField(query.EqualsOperator, "id", planID)
 	planObject, err := f.repository.Get(ctx, types.ServicePlanType, byID)
 	if err != nil {
@@ -91,143 +99,24 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	}
 	plan := planObject.(*types.ServicePlan)
 
-	// Get instance from database
-	//byID = query.ByField(query.EqualsOperator, "id", "reference-plan")
-	//entityObject, err := f.repository.Get(ctx, types.ServiceInstanceType, byID)
-	//if err != nil {
-	//	return nil, util.HandleStorageError(err, types.Entity.String())
-	//}
-	//visibility := instanceObject.(*types.ServiceInstance)
-
 	if !plan.IsShareablePlan() {
 		return nil, &util.UnsupportedQueryError{
 			Message: "Plan is non-shared",
 		}
 	}
 
-	byID = query.ByField(query.EqualsOperator, "id", plan.ServiceOfferingID)
-	serviceOfferingObject, err := f.repository.Get(ctx, types.ServiceOfferingType, byID)
-	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServiceOfferingType.String())
-	}
-	serviceOffering := serviceOfferingObject.(*types.ServiceOffering)
-	byID = query.ByField(query.EqualsOperator, "service_offering_id", serviceOffering.ID)
-	byName := query.ByField(query.EqualsOperator, "name", "reference-plan")
-	referencePlanObject, err := f.repository.Get(ctx, types.ServicePlanType, byID, byName)
-	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServicePlanType.String())
-	}
-	referencePlan := referencePlanObject.(*types.ServicePlan)
-
-	var resp *web.Response
-	if shared == true {
-		resp, err = f.executeShareFlow(req, instance, plan, referencePlan.ID)
-	} else {
-		resp, err = f.executeUnshareFlow(req, instance, plan, referencePlan.ID)
-	}
-
-	if resp != nil {
-		return resp, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-
 	return next.Handle(req)
 }
 
-func (f *sharingInstanceFilter) executeShareFlow(req *web.Request, instance *types.ServiceInstance, plan *types.ServicePlan, referencePlanID string) (*web.Response, error) {
-	ctx := req.Context()
-	err := f.shareInstance(ctx, instance, true)
-	// todo: return error to client
+func (f *sharingInstanceFilter) getInstanceReferencesByID(instanceID string) (types.ObjectList, error) {
+	references, err := f.storageRepository.List(
+		context.Background(),
+		types.ServiceInstanceType,
+		query.ByField(query.EqualsOperator, "referenced_instance_id", instanceID))
 	if err != nil {
-		log.C(ctx).Errorf("Could not update shared property for instance (%s): %v", instance.ID, err)
 		return nil, err
 	}
-
-	plans := make([]*types.ServicePlan, 0)
-	plans = append(plans, plan)
-
-	platforms, _ := service_plans.ResolveSupportedPlatformsForPlans(ctx, plans, f.storageRepository)
-
-	//additionalLabel := "org_id"
-
-	err = f.setVisibilityOfReferencePlan(ctx, platforms, referencePlanID)
-
-	if err != nil {
-		log.C(ctx).Errorf("Could not set a visibility label of reference plan when sharing the instance (%s): %v", instance.ID, err)
-		return nil, err
-	}
-
-	if isSMPlatform(instance.PlatformID) {
-		if req.Body, err = sjson.DeleteBytes(req.Body, "shared"); err != nil {
-			return nil, err
-		}
-	} else {
-		return util.NewJSONResponse(http.StatusOK, instance)
-	}
-	return nil, nil
-}
-
-func (f *sharingInstanceFilter) executeUnshareFlow(req *web.Request, instance *types.ServiceInstance, plan *types.ServicePlan, referencePlanID string) (*web.Response, error) {
-	/*
-		the unshare function should validate whether the instance has references or not
-		if has references:
-			* block the action
-
-		the function should validate whether the shareable plan has more shared instances
-		if has more shared instances of the plan:
-			* keep the visibility
-			* remove the unnecessary visibility labels
-		else:
-			* remove visibility and visibilities labels
-
-		the function should not pass the "shared" property as on share flow.
-	*/
-
-	ctx := req.Context()
-	err := f.shareInstance(ctx, instance, true)
-	// todo: return error to client
-	if err != nil {
-		log.C(ctx).Errorf("Could not update shared property for instance (%s): %v", instance.ID, err)
-		return nil, err
-	}
-
-	plans := make([]*types.ServicePlan, 0)
-	plans = append(plans, plan)
-
-	platforms, _ := service_plans.ResolveSupportedPlatformsForPlans(ctx, plans, f.storageRepository)
-
-	//additionalLabel := "org_id"
-
-	err = f.setVisibilityOfReferencePlan(ctx, platforms, referencePlanID)
-
-	if err != nil {
-		log.C(ctx).Errorf("Could not set a visibility label of reference plan when sharing the instance (%s): %v", instance.ID, err)
-		return nil, err
-	}
-
-	if isSMPlatform(instance.PlatformID) {
-		if req.Body, err = sjson.DeleteBytes(req.Body, "shared"); err != nil {
-			return nil, err
-		}
-	} else {
-		return util.NewJSONResponse(http.StatusOK, instance)
-	}
-	return nil, nil
-}
-
-func (f *sharingInstanceFilter) retrieveTenantID(ctx context.Context) (string, error) {
-	tenantID := query.RetrieveFromCriteria(f.labelKey, query.CriteriaForContext(ctx)...)
-	if tenantID == "" {
-		log.C(ctx).Errorf("Tenant identifier not found in request criteria.")
-		return "", &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: "no tenant identifier provided",
-			StatusCode:  http.StatusBadRequest,
-		}
-	}
-	return tenantID, nil
+	return references, nil
 }
 
 func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
@@ -239,100 +128,4 @@ func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
 			},
 		},
 	}
-}
-
-func (f *sharingInstanceFilter) shareInstance(ctx context.Context, instance *types.ServiceInstance, shared bool) error {
-	logger := log.C(ctx)
-	instance.Shared = shared
-	sharingErr := f.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		_, err := storage.Update(ctx, instance, nil)
-		if err != nil {
-			logger.Errorf("Could not update shared property for instance (%s): %v", instance.ID, err)
-			return err
-		}
-		return nil
-	})
-	return sharingErr
-}
-
-func (f *sharingInstanceFilter) setVisibilityOfReferencePlan(ctx context.Context, platformIDs map[string]*types.Platform, referencePlanID string) error {
-	tenantID, err := f.retrieveTenantID(ctx)
-	if err != nil {
-		return err
-	}
-	type SharingInstanceOverrideLabels struct{}
-	overrideLabelsObj := ctx.Value(SharingInstanceOverrideLabels{})
-	var overrideLabels map[string]map[string][]string
-	if overrideLabelsObj != nil {
-		overrideLabels = overrideLabelsObj.(map[string]map[string][]string)
-	}
-	//else {
-	//	overrideLabels = make(map[string]map[string][]string)
-	//	var cfLabels = make(map[string][]string)
-	//	var orgList []string
-	//	cfLabels["organization_id"] = append(orgList, "org_id")
-	//	overrideLabels["platform-type"] = cfLabels
-	//}
-
-	for _, platform := range platformIDs {
-		var platformOverrideLabels map[string][]string
-		for platformType := range overrideLabels {
-			if platform.Type == platformType {
-				platformOverrideLabels = overrideLabels[platformType]
-			}
-		}
-		sharingErr := f.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-			visibility := f.generateVisibility(platform.ID, referencePlanID, tenantID, platformOverrideLabels)
-			_, err := storage.Create(ctx, visibility)
-			if err != nil {
-				return err
-			}
-			return nil
-		})
-		if sharingErr != nil {
-			return sharingErr
-		}
-	}
-	return nil
-}
-
-func (f *sharingInstanceFilter) generateVisibility(platformID, planID, tenantID string, overrideLabels map[string][]string) *types.Visibility {
-	UUID, err := uuid.NewV4()
-	if err != nil {
-		//return fmt.Errorf("could not generate GUID for visibility: %s", err)
-	}
-
-	var labels types.Labels
-	if overrideLabels != nil {
-		labels = overrideLabels
-	} else {
-		labels = types.Labels{
-			f.labelKey: {
-				tenantID,
-			},
-		}
-	}
-
-	currentTime := time.Now().UTC()
-	visibility := &types.Visibility{
-		Base: types.Base{
-			ID:        UUID.String(),
-			UpdatedAt: currentTime,
-			CreatedAt: currentTime,
-			Ready:     true,
-			Labels:    labels,
-		},
-		ServicePlanID: planID,
-		PlatformID:    platformID,
-	}
-
-	return visibility
-}
-
-func isSMPlatform(platformID string) bool {
-	return platformID == types.SMPlatform
-}
-
-type shareInstanceType struct {
-	shared bool
 }
