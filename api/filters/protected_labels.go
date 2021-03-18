@@ -30,7 +30,7 @@ import (
 
 const ProtectedLabelsFilterName = "ProtectedLabelsFilter"
 
-// ProtectedLabelsFilter checks for forbidden labelas being modified/added
+// ProtectedLabelsFilter checks for forbidden labels being modified/added
 type ProtectedLabelsFilter struct {
 	protectedLabels map[string]bool
 }
