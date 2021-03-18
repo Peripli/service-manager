@@ -1,0 +1,5 @@
+ALTER TABLE platforms ADD COLUMN IF NOT EXISTS suspended BOOLEAN NOT NULL DEFAULT '0';
+
+
+
+

@@ -130,7 +130,9 @@ var _ = DescribeTestsFor(TestCase{
 				postInstanceRequestTLS Object
 				patchInstanceRequest   Object
 
+				serviceCatalogName          string
 				servicePlanID               string
+				servicePlanCatalogName      string
 				servicePlanIDWithTLS        string
 				anotherServicePlanCatalogID string
 				anotherServicePlanID        string
@@ -216,14 +218,16 @@ var _ = DescribeTestsFor(TestCase{
 				ID, err := uuid.NewV4()
 				Expect(err).ToNot(HaveOccurred())
 				var plans *httpexpect.Array
-				brokerUtils, plans := prepareBrokerWithCatalogAndPollingDuration(ctx, ctx.SMWithOAuth, maxPollingDuration)
+				brokerUtils, serviceOffering, plans := prepareBrokerWithCatalogAndPollingDuration(ctx, ctx.SMWithOAuth, maxPollingDuration)
 				brokerID = brokerUtils.Broker.ID
 				brokerUtils.BrokerWithTLS = ctx.RegisterBrokerWithRandomCatalogAndTLS(ctx.SMWithOAuth).BrokerWithTLS
 				brokerServer = brokerUtils.Broker.BrokerServer
 				brokerServerWithTLS = brokerUtils.BrokerWithTLS.BrokerServer
 				brokerServerWithTLS.ShouldRecordRequests(false)
 				brokerServer.ShouldRecordRequests(false)
+				serviceCatalogName = serviceOffering.Object().Value("catalog_name").String().Raw()
 				servicePlanID = plans.Element(0).Object().Value("id").String().Raw()
+				servicePlanCatalogName = plans.Element(0).Object().Value("catalog_name").String().Raw()
 				anotherServicePlanCatalogID = plans.Element(1).Object().Value("catalog_id").String().Raw()
 				anotherServicePlanID = plans.Element(1).Object().Value("id").String().Raw()
 
@@ -395,6 +399,113 @@ var _ = DescribeTestsFor(TestCase{
 			})
 
 			Describe("POST", func() {
+
+				Context("create instance by service offering and plan name", func() {
+					const (
+						uniquePaidPlanName = "unique-paid-plan"
+						uniqueFreePlanName = "unique-free-plan"
+						uniqueServiceName  = "unique-service-offering"
+					)
+
+					var (
+						uniquePaidPlanID string
+						uniqueFreePlanID string
+					)
+
+					prepareCreateInstanceRequestBody := func(serviceName, planName string) Object {
+						ID, err := uuid.NewV4()
+						Expect(err).ToNot(HaveOccurred())
+
+						return Object{
+							"name":                  "test-instance" + ID.String(),
+							"service_offering_name": serviceName,
+							"service_plan_name":     planName,
+						}
+					}
+
+					BeforeEach(func() {
+						paidPlan := GeneratePaidTestPlan()
+						paidPlan, err := sjson.Set(paidPlan, "name", uniquePaidPlanName)
+						if err != nil {
+							panic(err)
+						}
+
+						freePlan := GenerateFreeTestPlan()
+						freePlan, err = sjson.Set(freePlan, "name", uniqueFreePlanName)
+						if err != nil {
+							panic(err)
+						}
+
+						uniqueService := GenerateTestServiceWithPlans(paidPlan, freePlan)
+						uniqueService, err = sjson.Set(uniqueService, "name", uniqueServiceName)
+						if err != nil {
+							panic(err)
+						}
+
+						catalog := NewEmptySBCatalog()
+						catalog.AddService(uniqueService)
+
+						ctx.RegisterBrokerWithCatalog(catalog)
+
+						paidPlanObj := ctx.SMWithOAuthForTenant.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_name eq '%s'", uniquePaidPlanName)).First()
+						uniquePaidPlanID = paidPlanObj.Object().Value("id").String().Raw()
+
+						freePlanObj := ctx.SMWithOAuthForTenant.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_name eq '%s'", uniqueFreePlanName)).First()
+						uniqueFreePlanID = freePlanObj.Object().Value("id").String().Raw()
+
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, uniquePaidPlanID, TenantIDValue)
+						EnsurePublicPlanVisibilityForPlatform(ctx.SMRepository, uniqueFreePlanID, types.SMPlatform)
+
+					})
+
+					When("there is one plan_id for the requested offering and plan name", func() {
+						It("should create an instance of the correct plan", func() {
+							ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+								WithQuery("async", false).
+								WithJSON(prepareCreateInstanceRequestBody(uniqueServiceName, uniquePaidPlanName)).
+								Expect().Status(http.StatusCreated).Body().Contains(uniquePaidPlanID)
+
+							ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+								WithQuery("async", false).
+								WithJSON(prepareCreateInstanceRequestBody(uniqueServiceName, uniqueFreePlanName)).
+								Expect().Status(http.StatusCreated).Body().Contains(uniqueFreePlanID)
+						})
+					})
+
+					When("there is more then one plan_id for the requested offering and plan name", func() {
+						It("should fail with status 400 bad request", func() {
+							resp := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_name eq '%s'", servicePlanCatalogName))
+							for _, plan := range resp.Iter() {
+								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, plan.Object().Value("id").String().Raw(), TenantIDValue)
+							}
+							ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+								WithQuery("async", false).
+								WithJSON(prepareCreateInstanceRequestBody(serviceCatalogName, servicePlanCatalogName)).
+								Expect().Status(http.StatusBadRequest).Body().Contains(fmt.Sprintf("ambiguity error, found more than one resource matching the provided offering name %s and plan name %s, provide the desired servicePlanID", serviceCatalogName, servicePlanCatalogName))
+						})
+					})
+
+					When("the request body contains service_plan_id in addition to the service offering and plan name", func() {
+						It("should fail with status 400 bad request", func() {
+							requestBody := prepareCreateInstanceRequestBody(uniqueServiceName, uniquePaidPlanName)
+							requestBody["service_plan_id"] = uniquePaidPlanID
+							ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+								WithQuery("async", true).
+								WithJSON(requestBody).
+								Expect().Status(http.StatusBadRequest).Body().Contains("Constraint violated: you have to provide parameters as following: service offering name and service plan name, or  service plan id.")
+						})
+					})
+
+					When("service offering and plan where not found", func() {
+						It("should fail with status 400 bad request", func() {
+							ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+								WithQuery("async", true).
+								WithJSON(prepareCreateInstanceRequestBody("service-not-exist", "plan-not-exist")).
+								Expect().Status(http.StatusBadRequest).Body().Contains(fmt.Sprintf("service plan %s not found for service offering %s", "plan-not-exist", "service-not-exist"))
+						})
+					})
+				})
+
 				for _, testCase := range testCases {
 					testCase := testCase
 					Context(fmt.Sprintf("async = '%s'", testCase.async), func() {
@@ -495,6 +606,34 @@ var _ = DescribeTestsFor(TestCase{
 										Status(http.StatusBadRequest).
 										JSON().Object().Value("description").String().Contains("invalid json: duplicate key labels")
 								})
+							})
+						})
+
+						When("broker expects originating identity", func() {
+							BeforeEach(func() {
+								brokerServer.ShouldRecordRequests(true)
+								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
+							})
+
+							It("should be sent", func() {
+								resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+								instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									Category:          types.CREATE,
+									State:             types.SUCCEEDED,
+									ResourceType:      types.ServiceInstanceType,
+									Reschedulable:     false,
+									DeletionScheduled: false,
+								})
+
+								VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									ID:    instanceID,
+									Type:  types.ServiceInstanceType,
+									Ready: true,
+								})
+								reqLen := len(brokerServer.ServiceInstanceEndpointRequests)
+								identity := brokerServer.ServiceInstanceEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
+								Expect(identity).To(Equal("service-manager eyJ1c2VybmFtZSI6ICJ0ZXN0LXVzZXIifQ=="))
 							})
 						})
 
@@ -2006,6 +2145,28 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 
+							When("broker expects originating identity", func() {
+								BeforeEach(func() {
+									brokerServer.ShouldRecordRequests(true)
+								})
+
+								It("should be sent", func() {
+									resp := patchInstance(testCtx.SMWithOAuthForTenant, testCase.async, instanceID, testCase.expectedUpdateSuccessStatusCode)
+
+									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.UPDATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									reqLen := len(brokerServer.ServiceInstanceEndpointRequests)
+									identity := brokerServer.ServiceInstanceEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
+									Expect(identity).To(Equal("service-manager eyJ1c2VybmFtZSI6ICJ0ZXN0LXVzZXIifQ=="))
+								})
+							})
+
 							When("content type is not JSON", func() {
 								It("returns 415", func() {
 									testCtx.SMWithOAuth.PATCH(web.ServiceInstancesURL+"/"+instanceID).
@@ -2946,6 +3107,24 @@ var _ = DescribeTestsFor(TestCase{
 									})
 								})
 
+								When("broker expects originating identity", func() {
+									It("should be sent", func() {
+										resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										reqLen := len(brokerServer.ServiceInstanceEndpointRequests)
+										identity := brokerServer.ServiceInstanceEndpointRequests[reqLen-1].Header.Get("X-Broker-API-Originating-Identity")
+										Expect(identity).To(Equal("service-manager eyJ1c2VybmFtZSI6ICJ0ZXN0LXVzZXIifQ=="))
+									})
+								})
+
 								When("a delete operation is already in progress", func() {
 									var doneChannel chan interface{}
 
@@ -3786,7 +3965,7 @@ func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
 
 	instanceReqBody := make(Object)
 	instanceReqBody["name"] = "test-service-instance-" + ID.String()
-	_, array := prepareBrokerWithCatalog(ctx, auth)
+	_, _, array := prepareBrokerWithCatalog(ctx, auth)
 	instanceReqBody["service_plan_id"] = array.First().Object().Value("id").String().Raw()
 
 	EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, instanceReqBody["service_plan_id"].(string), TenantIDValue)
@@ -3849,11 +4028,11 @@ func subResourcesBlueprint() func(ctx *TestContext, auth *SMExpect, async bool, 
 	}
 }
 
-func prepareBrokerWithCatalog(ctx *TestContext, auth *SMExpect) (*BrokerUtils, *httpexpect.Array) {
+func prepareBrokerWithCatalog(ctx *TestContext, auth *SMExpect) (*BrokerUtils, *httpexpect.Value, *httpexpect.Array) {
 	return prepareBrokerWithCatalogAndPollingDuration(ctx, auth, 0)
 }
 
-func prepareBrokerWithCatalogAndPollingDuration(ctx *TestContext, auth *SMExpect, maxPollingDuration int) (*BrokerUtils, *httpexpect.Array) {
+func prepareBrokerWithCatalogAndPollingDuration(ctx *TestContext, auth *SMExpect, maxPollingDuration int) (*BrokerUtils, *httpexpect.Value, *httpexpect.Array) {
 	cPaidPlan1 := GenerateTestPlanWithID(plan1CatalogID)
 	cPaidPlan1, err := sjson.Set(cPaidPlan1, "maximum_polling_duration", maxPollingDuration)
 	if err != nil {
@@ -3894,7 +4073,7 @@ func prepareBrokerWithCatalogAndPollingDuration(ctx *TestContext, auth *SMExpect
 	ctx.Servers[BrokerServerPrefix+brokerID] = server
 	so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
 
-	return brokerUtils, auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw()))
+	return brokerUtils, so, auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw()))
 }
 
 func findPlanIDForCatalogID(ctx *TestContext, brokerID, catalogServiceID, catalogPlanID string) string {

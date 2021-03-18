@@ -9,6 +9,7 @@ const (
 	QueryForLabelLessVisibilities
 	QueryForLabelLessPlanVisibilities
 	QueryForVisibilityWithPlatformAndPlan
+	QueryForPlanByNameAndOfferingsWithVisibility
 )
 
 var namedQueries = map[NamedQuery]string{
@@ -50,10 +51,10 @@ var namedQueries = map[NamedQuery]string{
 		 (
 			 SELECT max({{.ENTITY_TABLE}}.paging_sequence) paging_sequence
 			 FROM {{.ENTITY_TABLE}}
-			 GROUP BY resource_id
+			 GROUP BY resource_id,resource_type
 		 ) LAST_OPERATIONS
 		 ON {{.ENTITY_TABLE}}.paging_sequence = LAST_OPERATIONS.paging_sequence
-	WHERE resource_id IN (:id_list) and resource_type = :resource_type`,
+	WHERE resource_id IN (:id_list) AND resource_type = :resource_type`,
 	QueryForLabelLessVisibilities: `
 	SELECT v.* FROM visibilities v
 	WHERE (v.platform_id in (:platform_ids) OR v.platform_id IS NULL) AND
@@ -69,6 +70,19 @@ var namedQueries = map[NamedQuery]string{
 	AND (v.platform_id IS NULL
 		OR (v.platform_id = :platform_id AND (:key = '' IS TRUE OR NOT EXISTS(SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id)))
 		OR EXISTS(SELECT vl.id FROM visibility_labels vl WHERE vl.visibility_id = v.id AND vl.key = :key AND vl.val = :val))`,
+	QueryForPlanByNameAndOfferingsWithVisibility: `
+	SELECT sp.* 
+	FROM service_plans sp
+		 INNER JOIN service_offerings so
+			ON so.id = sp.service_offering_id
+		 INNER JOIN visibilities v 
+			ON sp.id = v.service_plan_id
+		 LEFT OUTER JOIN visibility_labels vl 
+			ON v.id = vl.visibility_id
+	WHERE (vl.key = :key AND vl.val = :val AND v.platform_id = :platform_id AND sp.catalog_name = :service_plan_name AND so.catalog_name = :service_offering_name)
+	OR ((v.platform_id = :platform_id OR v.platform_id IS NULL) 
+		AND NOT EXISTS(SELECT vl.visibility_id FROM visibility_labels vl WHERE vl.visibility_id = v.id) 
+		AND sp.catalog_name = :service_plan_name AND so.catalog_name = :service_offering_name)`,
 }
 
 func GetNamedQuery(query NamedQuery) string {

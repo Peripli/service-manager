@@ -56,6 +56,7 @@ type Platform struct {
 	OldCredentials    *Credentials `json:"old_credentials,omitempty"`
 	Version           string       `json:"-"`
 	Active            bool         `json:"-"`
+	Suspended         bool         `json:"suspended,omitempty"`
 	LastActive        time.Time    `json:"-"`
 	Integrity         []byte       `json:"-"`
 	CredentialsActive bool         `json:"credentials_active,omitempty"`

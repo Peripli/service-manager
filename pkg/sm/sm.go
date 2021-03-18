@@ -76,6 +76,7 @@ type ServiceManagerBuilder struct {
 	cfg                  *config.Settings
 	securityBuilder      *SecurityBuilder
 	encryptingRepository storage.TransactionalRepository
+	APIOptions           *api.Options
 }
 
 // ServiceManager  struct
@@ -155,8 +156,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	securityBuilder, securityFilters := NewSecurityBuilder()
 	API.RegisterFiltersAfter(filters.LoggingFilterName, securityFilters...)
 	API.RegisterFilters(&filters.RegeneratePlatformCredentialsFilter{}, &filters.TechnicalPlatformFilter{Storage: interceptableRepository})
-
-	API.RegisterFiltersAfter(secFilters.AuthorizationFilterName, &filters.ForceDeleteValidationFilter{})
+	API.RegisterFiltersAfter(secFilters.AuthorizationFilterName, &filters.CheckPlatformSuspendedFilter{}, &filters.ForceDeleteValidationFilter{})
 
 	storageHealthIndicator, err := storage.NewSQLHealthIndicator(storage.PingFunc(smStorage.PingContext))
 	if err != nil {
@@ -202,6 +202,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		securityBuilder:      securityBuilder,
 		OSBClientProvider:    osbClientProvider,
 		encryptingRepository: encryptingRepository,
+		APIOptions:           apiOptions,
 	}
 
 	smb.RegisterPlugins(osb.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
@@ -275,7 +276,8 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		WithDeleteAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingDeleteInterceptorProvider{
 			BaseSMAAPInterceptorProvider: baseSMAAPInterceptorProvider,
 		}).Register().
-		WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.CascadeOperationCreateInterceptorProvider{}).Register()
+		WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.CascadeOperationCreateInterceptorProvider{}).Register().
+		WithUpdateOnTxInterceptorProvider(types.OperationType, &interceptors.OperationSanitizerInterceptorProvider{}).Register()
 
 	return smb, nil
 }
@@ -555,8 +557,9 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 	}
 	smb.RegisterFiltersBefore(filters.ProtectedLabelsFilterName, filters.NewReferenceInstanceOwnershipFilter(smb.Storage, labelKey))
 	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
+	smb.RegisterFiltersAfter(fmt.Sprintf("%s%s", filters.LabelName, filters.ResourceLabelingFilterNameSuffix), filters.NewExtractPlanIDByServiceAndPlanNameFilter(smb.Storage, DefaultGetVisibilityMetadataFunc(labelKey)))
 	smb.RegisterFilters(
-		filters.NewServiceInstanceVisibilityFilter(smb.Storage, DefaultInstanceVisibilityFunc(labelKey)),
+		filters.NewServiceInstanceVisibilityFilter(smb.Storage, DefaultGetVisibilityMetadataFunc(labelKey)),
 		filters.NewServiceBindingVisibilityFilter(smb.Storage, labelKey),
 	)
 
@@ -608,7 +611,7 @@ func (smb *ServiceManagerBuilder) calculateIntegrity() error {
 	})
 }
 
-func DefaultInstanceVisibilityFunc(labelKey string) func(req *web.Request, repository storage.Repository) (metadata *filters.VisibilityMetadata, err error) {
+func DefaultGetVisibilityMetadataFunc(labelKey string) func(req *web.Request, repository storage.Repository) (metadata *filters.VisibilityMetadata, err error) {
 	return func(req *web.Request, repository storage.Repository) (metadata *filters.VisibilityMetadata, err error) {
 		tenantID := query.RetrieveFromCriteria(labelKey, query.CriteriaForContext(req.Context())...)
 		user, ok := web.UserFromContext(req.Context())
