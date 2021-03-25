@@ -20,7 +20,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-
 	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
 
@@ -41,7 +40,7 @@ type ServiceInstance struct {
 	PreviousValues       sqlxtypes.JSONText `db:"previous_values"`
 	UpdateValues         sqlxtypes.JSONText `db:"update_values"`
 	Usable               bool               `db:"usable"`
-	Shared               bool               `db:"shared"`
+	Shared               sql.NullBool       `db:"shared"`
 }
 
 func (si *ServiceInstance) ToObject() (types.Object, error) {
@@ -70,7 +69,7 @@ func (si *ServiceInstance) ToObject() (types.Object, error) {
 		PreviousValues:       getJSONRawMessage(si.PreviousValues),
 		UpdateValues:         updateValues,
 		Usable:               si.Usable,
-		Shared:               si.Shared,
+		Shared:               toBoolPointer(si.Shared),
 	}, nil
 }
 
@@ -103,7 +102,7 @@ func (*ServiceInstance) FromObject(object types.Object) (storage.Entity, error) 
 		PreviousValues:       getJSONText(serviceInstance.PreviousValues),
 		UpdateValues:         newStateBytes,
 		Usable:               serviceInstance.Usable,
-		Shared:               serviceInstance.Shared,
+		Shared:               toNullBool(serviceInstance.Shared),
 	}
 
 	return si, nil

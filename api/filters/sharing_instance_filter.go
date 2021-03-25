@@ -18,6 +18,7 @@ package filters
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
@@ -26,7 +27,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/tidwall/gjson"
 	"net/http"
 )
 
@@ -50,21 +50,20 @@ func (*sharingInstanceFilter) Name() string {
 }
 
 func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	// Ignore the filter if has no shared property
-	sharedBytes := gjson.GetBytes(req.Body, "shared")
-	if len(sharedBytes.Raw) == 0 {
+	var serviceInstanceUpdate types.ServiceInstance
+	var err error
+	err = util.BytesToObjectNoLabels(req.Body, &serviceInstanceUpdate)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if serviceInstanceUpdate.Shared == nil {
 		return next.Handle(req)
 	}
 
 	ctx := req.Context()
 	logger := log.C(ctx)
-	body := map[string]bool{}
-	util.BytesToObject(req.Body, body)
-	shared := sharedBytes.Bool()
-
-	if len(body) > 1 {
-		return nil, errors.New("Could not modify the 'shared' property with other changes at the same time")
-	}
 
 	// Get instance from database
 	instanceID := req.PathParams["resource_id"]
@@ -73,21 +72,15 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
-	instance := instanceObject.(*types.ServiceInstance)
 
-	if instance.Shared == shared {
-		return nil, errors.New(fmt.Sprintf("The service instance is already set as shared=%s", sharedBytes))
+	instance := instanceObject.(*types.ServiceInstance)
+	bytesDatabaseInstance, err := json.Marshal(instance)
+	if err := util.BytesToObject(bytesDatabaseInstance, &serviceInstanceUpdate); err != nil {
+		return nil, err
 	}
 
-	// When un-sharing and has references
-	if shared == false {
-		referencesList, err := f.getInstanceReferencesByID(instance.ID)
-		if err != nil {
-			logger.Errorf("Could not retrieve references of the service instance (%s): %v", instanceID, err)
-		}
-		if referencesList.Len() > 0 {
-			return nil, errors.New(fmt.Sprintf("Could not un-share the service instance. The service instance has %d references which should be deleted first", referencesList.Len()))
-		}
+	if !instance.Equals(&serviceInstanceUpdate) {
+		return nil, errors.New(fmt.Sprintf("Could not modify the 'shared' property with other changes at the same time"))
 	}
 
 	// Get plan object from database, on service_instance patch flow
@@ -102,6 +95,23 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	if !plan.IsShareablePlan() {
 		return nil, &util.UnsupportedQueryError{
 			Message: "Plan is non-shared",
+		}
+	}
+
+	if instance.Shared != nil && *instance.Shared == *serviceInstanceUpdate.Shared {
+		return nil, errors.New(fmt.Sprintf("The service instance is already at the desried state=%t", *serviceInstanceUpdate.Shared))
+	}
+
+	// When un-sharing a service instance with references
+	if instance.Shared != nil && !*serviceInstanceUpdate.Shared {
+		referencesList, err := f.getInstanceReferencesByID(instance.ID)
+
+		if err != nil {
+			logger.Errorf("Could not retrieve references of the service instance (%s): %v", instanceID, err)
+		}
+
+		if referencesList.Len() > 0 {
+			return nil, errors.New(fmt.Sprintf("Could not un-share the service instance. The service instance has %d references which should be deleted first", referencesList.Len()))
 		}
 	}
 

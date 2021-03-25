@@ -17,7 +17,6 @@
 package filters
 
 import (
-	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -52,38 +51,41 @@ func (*referenceInstanceOwnershipFilter) Name() string {
 }
 
 func (f *referenceInstanceOwnershipFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	referencedKey := "referenced_instance_id"
-	parameters := gjson.GetBytes(req.Body, "parameters").Map()
-	referencedInstanceID, exists := parameters[referencedKey]
-	if !exists {
-		return next.Handle(req)
-	}
-
 	ctx := req.Context()
-
 	userContext, _ := web.UserFromContext(ctx)
 	fmt.Print(userContext)
 	planID := gjson.GetBytes(req.Body, planIDProperty).String()
 
 	byID := query.ByField(query.EqualsOperator, "id", planID)
 	planObject, err := f.repository.Get(ctx, types.ServicePlanType, byID)
+
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServicePlanType.String())
 	}
+
 	plan := planObject.(*types.ServicePlan)
 
-	if plan.Name == "reference-plan" {
-		// set as !isReferencePlan
-		return nil, errors.New("plan_id is not a reference plan")
+	if plan.Name != "reference-plan" {
+		return next.Handle(req)
 	}
 
-	byID = query.ByField(query.EqualsOperator, "id", referencedInstanceID.Str)
+	referencedInstanceID := gjson.GetBytes(req.Body, "parameters.referenced_instance_id").String()
+	byID = query.ByField(query.EqualsOperator, "id", referencedInstanceID)
+
 	referencedObject, err := f.repository.Get(ctx, types.ServiceInstanceType, byID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 	instance := referencedObject.(*types.ServiceInstance)
 	referencedOwnerTenantID := instance.Labels["tenant"][0]
+
+	if !*instance.Shared {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "The referenced instance is not shared",
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
 
 	callerTenantID := gjson.GetBytes(req.Body, "contextt."+f.tenantIdentifier).String()
 	if referencedOwnerTenantID != callerTenantID {

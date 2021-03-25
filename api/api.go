@@ -168,7 +168,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			&filters.PatchOnlyLabelsFilter{},
 			filters.NewPlansFilterByVisibility(options.Repository),
 			filters.NewServicesFilterByVisibility(options.Repository),
-			filters.NewSharingInstanceFilter(options.Repository, options.Repository, options.TenantLabelKey),
+			filters.NewSharingInstanceFilter(options.Repository, options.Repository),
 			filters.NewReferenceInstanceFilter(options.Repository),
 			filters.NewReferenceBindingFilter(options.Repository),
 			filters.NewBrokersFilterByVisibility(options.Repository),
