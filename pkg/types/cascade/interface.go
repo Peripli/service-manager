@@ -61,7 +61,7 @@ func GetCascadeObject(ctx context.Context, object types.Object) (Cascade, bool) 
 			parentInstanceKeys = keys
 		}
 		instance := object.(*types.ServiceInstance)
-		if instance.Shared == true {
+		if instance.Shared != nil && *instance.Shared == true {
 			return &SharedInstanceCascade{instance, parentInstanceKeys}, true
 		}
 		return &ServiceInstanceCascade{instance, parentInstanceKeys}, true
