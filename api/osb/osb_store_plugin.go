@@ -394,7 +394,9 @@ func (sp *storePlugin) Provision(request *web.Request, next web.Handler) (*web.R
 		return nil, err
 	}
 
-	response, err := next.Handle(request)
+	isReference, _ := isReferencePlan(ctx, sp.repository, requestPayload.PlanID)
+	//isReference := true
+	response, err := sp.handleResponse(isReference, request, "provision", next)
 	if err != nil {
 		return nil, err
 	}
@@ -429,11 +431,17 @@ func (sp *storePlugin) Deprovision(request *web.Request, next web.Handler) (*web
 	if err := parseRequestForm(request, requestPayload); err != nil {
 		return nil, err
 	}
-	response, err := next.Handle(request)
+
+	ctx := request.Context()
+	if err := parseRequestForm(request, requestPayload); err != nil {
+		return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
+	}
+
+	isReference, _ := isReferenceInstance(ctx, sp.repository, requestPayload.InstanceID)
+	response, err := sp.handleResponse(isReference, request, "deprovision", next)
 	if err != nil {
 		return nil, err
 	}
-	ctx := request.Context()
 	_, operationFound := opcontext.Get(ctx)
 	if operationFound {
 		log.C(ctx).Debug("operation found in context - Deprovision is managed by another plugin..")
@@ -473,6 +481,78 @@ func (sp *storePlugin) Deprovision(request *web.Request, next web.Handler) (*web
 		return nil, err
 	}
 	return response, nil
+}
+
+func (sp *storePlugin) handleResponse(isReference bool, request *web.Request, action string, next web.Handler) (*web.Response, error) {
+	var err error
+	var response *web.Response
+
+	if isReference {
+		response, err = generateReferenceInstanceResponse(action)
+	} else {
+		response, err = next.Handle(request)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func generateReferenceInstanceResponse(action string) (*web.Response, error) {
+	switch action {
+	case "provision":
+		// todo: handle the reference instance creation
+		return &web.Response{
+			Body:       nil,
+			StatusCode: http.StatusCreated,
+			Header:     http.Header{},
+		}, nil
+	case "deprovision":
+		return &web.Response{
+			Body:       nil,
+			StatusCode: http.StatusOK,
+			Header:     http.Header{},
+		}, nil
+	}
+	httpBadRequest := &http.Response{
+		Body:       nil,
+		StatusCode: http.StatusBadRequest,
+		Header:     http.Header{},
+	}
+	return nil, util.HandleResponseError(httpBadRequest)
+}
+
+func isReferenceInstance(ctx context.Context, storage storage.Repository, id string) (bool, error) {
+	byID := query.ByField(query.EqualsOperator, "id", id)
+	var instance types.Object
+	var err error
+	if instance, err = storage.Get(ctx, types.ServiceInstanceType, byID); err != nil {
+		if err != util.ErrNotFoundInStorage {
+			return false, util.HandleStorageError(err, string(types.ServiceInstanceType))
+		}
+	}
+	if instance == nil {
+		return false, nil
+	}
+
+	instanceType := instance.(*types.ServiceInstance)
+	return instanceType.ReferencedInstanceID != "", nil
+}
+func isReferencePlan(ctx context.Context, storage storage.Repository, id string) (bool, error) {
+	byID := query.ByField(query.EqualsOperator, "id", id)
+	var instance types.Object
+	var err error
+	if instance, err = storage.Get(ctx, types.ServicePlanType, byID); err != nil {
+		if err != util.ErrNotFoundInStorage {
+			return false, util.HandleStorageError(err, string(types.ServicePlanType))
+		}
+	}
+	if instance == nil {
+		return false, nil
+	}
+
+	instanceType := instance.(*types.ServicePlan)
+	return instanceType.Name == "reference", nil
 }
 
 func (sp *storePlugin) UpdateService(request *web.Request, next web.Handler) (*web.Response, error) {
@@ -783,6 +863,12 @@ func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 		log.C(ctx).Debugf("Instance name missing. Defaulting to id %s", req.InstanceID)
 		instanceName = req.InstanceID
 	}
+
+	referencedInstanceID := gjson.GetBytes(req.RawParameters, "parameters.referenced_instance_id").String()
+	if referencedInstanceID == "" {
+		referencedInstanceID = gjson.GetBytes(req.RawParameters, "referenced_instance_id").String()
+	}
+
 	instance := &types.ServiceInstance{
 		Base: types.Base{
 			ID:        req.InstanceID,
@@ -791,13 +877,14 @@ func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 			Labels:    make(map[string][]string),
 			Ready:     ready,
 		},
-		Name:            instanceName,
-		ServicePlanID:   planID,
-		PlatformID:      req.PlatformID,
-		DashboardURL:    resp.DashboardURL,
-		MaintenanceInfo: req.RawMaintenanceInfo,
-		Context:         req.RawContext,
-		Usable:          true,
+		Name:                 instanceName,
+		ServicePlanID:        planID,
+		PlatformID:           req.PlatformID,
+		DashboardURL:         resp.DashboardURL,
+		MaintenanceInfo:      req.RawMaintenanceInfo,
+		Context:              req.RawContext,
+		Usable:               true,
+		ReferencedInstanceID: referencedInstanceID,
 	}
 	if _, err := storage.Create(ctx, instance); err != nil {
 		return util.HandleStorageError(err, string(instance.GetType()))

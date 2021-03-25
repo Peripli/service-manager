@@ -72,8 +72,7 @@ func (f *referenceInstanceOwnershipFilter) Run(req *web.Request, next web.Handle
 	}
 	plan := planObject.(*types.ServicePlan)
 
-	if plan.Name == "reference-plan" {
-		// set as !isReferencePlan
+	if plan.Name != "reference-plan" {
 		return nil, errors.New("plan_id is not a reference plan")
 	}
 

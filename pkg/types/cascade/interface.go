@@ -60,7 +60,11 @@ func GetCascadeObject(ctx context.Context, object types.Object) (Cascade, bool) 
 		if keys, ok := parentInstanceLabelKeysInterface.([]string); ok {
 			parentInstanceKeys = keys
 		}
-		return &ServiceInstanceCascade{object.(*types.ServiceInstance), parentInstanceKeys}, true
+		instance := object.(*types.ServiceInstance)
+		if instance.Shared == true {
+			return &SharedInstanceCascade{instance, parentInstanceKeys}, true
+		}
+		return &ServiceInstanceCascade{instance, parentInstanceKeys}, true
 	}
 	return nil, false
 }

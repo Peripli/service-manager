@@ -117,6 +117,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		if instance.ReferencedInstanceID != "" {
 			//referenceInstance = instance
 			instance, _ = getInstanceByID(ctx, instance.ReferencedInstanceID, i.repository)
+			binding.Context = instance.Context
 		}
 
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)

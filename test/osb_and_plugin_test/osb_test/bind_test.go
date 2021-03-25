@@ -29,14 +29,48 @@ var _ = Describe("Bind", func() {
 	var BID = "01010"
 	BeforeEach(func() {
 		brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+		withJson := provisionRequestBodyMapWith("plan_id", plan1CatalogID)()
 		ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+IID).
 			WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-			WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
+			WithJSON(withJson).
 			Expect().Status(http.StatusCreated)
 	})
 
 	Context("call to working service broker", func() {
 
+		It("should succeed with binding a reference instance", func() {
+			withJson := provisionRequestBodyMapWith("plan_id", plan1CatalogID)()
+			withJson = provisionRequestBodyMapWith("parameters.referenced_instance_id", IID)()
+			withJson = provisionRequestBodyMapWith("context.platform", "basic-auth-default-test-platform")()
+			withJson = provisionRequestBodyMapWith("referenced_instance_id", IID)()
+			referenceInstanceID := "tal-yaakov-reference"
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+referenceInstanceID).
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(withJson).
+				Expect().Status(http.StatusCreated)
+
+			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+referenceInstanceID+"/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+
+			ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + BID).
+				Expect().
+				Status(http.StatusOK).
+				JSON().
+				Object().
+				ContainsMap(map[string]interface{}{
+					"id":                  BID,
+					"service_instance_id": IID,
+				})
+
+			verifyOperationExists(operationExpectations{
+				Type:         types.CREATE,
+				State:        types.SUCCEEDED,
+				ResourceID:   BID,
+				ResourceType: "/v1/service_bindings",
+				ExternalID:   "",
+			})
+		})
 		It("should succeed", func() {
 			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+IID+"/service_bindings/"+BID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).

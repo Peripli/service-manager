@@ -522,7 +522,7 @@ var _ = DescribeTestsFor(TestCase{
 						})
 
 						When("Create service instance sm as a platform tls broker", func() {
-							It("returns 202", func() {
+							FIt("returns 202", func() {
 
 								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanIDWithTLS, TenantIDValue)
 								resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
@@ -538,13 +538,31 @@ var _ = DescribeTestsFor(TestCase{
 									DeletionScheduled: false,
 								})
 
-								postInstanceRequestTLS["parameters"] = map[string]string{
+								byID := query.ByField(query.EqualsOperator, "id", servicePlanIDWithTLS)
+								planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID)
+								plan := planObject.(*types.ServicePlan)
+
+								byID = query.ByField(query.EqualsOperator, "service_offering_id", plan.ServiceOfferingID)
+								byName := query.ByField(query.EqualsOperator, "name", "reference-plan")
+								referencePlanObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID, byName)
+								referencePlan := referencePlanObject.(*types.ServicePlan)
+
+								postReferenceInstanceRequest := Object{
+									"name":                   "reference-instance",
 									"referenced_instance_id": sharedInstanceID,
+									"service_plan_id":        referencePlan.ID,
+									"maintenance_info":       "{}",
+									"contextt": Object{
+										TenantIdentifier: TenantIDValue,
+									},
+									"parameters": Object{
+										"referenced_instance_id": sharedInstanceID,
+									},
 								}
 								ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
-									WithQuery("async", true).
-									WithJSON(postInstanceRequestTLS).
-									Expect().Status(http.StatusAccepted)
+									WithQuery("async", false).
+									WithJSON(postReferenceInstanceRequest).
+									Expect().Status(http.StatusCreated)
 							})
 
 							It("returns 201", func() {
