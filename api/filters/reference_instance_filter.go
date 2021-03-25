@@ -57,85 +57,8 @@ func (*referenceInstanceFilter) Name() string {
 }
 
 func (f *referenceInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	ctx := req.Context()
-
-	// todo: manage operations
-	// todo: allow async=true
-	//resourceID := req.PathParams["resource_id"]
-	//isAsync := req.URL.Query().Get(web.QueryParamAsync)
-	switch req.Request.Method {
-	/*case http.MethodGet:
-	if isParametersRequest(req) {
-		return nil, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: ReferenceParametersAreNotSupported,
-			StatusCode:  http.StatusBadRequest,
-		}
-	}
-	if isGetOperationRequest(req) {
-		return next.Handle(req)
-	}
-	if isGetInstanceRequest(req) {
-		instance, err := f.getObjectByID(ctx, types.ServiceInstanceType, resourceID)
-		if err != nil {
-			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
-		}
-		// todo: maybe we dont need this casting..
-		return util.NewJSONResponse(http.StatusOK, instance.(*types.ServiceInstance))
-	}*/
-	case http.MethodPost:
-		isReferencePlan, err := f.isReferencePlan(ctx, req)
-		if err != nil {
-			return nil, err
-		}
-		if !isReferencePlan {
-			return next.Handle(req)
-		}
-
-		referencedKey := "referenced_instance_id"
-		parameters := gjson.GetBytes(req.Body, "parameters").Map()
-
-		referencedInstanceID, exists := parameters[referencedKey]
-		isReferencedShared, err := f.isReferencedShared(ctx, referencedInstanceID.Str)
-		if err != nil {
-			return nil, err
-		}
-		if !exists {
-			return nil, errors.New("Missing referenced_instance_id")
-		} else if exists && !isReferencedShared {
-			return nil, errors.New("Referenced instance is not shared")
-		}
-		return next.Handle(req)
-		//return f.handleReferenceProvision(req, referencedInstanceID.Str, isAsync)
-		/*case http.MethodPatch:
-			// we don't want to allow plan_id and/or parameters changes on a reference service instance
-			if resourceID == "" {
-				return nil, errors.New("Missing resource ID")
-			}
-			currentInstance, err := f.getObjectByID(ctx, types.ServiceInstanceType, resourceID)
-			currentInstanceObject := currentInstance.(*types.ServiceInstance)
-			if err != nil {
-				return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
-			}
-			isValidPatchRequest, err := f.isValidPatchRequest(req, currentInstanceObject)
-			if err != nil {
-				return nil, err
-			}
-			if isValidPatchRequest {
-				return f.handleReferenceUpdate(req, currentInstanceObject)
-			}
-		case http.MethodDelete:
-			// deleting a reference service instance with bindings is not allowed
-			bindings, err := f.getBindings(resourceID)
-			if err != nil {
-				return nil, err
-			}
-			if bindings.Len() > 0 {
-				return nil, errors.New("The service instance has bindins which should be deleted first.")
-			}
-			return f.handleDeletion(req)*/
-	}
-	return nil, nil
+	//as decided lets skip this filter and move everything to one oref ownership  filter
+	return next.Handle(req)
 }
 
 func (f *referenceInstanceFilter) getBindings(resourceID string) (types.ObjectList, error) {
@@ -268,19 +191,6 @@ func (f *referenceInstanceFilter) getObjectByID(ctx context.Context, objectType 
 		return nil, util.HandleStorageError(err, objectType.String())
 	}
 	return object, nil
-}
-func (f *referenceInstanceFilter) isReferencedShared(ctx context.Context, referencedInstanceID string) (bool, error) {
-	byID := query.ByField(query.EqualsOperator, "id", referencedInstanceID)
-	referencedObject, err := f.repository.Get(ctx, types.ServiceInstanceType, byID)
-	if err != nil {
-		return false, util.HandleStorageError(err, types.ServiceInstanceType.String())
-	}
-	instance := referencedObject.(*types.ServiceInstance)
-
-	if !instance.Shared {
-		return false, errors.New("referenced instance is not shared")
-	}
-	return true, nil
 }
 
 /*func (f *referenceInstanceFilter) handleReferenceProvision(req *web.Request, referencedInstanceID string, isAsync string) (*web.Response, error) {
