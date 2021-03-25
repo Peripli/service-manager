@@ -209,6 +209,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	smb.RegisterPluginsBefore(osb.CheckInstanceOwnerhipPluginName, osb.NewStorePlugin(interceptableRepository))
 	smb.RegisterPluginsBefore(osb.OSBStorePluginName, osb.NewCheckVisibilityPlugin(interceptableRepository))
 	smb.RegisterPlugins(osb.NewCheckPlatformIDPlugin(interceptableRepository))
+	smb.RegisterPlugins(osb.NewReferenceInstancePlugin(transactionalRepository))
 	// TODO: add plugin of switch instance id from refernce to
 	smb.RegisterPlugins(osb.NewPlatformTerminationPlugin(interceptableRepository))
 
@@ -564,6 +565,7 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 	)
 
 	smb.RegisterPlugins(osb.NewCheckInstanceOwnershipPlugin(smb.Storage, labelKey))
+	smb.RegisterPlugins(osb.NewReferenceInstanceOwnershipPlugin(smb.Storage, labelKey))
 
 	smb.WithCreateOnTxInterceptorProvider(types.ServiceInstanceType, interceptors.NewOSBServiceInstanceTenantLabelingInterceptor(labelKey)).
 		AroundTxAfter(interceptors.ServiceInstanceCreateInterceptorProviderName).Register()

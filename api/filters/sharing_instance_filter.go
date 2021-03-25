@@ -34,13 +34,11 @@ const SharingInstanceFilterName = "SharingInstanceFilter"
 
 // SharingInstanceFilter validate the un/share request on an existing service instance
 type sharingInstanceFilter struct {
-	repository        storage.TransactionalRepository
 	storageRepository storage.Repository
 }
 
-func NewSharingInstanceFilter(repository storage.TransactionalRepository, storageRepository storage.Repository) *sharingInstanceFilter {
+func NewSharingInstanceFilter(storageRepository storage.Repository) *sharingInstanceFilter {
 	return &sharingInstanceFilter{
-		repository:        repository,
 		storageRepository: storageRepository,
 	}
 }
@@ -68,7 +66,7 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	// Get instance from database
 	instanceID := req.PathParams["resource_id"]
 	byID := query.ByField(query.EqualsOperator, "id", instanceID)
-	instanceObject, err := f.repository.Get(ctx, types.ServiceInstanceType, byID)
+	instanceObject, err := f.storageRepository.Get(ctx, types.ServiceInstanceType, byID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
@@ -86,7 +84,7 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	// Get plan object from database, on service_instance patch flow
 	planID := instance.ServicePlanID
 	byID = query.ByField(query.EqualsOperator, "id", planID)
-	planObject, err := f.repository.Get(ctx, types.ServicePlanType, byID)
+	planObject, err := f.storageRepository.Get(ctx, types.ServicePlanType, byID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServicePlanType.String())
 	}

@@ -124,7 +124,6 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		instance := obj.(*types.ServiceInstance)
 		instance.Usable = false
 		smaapOperated := isOperatedBySmaaP(instance)
-
 		if instance.PlatformID != types.SMPlatform && !smaapOperated {
 			return f(ctx, obj)
 		}
@@ -132,6 +131,15 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		operation, found := opcontext.Get(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
+		}
+
+		if instance.ReferencedInstanceID != "" {
+			object, err := f(ctx, obj)
+			if err != nil {
+				return nil, err
+			}
+			instance = object.(*types.ServiceInstance)
+			return instance, nil
 		}
 
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)

@@ -364,9 +364,22 @@ var _ = DescribeTestsFor(TestCase{
 			Describe("POST", func() {
 				Context("binding a reference instance", func() {
 					var referenceInstanceID = ""
+					var sharedInstanceID = ""
 					JustBeforeEach(func() {
-						sharedInstanceResp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
-						sharedInstanceID, _ := VerifyOperationExists(ctx, sharedInstanceResp.Header("Location").Raw(), OperationExpectations{
+						// Setup broker
+						brokerServer.BindingHandlerFunc(http.MethodPost, http.MethodPost+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+						brokerServer.BindingLastOpHandlerFunc(http.MethodPost+"1", MultiplePollsRequiredHandler("in progress", "succeeded"))
+
+						// Create instance and share it
+						sharedInstanceResp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+							WithQuery("async", false).
+							WithJSON(Object{
+								"name":             "shared-instance",
+								"service_plan_id":  servicePlanID,
+								"maintenance_info": "{}",
+							}).
+							Expect().Status(http.StatusCreated)
+						sharedInstanceID, _ = VerifyOperationExists(ctx, sharedInstanceResp.Header("Location").Raw(), OperationExpectations{
 							Category:          types.CREATE,
 							State:             types.SUCCEEDED,
 							ResourceType:      types.ServiceInstanceType,
@@ -384,10 +397,25 @@ var _ = DescribeTestsFor(TestCase{
 							Status(http.StatusOK).
 							JSON().Object().ValueEqual("shared", true)
 
+					})
+
+					FIt("returns 202", func() {
+						// Create reference-instance
+						byID := query.ByField(query.EqualsOperator, "id", servicePlanID)
+						planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID)
+						plan := planObject.(*types.ServicePlan)
+
+						byID = query.ByField(query.EqualsOperator, "service_offering_id", plan.ServiceOfferingID)
+						byName := query.ByField(query.EqualsOperator, "name", "reference-plan")
+						referencePlanObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID, byName)
+						referencePlan := referencePlanObject.(*types.ServicePlan)
+
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
+
 						postReferenceInstanceReq := Object{
 							"name":                   "reference-instance",
 							"referenced_instance_id": sharedInstanceID,
-							"service_plan_id":        servicePlanID,
+							"service_plan_id":        referencePlan.ID,
 							"maintenance_info":       "{}",
 							"contextt": Object{
 								TenantIdentifier: TenantIDValue,
@@ -396,41 +424,44 @@ var _ = DescribeTestsFor(TestCase{
 						postReferenceInstanceReq["parameters"] = map[string]string{
 							"referenced_instance_id": sharedInstanceID,
 						}
-						referenceInstanceResp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+						ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 							WithQuery("async", false).
 							WithJSON(postReferenceInstanceReq).
 							Expect().Status(http.StatusCreated)
-						referenceInstanceID, _ = VerifyOperationExists(ctx, referenceInstanceResp.Header("Location").Raw(), OperationExpectations{
-							Category:          types.CREATE,
-							State:             types.SUCCEEDED,
-							ResourceType:      types.ServiceInstanceType,
-							Reschedulable:     false,
-							DeletionScheduled: false,
-						})
-						fmt.Print(referenceInstanceID)
-					})
 
-					FIt("returns 202", func() {
+						// Get reference-instance ID
+						byID = query.ByField(query.EqualsOperator, "referenced_instance_id", sharedInstanceID)
+						referenceInstanceObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServiceInstanceType, byID)
+
+						// Post binding to the reference instance
+						referenceInstance := referenceInstanceObject.(*types.ServiceInstance)
+						referenceInstanceID = referenceInstance.ID
+						fmt.Print(referenceInstanceID)
 						if referenceInstanceID != "" {
 							postBindingRequest["service_instance_id"] = referenceInstanceID
 						}
-						ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
-							WithQuery("async", true).
-							WithJSON(postBindingRequest)
-						resp := createBinding(ctx.SMWithOAuthForTenant, "true", http.StatusAccepted)
+						resp := ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+							WithQuery("async", false).
+							WithJSON(postBindingRequest).
+							Expect().
+							Status(http.StatusCreated)
+						obj := resp.JSON().Object()
+						fmt.Print(obj)
+						//resp := createBinding(ctx.SMWithOAuthForTenant, "true", http.StatusAccepted)
 						bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 							Category:          types.CREATE,
-							State:             types.IN_PROGRESS,
+							State:             types.SUCCEEDED,
 							ResourceType:      types.ServiceBindingType,
 							Reschedulable:     false,
 							DeletionScheduled: false,
 						})
 
-						VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+						resource := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 							ID:    bindingID,
 							Type:  types.ServiceBindingType,
 							Ready: true,
 						})
+						fmt.Print(resource)
 					})
 				})
 				for _, testCase := range testCases {
