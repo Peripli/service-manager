@@ -47,6 +47,11 @@ func (*sharingInstanceFilter) Name() string {
 	return SharingInstanceFilterName
 }
 
+func enrichContextWithSharedVal(request *web.Request, val bool) {
+	newCtx := context.WithValue(request.Context(), types.SharedInstance{}, val)
+	request.Request = request.WithContext(newCtx)
+}
+
 func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	var serviceInstanceUpdate types.ServiceInstance
 	var err error
@@ -59,6 +64,8 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	if serviceInstanceUpdate.Shared == nil {
 		return next.Handle(req)
 	}
+
+	enrichContextWithSharedVal(req, *serviceInstanceUpdate.Shared)
 
 	ctx := req.Context()
 	logger := log.C(ctx)
