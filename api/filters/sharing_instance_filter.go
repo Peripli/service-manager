@@ -53,19 +53,19 @@ func enrichContextWithSharedVal(request *web.Request, val *bool) {
 }
 
 func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	var serviceInstanceUpdate types.ServiceInstance
+	var reqServiceInstance types.ServiceInstance
 	var err error
-	err = util.BytesToObjectNoLabels(req.Body, &serviceInstanceUpdate)
+	err = util.BytesToObjectNoLabels(req.Body, &reqServiceInstance)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if serviceInstanceUpdate.Shared == nil {
+	if reqServiceInstance.Shared == nil {
 		return next.Handle(req)
 	}
 
-	enrichContextWithSharedVal(req, serviceInstanceUpdate.Shared)
+	enrichContextWithSharedVal(req, reqServiceInstance.Shared)
 
 	ctx := req.Context()
 	logger := log.C(ctx)
@@ -73,23 +73,21 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	// Get instance from database
 	instanceID := req.PathParams["resource_id"]
 	byID := query.ByField(query.EqualsOperator, "id", instanceID)
-	instanceObject, err := f.storageRepository.Get(ctx, types.ServiceInstanceType, byID)
+	dbInstanceObject, err := f.storageRepository.Get(ctx, types.ServiceInstanceType, byID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 
-	instance := instanceObject.(*types.ServiceInstance)
-	bytesDatabaseInstance, err := json.Marshal(instance)
-	if err := util.BytesToObject(bytesDatabaseInstance, &serviceInstanceUpdate); err != nil {
+	persistedInstance := dbInstanceObject.(*types.ServiceInstance)
+
+	//we cannot use reqServiceInstance in this validation because the struct has default values (like "" for string type properties)
+	err = f.validateOnlySharedPropertyIsChanged(persistedInstance, &req.Body)
+	if err != nil {
 		return nil, err
 	}
 
-	if !instance.Equals(&serviceInstanceUpdate) {
-		return nil, errors.New(fmt.Sprintf("Could not modify the 'shared' property with other changes at the same time"))
-	}
-
 	// Get plan object from database, on service_instance patch flow
-	planID := instance.ServicePlanID
+	planID := persistedInstance.ServicePlanID
 	byID = query.ByField(query.EqualsOperator, "id", planID)
 	planObject, err := f.storageRepository.Get(ctx, types.ServicePlanType, byID)
 	if err != nil {
@@ -103,13 +101,13 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 		}
 	}
 
-	if instance.Shared != nil && *instance.Shared == *serviceInstanceUpdate.Shared {
-		return nil, errors.New(fmt.Sprintf("The service instance is already at the desried state=%t", *serviceInstanceUpdate.Shared))
+	if persistedInstance.Shared != nil && *persistedInstance.Shared == *reqServiceInstance.Shared {
+		return nil, errors.New(fmt.Sprintf("The service instance is already at the desried state=%t", *reqServiceInstance.Shared))
 	}
 
 	// When un-sharing a service instance with references
-	if instance.Shared != nil && !*serviceInstanceUpdate.Shared {
-		referencesList, err := f.getInstanceReferencesByID(instance.ID)
+	if persistedInstance.Shared != nil && !*reqServiceInstance.Shared {
+		referencesList, err := f.getInstanceReferencesByID(persistedInstance.ID)
 
 		if err != nil {
 			logger.Errorf("Could not retrieve references of the service instance (%s): %v", instanceID, err)
@@ -121,6 +119,30 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	}
 
 	return next.Handle(req)
+}
+
+func (f *sharingInstanceFilter) validateOnlySharedPropertyIsChanged(persistedInstance *types.ServiceInstance, reqInstanceBytes *[]byte) error {
+	var persistedInstanceCopy types.ServiceInstance
+	persistedInstanceBytes, err := json.Marshal(&persistedInstance)
+	if err != nil {
+		return err
+	}
+	if err := util.BytesToObject(persistedInstanceBytes, &persistedInstanceCopy); err != nil {
+		return err
+	}
+	if err := util.BytesToObject(*reqInstanceBytes, &persistedInstanceCopy); err != nil {
+		return err
+	}
+
+	//in order to ignore shared property when validating the request we set it to be equals
+	//TODO: find out why the context is not the same (the persisted instance has instance_name property and persistedInstanceCopy does not have it)
+	persistedInstance.Shared = persistedInstanceCopy.Shared
+	persistedInstance.Context = persistedInstanceCopy.Context
+
+	if !persistedInstance.Equals(&persistedInstanceCopy) {
+		return errors.New(fmt.Sprintf("Could not modify the 'shared' property with other changes at the same time"))
+	}
+	return nil
 }
 
 func (f *sharingInstanceFilter) getInstanceReferencesByID(instanceID string) (types.ObjectList, error) {
