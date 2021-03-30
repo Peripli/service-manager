@@ -74,35 +74,6 @@ func (*referenceInstanceFilter) FilterMatchers() []web.FilterMatcher {
 	}
 }
 
-func (f *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next web.Handler) (*web.Response, error) {
-	// we don't want to allow plan_id and/or parameters changes on a reference service instance
-	ctx := req.Context()
-	resourceID := req.PathParams["resource_id"]
-	if resourceID == "" {
-		return nil, errors.New("missing resource ID")
-	}
-
-	dbInstanceObject, err := f.getObjectByID(ctx, types.ServiceInstanceType, resourceID)
-	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
-	}
-	instance := dbInstanceObject.(*types.ServiceInstance)
-
-	isReferencePlan, err := f.isReferencePlan(ctx, instance.ServicePlanID)
-	if err != nil {
-		return nil, err
-	}
-	if !isReferencePlan {
-		return next.Handle(req)
-	}
-
-	_, err = f.isValidPatchRequest(req, instance)
-	if err != nil {
-		return nil, err
-	}
-	return next.Handle(req)
-}
-
 func (f *referenceInstanceFilter) handleProvision(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).Str
@@ -132,6 +103,35 @@ func (f *referenceInstanceFilter) handleProvision(req *web.Request, next web.Han
 		return nil, errors.New("missing referenced_instance_id")
 	}
 	_, err = f.isReferencedShared(ctx, referencedInstanceID.Str)
+	if err != nil {
+		return nil, err
+	}
+	return next.Handle(req)
+}
+
+func (f *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next web.Handler) (*web.Response, error) {
+	// we don't want to allow plan_id and/or parameters changes on a reference service instance
+	ctx := req.Context()
+	resourceID := req.PathParams["resource_id"]
+	if resourceID == "" {
+		return nil, errors.New("missing resource ID")
+	}
+
+	dbInstanceObject, err := f.getObjectByID(ctx, types.ServiceInstanceType, resourceID)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+	}
+	instance := dbInstanceObject.(*types.ServiceInstance)
+
+	isReferencePlan, err := f.isReferencePlan(ctx, instance.ServicePlanID)
+	if err != nil {
+		return nil, err
+	}
+	if !isReferencePlan {
+		return next.Handle(req)
+	}
+
+	_, err = f.isValidPatchRequest(req, instance)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (f *referenceInstanceFilter) isReferencePlan(ctx context.Context, servicePl
 		return false, err
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
-	return plan.Name == "reference-dbPlanObject", nil
+	return plan.Name == "reference-plan", nil
 }
 
 func (f *referenceInstanceFilter) getObjectByID(ctx context.Context, objectType types.ObjectType, resourceID string) (types.Object, error) {
