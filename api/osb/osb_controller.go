@@ -26,6 +26,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"regexp"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/client"
 	"github.com/tidwall/gjson"
@@ -102,7 +103,9 @@ func (c *Controller) catalog(r *web.Request, logger *logrus.Entry, broker *types
 }
 
 func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.ServiceBroker) (*web.Response, error) {
-	ctx := r.Context()
+	ctx, cancel := context.WithTimeout(r.Context(), time.Minute)
+
+	defer cancel()
 
 	targetBrokerURL, _ := url.Parse(broker.BrokerURL)
 
