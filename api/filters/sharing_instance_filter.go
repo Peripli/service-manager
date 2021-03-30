@@ -47,11 +47,6 @@ func (*sharingInstanceFilter) Name() string {
 	return SharingInstanceFilterName
 }
 
-func enrichContextWithSharedVal(request *web.Request, val *bool) {
-	newCtx := context.WithValue(request.Context(), types.SharedInstance{}, val)
-	request.Request = request.WithContext(newCtx)
-}
-
 func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	var reqServiceInstance types.ServiceInstance
 	var err error
@@ -64,8 +59,6 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 	if reqServiceInstance.Shared == nil {
 		return next.Handle(req)
 	}
-
-	enrichContextWithSharedVal(req, reqServiceInstance.Shared)
 
 	ctx := req.Context()
 	logger := log.C(ctx)
@@ -122,24 +115,24 @@ func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Re
 }
 
 func (f *sharingInstanceFilter) validateOnlySharedPropertyIsChanged(persistedInstance *types.ServiceInstance, reqInstanceBytes *[]byte) error {
-	var persistedInstanceCopy types.ServiceInstance
+	var updatedInstance types.ServiceInstance
 	persistedInstanceBytes, err := json.Marshal(&persistedInstance)
 	if err != nil {
 		return err
 	}
-	if err := util.BytesToObject(persistedInstanceBytes, &persistedInstanceCopy); err != nil {
+	if err := util.BytesToObject(persistedInstanceBytes, &updatedInstance); err != nil {
 		return err
 	}
-	if err := util.BytesToObject(*reqInstanceBytes, &persistedInstanceCopy); err != nil {
+	if err := util.BytesToObject(*reqInstanceBytes, &updatedInstance); err != nil {
 		return err
 	}
 
 	//in order to ignore shared property when validating the request we set it to be equals
-	//TODO: find out why the context is not the same (the persisted instance has instance_name property and persistedInstanceCopy does not have it)
-	persistedInstance.Shared = persistedInstanceCopy.Shared
-	persistedInstance.Context = persistedInstanceCopy.Context
+	//TODO: find out why the context is not the same (the persisted instance has instance_name property and updatedInstance does not have it)
+	updatedInstance.Shared = persistedInstance.Shared
+	updatedInstance.Context = persistedInstance.Context
 
-	if !persistedInstance.Equals(&persistedInstanceCopy) {
+	if !persistedInstance.Equals(&updatedInstance) {
 		return errors.New(fmt.Sprintf("Could not modify the 'shared' property with other changes at the same time"))
 	}
 	return nil
