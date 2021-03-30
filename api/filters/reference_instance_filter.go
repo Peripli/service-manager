@@ -18,19 +18,14 @@ package filters
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/gofrs/uuid"
+	"github.com/Peripli/service-manager/storage"
 	"github.com/tidwall/gjson"
 	"net/http"
-	"strings"
-	"time"
-
-	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/web"
 )
@@ -43,12 +38,14 @@ const (
 // serviceInstanceVisibilityFilter ensures that the tenant making the provisioning/update request
 // has the necessary visibilities - i.e. that he has the right to consume the requested plan.
 type referenceInstanceFilter struct {
-	repository storage.TransactionalRepository
+	repository       storage.TransactionalRepository
+	tenantIdentifier string
 }
 
-func NewReferenceInstanceFilter(repository storage.TransactionalRepository) *referenceInstanceFilter {
+func NewReferenceInstanceFilter(repository storage.TransactionalRepository, tenantIdentifier string) *referenceInstanceFilter {
 	return &referenceInstanceFilter{
-		repository: repository,
+		repository:       repository,
+		tenantIdentifier: tenantIdentifier,
 	}
 }
 
@@ -57,19 +54,13 @@ func (*referenceInstanceFilter) Name() string {
 }
 
 func (f *referenceInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	//as decided lets skip this filter and move everything to one oref ownership  filter
-	return next.Handle(req)
-}
-
-func (f *referenceInstanceFilter) getBindings(resourceID string) (types.ObjectList, error) {
-	bindings, err := f.repository.List(
-		context.Background(),
-		types.ServiceBindingType,
-		query.ByField(query.EqualsOperator, "service_instance_id", resourceID))
-	if err != nil {
-		return nil, err
+	switch req.Request.Method {
+	case http.MethodPost:
+		return f.handleProvision(req, next)
+	case http.MethodPatch:
+		return f.handleServiceUpdate(req, next)
 	}
-	return bindings, nil
+	return nil, nil
 }
 
 func (*referenceInstanceFilter) FilterMatchers() []web.FilterMatcher {
@@ -77,228 +68,138 @@ func (*referenceInstanceFilter) FilterMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Path(web.ServiceInstancesURL + "/**"),
-				web.Methods(http.MethodPost),
+				web.Methods(http.MethodPost, http.MethodPatch),
 			},
 		},
 	}
+}
+
+func (f *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next web.Handler) (*web.Response, error) {
+	// we don't want to allow plan_id and/or parameters changes on a reference service instance
+	ctx := req.Context()
+	resourceID := req.PathParams["resource_id"]
+	if resourceID == "" {
+		return nil, errors.New("missing resource ID")
+	}
+
+	dbInstanceObject, err := f.getObjectByID(ctx, types.ServiceInstanceType, resourceID)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+	}
+	instance := dbInstanceObject.(*types.ServiceInstance)
+
+	isReferencePlan, err := f.isReferencePlan(ctx, instance.ServicePlanID)
+	if err != nil {
+		return nil, err
+	}
+	if !isReferencePlan {
+		return next.Handle(req)
+	}
+
+	_, err = f.isValidPatchRequest(req, instance)
+	if err != nil {
+		return nil, err
+	}
+	return next.Handle(req)
+}
+
+func (f *referenceInstanceFilter) handleProvision(req *web.Request, next web.Handler) (*web.Response, error) {
+	ctx := req.Context()
+	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).Str
+	isReferencePlan, err := f.isReferencePlan(ctx, servicePlanID)
+	if err != nil {
+		return nil, err
+	}
+	if !isReferencePlan {
+		return next.Handle(req)
+	}
+
+	// Ownership validation
+	callerTenantID := gjson.GetBytes(req.Body, "context."+f.tenantIdentifier).String()
+	if callerTenantID != "" {
+		err = f.validateOwnership(req)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	referencedKey := "referenced_instance_id" // todo: extract for global use
+	parameters := gjson.GetBytes(req.Body, "parameters").Map()
+
+	referencedInstanceID, exists := parameters[referencedKey]
+	// todo: should we validate that the input is string? can be any object for example...
+	if !exists {
+		return nil, errors.New("missing referenced_instance_id")
+	}
+	_, err = f.isReferencedShared(ctx, referencedInstanceID.Str)
+	if err != nil {
+		return nil, err
+	}
+	return next.Handle(req)
+}
+
+func (f *referenceInstanceFilter) isReferencedShared(ctx context.Context, referencedInstanceID string) (bool, error) {
+	byID := query.ByField(query.EqualsOperator, "id", referencedInstanceID)
+	dbReferencedObject, err := f.repository.Get(ctx, types.ServiceInstanceType, byID)
+	if err != nil {
+		return false, util.HandleStorageError(err, types.ServiceInstanceType.String())
+	}
+	referencedInstance := dbReferencedObject.(*types.ServiceInstance)
+
+	if *referencedInstance.Shared != true {
+		return false, errors.New("referenced referencedInstance is not shared")
+	}
+	return true, nil
 }
 
 func (f *referenceInstanceFilter) isValidPatchRequest(req *web.Request, instance *types.ServiceInstance) (bool, error) {
 	// todo: How can we update labels and do we want to allow the change?
 	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	if instance.ServicePlanID != newPlanID {
-		return false, errors.New("Can't modify reference's plan")
+		return false, errors.New("can't modify reference's plan")
 	}
 
 	parametersRaw := gjson.GetBytes(req.Body, "parameters").Raw
 	if parametersRaw != "" {
-		return false, errors.New("Can't modify reference's parameters")
+		return false, errors.New("can't modify reference's parameters")
 	}
 
 	return true, nil
 }
 
-func (f *referenceInstanceFilter) handleReferenceUpdate(req *web.Request, instance *types.ServiceInstance) (*web.Response, error) {
-	ctx := req.Context()
-
-	newName := gjson.GetBytes(req.Body, "name").String()
-	instance.Name = newName
-	// todo: How can we update labels and do we want to allow the change?
-	if _, err := f.repository.Update(ctx, instance, types.LabelChanges{}); err != nil {
-		return nil, util.HandleStorageError(err, string(instance.GetType()))
-	}
-	return util.NewJSONResponse(http.StatusOK, instance)
-}
-
-func decodeRequestToObject(body []byte) provisionRequest {
-	var instanceRequest = provisionRequest{}
-	util.BytesToObject(body, instanceRequest)
-	return instanceRequest
-}
-
-func (f *referenceInstanceFilter) isReferencePlan(ctx context.Context, req *web.Request) (bool, error) {
-	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).Str
-	plan, err := f.getObjectByID(ctx, types.ServicePlanType, servicePlanID)
+func (f *referenceInstanceFilter) isReferencePlan(ctx context.Context, servicePlanID string) (bool, error) {
+	dbPlanObject, err := f.getObjectByID(ctx, types.ServicePlanType, servicePlanID)
 	if err != nil {
 		return false, err
 	}
-	planObject := plan.(*types.ServicePlan)
-	return planObject.Name == "reference-plan", nil
-}
-
-func (f *referenceInstanceFilter) createInstanceOnDB(ctx context.Context, instance *types.ServiceInstance) error {
-	inTransactionErr := f.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		_, err := storage.Create(ctx, instance)
-		if err != nil {
-			log.C(ctx).Errorf("Could not create a new object on the DB for the instance (%s): %v", instance.ID, err)
-			return err
-		}
-		return nil
-	})
-	return inTransactionErr
-}
-func (f *referenceInstanceFilter) createOperationOnDB(ctx context.Context, operation *types.Operation) error {
-	inTransactionErr := f.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		_, err := storage.Create(ctx, operation)
-		if err != nil {
-			log.C(ctx).Errorf("Could not create a new operation (%s): %v", operation.ID, err)
-			return err
-		}
-		return nil
-	})
-	return inTransactionErr
-}
-
-type provisionRequest struct {
-	Name               string          `json:"name"`
-	PlanID             string          `json:"plan_id"`
-	PlatformID         string          `json:"platform_id"`
-	RawContext         json.RawMessage `json:"context"`
-	RawMaintenanceInfo json.RawMessage `json:"maintenance_info"`
-}
-
-func isParametersRequest(req *web.Request) bool {
-	resourceID := req.PathParams["resource_id"]
-	path := req.URL.Path
-	if resourceID != "" && strings.Contains(path, web.ServiceInstancesURL) && strings.Contains(path, web.ParametersURL) {
-		return true
-	}
-	return false
-}
-
-func isGetOperationRequest(req *web.Request) bool {
-	resourceID := req.PathParams["resource_id"]
-	path := req.URL.Path
-	if resourceID != "" && strings.Contains(path, web.ServiceInstancesURL) && strings.Contains(path, web.OperationsURL) {
-		return true
-	}
-	return false
-}
-
-func isGetInstanceRequest(req *web.Request) bool {
-	instanceID := req.PathParams["resource_id"]
-	path := req.URL.Path
-	if instanceID != "" && strings.Contains(path, web.ServiceInstancesURL) && !strings.Contains(path, web.ParametersURL) {
-		return true
-	}
-	return false
+	plan := dbPlanObject.(*types.ServicePlan)
+	return plan.Name == "reference-dbPlanObject", nil
 }
 
 func (f *referenceInstanceFilter) getObjectByID(ctx context.Context, objectType types.ObjectType, resourceID string) (types.Object, error) {
 	byID := query.ByField(query.EqualsOperator, "id", resourceID)
-	object, err := f.repository.Get(ctx, objectType, byID)
+	dbObject, err := f.repository.Get(ctx, objectType, byID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, objectType.String())
 	}
-	return object, nil
+	return dbObject, nil
 }
 
-/*func (f *referenceInstanceFilter) handleReferenceProvision(req *web.Request, referencedInstanceID string, isAsync string) (*web.Response, error) {
+func (f *referenceInstanceFilter) validateOwnership(req *web.Request) error {
 	ctx := req.Context()
-
-	planID := gjson.GetBytes(req.Body, planIDProperty).String()
-	byID := query.ByField(query.EqualsOperator, "id", planID)
-	planObject, err := f.repository.Get(ctx, types.ServicePlanType, byID)
+	callerTenantID := gjson.GetBytes(req.Body, "context."+f.tenantIdentifier).String()
+	referencedInstanceID := gjson.GetBytes(req.Body, "parameters.referenced_instance_id").String()
+	byID := query.ByField(query.EqualsOperator, "id", referencedInstanceID)
+	dbReferencedObject, err := f.repository.Get(ctx, types.ServiceInstanceType, byID)
 	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServicePlanType.String())
+		return util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
-	plan := planObject.(*types.ServicePlan)
+	instance := dbReferencedObject.(*types.ServiceInstance)
+	referencedOwnerTenantID := instance.Labels["tenant"][0]
 
-	if isReferencePlan(plan) {
-		// set as !isReferencePlan
-		return nil, errors.New("plan_id is not a reference plan")
+	if referencedOwnerTenantID != callerTenantID {
+		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", referencedOwnerTenantID, callerTenantID)
+		return errors.New("could not find such service instance")
 	}
-
-	byID = query.ByField(query.EqualsOperator, "id", referencedInstanceID)
-	referencedObject, err := f.repository.Get(ctx, types.ServiceInstanceType, byID)
-	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
-	}
-	instance := referencedObject.(*types.ServiceInstance)
-
-	if !instance.Shared {
-		return nil, errors.New("referenced instance is not shared")
-	}
-
-	//instanceRequestBody := decodeRequestToObject(req.Body)
-	generatedReferenceInstance := f.generateReferenceInstance(req.Body)
-	err = f.createInstanceOnDB(ctx, generatedReferenceInstance)
-	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
-	}
-	generatedOperation := f.generateOperation(types.SUCCEEDED, generatedReferenceInstance.ID)
-	err = f.createOperationOnDB(ctx, generatedOperation)
-	if err != nil {
-		return nil, util.HandleStorageError(err, types.OperationType.String())
-	}
-
-	return handleResponse(isAsync, generatedOperation, generatedReferenceInstance)
-}*/
-func handleResponse(isAsync string, generatedOperation *types.Operation, generatedReferenceInstance *types.ServiceInstance) (*web.Response, error) {
-	if isAsync == "true" {
-		return util.NewJSONResponse(http.StatusCreated, generatedOperation)
-	}
-	return util.NewJSONResponse(http.StatusCreated, generatedReferenceInstance)
-}
-
-func (f *referenceInstanceFilter) generateReferenceInstance(body []byte) *types.ServiceInstance {
-	UUID, _ := uuid.NewV4()
-	currentTime := time.Now().UTC()
-
-	referencedInstanceID := gjson.GetBytes(body, "parameters.referenced_instance_id").String()
-	if referencedInstanceID == "" {
-		referencedInstanceID = gjson.GetBytes(body, "referenced_instance_id").String()
-	}
-
-	instance := &types.ServiceInstance{
-		Base: types.Base{
-			ID:        UUID.String(),
-			CreatedAt: currentTime,
-			UpdatedAt: currentTime,
-			Labels:    make(map[string][]string),
-			Ready:     true,
-		},
-		Name:                 gjson.GetBytes(body, "name").String(),
-		ServicePlanID:        gjson.GetBytes(body, "service_plan_id").String(),
-		PlatformID:           gjson.GetBytes(body, "platform_id").String(),
-		MaintenanceInfo:      json.RawMessage(gjson.GetBytes(body, "maintenance_info").String()),
-		Context:              json.RawMessage(gjson.GetBytes(body, "contextt").String()),
-		Usable:               true,
-		ReferencedInstanceID: referencedInstanceID,
-	}
-
-	return instance
-}
-
-func (f *referenceInstanceFilter) generateOperation(state types.OperationState, resourceID string) *types.Operation {
-	UUID, _ := uuid.NewV4()
-	currentTime := time.Now().UTC()
-
-	operation := &types.Operation{
-		Base: types.Base{
-			ID:        UUID.String(),
-			CreatedAt: currentTime,
-			UpdatedAt: currentTime,
-			Labels:    make(map[string][]string),
-			Ready:     true,
-		},
-		Description:   "test",
-		Type:          types.CREATE,
-		State:         state,
-		ResourceID:    resourceID,
-		ResourceType:  types.ServiceInstanceType,
-		CorrelationID: UUID.String(), // Can correlation ID equal operation ID?
-	}
-	return operation
-}
-
-func (f *referenceInstanceFilter) handleDeletion(req *web.Request) (*web.Response, error) {
-	// todo: can we use the DeleteSingleObject from the controller and avoid communication with the interceptor?
-
-	/*isAsync := req.URL.Query().Get(web.QueryParamAsync)
-	if isAsync == "true" {
-		return util.NewJSONResponse(http.StatusAccepted, common.Object{})
-	}
-	return util.NewJSONResponse(http.StatusOK, common.Object{})*/
-	return nil, nil
+	return nil
 }
