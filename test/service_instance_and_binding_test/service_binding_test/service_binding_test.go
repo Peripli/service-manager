@@ -466,10 +466,6 @@ var _ = DescribeTestsFor(TestCase{
 
 					FIt("returns 202", func() {
 						// Post binding to the reference instance
-						fmt.Print(referenceInstanceID)
-						if referenceInstanceID != "" {
-							postBindingRequest["service_instance_id"] = referenceInstanceID
-						}
 						resp := createBindingByInstanceID(ctx.SMWithOAuthForTenant, "true", http.StatusAccepted, referenceInstanceID)
 						bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 							Category:          types.CREATE,
@@ -479,12 +475,11 @@ var _ = DescribeTestsFor(TestCase{
 							DeletionScheduled: false,
 						})
 
-						resource := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+						VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 							ID:    bindingID,
 							Type:  types.ServiceBindingType,
 							Ready: true,
 						})
-						fmt.Print(resource)
 					})
 				})
 				for _, testCase := range testCases {
