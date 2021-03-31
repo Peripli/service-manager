@@ -434,54 +434,6 @@ var _ = DescribeTestsFor(TestCase{
 			})
 
 			Describe("POST", func() {
-				Context("binding a reference instance", func() {
-					var referenceInstanceID = ""
-					var sharedInstanceID = ""
-					JustBeforeEach(func() {
-						// Setup broker
-						brokerServer.BindingHandlerFunc(http.MethodPost, http.MethodPost+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
-						brokerServer.BindingLastOpHandlerFunc(http.MethodPost+"1", MultiplePollsRequiredHandler("in progress", "succeeded"))
-
-						// Create instance and share it
-						resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
-						sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-							Category:          types.CREATE,
-							State:             types.SUCCEEDED,
-							ResourceType:      types.ServiceInstanceType,
-							Reschedulable:     false,
-							DeletionScheduled: false,
-						})
-						shareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
-
-						// Create reference-instance
-						resp = createReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID)
-						referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-							Category:          types.CREATE,
-							State:             types.SUCCEEDED,
-							ResourceType:      types.ServiceInstanceType,
-							Reschedulable:     false,
-							DeletionScheduled: false,
-						})
-					})
-
-					FIt("returns 202", func() {
-						// Post binding to the reference instance
-						resp := createBindingByInstanceID(ctx.SMWithOAuthForTenant, "true", http.StatusAccepted, referenceInstanceID)
-						bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-							Category:          types.CREATE,
-							State:             types.SUCCEEDED,
-							ResourceType:      types.ServiceBindingType,
-							Reschedulable:     false,
-							DeletionScheduled: false,
-						})
-
-						VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-							ID:    bindingID,
-							Type:  types.ServiceBindingType,
-							Ready: true,
-						})
-					})
-				})
 				for _, testCase := range testCases {
 					testCase := testCase
 					Context(fmt.Sprintf("async = %s", testCase.async), func() {
@@ -515,6 +467,55 @@ var _ = DescribeTestsFor(TestCase{
 							It("return 404", func() {
 								postBindingRequest["service_instance_id"] = SID
 								createBinding(ctx.SMWithOAuthForTenant, testCase.async, http.StatusNotFound)
+							})
+						})
+
+						Context("when binding a reference instance", func() {
+							var referenceInstanceID = ""
+							var sharedInstanceID = ""
+							JustBeforeEach(func() {
+								// Setup broker
+								brokerServer.BindingHandlerFunc(http.MethodPost, http.MethodPost+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+								brokerServer.BindingLastOpHandlerFunc(http.MethodPost+"1", MultiplePollsRequiredHandler("in progress", "succeeded"))
+
+								// Create instance and share it
+								resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+								sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									Category:          types.CREATE,
+									State:             types.SUCCEEDED,
+									ResourceType:      types.ServiceInstanceType,
+									Reschedulable:     false,
+									DeletionScheduled: false,
+								})
+								shareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
+
+								// Create reference-instance
+								resp = createReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID)
+								referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									Category:          types.CREATE,
+									State:             types.SUCCEEDED,
+									ResourceType:      types.ServiceInstanceType,
+									Reschedulable:     false,
+									DeletionScheduled: false,
+								})
+							})
+
+							FIt("returns 202", func() {
+								// create binding for the reference instance
+								resp := createBindingByInstanceID(ctx.SMWithOAuthForTenant, "true", http.StatusAccepted, referenceInstanceID)
+								bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									Category:          types.CREATE,
+									State:             types.SUCCEEDED,
+									ResourceType:      types.ServiceBindingType,
+									Reschedulable:     false,
+									DeletionScheduled: false,
+								})
+
+								VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									ID:    bindingID,
+									Type:  types.ServiceBindingType,
+									Ready: true,
+								})
 							})
 						})
 
