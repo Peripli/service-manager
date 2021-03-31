@@ -436,6 +436,9 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
+	if instance.ReferencedInstanceID != "" {
+		return nil
+	}
 
 	osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
 	if err != nil {
@@ -520,6 +523,11 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 	if len(operation.ExternalID) != 0 {
 		opKey := osbc.OperationKey(operation.ExternalID)
 		key = &opKey
+	}
+
+	// todo: to review if in the right place:
+	if instance.ReferencedInstanceID != "" {
+		return nil
 	}
 
 	pollingRequest := &osbc.LastOperationRequest{
