@@ -569,7 +569,7 @@ var _ = DescribeTestsFor(TestCase{
 					})
 				})
 
-				FContext("Instance Sharing", func() {
+				Context("Instance Sharing", func() {
 					When("Create a reference service instance", func() {
 						var sharedInstanceID = ""
 						var referenceInstanceID = ""
