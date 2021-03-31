@@ -593,17 +593,30 @@ var _ = DescribeTestsFor(TestCase{
 							// delete the reference instance
 							resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+referenceInstanceID).WithQuery("async", false).
 								Expect().StatusRange(httpexpect.Status2xx)
-
-							referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+							VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 								Category:          types.DELETE,
 								State:             types.SUCCEEDED,
 								ResourceType:      types.ServiceInstanceType,
 								Reschedulable:     false,
 								DeletionScheduled: false,
 							})
-
 							VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
-								ID:   instanceID,
+								ID:   referenceInstanceID,
+								Type: types.ServiceInstanceType,
+							})
+
+							// delete the shared instance
+							resp = ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).WithQuery("async", false).
+								Expect().StatusRange(httpexpect.Status2xx)
+							VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+								Category:          types.DELETE,
+								State:             types.SUCCEEDED,
+								ResourceType:      types.ServiceInstanceType,
+								Reschedulable:     false,
+								DeletionScheduled: false,
+							})
+							VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+								ID:   sharedInstanceID,
 								Type: types.ServiceInstanceType,
 							})
 						})
@@ -612,6 +625,19 @@ var _ = DescribeTestsFor(TestCase{
 							referencePlan := getReferencePlan(ctx, servicePlanID)
 							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
 							resp := createReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID, referencePlan.ID)
+							referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+								Category:          types.CREATE,
+								State:             types.SUCCEEDED,
+								ResourceType:      types.ServiceInstanceType,
+								Reschedulable:     false,
+								DeletionScheduled: false,
+							})
+						})
+
+						FIt("returns 202", func() {
+							referencePlan := getReferencePlan(ctx, servicePlanID)
+							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
+							resp := createReferenceInstance(ctx, true, http.StatusAccepted, sharedInstanceID, referencePlan.ID)
 							referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 								Category:          types.CREATE,
 								State:             types.SUCCEEDED,
