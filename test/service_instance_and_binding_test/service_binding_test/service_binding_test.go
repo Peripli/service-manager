@@ -500,7 +500,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 
-							FIt("returns 202", func() {
+							It("returns 202", func() {
 								// create binding for the reference instance
 								resp := createBindingByInstanceID(ctx.SMWithOAuthForTenant, "true", http.StatusAccepted, referenceInstanceID)
 								bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
