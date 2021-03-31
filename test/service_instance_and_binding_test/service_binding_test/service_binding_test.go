@@ -195,14 +195,14 @@ var _ = DescribeTestsFor(TestCase{
 				plan := planObject.(*types.ServicePlan)
 
 				byID = query.ByField(query.EqualsOperator, "service_offering_id", plan.ServiceOfferingID)
-				// todo: extract the name "reference-plan" once we choose it:
+				// epsilontal todo: extract the name "reference-plan" once we choose it:
 				byName := query.ByField(query.EqualsOperator, "name", "reference-plan")
 				referencePlanObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID, byName)
 				referencePlan := referencePlanObject.(*types.ServicePlan)
 
 				EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
 
-				//todo: extract the context from the body request and pass it using a new test-filter, in order to test the ownership.
+				// epsilontal todo: extract the context from the body request and pass it using a new test-filter, in order to test the ownership.
 				requestBody := Object{
 					"name":             "reference-instance",
 					"service_plan_id":  referencePlan.ID,

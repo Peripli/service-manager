@@ -57,7 +57,7 @@ func (p *referenceInstancePlugin) Provision(req *web.Request, next web.Handler) 
 	referencedKey := "referenced_instance_id"
 	parameters := gjson.GetBytes(req.Body, "parameters").Map()
 	referencedInstanceID, exists := parameters[referencedKey]
-	// todo: should we validate that the input is string? can be any object for example...
+	// epsilontal todo: should we validate that the input is string? can be any object for example...
 	if !exists {
 		return nil, errors.New("missing referenced_instance_id")
 	}
@@ -65,7 +65,7 @@ func (p *referenceInstancePlugin) Provision(req *web.Request, next web.Handler) 
 	if err != nil {
 		return nil, err
 	}
-	// todo: should we handle 201 status for async requests?
+	// epsilontal todo: should we handle 201 status for async requests?
 	return &web.Response{
 		Body:       nil,
 		StatusCode: http.StatusCreated,
@@ -130,7 +130,7 @@ func (p *referenceInstancePlugin) UpdateService(req *web.Request, next web.Handl
 
 // PollInstance intercepts poll instance operation requests and check if the instance is in the platform from where the request comes
 func (p *referenceInstancePlugin) PollInstance(req *web.Request, next web.Handler) (*web.Response, error) {
-	// todo: no need to support poll instance as we always return sync responses
+	// epsilontal todo: no need to support poll instance as we always return sync responses
 	return p.assertPlatformID(req, next)
 }
 
@@ -281,7 +281,7 @@ func (p *referenceInstancePlugin) isReferencedShared(ctx context.Context, refere
 }
 
 func (p *referenceInstancePlugin) isValidPatchRequest(req *web.Request, instance *types.ServiceInstance) (bool, error) {
-	// todo: How can we update labels and do we want to allow the change?
+	// epsilontal todo: How can we update labels and do we want to allow the change?
 	newPlanID := gjson.GetBytes(req.Body, "service_plan_id").String()
 	if instance.ServicePlanID != newPlanID {
 		return false, errors.New("can't modify reference's plan")

@@ -525,7 +525,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 		key = &opKey
 	}
 
-	// todo: to review if in the right place:
+	// epsilontal todo: review if in the right place:
 	if instance.ReferencedInstanceID != "" {
 		return nil
 	}

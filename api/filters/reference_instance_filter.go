@@ -94,11 +94,11 @@ func (f *referenceInstanceFilter) handleProvision(req *web.Request, next web.Han
 		}
 	}
 
-	referencedKey := "referenced_instance_id" // todo: extract for global use
+	referencedKey := "referenced_instance_id" // epsilontal todo: extract for global use
 	parameters := gjson.GetBytes(req.Body, "parameters").Map()
 
 	referencedInstanceID, exists := parameters[referencedKey]
-	// todo: should we validate that the input is string? can be any object for example...
+	// epsilontal todo: should we validate that the input is string? can be any object for example...
 	if !exists {
 		return nil, errors.New("missing referenced_instance_id")
 	}
@@ -157,7 +157,6 @@ func (f *referenceInstanceFilter) isReferencedShared(ctx context.Context, refere
 }
 
 func (f *referenceInstanceFilter) isValidPatchRequest(req *web.Request, instance *types.ServiceInstance) (bool, error) {
-	// todo: How can we update labels and do we want to allow the change?
 	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	if instance.ServicePlanID != newPlanID {
 		return false, &util.HTTPError{
