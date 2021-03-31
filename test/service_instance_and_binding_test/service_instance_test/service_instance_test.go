@@ -203,7 +203,7 @@ var _ = DescribeTestsFor(TestCase{
 				return resp
 			}
 
-			getReferencePlan := func(ctx *TestContext, servicePlanID string) *types.ServicePlan {
+			getReferencePlanOfExistingPlan := func(ctx *TestContext, servicePlanID string) *types.ServicePlan {
 				// Retrieve the reference-plan of the service offering.
 				byID := query.ByField(query.EqualsOperator, "id", servicePlanID)
 				planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID)
@@ -622,7 +622,7 @@ var _ = DescribeTestsFor(TestCase{
 						})
 
 						It("returns 201", func() {
-							referencePlan := getReferencePlan(ctx, servicePlanID)
+							referencePlan := getReferencePlanOfExistingPlan(ctx, servicePlanID)
 							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
 							resp := createReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID, referencePlan.ID)
 							referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -635,7 +635,7 @@ var _ = DescribeTestsFor(TestCase{
 						})
 
 						FIt("returns 202", func() {
-							referencePlan := getReferencePlan(ctx, servicePlanID)
+							referencePlan := getReferencePlanOfExistingPlan(ctx, servicePlanID)
 							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
 							resp := createReferenceInstance(ctx, true, http.StatusAccepted, sharedInstanceID, referencePlan.ID)
 							referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
