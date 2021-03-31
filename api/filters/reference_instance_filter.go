@@ -147,7 +147,11 @@ func (f *referenceInstanceFilter) isReferencedShared(ctx context.Context, refere
 	referencedInstance := dbReferencedObject.(*types.ServiceInstance)
 
 	if *referencedInstance.Shared != true {
-		return false, errors.New("referenced referencedInstance is not shared")
+		return false, &util.HTTPError{
+			ErrorType:   "UnsupportedContextUpdate",
+			Description: "referenced instance is not shared",
+			StatusCode:  http.StatusBadRequest,
+		}
 	}
 	return true, nil
 }
@@ -156,12 +160,20 @@ func (f *referenceInstanceFilter) isValidPatchRequest(req *web.Request, instance
 	// todo: How can we update labels and do we want to allow the change?
 	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	if instance.ServicePlanID != newPlanID {
-		return false, errors.New("can't modify reference's plan")
+		return false, &util.HTTPError{
+			ErrorType:   "UnsupportedContextUpdate",
+			Description: "can't modify reference's plan",
+			StatusCode:  http.StatusBadRequest,
+		}
 	}
 
 	parametersRaw := gjson.GetBytes(req.Body, "parameters").Raw
 	if parametersRaw != "" {
-		return false, errors.New("can't modify reference's parameters")
+		return false, &util.HTTPError{
+			ErrorType:   "UnsupportedContextUpdate",
+			Description: "can't modify reference's parameters",
+			StatusCode:  http.StatusBadRequest,
+		}
 	}
 
 	return true, nil
@@ -199,7 +211,11 @@ func (f *referenceInstanceFilter) validateOwnership(req *web.Request) error {
 
 	if referencedOwnerTenantID != callerTenantID {
 		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", referencedOwnerTenantID, callerTenantID)
-		return errors.New("could not find such service instance")
+		return &util.HTTPError{
+			ErrorType:   "UnsupportedContextUpdate",
+			Description: "could not find such service instance",
+			StatusCode:  http.StatusBadRequest,
+		}
 	}
 	return nil
 }

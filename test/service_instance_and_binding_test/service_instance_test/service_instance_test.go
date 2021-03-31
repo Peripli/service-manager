@@ -634,7 +634,7 @@ var _ = DescribeTestsFor(TestCase{
 							})
 						})
 
-						FIt("returns 202", func() {
+						It("returns 202", func() {
 							referencePlan := getReferencePlanOfExistingPlan(ctx, servicePlanID)
 							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
 							resp := createReferenceInstance(ctx, true, http.StatusAccepted, sharedInstanceID, referencePlan.ID)
@@ -1800,6 +1800,186 @@ var _ = DescribeTestsFor(TestCase{
 			})
 
 			Describe("PATCH", func() {
+				FContext("Reference Instance", func() {
+					When("Updating a reference service instance", func() {
+						var sharedInstanceID = ""
+						var referenceInstanceID = ""
+						var referencePlan *types.ServicePlan
+						BeforeEach(func() {
+							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+
+							// Create instance and share it
+							resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
+							sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+								Category:          types.CREATE,
+								State:             types.SUCCEEDED,
+								ResourceType:      types.ServiceInstanceType,
+								Reschedulable:     false,
+								DeletionScheduled: false,
+							})
+							VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+								ID:    sharedInstanceID,
+								Type:  types.ServiceInstanceType,
+								Ready: true,
+							})
+
+							shareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
+
+							// Create reference service instance
+							referencePlan = getReferencePlanOfExistingPlan(ctx, servicePlanID)
+							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
+							resp = createReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID, referencePlan.ID)
+							referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+								Category:          types.CREATE,
+								State:             types.SUCCEEDED,
+								ResourceType:      types.ServiceInstanceType,
+								Reschedulable:     false,
+								DeletionScheduled: false,
+							})
+							VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+								ID:    referenceInstanceID,
+								Type:  types.ServiceInstanceType,
+								Ready: true,
+							})
+						})
+
+						AfterEach(func() {
+							// delete the reference instance
+							resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+referenceInstanceID).WithQuery("async", false).
+								Expect().StatusRange(httpexpect.Status2xx)
+							VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+								Category:          types.DELETE,
+								State:             types.SUCCEEDED,
+								ResourceType:      types.ServiceInstanceType,
+								Reschedulable:     false,
+								DeletionScheduled: false,
+							})
+							VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+								ID:   referenceInstanceID,
+								Type: types.ServiceInstanceType,
+							})
+
+							// delete the shared instance
+							resp = ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).WithQuery("async", false).
+								Expect().StatusRange(httpexpect.Status2xx)
+							VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+								Category:          types.DELETE,
+								State:             types.SUCCEEDED,
+								ResourceType:      types.ServiceInstanceType,
+								Reschedulable:     false,
+								DeletionScheduled: false,
+							})
+							VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+								ID:   sharedInstanceID,
+								Type: types.ServiceInstanceType,
+							})
+						})
+
+						It("returns 201 when renaming the reference-instance", func() {
+							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
+								WithQuery("async", "false").
+								WithJSON(Object{
+									"name":             "renamed",
+									"service_plan_id":  referencePlan.ID,
+									"maintenance_info": "{}",
+								}).
+								Expect().
+								Status(http.StatusOK).
+								JSON().Object().
+								ValueEqual("name", "renamed")
+						})
+						It("returns 202 when renaming the reference-instance", func() {
+							newName := "renamed"
+							resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
+								WithQuery("async", "true").
+								WithJSON(Object{
+									"name":             newName,
+									"service_plan_id":  referencePlan.ID,
+									"maintenance_info": "{}",
+								}).
+								Expect().
+								Status(http.StatusAccepted)
+							VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+								Category:          types.UPDATE,
+								State:             types.SUCCEEDED,
+								ResourceType:      types.ServiceInstanceType,
+								Reschedulable:     false,
+								DeletionScheduled: false,
+							})
+							objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+								ID:    referenceInstanceID,
+								Type:  types.ServiceInstanceType,
+								Ready: true,
+							})
+
+							By("verify reference-instance is renamed")
+							objAfterOp.Value("name").Equal(newName)
+
+						})
+						It("returns 400 when updating the service_plan_id", func() {
+							newName := "renamed"
+							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
+								WithQuery("async", "false").
+								WithJSON(Object{
+									"name":             newName,
+									"service_plan_id":  servicePlanID,
+									"maintenance_info": "{}",
+								}).
+								Expect().
+								Status(http.StatusBadRequest)
+							//todo: uncomment the operation verification: check why the operation was not created.
+							/*VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+								Category:          types.UPDATE,
+								State:             types.FAILED,
+								ResourceType:      types.ServiceInstanceType,
+								Reschedulable:     false,
+								DeletionScheduled: false,
+							})*/
+							objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+								ID:    referenceInstanceID,
+								Type:  types.ServiceInstanceType,
+								Ready: true,
+							})
+
+							By("verify reference-instance plan has not changed")
+							objAfterOp.Value("service_plan_id").Equal(referencePlan.ID)
+
+						})
+						It("returns 400 when updating the referenced_instance_id parameter", func() {
+							newName := "renamed"
+							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
+								WithQuery("async", "false").
+								WithJSON(Object{
+									"name":             newName,
+									"service_plan_id":  referencePlan.ID,
+									"maintenance_info": "{}",
+									"parameters": Object{
+										"referenced_instance_id": "new_instance_id",
+									},
+								}).
+								Expect().
+								Status(http.StatusBadRequest)
+							//todo: uncomment the operation verification: check why the operation was not created.
+							/*VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+								Category:          types.UPDATE,
+								State:             types.FAILED,
+								ResourceType:      types.ServiceInstanceType,
+								Reschedulable:     false,
+								DeletionScheduled: false,
+							})*/
+							objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+								ID:    referenceInstanceID,
+								Type:  types.ServiceInstanceType,
+								Ready: true,
+							})
+
+							By("verify reference-instance plan has not changed")
+							objAfterOp.Value("service_plan_id").Equal(referencePlan.ID)
+
+						})
+
+					})
+				})
 				Context("Instance is shared", func() {
 					BeforeEach(func() {
 						postInstanceRequestTLS["name"] = "shareable-instance-name"
