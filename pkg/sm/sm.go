@@ -210,7 +210,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	smb.RegisterPluginsBefore(osb.OSBStorePluginName, osb.NewCheckVisibilityPlugin(interceptableRepository))
 	smb.RegisterPlugins(osb.NewCheckPlatformIDPlugin(interceptableRepository))
 	smb.RegisterPlugins(osb.NewPlatformTerminationPlugin(interceptableRepository))
-	smb.RegisterPlugins(osb.NewReferenceInstancePlugin(transactionalRepository, cfg.Multitenancy.LabelKey))
+	//smb.RegisterPlugins(osb.NewReferenceInstancePlugin(transactionalRepository, cfg.Multitenancy.LabelKey))
 
 	// Register default interceptors that represent the core SM business logic
 	smb.
