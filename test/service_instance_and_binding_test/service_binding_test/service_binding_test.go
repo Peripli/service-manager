@@ -80,10 +80,14 @@ func (t *testCase) responseByBrokerOrClientMode(expected int, statusByBrokerResp
 }
 
 var _ = DescribeTestsFor(TestCase{
-	API: web.ServiceBindingsURL,
+	API:                             web.ServiceBindingsURL,
+	SupportsAsyncOperations:         true,
+	SupportsCascadeDeleteOperations: false,
 	SupportedOps: []Op{
 		Get, List, Delete,
 	},
+	ResourceType:               types.ServiceBindingType,
+	ResourcePropertiesToIgnore: []string{"last_operation", "volume_mounts", "endpoints", "bind_resource", "credentials"},
 	MultitenancySettings: &MultitenancySettings{
 		ClientID:           "tenancyClient",
 		ClientIDTokenClaim: "cid",
@@ -94,14 +98,13 @@ var _ = DescribeTestsFor(TestCase{
 			"zid": TenantIDValue,
 		},
 	},
-	ResourceType:                           types.ServiceBindingType,
-	SupportsAsyncOperations:                true,
 	DisableTenantResources:                 false,
 	StrictlyTenantScoped:                   true,
+	DisableBasicAuth:                       false,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
-	ResourcePropertiesToIgnore:             []string{"last_operation", "volume_mounts", "endpoints", "bind_resource", "credentials"},
 	PatchResource:                          StorageResourcePatch,
+	SubResourcesBlueprint:                  nil,
 	AdditionalTests: func(ctx *TestContext, t *TestCase) {
 		Context("additional non-generic tests", func() {
 			var (
@@ -169,6 +172,56 @@ var _ = DescribeTestsFor(TestCase{
 				return resp
 			}
 
+			shareInstance := func(smClient *SMExpect, async bool, expectedStatusCode int, instanceID string) *httpexpect.Response {
+				shareInstanceBody := Object{
+					"shared": true,
+				}
+
+				resp := smClient.PATCH(web.ServiceInstancesURL+"/"+instanceID).
+					WithQuery("async", async).
+					WithJSON(shareInstanceBody).
+					Expect().
+					Status(expectedStatusCode)
+
+				resp.JSON().Object().ValueEqual("shared", true)
+
+				return resp
+			}
+
+			createReferenceInstance := func(ctx *TestContext, async bool, expectedStatusCode int, referencedInstanceID string) *httpexpect.Response {
+				// Create reference-instance
+				byID := query.ByField(query.EqualsOperator, "id", servicePlanID)
+				planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID)
+				plan := planObject.(*types.ServicePlan)
+
+				byID = query.ByField(query.EqualsOperator, "service_offering_id", plan.ServiceOfferingID)
+				// todo: extract the name "reference-plan" once we choose it:
+				byName := query.ByField(query.EqualsOperator, "name", "reference-plan")
+				referencePlanObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID, byName)
+				referencePlan := referencePlanObject.(*types.ServicePlan)
+
+				EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
+
+				//todo: extract the context from the body request and pass it using a new test-filter, in order to test the ownership.
+				requestBody := Object{
+					"name":             "reference-instance",
+					"service_plan_id":  referencePlan.ID,
+					"maintenance_info": "{}",
+					"context": Object{
+						TenantIdentifier: TenantIDValue,
+					},
+				}
+				requestBody["parameters"] = map[string]string{
+					"referenced_instance_id": referencedInstanceID,
+				}
+				resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+					WithQuery("async", async).
+					WithJSON(requestBody).
+					Expect().Status(expectedStatusCode)
+
+				return resp
+			}
+
 			deleteInstance := func(smClient *SMExpect, async bool, expectedStatusCode int) *httpexpect.Response {
 				return smClient.DELETE(web.ServiceInstancesURL+"/"+instanceID).
 					WithQuery("async", async).
@@ -180,6 +233,25 @@ var _ = DescribeTestsFor(TestCase{
 				resp := SM.POST(web.ServiceBindingsURL).
 					WithQuery("async", async).
 					WithJSON(postBindingRequest).
+					Expect().
+					Status(expectedStatusCode)
+				obj := resp.JSON().Object()
+
+				if expectedStatusCode == http.StatusCreated {
+					obj.ContainsKey("id")
+					bindingID = obj.Value("id").String().Raw()
+				}
+
+				return resp
+			}
+
+			createBindingByInstanceID := func(SM *SMExpect, async string, expectedStatusCode int, instanceID string) *httpexpect.Response {
+				resp := SM.POST(web.ServiceBindingsURL).
+					WithQuery("async", async).
+					WithJSON(Object{
+						"name":                "test-binding",
+						"service_instance_id": instanceID,
+					}).
 					Expect().
 					Status(expectedStatusCode)
 				obj := resp.JSON().Object()
@@ -371,83 +443,34 @@ var _ = DescribeTestsFor(TestCase{
 						brokerServer.BindingLastOpHandlerFunc(http.MethodPost+"1", MultiplePollsRequiredHandler("in progress", "succeeded"))
 
 						// Create instance and share it
-						sharedInstanceResp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
-							WithQuery("async", false).
-							WithJSON(Object{
-								"name":             "shared-instance",
-								"service_plan_id":  servicePlanID,
-								"maintenance_info": "{}",
-							}).
-							Expect().Status(http.StatusCreated)
-						sharedInstanceID, _ = VerifyOperationExists(ctx, sharedInstanceResp.Header("Location").Raw(), OperationExpectations{
+						resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+						sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 							Category:          types.CREATE,
 							State:             types.SUCCEEDED,
 							ResourceType:      types.ServiceInstanceType,
 							Reschedulable:     false,
 							DeletionScheduled: false,
 						})
+						shareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
 
-						shareInstanceBody := Object{
-							"shared": true,
-						}
-						ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
-							WithQuery("async", "false").
-							WithJSON(shareInstanceBody).
-							Expect().
-							Status(http.StatusOK).
-							JSON().Object().ValueEqual("shared", true)
-
+						// Create reference-instance
+						resp = createReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID)
+						referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+							Category:          types.CREATE,
+							State:             types.SUCCEEDED,
+							ResourceType:      types.ServiceInstanceType,
+							Reschedulable:     false,
+							DeletionScheduled: false,
+						})
 					})
 
 					FIt("returns 202", func() {
-						// Create reference-instance
-						byID := query.ByField(query.EqualsOperator, "id", servicePlanID)
-						planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID)
-						plan := planObject.(*types.ServicePlan)
-
-						byID = query.ByField(query.EqualsOperator, "service_offering_id", plan.ServiceOfferingID)
-						byName := query.ByField(query.EqualsOperator, "name", "reference-plan")
-						referencePlanObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID, byName)
-						referencePlan := referencePlanObject.(*types.ServicePlan)
-
-						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
-
-						postReferenceInstanceReq := Object{
-							"name":                   "reference-instance",
-							"referenced_instance_id": sharedInstanceID,
-							"service_plan_id":        referencePlan.ID,
-							"maintenance_info":       "{}",
-							"contextt": Object{
-								TenantIdentifier: TenantIDValue,
-							},
-						}
-						postReferenceInstanceReq["parameters"] = map[string]string{
-							"referenced_instance_id": sharedInstanceID,
-						}
-						ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
-							WithQuery("async", false).
-							WithJSON(postReferenceInstanceReq).
-							Expect().Status(http.StatusCreated)
-
-						// Get reference-instance ID
-						byID = query.ByField(query.EqualsOperator, "referenced_instance_id", sharedInstanceID)
-						referenceInstanceObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServiceInstanceType, byID)
-
 						// Post binding to the reference instance
-						referenceInstance := referenceInstanceObject.(*types.ServiceInstance)
-						referenceInstanceID = referenceInstance.ID
 						fmt.Print(referenceInstanceID)
 						if referenceInstanceID != "" {
 							postBindingRequest["service_instance_id"] = referenceInstanceID
 						}
-						resp := ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
-							WithQuery("async", false).
-							WithJSON(postBindingRequest).
-							Expect().
-							Status(http.StatusCreated)
-						obj := resp.JSON().Object()
-						fmt.Print(obj)
-						//resp := createBinding(ctx.SMWithOAuthForTenant, "true", http.StatusAccepted)
+						resp := createBindingByInstanceID(ctx.SMWithOAuthForTenant, "true", http.StatusAccepted, referenceInstanceID)
 						bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 							Category:          types.CREATE,
 							State:             types.SUCCEEDED,
@@ -2651,6 +2674,7 @@ var _ = DescribeTestsFor(TestCase{
 			})
 		})
 	},
+	ContextBuilder: nil,
 })
 
 func blueprint(ctx *TestContext, _ *SMExpect, async bool) Object {
