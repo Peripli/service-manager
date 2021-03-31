@@ -1800,7 +1800,7 @@ var _ = DescribeTestsFor(TestCase{
 			})
 
 			Describe("PATCH", func() {
-				FContext("Reference Instance", func() {
+				Context("Reference Instance", func() {
 					When("Updating a reference service instance", func() {
 						var sharedInstanceID = ""
 						var referenceInstanceID = ""
