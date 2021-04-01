@@ -44,7 +44,10 @@ func (*PlatformIDInstanceValidationFilter) Name() string {
 }
 
 func (*PlatformIDInstanceValidationFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	if web.IsSMAAPOperated(req.Context()) {
+	//todo: "shared" bytes can be part of the request body also when it is not "sharing instance" scenario
+	//	we need to skip this filter only if it is "sharing instance" scenario
+	shared := gjson.GetBytes(req.Body, "shared").Bool()
+	if web.IsSMAAPOperated(req.Context()) || shared {
 		return next.Handle(req)
 	}
 
