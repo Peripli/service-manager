@@ -209,7 +209,7 @@ func NewRandomSBCatalog() SBCatalog {
 	plan3 := GenerateFreeTestPlan()
 	plan4 := GenerateFreeTestPlan()
 	plan5 := GenerateFreeTestPlan()
-	plan6 := GenerateFreeShareableTestPlan()
+	plan6 := GeneratePaidShareableTestPlan()
 	var err error
 	plan4, err = sjson.Set(plan4, "bindable", false)
 	if err != nil {
@@ -288,7 +288,7 @@ func GenerateFreeTestPlan() string {
 	}
 	return GenerateTestPlanFromTemplate(UUID.String(), testFreePlan)
 }
-func GenerateFreeShareableTestPlan() string {
+func GeneratePaidShareableTestPlan() string {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)

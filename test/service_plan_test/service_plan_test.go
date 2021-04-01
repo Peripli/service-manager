@@ -538,7 +538,7 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Ob
 }
 
 func sharingInstanceBlueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
-	cShareablePlan := common.GenerateFreeShareableTestPlan()
+	cShareablePlan := common.GeneratePaidShareableTestPlan()
 	cService := common.GenerateTestServiceWithPlans(cShareablePlan)
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(cService)
