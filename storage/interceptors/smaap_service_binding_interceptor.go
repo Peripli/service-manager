@@ -317,6 +317,11 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 		return err
 	}
 
+	if instance.ReferencedInstanceID != "" {
+		instance, _ = getInstanceByID(ctx, instance.ReferencedInstanceID, i.repository)
+		binding.Context = instance.Context
+	}
+
 	osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
 	if err != nil {
 		return err

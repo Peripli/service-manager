@@ -250,6 +250,24 @@ var _ = DescribeTestsFor(TestCase{
 				return resp
 			}
 
+			deleteBinding := func(ctx *TestContext, async bool, expectedStatusCode int, expectedOperationType types.OperationState, bindingID string) *httpexpect.Response {
+				resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceBindingsURL+"/"+bindingID).
+					WithQuery("async", async).
+					Expect().Status(expectedStatusCode)
+				bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+					Category:          types.DELETE,
+					State:             expectedOperationType,
+					ResourceType:      types.ServiceBindingType,
+					Reschedulable:     false,
+					DeletionScheduled: false,
+				})
+				VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:   bindingID,
+					Type: types.ServiceBindingType,
+				})
+				return resp
+			}
+
 			patchInstance := func(smClient *SMExpect, async string, instanceID string, expectedStatusCode int) *httpexpect.Response {
 				return smClient.PATCH(web.ServiceInstancesURL+"/"+instanceID).
 					WithQuery("async", async).
@@ -3264,7 +3282,7 @@ var _ = DescribeTestsFor(TestCase{
 
 			Describe("DELETE", func() {
 
-				Context("Reference Instance", func() {
+				FContext("Reference Instance", func() {
 					When("Deleting a reference service instance", func() {
 						var sharedInstanceID = ""
 						var referenceInstanceID = ""
@@ -3308,23 +3326,8 @@ var _ = DescribeTestsFor(TestCase{
 						})
 
 						AfterEach(func() {
-							// delete the reference instance
-							resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+referenceInstanceID).WithQuery("async", false).
-								Expect().StatusRange(httpexpect.Status2xx)
-							VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-								Category:          types.DELETE,
-								State:             types.SUCCEEDED,
-								ResourceType:      types.ServiceInstanceType,
-								Reschedulable:     false,
-								DeletionScheduled: false,
-							})
-							VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
-								ID:   referenceInstanceID,
-								Type: types.ServiceInstanceType,
-							})
-
 							// delete the shared instance
-							resp = ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).WithQuery("async", false).
+							resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).WithQuery("async", false).
 								Expect().StatusRange(httpexpect.Status2xx)
 							VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 								Category:          types.DELETE,
@@ -3339,107 +3342,85 @@ var _ = DescribeTestsFor(TestCase{
 							})
 						})
 
-						It("returns 201 when renaming the reference-instance", func() {
-							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
-								WithQuery("async", "false").
-								WithJSON(Object{
-									"name":             "renamed",
-									"service_plan_id":  referencePlan.ID,
-									"maintenance_info": "{}",
-								}).
-								Expect().
-								Status(http.StatusOK).
-								JSON().Object().
-								ValueEqual("name", "renamed")
-						})
-						It("returns 202 when renaming the reference-instance", func() {
-							newName := "renamed"
-							resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
-								WithQuery("async", "true").
-								WithJSON(Object{
-									"name":             newName,
-									"service_plan_id":  referencePlan.ID,
-									"maintenance_info": "{}",
-								}).
-								Expect().
-								Status(http.StatusAccepted)
+						It("returns 200", func() {
+							// delete the reference instance
+							resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+referenceInstanceID).WithQuery("async", false).
+								Expect().StatusRange(http.StatusOK)
 							VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-								Category:          types.UPDATE,
+								Category:          types.DELETE,
 								State:             types.SUCCEEDED,
 								ResourceType:      types.ServiceInstanceType,
 								Reschedulable:     false,
 								DeletionScheduled: false,
 							})
-							objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-								ID:    referenceInstanceID,
-								Type:  types.ServiceInstanceType,
-								Ready: true,
+							VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+								ID:   referenceInstanceID,
+								Type: types.ServiceInstanceType,
 							})
-
-							By("verify reference-instance is renamed")
-							objAfterOp.Value("name").Equal(newName)
-
 						})
-						It("returns 400 when updating the service_plan_id", func() {
-							newName := "renamed"
-							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
-								WithQuery("async", "false").
-								WithJSON(Object{
-									"name":             newName,
-									"service_plan_id":  servicePlanID,
-									"maintenance_info": "{}",
-								}).
-								Expect().
-								Status(http.StatusBadRequest)
-							// epsilontal todo: uncomment the operation verification: check why the operation was not created.
-							/*VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-								Category:          types.UPDATE,
-								State:             types.FAILED,
+						It("returns 202", func() {
+							// delete the reference instance
+							resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+referenceInstanceID).WithQuery("async", true).
+								Expect().StatusRange(http.StatusAccepted)
+							VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+								Category:          types.DELETE,
+								State:             types.SUCCEEDED,
 								ResourceType:      types.ServiceInstanceType,
 								Reschedulable:     false,
 								DeletionScheduled: false,
-							})*/
-							objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-								ID:    referenceInstanceID,
-								Type:  types.ServiceInstanceType,
-								Ready: true,
 							})
-
-							By("verify reference-instance plan has not changed")
-							objAfterOp.Value("service_plan_id").Equal(referencePlan.ID)
+							VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+								ID:   referenceInstanceID,
+								Type: types.ServiceInstanceType,
+							})
 
 						})
-						It("returns 400 when updating the referenced_instance_id parameter", func() {
-							newName := "renamed"
-							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
-								WithQuery("async", "false").
-								WithJSON(Object{
-									"name":             newName,
-									"service_plan_id":  referencePlan.ID,
-									"maintenance_info": "{}",
-									"parameters": Object{
-										"referenced_instance_id": "new_instance_id",
-									},
-								}).
-								Expect().
-								Status(http.StatusBadRequest)
-							// epsilontal todo: uncomment the operation verification: check why the operation was not created.
-							/*VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-								Category:          types.UPDATE,
-								State:             types.FAILED,
-								ResourceType:      types.ServiceInstanceType,
-								Reschedulable:     false,
-								DeletionScheduled: false,
-							})*/
-							objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-								ID:    referenceInstanceID,
-								Type:  types.ServiceInstanceType,
-								Ready: true,
+						Context("instance has binding", func() {
+							bindingID := ""
+							BeforeEach(func() {
+								resp := ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+									WithJSON(Object{"name": "test-binding", "service_instance_id": referenceInstanceID}).
+									Expect().
+									Status(http.StatusCreated)
+								bindingID = resp.JSON().Object().Value("id").String().Raw()
 							})
+							AfterEach(func() {
+								deleteBinding(ctx, false, http.StatusOK, types.SUCCEEDED, bindingID)
 
-							By("verify reference-instance plan has not changed")
-							objAfterOp.Value("service_plan_id").Equal(referencePlan.ID)
-
+								// delete the reference instance
+								resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+referenceInstanceID).WithQuery("async", false).
+									Expect().Status(http.StatusOK)
+								VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									Category:          types.DELETE,
+									State:             types.SUCCEEDED,
+									ResourceType:      types.ServiceInstanceType,
+									Reschedulable:     false,
+									DeletionScheduled: false,
+								})
+								VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									ID:   referenceInstanceID,
+									Type: types.ServiceInstanceType,
+								})
+							})
+							It("returns 400 when async=false", func() {
+								// delete the reference instance
+								expectedError := fmt.Sprintf("could not delete instance due to %d existing bindings", 1)
+								resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+referenceInstanceID).WithQuery("async", false).
+									Expect().Status(http.StatusBadRequest)
+								VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									Category:          types.DELETE,
+									State:             types.FAILED,
+									ResourceType:      types.ServiceInstanceType,
+									Reschedulable:     false,
+									DeletionScheduled: false,
+								})
+								VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									ID:    referenceInstanceID,
+									Type:  types.ServiceInstanceType,
+									Ready: true,
+								})
+								Expect(resp.Body().Contains(expectedError), true)
+							})
 						})
 
 					})
