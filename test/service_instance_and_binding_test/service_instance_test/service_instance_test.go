@@ -3282,7 +3282,7 @@ var _ = DescribeTestsFor(TestCase{
 
 			Describe("DELETE", func() {
 
-				FContext("Reference Instance", func() {
+				Context("Reference Instance", func() {
 					When("Deleting a reference service instance", func() {
 						var sharedInstanceID = ""
 						var referenceInstanceID = ""
