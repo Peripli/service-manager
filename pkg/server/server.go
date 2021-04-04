@@ -54,7 +54,7 @@ type Settings struct {
 func DefaultSettings() *Settings {
 	return &Settings{
 		Port:             8080,
-		ProvisionTimeout: time.Second * 3,
+		ProvisionTimeout: time.Second * 60,
 		RequestTimeout:   time.Second * 3,
 		ShutdownTimeout:  time.Second * 3,
 		MaxBodyBytes:     mb,
