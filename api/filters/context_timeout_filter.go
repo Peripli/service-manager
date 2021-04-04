@@ -46,7 +46,8 @@ func NewContextTimeoutFilter(timeout time.Duration) *ContextTimeout {
 
 // Run represents the logging middleware function that processes the request and configures the request-scoped logging.
 func (l *ContextTimeout) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	ctx, _ := context.WithTimeout(req.Context(), l.timeout)
+	ctx, cancel := context.WithTimeout(req.Context(), l.timeout)
+	defer cancel()
 	req.Request = req.WithContext(ctx)
 	return next.Handle(req)
 }
