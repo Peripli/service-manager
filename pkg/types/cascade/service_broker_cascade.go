@@ -34,6 +34,6 @@ func (sb *ServiceBrokerCascade) GetChildrenCriterion() ChildrenCriterion {
 		}
 	}
 	return ChildrenCriterion{
-		types.ServiceInstanceType: {query.ByField(query.InOperator, "service_plan_id", planIDs...)},
+		types.ServiceInstanceType: {{query.ByField(query.InOperator, "service_plan_id", planIDs...)}},
 	}
 }

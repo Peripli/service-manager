@@ -7,7 +7,14 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-type ChildrenCriterion = map[types.ObjectType][]query.Criterion
+// CriterionConjunction - represents AND logic gate: <criteria> AND <criteria> (...AND <criteria>)
+type CriterionConjunction = []query.Criterion
+
+// CriterionDisjunction - represents OR logic gate: <criteria> OR <criteria> (...OR <criteria>)
+type CriterionDisjunction = []CriterionConjunction
+
+type ChildrenCriterion = map[types.ObjectType]CriterionDisjunction
+
 type CascadeChildren = map[types.ObjectType]types.ObjectList
 
 // key for configurable hierarchies
@@ -61,9 +68,6 @@ func GetCascadeObject(ctx context.Context, object types.Object) (Cascade, bool) 
 			parentInstanceKeys = keys
 		}
 		instance := object.(*types.ServiceInstance)
-		if instance.Shared != nil && *instance.Shared == true {
-			return &SharedInstanceCascade{instance, parentInstanceKeys}, true
-		}
 		return &ServiceInstanceCascade{instance, parentInstanceKeys}, true
 	}
 	return nil, false

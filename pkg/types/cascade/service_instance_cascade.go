@@ -33,7 +33,8 @@ type ServiceInstanceCascade struct {
 
 func (si *ServiceInstanceCascade) GetChildrenCriterion() ChildrenCriterion {
 	criterion := ChildrenCriterion{
-		types.ServiceBindingType: {query.ByField(query.EqualsOperator, "service_instance_id", si.ID)},
+		types.ServiceBindingType:  {{query.ByField(query.EqualsOperator, "service_instance_id", si.ID)}},
+		types.ServiceInstanceType: {{query.ByField(query.EqualsOperator, "referenced_instance_id", si.ID)}},
 	}
 	if len(si.parentInstanceLabelKeys) > 0 {
 		params := storage.SubQueryParams{
@@ -41,7 +42,7 @@ func (si *ServiceInstanceCascade) GetChildrenCriterion() ChildrenCriterion {
 			"PARENT_KEYS": "'" + strings.Join(si.parentInstanceLabelKeys, "','") + "'",
 		}
 		subQuery, _ := storage.GetSubQueryWithParams(storage.QueryForInstanceChildrenByLabel, params)
-		criterion[types.ServiceInstanceType] = []query.Criterion{query.ByExists(subQuery)}
+		criterion[types.ServiceInstanceType] = append(criterion[types.ServiceInstanceType], []query.Criterion{query.ByExists(subQuery)})
 	}
 	return criterion
 }

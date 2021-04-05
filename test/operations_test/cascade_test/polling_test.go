@@ -20,7 +20,7 @@ var _ = Describe("cascade operations", func() {
 	Context("tenant tree", func() {
 
 		JustBeforeEach(func() {
-			initTenantResources(true)
+			initTenantResources(true, false)
 		})
 
 		It("should succeed - cascade a big tenant tree", func() {
@@ -271,7 +271,7 @@ var _ = Describe("cascade operations", func() {
 
 	Context("platform tree", func() {
 		JustBeforeEach(func() {
-			initTenantResources(true)
+			initTenantResources(true, false)
 		})
 
 		It("should succeed - cascade a platform", func() {
@@ -300,7 +300,7 @@ var _ = Describe("cascade operations", func() {
 
 	Context("broker tree", func() {
 		JustBeforeEach(func() {
-			initTenantResources(false)
+			initTenantResources(false, false)
 		})
 
 		It("should succeeded - cascade broker without children", func() {
@@ -329,7 +329,7 @@ var _ = Describe("cascade operations", func() {
 
 	Context("errors", func() {
 		JustBeforeEach(func() {
-			initTenantResources(true)
+			initTenantResources(true, false)
 		})
 
 		It("validate errors aggregated from bottom up", func() {
@@ -375,7 +375,7 @@ var _ = Describe("cascade operations", func() {
 
 	Context("container", func() {
 		JustBeforeEach(func() {
-			initTenantResources(true)
+			initTenantResources(true, false)
 		})
 
 		It("should fail - container failed to be deleted when cascade a platform", func() {
