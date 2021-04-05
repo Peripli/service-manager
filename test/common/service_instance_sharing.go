@@ -5,7 +5,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
-	. "github.com/Peripli/service-manager/test"
 	"github.com/gavv/httpexpect"
 	"net/http"
 )
@@ -41,7 +40,6 @@ func GetReferencePlanOfExistingPlan(ctx *TestContext, servicePlanID string) *typ
 
 func CreateReferenceInstance(ctx *TestContext, async bool, expectedStatusCode int, referencedInstanceID, referencePlanID, tenantIdentifier, tenantIDValue string) *httpexpect.Response {
 	// Create reference-instance
-	EnsurePlanVisibility(ctx.SMRepository, tenantIdentifier, types.SMPlatform, referencePlanID, tenantIDValue)
 
 	// epsilontal todo: extract the context from the body request and pass it using a new test-filter, in order to test the ownership.
 	requestBody := Object{
