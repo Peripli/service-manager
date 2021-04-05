@@ -28,24 +28,24 @@ const (
 	ContextTimeoutFilterName = "ContextTimeoutFilter"
 )
 
-// ContextTimeout is filter that configures logging per request.
-type ContextTimeout struct {
+// contextTimeout is filter that configures logging per request.
+type contextTimeout struct {
 	timeout time.Duration
 }
 
 // Name implements the web.Filter interface and returns the identifier of the filter.
-func (*ContextTimeout) Name() string {
+func (*contextTimeout) Name() string {
 	return ContextTimeoutFilterName
 }
 
-func NewContextTimeoutFilter(timeout time.Duration) *ContextTimeout {
-	return &ContextTimeout{
+func NewContextTimeoutFilter(timeout time.Duration) *contextTimeout {
+	return &contextTimeout{
 		timeout: timeout,
 	}
 }
 
 // Run represents the logging middleware function that processes the request and configures the request-scoped logging.
-func (l *ContextTimeout) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+func (l *contextTimeout) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx, cancel := context.WithTimeout(req.Context(), l.timeout)
 	defer cancel()
 	req.Request = req.WithContext(ctx)
@@ -53,11 +53,11 @@ func (l *ContextTimeout) Run(req *web.Request, next web.Handler) (*web.Response,
 }
 
 // FilterMatchers implements the web.Filter interface and returns the conditions on which the filter should be executed.
-func (*ContextTimeout) FilterMatchers() []web.FilterMatcher {
+func (*contextTimeout) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path("/v1/osb/*/v2/service_instances/*"),
+				web.Path(web.OSBURL + "/*/v2/service_instances/*"),
 				web.Methods(http.MethodPut),
 			},
 		},
