@@ -56,14 +56,20 @@ var (
 )
 
 const (
-	polling                 = 1 * time.Millisecond
-	maintainerRetry         = 1 * time.Second
-	lifespan                = 1 * time.Millisecond
-	cascadeOrphanMitigation = 5 * time.Second
-	cleanupInterval         = 9999 * time.Hour
-	reconciliation          = 9999 * time.Hour
-	actionTimeout           = 2 * time.Second
-	pollCascade             = 500 * time.Millisecond
+	polling                              = 1 * time.Millisecond
+	maintainerRetry                      = 1 * time.Second
+	lifespan                             = 1 * time.Millisecond
+	cascadeOrphanMitigation              = 5 * time.Second
+	cleanupInterval                      = 9999 * time.Hour
+	reconciliation                       = 9999 * time.Hour
+	actionTimeout                        = 2 * time.Second
+	pollCascade                          = 500 * time.Millisecond
+	multitenancyLabel                    = "tenant"
+	tenantPlatformGlobalBrokerInstanceID = "tenant_platform_global_broker"
+	globalPlatformTenantBrokerInstanceID = "global_platform_tenant_broker"
+	globalPlatformGlobalBrokerInstanceID = "global_platform_global_broker"
+	osbBindingID1                        = "binding1"
+	osbBindingID2                        = "binding2"
 )
 
 var _ = AfterEach(func() {
@@ -112,7 +118,7 @@ var _ = BeforeSuite(func() {
 			"zid": tenantID,
 		}).
 		WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-			_, err := smb.EnableMultitenancy("tenant", ExtractTenantFunc)
+			_, err := smb.EnableMultitenancy(multitenancyLabel, ExtractTenantFunc)
 			return err
 		}).
 		Build()
@@ -125,7 +131,7 @@ func registerGlobalBroker(ctx *TestContext, serviceNameID string, planID string)
 	return id, brokerServer
 }
 
-func initTenantResources(createInstances bool) {
+func initTenantResources(createInstances bool, createSharedInstances bool) {
 	subaccountResources[types.PlatformType]++
 	globalBrokerID, globalBrokerServer = registerGlobalBroker(ctx, "global-service", "global-plan")
 	tenantBrokerID, tenantBrokerServer = registertenantScopedBroker(ctx, "test-service", "plan-service")
@@ -143,7 +149,8 @@ func initTenantResources(createInstances bool) {
 	if createInstances {
 		ctx.SMWithBasic.SetBasicCredentials(ctx, ctx.TestPlatform.Credentials.Basic.Username, ctx.TestPlatform.Credentials.Basic.Password)
 		// global platform + global broker (tenant child)
-		createOSBInstance(ctx, ctx.SMWithBasic, globalBrokerID, "global_platform_global_broker", map[string]interface{}{
+
+		createOSBInstance(ctx, ctx.SMWithBasic, globalBrokerID, globalPlatformGlobalBrokerInstanceID, map[string]interface{}{
 			"service_id":        "global-service",
 			"plan_id":           "global-plan",
 			"organization_guid": "my-orgafsf",
@@ -152,7 +159,7 @@ func initTenantResources(createInstances bool) {
 			},
 		})
 		// global platform + tenant scoped broker (broker child)
-		createOSBInstance(ctx, ctx.SMWithBasic, tenantBrokerID, "global_platform_tenant_broker", map[string]interface{}{
+		createOSBInstance(ctx, ctx.SMWithBasic, tenantBrokerID, globalPlatformTenantBrokerInstanceID, map[string]interface{}{
 			"service_id":        "test-service",
 			"plan_id":           "plan-service",
 			"organization_guid": "my-org",
@@ -174,7 +181,7 @@ func initTenantResources(createInstances bool) {
 
 		ctx.SMWithBasic.SetBasicCredentials(ctx, tenantPlatformUser, tenantPlatformSecret)
 		// tenant scoped platform + global broker (platform child)
-		createOSBInstance(ctx, ctx.SMWithBasic, globalBrokerID, "tenant_platform_global_broker", map[string]interface{}{
+		createOSBInstance(ctx, ctx.SMWithBasic, globalBrokerID, tenantPlatformGlobalBrokerInstanceID, map[string]interface{}{
 			"service_id":        "global-service",
 			"plan_id":           "global-plan",
 			"organization_guid": "my-orgafsf",
@@ -192,13 +199,13 @@ func initTenantResources(createInstances bool) {
 			},
 		})
 		// osbInstanceID child
-		createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, "binding1", map[string]interface{}{
+		createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, osbBindingID1, map[string]interface{}{
 			"service_id":        "test-service",
 			"plan_id":           "plan-service",
 			"organization_guid": "my-org",
 		})
 		// osbInstanceID child
-		createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, "binding2", map[string]interface{}{
+		createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, osbBindingID2, map[string]interface{}{
 			"service_id":        "test-service",
 			"plan_id":           "plan-service",
 			"organization_guid": "my-org",

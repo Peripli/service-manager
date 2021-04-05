@@ -18,7 +18,7 @@ var createInstances bool
 
 var _ = Describe("force cascade delete", func() {
 	JustBeforeEach(func() {
-		initTenantResources(createInstances)
+		initTenantResources(createInstances, false)
 	})
 
 	waitCascadingProcessToFinish := func(timeout time.Duration, expectedTaskCyclesCount int, expectedOperationsCount int, operationQuery ...query.Criterion) {
