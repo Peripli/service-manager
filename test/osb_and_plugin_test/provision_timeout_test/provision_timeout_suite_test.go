@@ -18,7 +18,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// TestOSB tests for OSB API
+// TestProvisionTimeout tests the context timeout filter for provision requests
 func TestProvisionTimeout(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "OSB API Tests Suite")
