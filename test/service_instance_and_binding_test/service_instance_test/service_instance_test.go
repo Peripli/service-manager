@@ -1981,7 +1981,9 @@ var _ = DescribeTestsFor(TestCase{
 					})
 					It("successfully create reference to shared instance", func() {
 						//TODO: this test should not be under "PATCH" Description
-						referenceInstanceResp := CreateReferenceInstance(ctx, false, http.StatusCreated, instanceID, servicePlanID, TenantIdentifier, TenantIDValue)
+						referencePlan := GetReferencePlanOfExistingPlan(ctx, servicePlanID)
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
+						referenceInstanceResp := CreateReferenceInstance(ctx, false, http.StatusCreated, instanceID, referencePlan.ID, TenantIdentifier, TenantIDValue)
 						referenceInstanceID, _ := VerifyOperationExists(ctx, referenceInstanceResp.Header("Location").Raw(), OperationExpectations{
 							Category:          types.CREATE,
 							State:             types.SUCCEEDED,
