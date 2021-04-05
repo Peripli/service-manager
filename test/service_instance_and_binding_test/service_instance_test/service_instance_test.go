@@ -1934,7 +1934,7 @@ var _ = DescribeTestsFor(TestCase{
 							objAfterOp.Value("name").Equal(newName)
 
 						})
-						It("returns 400 when updating the service_plan_id", func() {
+						It("returns 400 when updating the service_plan_id when async=false", func() {
 							newName := "renamed"
 							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
 								WithQuery("async", "false").
@@ -1945,14 +1945,27 @@ var _ = DescribeTestsFor(TestCase{
 								}).
 								Expect().
 								Status(http.StatusBadRequest)
-							// epsilontal todo: uncomment the operation verification: check why the operation was not created.
-							/*VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-								Category:          types.UPDATE,
-								State:             types.FAILED,
-								ResourceType:      types.ServiceInstanceType,
-								Reschedulable:     false,
-								DeletionScheduled: false,
-							})*/
+							objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+								ID:    referenceInstanceID,
+								Type:  types.ServiceInstanceType,
+								Ready: true,
+							})
+
+							By("verify reference-instance plan has not changed")
+							objAfterOp.Value("service_plan_id").Equal(referencePlan.ID)
+
+						})
+						It("returns 400 when updating the service_plan_id when async=true", func() {
+							newName := "renamed"
+							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
+								WithQuery("async", "true").
+								WithJSON(Object{
+									"name":             newName,
+									"service_plan_id":  servicePlanID,
+									"maintenance_info": "{}",
+								}).
+								Expect().
+								Status(http.StatusBadRequest)
 							objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 								ID:    referenceInstanceID,
 								Type:  types.ServiceInstanceType,
@@ -1977,14 +1990,6 @@ var _ = DescribeTestsFor(TestCase{
 								}).
 								Expect().
 								Status(http.StatusBadRequest)
-							// epsilontal todo: uncomment the operation verification: check why the operation was not created.
-							/*VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-								Category:          types.UPDATE,
-								State:             types.FAILED,
-								ResourceType:      types.ServiceInstanceType,
-								Reschedulable:     false,
-								DeletionScheduled: false,
-							})*/
 							objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 								ID:    referenceInstanceID,
 								Type:  types.ServiceInstanceType,
