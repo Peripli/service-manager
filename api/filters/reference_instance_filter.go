@@ -148,7 +148,7 @@ func (f *referenceInstanceFilter) isReferencedShared(ctx context.Context, refere
 
 	if *referencedInstance.Shared != true {
 		return false, &util.HTTPError{
-			ErrorType:   "UnsupportedContextUpdate",
+			ErrorType:   "BadRequest",
 			Description: "referenced instance is not shared",
 			StatusCode:  http.StatusBadRequest,
 		}
@@ -160,7 +160,7 @@ func (f *referenceInstanceFilter) isValidPatchRequest(req *web.Request, instance
 	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	if instance.ServicePlanID != newPlanID {
 		return false, &util.HTTPError{
-			ErrorType:   "UnsupportedContextUpdate",
+			ErrorType:   "BadRequest",
 			Description: "can't modify reference's plan",
 			StatusCode:  http.StatusBadRequest,
 		}
@@ -169,7 +169,7 @@ func (f *referenceInstanceFilter) isValidPatchRequest(req *web.Request, instance
 	parametersRaw := gjson.GetBytes(req.Body, "parameters").Raw
 	if parametersRaw != "" {
 		return false, &util.HTTPError{
-			ErrorType:   "UnsupportedContextUpdate",
+			ErrorType:   "BadRequest",
 			Description: "can't modify reference's parameters",
 			StatusCode:  http.StatusBadRequest,
 		}
