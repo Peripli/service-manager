@@ -63,7 +63,7 @@ func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Path(web.ServiceInstancesURL + "/**"),
-				web.Methods(http.MethodPatch),
+				web.Methods(http.MethodPatch, http.MethodDelete),
 			},
 		},
 	}
@@ -185,7 +185,7 @@ func (f *sharingInstanceFilter) handleDeprovision(req *web.Request, next web.Han
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 
-	if persistedInstance.Shared == newTrue() {
+	if *persistedInstance.Shared {
 		referencesList, err := f.getInstanceReferencesByID(persistedInstance.ID)
 		if err != nil {
 			logger.Errorf("Could not retrieve references of the service instance (%s): %v", instanceID, err)
