@@ -36,36 +36,37 @@ import (
 
 var _ = Describe("References", func() {
 
+	var platform *types.Platform
+	var platformJSON common.Object
+
+	JustBeforeEach(func() {
+		brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
+		utils.BrokerWithTLS.BrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
+		platform = common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
+
+		utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(utils.SelectBroker(&utils.BrokerWithTLS).GetPlanCatalogId(0, 0), platform.ID, organizationGUID)
+		utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(plan1CatalogID, platform.ID, organizationGUID)
+
+		SMWithBasic := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+			username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
+			req.WithBasicAuth(username, password).WithClient(ctx.HttpClient)
+		})}
+
+		username, password := test.RegisterBrokerPlatformCredentials(SMWithBasic, brokerID)
+		utils.SetAuthContext(SMWithBasic).RegisterPlatformToBroker(username, password, utils.BrokerWithTLS.ID)
+		ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
+	})
+
+	AfterEach(func() {
+		err := ctx.SMRepository.Delete(context.TODO(), types.BrokerPlatformCredentialType,
+			query.ByField(query.EqualsOperator, "platform_id", platform.ID))
+		Expect(err).ToNot(HaveOccurred())
+
+		ctx.SMWithOAuth.DELETE(web.VisibilitiesURL + "?fieldQuery=" + fmt.Sprintf("platform_id eq '%s'", platform.ID))
+		ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + platform.ID).Expect().Status(http.StatusOK)
+	})
+
 	Context("Provision", func() {
-		var platform *types.Platform
-		var platformJSON common.Object
-
-		JustBeforeEach(func() {
-			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
-			utils.BrokerWithTLS.BrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
-			platform = common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
-
-			utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(utils.SelectBroker(&utils.BrokerWithTLS).GetPlanCatalogId(0, 0), platform.ID, organizationGUID)
-			utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(plan1CatalogID, platform.ID, organizationGUID)
-
-			SMWithBasic := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
-				username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
-				req.WithBasicAuth(username, password).WithClient(ctx.HttpClient)
-			})}
-
-			username, password := test.RegisterBrokerPlatformCredentials(SMWithBasic, brokerID)
-			utils.SetAuthContext(SMWithBasic).RegisterPlatformToBroker(username, password, utils.BrokerWithTLS.ID)
-			ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
-		})
-
-		AfterEach(func() {
-			err := ctx.SMRepository.Delete(context.TODO(), types.BrokerPlatformCredentialType,
-				query.ByField(query.EqualsOperator, "platform_id", platform.ID))
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx.SMWithOAuth.DELETE(web.VisibilitiesURL + "?fieldQuery=" + fmt.Sprintf("platform_id eq '%s'", platform.ID))
-			ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + platform.ID).Expect().Status(http.StatusOK)
-		})
 
 		Context("in CF platform", func() {
 			BeforeEach(func() {
@@ -97,7 +98,26 @@ var _ = Describe("References", func() {
 					Expect().Status(http.StatusCreated)
 				fmt.Print(resp)
 			})
-			FIt("deletes reference instance successfully", func() {
+
+		})
+
+		Context("in K8S platform", func() {
+			BeforeEach(func() {
+				platformJSON = common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+			})
+
+		})
+	})
+
+	Context("Deprovision", func() {
+
+		Context("in CF platform", func() {
+			BeforeEach(func() {
+				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
+			})
+
+			var sharedInstanceID string
+			It("deletes reference instance successfully", func() {
 				UUID, err := uuid.NewV4()
 				if err != nil {
 					panic(err)
@@ -127,7 +147,6 @@ var _ = Describe("References", func() {
 					Expect().Status(http.StatusOK)
 				fmt.Print(resp)
 			})
-
 		})
 
 		Context("in K8S platform", func() {
