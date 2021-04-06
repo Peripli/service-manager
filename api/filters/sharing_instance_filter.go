@@ -48,13 +48,7 @@ func (*sharingInstanceFilter) Name() string {
 }
 
 func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	switch req.Request.Method {
-	case http.MethodDelete:
-		return f.handleDeprovision(req, next)
-	case http.MethodPatch:
-		return f.handleServiceUpdate(req, next)
-	}
-	return nil, nil
+	return f.handleServiceUpdate(req, next)
 
 }
 
@@ -63,7 +57,7 @@ func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Path(web.ServiceInstancesURL + "/**"),
-				web.Methods(http.MethodPatch, http.MethodDelete),
+				web.Methods(http.MethodPatch),
 			},
 		},
 	}
@@ -173,43 +167,9 @@ func (f *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.H
 	return next.Handle(req)
 }
 
-func (f *sharingInstanceFilter) handleDeprovision(req *web.Request, next web.Handler) (*web.Response, error) {
-	ctx := req.Context()
-	logger := log.C(ctx)
-
-	instanceID := req.PathParams["resource_id"]
-
-	// Get instance from database
-	persistedInstance, err := f.retrievePersistedInstanceByID(ctx, instanceID)
-	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
-	}
-
-	if *persistedInstance.Shared {
-		referencesList, err := f.getInstanceReferencesByID(persistedInstance.ID)
-		if err != nil {
-			logger.Errorf("Could not retrieve references of the service instance (%s): %v", instanceID, err)
-		}
-		if referencesList.Len() > 0 {
-			errorMessage := fmt.Sprintf("could not delete the service instance. The service instance has %d references which should be deleted first", referencesList.Len())
-			return nil, &util.HTTPError{
-				ErrorType:   "BadRequest",
-				Description: errorMessage,
-				StatusCode:  http.StatusBadRequest,
-			}
-		}
-	}
-	return next.Handle(req)
-}
-
 func (f *sharingInstanceFilter) retrievePersistedInstanceByID(ctx context.Context, instanceID string) (*types.ServiceInstance, error) {
 	byID := query.ByField(query.EqualsOperator, "id", instanceID)
 	dbInstanceObject, err := f.storageRepository.Get(ctx, types.ServiceInstanceType, byID)
 	persistedInstance := dbInstanceObject.(*types.ServiceInstance)
 	return persistedInstance, err
-}
-
-func newTrue() *bool {
-	b := true
-	return &b
 }

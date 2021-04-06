@@ -429,6 +429,21 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 	if bindingsCount, err = i.repository.Count(ctx, types.ServiceBindingType, byServiceInstanceID); err != nil {
 		return fmt.Errorf("could not fetch bindings for instance with id %s", instance.ID)
 	}
+
+	if instance.Shared != nil && *instance.Shared == true {
+		referencesList, err := i.getInstanceReferencesByID(instance.ID)
+		if err != nil {
+			log.C(ctx).Errorf("Could not retrieve references of the service instance (%s)s: %v", instance.ID, err)
+		}
+		if referencesList != nil && referencesList.Len() > 0 {
+			var guidsList []string
+			for index := 0; index < referencesList.Len(); index++ {
+				guidsList = append(guidsList, referencesList.ItemAt(index).GetID())
+			}
+			return util.HandleSharingError(util.ErrSharedInstanceHasReferences, guidsList)
+		}
+	}
+
 	if bindingsCount > 0 {
 		return &util.HTTPError{
 			ErrorType:   "BadRequest",
@@ -831,6 +846,17 @@ func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(instance *type
 		},
 		OriginatingIdentity: getOriginIdentity(userInfo, instance),
 	}, nil
+}
+
+func (i *ServiceInstanceInterceptor) getInstanceReferencesByID(instanceID string) (types.ObjectList, error) {
+	references, err := i.repository.List(
+		context.Background(),
+		types.ServiceInstanceType,
+		query.ByField(query.EqualsOperator, "referenced_instance_id", instanceID))
+	if err != nil {
+		return nil, err
+	}
+	return references, nil
 }
 
 func prepareDeprovisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string, userInfo *types.UserInfo) *osbc.DeprovisionRequest {

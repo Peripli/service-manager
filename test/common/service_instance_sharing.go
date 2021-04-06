@@ -39,8 +39,6 @@ func GetReferencePlanOfExistingPlan(ctx *TestContext, servicePlanID string) *typ
 }
 
 func CreateReferenceInstance(ctx *TestContext, async bool, expectedStatusCode int, referencedInstanceID, referencePlanID, tenantIdentifier, tenantIDValue string) *httpexpect.Response {
-	// Create reference-instance
-
 	// epsilontal todo: extract the context from the body request and pass it using a new test-filter, in order to test the ownership.
 	requestBody := Object{
 		"name":             "reference-instance",
@@ -49,6 +47,7 @@ func CreateReferenceInstance(ctx *TestContext, async bool, expectedStatusCode in
 		"context": Object{
 			tenantIdentifier: tenantIDValue,
 		},
+		"referenced_instance_id": referencedInstanceID,
 	}
 	requestBody["parameters"] = map[string]string{
 		"referenced_instance_id": referencedInstanceID,
