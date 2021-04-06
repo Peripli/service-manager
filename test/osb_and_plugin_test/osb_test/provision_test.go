@@ -19,7 +19,6 @@ package osb_test
 import (
 	"context"
 	"fmt"
-	"github.com/gofrs/uuid"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -28,7 +27,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
-	. "github.com/Peripli/service-manager/test/common"
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -369,35 +367,6 @@ var _ = Describe("Provision", func() {
 			BeforeEach(func() {
 				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 			})
-
-			Context("when creating a reference instance", func() {
-				var sharedInstanceID string
-				It("creates reference successfully", func() {
-					UUID, err := uuid.NewV4()
-					if err != nil {
-						panic(err)
-					}
-					sharedInstanceID = UUID.String()
-
-					resp := ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+sharedInstanceID).
-						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-						WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
-						Expect().Status(http.StatusCreated)
-					fmt.Print(resp)
-					ShareInstanceOnDB(ctx.SMRepository, context.TODO(), sharedInstanceID)
-
-					referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", plan1CatalogID)
-					referenceProvisionBody := buildReferenceProvisionBody(referencePlan.CatalogID, sharedInstanceID)
-					utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(referencePlan.CatalogID, platform.ID, organizationGUID)
-					resp = ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/reference").
-						WithQuery("async", "false").
-						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-						WithJSON(referenceProvisionBody).
-						Expect().Status(http.StatusCreated)
-					fmt.Print(resp)
-				})
-			})
-
 			Context("when creating a the broker over tls", func() {
 				It("creating broker with valid tls settings", func() {
 					provisionRequestBody = buildRequestBody(utils.GetServiceCatalogId(0), utils.
@@ -458,29 +427,4 @@ var _ = Describe("Provision", func() {
 			})
 		})
 	})
-
 })
-
-func buildReferenceProvisionBody(planID, sharedInstanceID string) Object {
-	return Object{
-		"service_id":        service1CatalogID,
-		"plan_id":           planID,
-		"organization_guid": organizationGUID,
-		"space_guid":        "aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
-		"parameters": Object{
-			"referenced_instance_id": sharedInstanceID,
-		},
-		"context": Object{
-			"platform":          "cloudfoundry",
-			"organization_guid": organizationGUID,
-			"organization_name": "system",
-			"space_guid":        "aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
-			"space_name":        "development",
-			"instance_name":     "reference-instance",
-			TenantIdentifier:    TenantValue,
-		},
-		"maintenance_info": Object{
-			"version": "old",
-		},
-	}
-}

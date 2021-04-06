@@ -72,11 +72,22 @@ func (p *referenceInstancePlugin) Provision(req *web.Request, next web.Handler) 
 	}, nil
 }
 
-/*// Deprovision intercepts deprovision requests and check if the instance is in the platform from where the request comes
+// Deprovision intercepts deprovision requests and check if the instance is in the platform from where the request comes
 func (p *referenceInstancePlugin) Deprovision(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
-	servicePlanID := gjson.GetBytes(req.Body, "service_plan_id").Str
-	isReferencePlan, err := p.isReferencePlan(ctx, servicePlanID)
+	instanceID := req.PathParams["instance_id"]
+	if instanceID == "" {
+		return nil, errors.New("missing resource ID")
+	}
+
+	dbInstanceObject, err := p.getObjectByOperator(ctx, types.ServiceInstanceType, "id", instanceID)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+	}
+	instance := dbInstanceObject.(*types.ServiceInstance)
+
+	isReferencePlan, err := p.isReferencePlan(ctx, instance.ServicePlanID)
+
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +101,6 @@ func (p *referenceInstancePlugin) Deprovision(req *web.Request, next web.Handler
 		Header:     http.Header{},
 	}, nil
 }
-*/
 
 /*
 // UpdateService intercepts update service instance requests and check if the instance is in the platform from where the request comes
@@ -102,7 +112,7 @@ func (p *referenceInstancePlugin) UpdateService(req *web.Request, next web.Handl
 		return nil, errors.New("missing resource ID")
 	}
 
-	dbInstanceObject, err := p.getObjectByCatalogID(ctx, types.ServiceInstanceType, resourceID)
+	dbInstanceObject, err := p.getObjectByOperator(ctx, types.ServiceInstanceType, resourceID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
@@ -250,7 +260,7 @@ func (p *referenceInstancePlugin) validateOwnership(req *web.Request) error {
 }
 
 func (p *referenceInstancePlugin) isReferencePlan(ctx context.Context, servicePlanID string) (bool, error) {
-	dbPlanObject, err := p.getObjectByCatalogID(ctx, types.ServicePlanType, servicePlanID)
+	dbPlanObject, err := p.getObjectByOperator(ctx, types.ServicePlanType, "catalog_id", servicePlanID)
 	if err != nil {
 		return false, err
 	}
@@ -258,8 +268,8 @@ func (p *referenceInstancePlugin) isReferencePlan(ctx context.Context, servicePl
 	return plan.Name == "reference-plan", nil
 }
 
-func (p *referenceInstancePlugin) getObjectByCatalogID(ctx context.Context, objectType types.ObjectType, resourceID string) (types.Object, error) {
-	byID := query.ByField(query.EqualsOperator, "catalog_id", resourceID)
+func (p *referenceInstancePlugin) getObjectByOperator(ctx context.Context, objectType types.ObjectType, op, resourceID string) (types.Object, error) {
+	byID := query.ByField(query.EqualsOperator, op, resourceID)
 	dbObject, err := p.repository.Get(ctx, objectType, byID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, objectType.String())
