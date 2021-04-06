@@ -440,7 +440,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 			for index := 0; index < referencesList.Len(); index++ {
 				guidsList = append(guidsList, referencesList.ItemAt(index).GetID())
 			}
-			return util.HandleSharingError(util.ErrSharedInstanceHasReferences, guidsList)
+			return util.HandleReferencesError(util.ErrSharedInstanceHasReferences, guidsList)
 		}
 	}
 

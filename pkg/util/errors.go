@@ -190,7 +190,7 @@ func HandleStorageError(err error, entityName string) error {
 	}
 }
 
-func HandleSharingError(err error, guidsArray []string) error {
+func HandleReferencesError(err error, guidsArray []string) error {
 	if err == nil {
 		return nil
 	}
