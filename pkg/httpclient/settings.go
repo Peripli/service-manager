@@ -19,6 +19,7 @@ package httpclient
 import (
 	"crypto/tls"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/types"
 	"net"
 	"net/http"
 	"time"
@@ -27,10 +28,12 @@ import (
 type Settings struct {
 	Timeout               time.Duration `mapstructure:"timeout" description:"timeout specifies a time limit for the request. The timeout includes connection time, any redirects, and reading the response body"`
 	TLSHandshakeTimeout   time.Duration `mapstructure:"tls_handshake_timeout"`
+	TLS                   *types.TLS    `mapstructure:"tls_certificate"`
 	IdleConnTimeout       time.Duration `mapstructure:"idle_conn_timeout"`
 	ResponseHeaderTimeout time.Duration `mapstructure:"response_header_timeout"`
 	DialTimeout           time.Duration `mapstructure:"dial_timeout"`
 	SkipSSLValidation     bool          `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when making calls to external services"`
+	TLSCertificates       []tls.Certificate
 }
 
 var globalSettings Settings
@@ -64,6 +67,15 @@ func (s *Settings) Validate() error {
 	if s.DialTimeout < 0 {
 		return fmt.Errorf("validate httpclient settings: dial_timeout should be >= 0")
 	}
+	if s.TLS != nil && s.TLS.Certificate != "" && s.TLS.Key != "" {
+		cert, err := tls.X509KeyPair([]byte(s.TLS.Certificate), []byte(s.TLS.Key))
+		if err != nil {
+			return fmt.Errorf("malformed certificate", err.Error())
+		}
+		s.TLSCertificates = []tls.Certificate{cert}
+
+	}
+
 	return nil
 }
 
@@ -84,7 +96,8 @@ func Configure() {
 
 func ConfigureTransport(transport *http.Transport) {
 	settings := GetHttpClientGlobalSettings()
-	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation}
+	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation,
+		Certificates: settings.TLSCertificates}
 	transport.ResponseHeaderTimeout = settings.ResponseHeaderTimeout
 	transport.TLSHandshakeTimeout = settings.TLSHandshakeTimeout
 	transport.IdleConnTimeout = settings.IdleConnTimeout
