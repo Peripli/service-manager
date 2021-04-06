@@ -104,7 +104,7 @@ var (
 	// ErrNotFoundInStorage error returned from storage when entity is not found
 	ErrNotFoundInStorage = errors.New("not found")
 
-	// ErrNotFoundInStorage error returned when shared instance has references
+	// ErrSharedInstanceHasReferences error returned when shared instance has references
 	ErrSharedInstanceHasReferences = errors.New("shared instance has references")
 
 	// ErrAlreadyExistsInStorage error returned from storage when entity has conflicting fields
@@ -201,7 +201,7 @@ func HandleReferencesError(err error, guidsArray []string) error {
 
 	switch err {
 	case ErrSharedInstanceHasReferences:
-		errorMessage := fmt.Sprintf("could not delete the service instance. The service instance has %d references which should be deleted first: \n%s", len(guidsArray), guidsArray)
+		errorMessage := fmt.Sprintf("could not delete the service instance. The service instance has %d references which should be deleted first: %s", len(guidsArray), guidsArray)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
