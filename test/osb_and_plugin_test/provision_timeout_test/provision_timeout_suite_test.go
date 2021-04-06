@@ -21,7 +21,7 @@ import (
 // TestProvisionTimeout tests the context timeout filter for provision requests
 func TestProvisionTimeout(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "OSB API Tests Suite")
+	RunSpecs(t, "Provision Timeout Tests Suite")
 }
 
 const (
