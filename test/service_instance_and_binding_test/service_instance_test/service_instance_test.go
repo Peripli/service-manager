@@ -3366,18 +3366,18 @@ var _ = DescribeTestsFor(TestCase{
 									Type: types.ServiceInstanceType,
 								})
 							})
-							FIt("should return 400 (async=false)", func() {
+							It("should return 400 (async=false)", func() {
 								// delete the reference instance
 								expectedError := fmt.Sprintf("could not delete the service instance. The service instance has %d references which should be deleted first", 1)
 								resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).WithQuery("async", false).
 									Expect().Status(http.StatusBadRequest)
-								/*VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+								VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 									Category:          types.DELETE,
 									State:             types.FAILED,
 									ResourceType:      types.ServiceInstanceType,
 									Reschedulable:     false,
 									DeletionScheduled: false,
-								})*/
+								})
 								VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 									ID:    sharedInstanceID,
 									Type:  types.ServiceInstanceType,
