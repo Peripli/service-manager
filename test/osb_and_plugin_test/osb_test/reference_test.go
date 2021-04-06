@@ -38,6 +38,7 @@ var _ = Describe("References", func() {
 
 	var platform *types.Platform
 	var platformJSON common.Object
+	var referenceInstanceID string
 
 	JustBeforeEach(func() {
 		brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
@@ -66,37 +67,18 @@ var _ = Describe("References", func() {
 		ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + platform.ID).Expect().Status(http.StatusOK)
 	})
 
-	Context("Provision", func() {
+	When("Provision", func() {
 
+		AfterEach(func() {
+			//deleteInstance(referenceInstanceID).Expect().Status(http.StatusOK)
+			//deleteInstance(sharedInstanceID).Expect().Status(http.StatusOK)
+		})
 		Context("in CF platform", func() {
 			BeforeEach(func() {
 				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 			})
-
-			var sharedInstanceID string
 			It("creates reference instance successfully", func() {
-				UUID, err := uuid.NewV4()
-				if err != nil {
-					panic(err)
-				}
-				sharedInstanceID = UUID.String()
-
-				resp := ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+sharedInstanceID).
-					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
-					Expect().Status(http.StatusCreated)
-				fmt.Print(resp)
-				ShareInstanceOnDB(ctx.SMRepository, context.TODO(), sharedInstanceID)
-
-				referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", plan1CatalogID)
-				referenceProvisionBody := buildReferenceProvisionBody(referencePlan.CatalogID, sharedInstanceID)
-				utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(referencePlan.CatalogID, platform.ID, organizationGUID)
-				resp = ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/reference").
-					WithQuery("async", "false").
-					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					WithJSON(referenceProvisionBody).
-					Expect().Status(http.StatusCreated)
-				fmt.Print(resp)
+				_, referenceInstanceID = executeProvisionTest(platform)
 			})
 
 		})
@@ -105,7 +87,9 @@ var _ = Describe("References", func() {
 			BeforeEach(func() {
 				platformJSON = common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
 			})
-
+			It("creates reference instance successfully", func() {
+				_, referenceInstanceID = executeProvisionTest(platform)
+			})
 		})
 	})
 
@@ -116,36 +100,17 @@ var _ = Describe("References", func() {
 				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 			})
 
-			var sharedInstanceID string
+			AfterEach(func() {
+				VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:   referenceInstanceID,
+					Type: types.ServiceInstanceType,
+				})
+
+			})
+
 			It("deletes reference instance successfully", func() {
-				UUID, err := uuid.NewV4()
-				if err != nil {
-					panic(err)
-				}
-				sharedInstanceID = UUID.String()
-
-				resp := ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+sharedInstanceID).
-					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
-					Expect().Status(http.StatusCreated)
-				fmt.Print(resp)
-				ShareInstanceOnDB(ctx.SMRepository, context.TODO(), sharedInstanceID)
-
-				referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", plan1CatalogID)
-				referenceProvisionBody := buildReferenceProvisionBody(referencePlan.CatalogID, sharedInstanceID)
-				utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(referencePlan.CatalogID, platform.ID, organizationGUID)
-				resp = ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/reference").
-					WithQuery("async", "false").
-					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					WithJSON(referenceProvisionBody).
-					Expect().Status(http.StatusCreated)
-				fmt.Print(resp)
-
-				ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/reference").
-					WithQuery("async", "false").
-					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					Expect().Status(http.StatusOK)
-				fmt.Print(resp)
+				_, referenceInstanceID = executeProvisionTest(platform)
+				deleteInstance(referenceInstanceID).Expect().Status(http.StatusOK)
 			})
 		})
 
@@ -158,6 +123,66 @@ var _ = Describe("References", func() {
 	})
 
 })
+
+func deleteInstance(instanceID string) *httpexpect.Request {
+	return ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+instanceID).
+		WithQuery("async", "false").
+		WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue)
+}
+
+func executeProvisionTest(platform *types.Platform) (string, string) {
+	sharedInstanceID := createAndShareInstance()
+	VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+		ID:    sharedInstanceID,
+		Type:  types.ServiceInstanceType,
+		Ready: true,
+	})
+	referenceInstanceID := createReferenceInstance(platform, sharedInstanceID)
+	obj := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+		ID:    referenceInstanceID,
+		Type:  types.ServiceInstanceType,
+		Ready: true,
+	})
+	obj.
+		ContainsKey("platform_id").
+		ValueEqual("platform_id", platform.ID)
+	return sharedInstanceID, referenceInstanceID
+}
+
+func createReferenceInstance(platform *types.Platform, sharedInstanceID string) string {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	instanceID := UUID.String()
+
+	referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", plan1CatalogID)
+	referenceProvisionBody := buildReferenceProvisionBody(referencePlan.CatalogID, sharedInstanceID)
+	utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(referencePlan.CatalogID, platform.ID, organizationGUID)
+	ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+instanceID).
+		WithQuery("async", "false").
+		WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+		WithJSON(referenceProvisionBody).
+		Expect().Status(http.StatusCreated)
+	return instanceID
+}
+
+func createAndShareInstance() string {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	sharedInstanceID := UUID.String()
+
+	resp := ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+sharedInstanceID).
+		WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+		WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
+		Expect().Status(http.StatusCreated)
+	fmt.Print(resp)
+	ShareInstanceOnDB(ctx.SMRepository, context.TODO(), sharedInstanceID)
+
+	return sharedInstanceID
+}
 
 func buildReferenceProvisionBody(planID, sharedInstanceID string) Object {
 	return Object{
