@@ -421,7 +421,7 @@ var _ = DescribeTestsFor(TestCase{
 								ShareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
 
 								// Create reference-instance
-								referencePlan := GetReferencePlanOfExistingPlan(ctx, servicePlanID)
+								referencePlan := GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
 								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
 								resp = CreateReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID, referencePlan.ID, TenantIdentifier, TenantIDValue)
 								referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{

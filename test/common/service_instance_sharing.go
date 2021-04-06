@@ -4,7 +4,9 @@ import (
 	"context"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/storage"
 	"github.com/gavv/httpexpect"
 	"net/http"
 )
@@ -24,10 +26,30 @@ func ShareInstance(smClient *SMExpect, async bool, expectedStatusCode int, insta
 
 	return resp
 }
+func ShareInstanceOnDB(storage storage.TransactionalRepository, ctx context.Context, instanceID string) error {
+	byID := query.ByField(query.EqualsOperator, "id", instanceID)
+	var err error
+	object, err := storage.Get(ctx, types.ServiceInstanceType, byID)
+	if err != nil {
+		return err
+	}
 
-func GetReferencePlanOfExistingPlan(ctx *TestContext, servicePlanID string) *types.ServicePlan {
+	instance := object.(*types.ServiceInstance)
+	instance.Shared = newTrue()
+	if _, err := storage.Update(ctx, instance, types.LabelChanges{}); err != nil {
+		return util.HandleStorageError(err, string(instance.GetType()))
+	}
+	return nil
+}
+
+func newTrue() *bool {
+	b := true
+	return &b
+}
+
+func GetReferencePlanOfExistingPlan(ctx *TestContext, byOperator, servicePlanID string) *types.ServicePlan {
 	// Retrieve the reference-plan of the service offering.
-	byID := query.ByField(query.EqualsOperator, "id", servicePlanID)
+	byID := query.ByField(query.EqualsOperator, byOperator, servicePlanID)
 	planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID)
 	plan := planObject.(*types.ServicePlan)
 

@@ -783,6 +783,8 @@ func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 		log.C(ctx).Debugf("Instance name missing. Defaulting to id %s", req.InstanceID)
 		instanceName = req.InstanceID
 	}
+
+	referencedInstanceID := gjson.GetBytes(req.RawParameters, "referenced_instance_id").String()
 	instance := &types.ServiceInstance{
 		Base: types.Base{
 			ID:        req.InstanceID,
@@ -791,13 +793,14 @@ func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 			Labels:    make(map[string][]string),
 			Ready:     ready,
 		},
-		Name:            instanceName,
-		ServicePlanID:   planID,
-		PlatformID:      req.PlatformID,
-		DashboardURL:    resp.DashboardURL,
-		MaintenanceInfo: req.RawMaintenanceInfo,
-		Context:         req.RawContext,
-		Usable:          true,
+		Name:                 instanceName,
+		ServicePlanID:        planID,
+		PlatformID:           req.PlatformID,
+		DashboardURL:         resp.DashboardURL,
+		MaintenanceInfo:      req.RawMaintenanceInfo,
+		Context:              req.RawContext,
+		Usable:               true,
+		ReferencedInstanceID: referencedInstanceID,
 	}
 	if _, err := storage.Create(ctx, instance); err != nil {
 		return util.HandleStorageError(err, string(instance.GetType()))

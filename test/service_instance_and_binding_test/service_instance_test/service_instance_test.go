@@ -577,7 +577,7 @@ var _ = DescribeTestsFor(TestCase{
 						})
 
 						It("returns 201", func() {
-							referencePlan := GetReferencePlanOfExistingPlan(ctx, servicePlanID)
+							referencePlan := GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
 							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
 							resp := CreateReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID, referencePlan.ID, TenantIdentifier, TenantIDValue)
 							referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -590,7 +590,7 @@ var _ = DescribeTestsFor(TestCase{
 						})
 
 						It("returns 202", func() {
-							referencePlan := GetReferencePlanOfExistingPlan(ctx, servicePlanID)
+							referencePlan := GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
 							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
 							resp := CreateReferenceInstance(ctx, true, http.StatusAccepted, sharedInstanceID, referencePlan.ID, TenantIdentifier, TenantIDValue)
 							referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -1781,7 +1781,7 @@ var _ = DescribeTestsFor(TestCase{
 							ShareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
 
 							// Create reference service instance
-							referencePlan = GetReferencePlanOfExistingPlan(ctx, servicePlanID)
+							referencePlan = GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
 							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
 							resp = CreateReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID, referencePlan.ID, TenantIdentifier, TenantIDValue)
 							referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -1981,7 +1981,7 @@ var _ = DescribeTestsFor(TestCase{
 					})
 					It("successfully create reference to shared instance", func() {
 						//TODO: this test should not be under "PATCH" Description
-						referencePlan := GetReferencePlanOfExistingPlan(ctx, servicePlanID)
+						referencePlan := GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
 						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
 						referenceInstanceResp := CreateReferenceInstance(ctx, false, http.StatusCreated, instanceID, referencePlan.ID, TenantIdentifier, TenantIDValue)
 						referenceInstanceID, _ := VerifyOperationExists(ctx, referenceInstanceResp.Header("Location").Raw(), OperationExpectations{
@@ -3235,7 +3235,7 @@ var _ = DescribeTestsFor(TestCase{
 							ShareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
 
 							// Create reference service instance
-							referencePlan = GetReferencePlanOfExistingPlan(ctx, servicePlanID)
+							referencePlan = GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
 							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
 							resp = CreateReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID, referencePlan.ID, TenantIdentifier, TenantIDValue)
 							referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
