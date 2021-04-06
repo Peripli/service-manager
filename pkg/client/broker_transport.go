@@ -22,10 +22,14 @@ import (
 )
 
 func GetTransportWithTLS(tlsConfig *tls.Config) *http.Transport {
+	defaultTransport := http.DefaultTransport.(*http.Transport)
 	transport := http.Transport{}
 	httpclient.ConfigureTransport(&transport)
 	transport.TLSClientConfig.Certificates = tlsConfig.Certificates
-
+	if defaultTransport != nil && defaultTransport.TLSClientConfig != nil {
+		transport.TLSClientConfig.Certificates = append(transport.TLSClientConfig.Certificates,
+			defaultTransport.TLSClientConfig.Certificates...)
+	}
 	//prevents keeping idle connections when accessing to different broker hosts
 	transport.DisableKeepAlives = true
 	return &transport
