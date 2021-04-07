@@ -17,6 +17,7 @@ package broker_test
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"net/http"
@@ -546,45 +547,55 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("when broker is behind tls", func() {
-
-					BeforeEach(func() {
+					var serverCertificate bool = false
+					JustBeforeEach(func() {
 						settings := ctx.Config.HTTPClient
 						settings.SkipSSLValidation = true
+						if serverCertificate {
+							cert, err := tls.X509KeyPair([]byte(tls_settings.ServerCertificate), []byte(tls_settings.ServerKey))
+							Expect(err).ShouldNot(HaveOccurred())
+							settings.TLSCertificates = []tls.Certificate{cert}
+						}
 						httpclient.SetHTTPClientGlobalSettings(settings)
 						httpclient.Configure()
 					})
+					for _, isOn := range [2]bool{false, true} {
+						Context(fmt.Sprintf("server certificate is avialable %v", isOn), func() {
+							BeforeEach(func() {
+								serverCertificate = isOn
+							})
+							Context("when broker basic and user auth are both configured", func() {
+								It("returns StatusCreated", func() {
+									reply := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLSandBasic).
+										Expect().
+										Status(http.StatusCreated).
+										JSON().Object()
+									reply.ContainsMap(expectedBrokerResponseTLS)
+									assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 1)
+								})
+							})
 
-					Context("when broker basic and user auth are both configured", func() {
-						It("returns StatusCreated", func() {
-							reply := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLSandBasic).
-								Expect().
-								Status(http.StatusCreated).
-								JSON().Object()
-							reply.ContainsMap(expectedBrokerResponseTLS)
-							assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 1)
+							Context("when broker is behind tls but not valid certs are configured", func() {
+								It("returns StatusBadGateway", func() {
+									ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLSNoCert).
+										Expect().Status(http.StatusBadGateway).
+										JSON().Object()
+									assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 0)
+								})
+							})
+
+							//actually the broker return invalid credentials, however the response is converted by the catalog fetch into badRequest
+							Context("when broker tls settings are valid but basic auth credentials are missing", func() {
+								It("returns StatusCreated", func() {
+									ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLS).
+										Expect().
+										Status(http.StatusCreated)
+									assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 1)
+								})
+							})
+
 						})
-					})
-
-					Context("when broker is behind tls but not valid certs are configured", func() {
-						It("returns StatusBadGateway", func() {
-							ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLSNoCert).
-								Expect().
-								Status(http.StatusBadGateway).
-								JSON().Object()
-							assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 0)
-						})
-					})
-
-					//actually the broker return invalid credentials, however the response is converted by the catalog fetch into badRequest
-					Context("when broker tls settings are valid but basic auth credentials are missing", func() {
-						It("returns StatusCreated", func() {
-							ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLS).
-								Expect().
-								Status(http.StatusCreated)
-							assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 1)
-						})
-					})
-
+					}
 
 				})
 
@@ -1051,8 +1062,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									},
 								},
 							}
-							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).
-								Expect().
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).Expect().
 								Status(http.StatusBadGateway).Body().Contains("could not reach service broker")
 							assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 0)
 						})
