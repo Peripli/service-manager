@@ -17,12 +17,14 @@
 package filters
 
 import (
+	"context"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -62,9 +64,65 @@ func (f *platformTerminationFilter) Run(req *web.Request, next web.Handler) (*we
 				StatusCode:  http.StatusUnprocessableEntity,
 			}
 		}
+		sharingReferences, err := findSharingReferenceInstancesFromOtherPlatform(ctx, platform, f.repository)
+		if err != nil {
+			return nil, err
+		}
+		if len(sharingReferences) > 0 {
+			return nil, &util.HTTPError{
+				ErrorType:   "UnprocessableEntity",
+				Description: "Platform cannot be deleted because other platform(s) has reference instance(s) to the shared instances in given platform. Details: " + formatSharingReferences(sharingReferences),
+				StatusCode:  http.StatusUnprocessableEntity,
+			}
+		}
 	}
-
 	return next.Handle(req)
+}
+
+func formatSharingReferences(references []*SharingReferences) string {
+	var msg []string
+	for i := 0; i < len(references); i++ {
+		msg = append(msg, "shared instance "+references[i].sharedInstanceID+" referenced by instance(s) "+strings.Join(references[i].referenceIDs, ", "))
+	}
+	return strings.Join(msg, ", ")
+}
+
+type SharingReferences struct {
+	sharedInstanceID string
+	referenceIDs     []string
+}
+
+func findSharingReferenceInstancesFromOtherPlatform(ctx context.Context, platform *types.Platform, repository storage.Repository) ([]*SharingReferences, error) {
+	sharedInstances, err := repository.ListNoLabels(ctx, types.ServiceInstanceType,
+		query.ByField(query.EqualsOperator, "platform_id", platform.ID),
+		query.ByField(query.EqualsOperator, "shared", "true"),
+	)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+	}
+	var result []*SharingReferences
+	for i := 0; i < sharedInstances.Len(); i++ {
+		sharedInstance := sharedInstances.ItemAt(i).(*types.ServiceInstance)
+		references, err := repository.ListNoLabels(
+			context.Background(),
+			types.ServiceInstanceType,
+			query.ByField(query.EqualsOperator, "referenced_instance_id", sharedInstance.GetID()),
+		)
+		if err != nil {
+			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+		}
+		if references.Len() > 0 {
+			var referenceIDs []string
+			for ri := 0; ri < references.Len(); ri++ {
+				referenceIDs = append(referenceIDs, references.ItemAt(ri).GetID())
+			}
+			result = append(result, &SharingReferences{
+				sharedInstanceID: sharedInstance.GetID(),
+				referenceIDs:     referenceIDs,
+			})
+		}
+	}
+	return result, nil
 }
 
 func (*platformTerminationFilter) FilterMatchers() []web.FilterMatcher {
