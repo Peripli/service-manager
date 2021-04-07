@@ -17,6 +17,7 @@
 package httpclient
 
 import (
+	"github.com/Peripli/service-manager/test/tls_settings"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -46,6 +47,23 @@ var _ = Describe("HTTPClient settings", func() {
 			It("should return nil", func() {
 				Expect(settings.Validate()).ToNot(HaveOccurred())
 			})
+		})
+		Context("valid server certificate", func() {
+			It("should have certficate", func() {
+				settings.ServerCertificate = tls_settings.ServerCertificate
+				settings.ServerCertificateKey = tls_settings.ServerKey
+				Expect(settings.Validate()).ToNot(HaveOccurred())
+				Expect(len(settings.TLSCertificates)).To(Equal(1))
+			})
+		})
+
+		Context("certificate is malformed", func() {
+			It("should return an error", func() {
+				settings.ServerCertificate = tls_settings.MalformedServerCertificate
+				settings.ServerCertificateKey = tls_settings.MalformedServerKey
+				assertValidateError("malformed certificate")
+			})
+
 		})
 
 		Context("on invalid tls_handshake_timeout", func() {
