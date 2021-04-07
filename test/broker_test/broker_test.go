@@ -1052,35 +1052,54 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when credentials are updated", func() {
 
 					Context("when broker is behind tls", func() {
-
-						It("when credentials contain an invalid certificate", func() {
-							updatedCredentials := Object{
-								"credentials": Object{
-									"tls": Object{
-										"client_certificate": tls_settings.InvalidClientCertificate,
-										"client_key":         tls_settings.InvalidClientKey,
-									},
-								},
+						var serverCertificate = false
+						JustBeforeEach(func() {
+							settings := ctx.Config.HTTPClient
+							settings.SkipSSLValidation = true
+							if serverCertificate {
+								cert, err := tls.X509KeyPair([]byte(tls_settings.ServerCertificate), []byte(tls_settings.ServerKey))
+								Expect(err).ShouldNot(HaveOccurred())
+								settings.TLSCertificates = []tls.Certificate{cert}
 							}
-							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).Expect().
-								Status(http.StatusBadGateway).Body().Contains("could not reach service broker")
-							assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 0)
+							httpclient.SetHTTPClientGlobalSettings(settings)
+							httpclient.Configure()
 						})
 
-						It("when credentials contain valid certificate", func() {
-							updatedCredentials := Object{
-								"credentials": Object{
-									"tls": Object{
-										"client_certificate": tls_settings.ClientCertificate,
-										"client_key":         tls_settings.ClientKey,
-									},
-								},
-							}
-							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).
-								Expect().
-								Status(http.StatusOK)
-							assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 1)
-						})
+						for _, isOn := range [2]bool{false, true} {
+							Context(fmt.Sprintf("server certificate is avialable %v", isOn), func() {
+								BeforeEach(func() {
+									serverCertificate = isOn
+								})
+								It("when credentials contain an invalid certificate", func() {
+									updatedCredentials := Object{
+										"credentials": Object{
+											"tls": Object{
+												"client_certificate": tls_settings.InvalidClientCertificate,
+												"client_key":         tls_settings.InvalidClientKey,
+											},
+										},
+									}
+									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).Expect().
+										Status(http.StatusBadGateway).Body().Contains("could not reach service broker")
+									assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 0)
+								})
+
+								It("when credentials contain valid certificate", func() {
+									updatedCredentials := Object{
+										"credentials": Object{
+											"tls": Object{
+												"client_certificate": tls_settings.ClientCertificate,
+												"client_key":         tls_settings.ClientKey,
+											},
+										},
+									}
+									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).
+										Expect().
+										Status(http.StatusOK)
+									assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 1)
+								})
+							})
+						}
 					})
 
 					It("returns 200", func() {
