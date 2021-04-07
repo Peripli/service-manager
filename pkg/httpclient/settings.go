@@ -96,6 +96,7 @@ func Configure() {
 
 func ConfigureTransport(transport *http.Transport) {
 	settings := GetHttpClientGlobalSettings()
+
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation}
 	if len(settings.TLSCertificates) > 0 {
 		transport.TLSClientConfig.Certificates = settings.TLSCertificates

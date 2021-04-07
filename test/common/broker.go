@@ -23,13 +23,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/test/tls_settings"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"time"
-
-	"github.com/Peripli/service-manager/test/tls_settings"
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/gorilla/mux"
@@ -83,8 +82,8 @@ func NewBrokerServer() *BrokerServer {
 	return NewBrokerServerWithCatalog(NewRandomSBCatalog())
 }
 
-func NewBrokerServerTLS() *BrokerServer {
-	return NewBrokerServerWithTLSAndCatalog(NewRandomSBCatalog())
+func NewBrokerServerTLS(certificates ...[]byte) *BrokerServer {
+	return NewBrokerServerWithTLSAndCatalog(NewRandomSBCatalog(), certificates...)
 }
 
 func NewBrokerServerWithCatalog(catalog SBCatalog) *BrokerServer {
@@ -98,9 +97,8 @@ func NewBrokerServerWithCatalog(catalog SBCatalog) *BrokerServer {
 	return brokerServer
 }
 
-func NewBrokerServerWithTLSAndCatalog(catalog SBCatalog) *BrokerServer {
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM([]byte(tls_settings.ClientCertificate))
+func NewBrokerServerWithTLSAndCatalog(catalog SBCatalog, certificates ...[]byte) *BrokerServer {
+
 	brokerServer := &BrokerServer{}
 	brokerServer.mutex = &sync.RWMutex{}
 	brokerServer.shouldRecordRequests = true
@@ -109,6 +107,13 @@ func NewBrokerServerWithTLSAndCatalog(catalog SBCatalog) *BrokerServer {
 	brokerServer.Catalog = catalog
 	uServer := httptest.NewUnstartedServer(brokerServer.router)
 	uServer.TLS = &tls.Config{}
+	caCertPool := x509.NewCertPool()
+	for _, certificate := range certificates {
+		caCertPool.AppendCertsFromPEM(certificate)
+	}
+	if len(certificates) == 0 {
+		caCertPool.AppendCertsFromPEM([]byte(tls_settings.ClientCertificate))
+	}
 	uServer.TLS.ClientCAs = caCertPool
 	uServer.TLS.ClientAuth = tls.RequireAndVerifyClientCert
 	brokerServer.Server = uServer

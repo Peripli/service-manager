@@ -119,7 +119,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			BeforeEach(func() {
 				brokerServer = NewBrokerServer()
 				brokerWithLabelsServer = NewBrokerServer()
-				brokerServerWithTLS = NewBrokerServerTLS()
+				brokerServerWithTLS = NewBrokerServerTLS([]byte(tls_settings.ClientCertificate), []byte(tls_settings.ServerCertificate))
 				brokerServerWithTLS.Reset()
 				brokerServer.Reset()
 				brokerWithLabelsServer.Reset()
