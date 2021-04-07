@@ -36,7 +36,7 @@ func (p *referenceInstancePlugin) Name() string {
 func (p *referenceInstancePlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	servicePlanID := gjson.GetBytes(req.Body, "plan_id").Str
-	isReferencePlan, err := p.isReferencePlan(ctx, servicePlanID)
+	isReferencePlan, err := p.isReferencePlan(ctx, "catalog_id", servicePlanID)
 	if err != nil {
 		return nil, err
 	}
@@ -82,11 +82,11 @@ func (p *referenceInstancePlugin) Deprovision(req *web.Request, next web.Handler
 
 	dbInstanceObject, err := p.getObjectByOperator(ctx, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+		return next.Handle(req)
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
 
-	isReferencePlan, err := p.isReferencePlan(ctx, instance.ServicePlanID)
+	isReferencePlan, err := p.isReferencePlan(ctx, "id", instance.ServicePlanID)
 
 	if err != nil {
 		return nil, err
@@ -145,49 +145,17 @@ func (p *referenceInstancePlugin) PollInstance(req *web.Request, next web.Handle
 	return p.assertPlatformID(req, next)
 }*/
 
-/*// Bind intercepts bind requests and check if the instance is in the platform from where the request comes
+// Bind intercepts bind requests and check if the instance is in the platform from where the request comes
 func (p *referenceInstancePlugin) Bind(req *web.Request, next web.Handler) (*web.Response, error) {
-	ctx := req.Context()
-	user, _ := web.UserFromContext(ctx)
-	platform := &types.Platform{}
-	if err := user.Data(platform); err != nil {
-		return nil, err
-	}
-	instanceID := req.PathParams["instance_id"]
-	byID := query.ByField(query.EqualsOperator, "id", instanceID)
-	object, err := p.repository.Get(ctx, types.ServiceInstanceType, byID)
-	if err != nil {
-		if err == util.ErrNotFoundInStorage {
-			return next.Handle(req)
-		}
-		return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
-	}
-
-	instance := object.(*types.ServiceInstance)
-
-	if instance.ReferencedInstanceID != "" {
-		byID = query.ByField(query.EqualsOperator, "id", instance.ReferencedInstanceID)
-		object, err = p.repository.Get(ctx, types.ServiceInstanceType, byID)
-		if err != nil {
-			if err == util.ErrNotFoundInStorage {
-				return next.Handle(req)
-			}
-			return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
-		}
-
-		instance = object.(*types.ServiceInstance)
-		req.Request = req.WithContext(types.ContextWithInstance(req.Context(), instance))
-
-		return p.assertPlatformID(req, next)
-	}
-	return next.Handle(req)
-}*/
-
-/*// Unbind intercepts unbind requests and check if the instance is in the platform from where the request comes
-func (p *referenceInstancePlugin) Unbind(req *web.Request, next web.Handler) (*web.Response, error) {
-	return p.assertPlatformID(req, next)
+	return p.handleBinding(req, next)
 }
 
+// Unbind intercepts unbind requests and check if the instance is in the platform from where the request comes
+func (p *referenceInstancePlugin) Unbind(req *web.Request, next web.Handler) (*web.Response, error) {
+	return p.handleBinding(req, next)
+}
+
+/*
 // PollBinding intercepts poll binding operation requests and check if the instance is in the platform from where the request comes
 func (p *referenceInstancePlugin) PollBinding(req *web.Request, next web.Handler) (*web.Response, error) {
 	return p.assertPlatformID(req, next)
@@ -259,8 +227,8 @@ func (p *referenceInstancePlugin) validateOwnership(req *web.Request) error {
 	return nil
 }
 
-func (p *referenceInstancePlugin) isReferencePlan(ctx context.Context, servicePlanID string) (bool, error) {
-	dbPlanObject, err := p.getObjectByOperator(ctx, types.ServicePlanType, "catalog_id", servicePlanID)
+func (p *referenceInstancePlugin) isReferencePlan(ctx context.Context, op, servicePlanID string) (bool, error) {
+	dbPlanObject, err := p.getObjectByOperator(ctx, types.ServicePlanType, op, servicePlanID)
 	if err != nil {
 		return false, err
 	}
@@ -304,4 +272,34 @@ func (p *referenceInstancePlugin) isValidPatchRequest(req *web.Request, instance
 	}
 
 	return true, nil
+}
+
+func (p *referenceInstancePlugin) handleBinding(req *web.Request, next web.Handler) (*web.Response, error) {
+	ctx := req.Context()
+	instanceID := req.PathParams["instance_id"]
+	byID := query.ByField(query.EqualsOperator, "id", instanceID)
+	object, err := p.repository.Get(ctx, types.ServiceInstanceType, byID)
+	if err != nil {
+		if err == util.ErrNotFoundInStorage {
+			return next.Handle(req)
+		}
+		return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
+	}
+
+	instance := object.(*types.ServiceInstance)
+
+	if instance.ReferencedInstanceID != "" {
+		byID = query.ByField(query.EqualsOperator, "id", instance.ReferencedInstanceID)
+		object, err = p.repository.Get(ctx, types.ServiceInstanceType, byID)
+		if err != nil {
+			if err == util.ErrNotFoundInStorage {
+				return next.Handle(req)
+			}
+			return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
+		}
+
+		instance = object.(*types.ServiceInstance)
+		req.Request = req.WithContext(types.ContextWithInstance(req.Context(), instance))
+	}
+	return next.Handle(req)
 }
