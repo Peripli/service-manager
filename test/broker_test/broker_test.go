@@ -585,6 +585,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 					})
 
+
 				})
 
 				Context("when the broker catalog is incomplete", func() {
