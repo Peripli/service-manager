@@ -66,7 +66,7 @@ func (p *referenceInstancePlugin) Provision(req *web.Request, next web.Handler) 
 	}
 	// epsilontal todo: should we handle 201 status for async requests?
 	return &web.Response{
-		Body:       nil,
+		Body:       []byte(`{}`),
 		StatusCode: http.StatusCreated,
 		Header:     http.Header{},
 	}, nil

@@ -69,11 +69,6 @@ var _ = Describe("Instance Sharing", func() {
 		})
 
 		When("Provision", func() {
-
-			AfterEach(func() {
-				//deleteInstance(referenceInstanceID).Expect().Status(http.StatusOK)
-				//deleteInstance(sharedInstanceID).Expect().Status(http.StatusOK)
-			})
 			Context("in CF platform", func() {
 				BeforeEach(func() {
 					platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
