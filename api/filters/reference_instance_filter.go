@@ -206,7 +206,7 @@ func (f *referenceInstanceFilter) validateOwnership(req *web.Request) error {
 		return util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 	instance := dbReferencedObject.(*types.ServiceInstance)
-	referencedOwnerTenantID := instance.Labels["tenant"][0]
+	referencedOwnerTenantID := instance.Labels[f.tenantIdentifier][0]
 
 	if referencedOwnerTenantID != callerTenantID {
 		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", referencedOwnerTenantID, callerTenantID)
