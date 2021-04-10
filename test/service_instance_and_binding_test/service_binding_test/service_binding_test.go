@@ -444,11 +444,35 @@ var _ = DescribeTestsFor(TestCase{
 									DeletionScheduled: false,
 								})
 
-								VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+								objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 									ID:    bindingID,
 									Type:  types.ServiceBindingType,
 									Ready: true,
 								})
+
+								By("verify binding points to the reference instnace id")
+								objAfterOp.Value("service_instance_id").Equal(referenceInstanceID)
+
+							})
+							It("returns 201", func() {
+								// create binding for the reference instance
+								resp := CreateBindingByInstanceID(ctx.SMWithOAuthForTenant, "false", http.StatusCreated, referenceInstanceID)
+								bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									Category:          types.CREATE,
+									State:             types.SUCCEEDED,
+									ResourceType:      types.ServiceBindingType,
+									Reschedulable:     false,
+									DeletionScheduled: false,
+								})
+
+								objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									ID:    bindingID,
+									Type:  types.ServiceBindingType,
+									Ready: true,
+								})
+
+								By("verify binding points to the reference instnace id")
+								objAfterOp.Value("service_instance_id").Equal(referenceInstanceID)
 							})
 						})
 
