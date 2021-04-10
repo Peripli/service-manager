@@ -25,6 +25,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -101,6 +102,10 @@ func (f *referenceInstanceFilter) handleProvision(req *web.Request, next web.Han
 	// epsilontal todo: should we validate that the input is string? can be any object for example...
 	if !exists {
 		return nil, errors.New("missing referenced_instance_id")
+	}
+	req.Body, err = sjson.SetBytes(req.Body, referencedKey, referencedInstanceID.Str)
+	if err != nil {
+		return nil, err
 	}
 	_, err = f.isReferencedShared(ctx, referencedInstanceID.Str)
 	if err != nil {

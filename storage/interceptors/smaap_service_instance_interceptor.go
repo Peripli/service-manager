@@ -135,11 +135,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 
 		if instance.ReferencedInstanceID != "" {
 			object, err := f(ctx, obj)
-			if err != nil {
-				return nil, err
-			}
-			instance = object.(*types.ServiceInstance)
-			return instance, nil
+			return object, err
 		}
 
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
