@@ -41,6 +41,7 @@ const (
 type Settings struct {
 	Host               string        `mapstructure:"host" description:"host of the server"`
 	Port               int           `mapstructure:"port" description:"port of the server"`
+	ProvisionTimeout   time.Duration `mapstructure:"provision_timeout" description:"timeout duration for provision requests"`
 	RequestTimeout     time.Duration `mapstructure:"request_timeout" description:"read and write timeout duration for requests"`
 	LongRequestTimeout time.Duration `mapstructure:"long_request_timeout" description:"read and write timeout duration for patch service-broker requests"`
 	ShutdownTimeout    time.Duration `mapstructure:"shutdown_timeout" description:"time to wait for the server to shutdown"`
@@ -51,11 +52,12 @@ type Settings struct {
 // DefaultSettings returns the default values for configuring the Service Manager
 func DefaultSettings() *Settings {
 	return &Settings{
-		Port:            8080,
-		RequestTimeout:  time.Second * 3,
-		ShutdownTimeout: time.Second * 3,
-		MaxBodyBytes:    mb,
-		MaxHeaderBytes:  kb,
+		Port:             8080,
+		ProvisionTimeout: time.Second * 60,
+		RequestTimeout:   time.Second * 3,
+		ShutdownTimeout:  time.Second * 3,
+		MaxBodyBytes:     mb,
+		MaxHeaderBytes:   kb,
 	}
 }
 

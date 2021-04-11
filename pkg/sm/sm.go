@@ -153,6 +153,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 	types.SetSMSupportedPlatformTypes(cfg.Operations.SMSupportedPlatformType)
 
+	API.RegisterFiltersBefore(filters.LoggingFilterName, filters.NewContextTimeoutFilter(cfg.Server.ProvisionTimeout))
 	securityBuilder, securityFilters := NewSecurityBuilder()
 	API.RegisterFiltersAfter(filters.LoggingFilterName, securityFilters...)
 	API.RegisterFilters(&filters.RegeneratePlatformCredentialsFilter{}, &filters.TechnicalPlatformFilter{Storage: interceptableRepository})
