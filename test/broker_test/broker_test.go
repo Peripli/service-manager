@@ -53,6 +53,7 @@ import (
 
 func TestBrokers(t *testing.T) {
 	RegisterFailHandler(Fail)
+
 	RunSpecs(t, "ServiceBroker API Tests Suite")
 }
 
@@ -60,6 +61,7 @@ const TenantLabelKey = "tenant"
 
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.ServiceBrokersURL,
+
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
 	},
