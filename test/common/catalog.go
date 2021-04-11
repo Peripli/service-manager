@@ -39,9 +39,6 @@ var testFreePlan = `
 	  "free": true,
 	  "bindable": true,
       "metadata": {
-		"supportInstanceSharing": {
-			"shareable": true
-		},
         "max_storage_tb": 5,
         "costs":[
             {
@@ -106,9 +103,6 @@ var testPaidPlan = `
       "free": false,
       "bindable": true,
       "metadata": {
-		"supportInstanceSharing": {
-			"shareable": true
-		},
         "max_storage_tb": 5,
         "costs":[
             {
@@ -209,7 +203,6 @@ func NewRandomSBCatalog() SBCatalog {
 	plan3 := GenerateFreeTestPlan()
 	plan4 := GenerateFreeTestPlan()
 	plan5 := GenerateFreeTestPlan()
-	plan6 := GeneratePaidShareableTestPlan()
 	var err error
 	plan4, err = sjson.Set(plan4, "bindable", false)
 	if err != nil {
@@ -217,7 +210,7 @@ func NewRandomSBCatalog() SBCatalog {
 	}
 
 	service1 := GenerateTestServiceWithPlans(plan1, plan2, plan3, plan4)
-	service2 := GenerateTestServiceWithPlans(plan5, plan6)
+	service2 := GenerateTestServiceWithPlans(plan5)
 	service2, err = sjson.Set(service2, "bindings_retrievable", false)
 	if err != nil {
 		panic(err)
