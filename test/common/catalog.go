@@ -61,6 +61,39 @@ var testFreePlan = `
     }
 `
 
+var testShareableFreePlan = `
+	{
+      "name": "another-free-plan-name-%[1]s",
+      "id": "%[1]s",
+      "description": "test-description",
+	  "free": true,
+	  "bindable": true,
+      "metadata": {
+		"supportInstanceSharing": {
+			"shareable": true
+		},
+        "max_storage_tb": 5,
+        "costs":[
+            {
+               "amount":{
+                  "usd":199.0
+               },
+               "unit":"MONTHLY"
+            },
+            {
+               "amount":{
+                  "usd":0.99
+               },
+               "unit":"1GB of messages over 20GB"
+            }
+         ],
+        "bullets": [
+          "40 concurrent connections"
+        ]
+      }
+    }
+`
+
 var testShareablePaidPlan = `
 	{
       "name": "shareable-plan-name-%[1]s",
@@ -264,6 +297,9 @@ func GenerateTestServiceWithPlans(plans ...string) string {
 func GenerateTestPlanWithID(planID string) string {
 	return GenerateTestPlanFromTemplate(planID, testPaidPlan)
 }
+func GenerateShareableTestPlanWithID(planID string) string {
+	return GenerateTestPlanFromTemplate(planID, testShareablePaidPlan)
+}
 
 func GenerateTestPlan() string {
 	UUID, err := uuid.NewV4()
@@ -281,7 +317,14 @@ func GenerateFreeTestPlan() string {
 	}
 	return GenerateTestPlanFromTemplate(UUID.String(), testFreePlan)
 }
-func GeneratePaidShareableTestPlan() string {
+func GenerateShareableFreeTestPlan() string {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	return GenerateTestPlanFromTemplate(UUID.String(), testShareableFreePlan)
+}
+func GenerateShareablePaidTestPlan() string {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)

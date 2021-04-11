@@ -232,11 +232,17 @@ var _ = DescribeTestsFor(TestCase{
 				}
 			}
 
-			preparePrerequisitesWithMaxPollingDuration := func(maxPollingDuration int) {
+			preparePrerequisitesWithMaxPollingDuration := func(maxPollingDuration int, supportInstanceSharing bool) {
 				ID, err := uuid.NewV4()
 				Expect(err).ToNot(HaveOccurred())
 				var plans *httpexpect.Array
-				brokerUtils, serviceOffering, plans := prepareBrokerWithCatalogAndPollingDuration(ctx, ctx.SMWithOAuth, maxPollingDuration)
+				var brokerUtils *BrokerUtils
+				var serviceOffering *httpexpect.Value
+				if supportInstanceSharing == true {
+					brokerUtils, serviceOffering, plans = prepareBrokerWithShareableCatalogAndPollingDuration(ctx, ctx.SMWithOAuth, maxPollingDuration)
+				} else {
+					brokerUtils, serviceOffering, plans = prepareBrokerWithCatalogAndPollingDuration(ctx, ctx.SMWithOAuth, maxPollingDuration)
+				}
 				brokerID = brokerUtils.Broker.ID
 				brokerUtils.BrokerWithTLS = ctx.RegisterBrokerWithRandomCatalogAndTLS(ctx.SMWithOAuth).BrokerWithTLS
 				brokerServer = brokerUtils.Broker.BrokerServer
@@ -265,7 +271,7 @@ var _ = DescribeTestsFor(TestCase{
 			}
 
 			preparePrerequisites := func() {
-				preparePrerequisitesWithMaxPollingDuration(0)
+				preparePrerequisitesWithMaxPollingDuration(0, false)
 			}
 
 			BeforeEach(func() {
@@ -525,6 +531,9 @@ var _ = DescribeTestsFor(TestCase{
 				})
 
 				Context("Instance Sharing", func() {
+					BeforeEach(func() {
+						preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration, true)
+					})
 					When("Create a reference service instance", func() {
 						var sharedInstanceID = ""
 						var referenceInstanceID = ""
@@ -1042,7 +1051,7 @@ var _ = DescribeTestsFor(TestCase{
 									var newCtx *TestContext
 
 									BeforeEach(func() {
-										preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration)
+										preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration, false)
 										EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 
 										newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
@@ -1755,7 +1764,11 @@ var _ = DescribeTestsFor(TestCase{
 			})
 
 			Describe("PATCH", func() {
-				Context("Reference Instance", func() {
+				Context("Instance Sharing - Reference Instance", func() {
+					BeforeEach(func() {
+						preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration, true)
+					})
+
 					When("Updating a reference service instance", func() {
 						var sharedInstanceID = ""
 						var referenceInstanceID = ""
@@ -2957,7 +2970,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									When("maximum polling duration is reached while polling", func() {
 										JustBeforeEach(func() {
-											preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration)
+											preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration, false)
 
 											EnsurePlanVisibility(testCtx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
 											resp := createInstance(testCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
@@ -3209,7 +3222,10 @@ var _ = DescribeTestsFor(TestCase{
 
 			Describe("DELETE", func() {
 
-				Context("Reference Instance", func() {
+				Context("Instance Sharing - Reference Instance", func() {
+					BeforeEach(func() {
+						preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration, true)
+					})
 					When("Deleting a reference service instance", func() {
 						var sharedInstanceID = ""
 						var referenceInstanceID = ""
@@ -3592,7 +3608,7 @@ var _ = DescribeTestsFor(TestCase{
 									var newCtx *TestContext
 
 									BeforeEach(func() {
-										preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration)
+										preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration, false)
 
 										EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
@@ -4480,6 +4496,50 @@ func prepareBrokerWithCatalogAndPollingDuration(ctx *TestContext, auth *SMExpect
 		panic(err)
 	}
 	cPaidPlan4 := GenerateTestPlanWithID(plan1CatalogID)
+	cService3 := GenerateTestServiceWithPlansWithID(notRetrievableService, cPaidPlan4)
+	cService3, err = sjson.Set(cService3, "instances_retrievable", false)
+	if err != nil {
+		panic(err)
+	}
+	catalog := NewEmptySBCatalog()
+	catalog.AddService(cService)
+	catalog.AddService(cService2)
+	catalog.AddService(cService3)
+	brokerUtils := ctx.RegisterBrokerWithCatalog(catalog)
+	brokerID := brokerUtils.Broker.ID
+	server := brokerUtils.Broker.BrokerServer
+
+	ctx.Servers[BrokerServerPrefix+brokerID] = server
+	so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
+
+	return brokerUtils, so, auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw()))
+}
+
+func prepareBrokerWithShareableCatalogAndPollingDuration(ctx *TestContext, auth *SMExpect, maxPollingDuration int) (*BrokerUtils, *httpexpect.Value, *httpexpect.Array) {
+	cPaidPlan1 := GenerateShareableTestPlanWithID(plan1CatalogID)
+	cPaidPlan1, err := sjson.Set(cPaidPlan1, "maximum_polling_duration", maxPollingDuration)
+	if err != nil {
+		panic(err)
+	}
+	cPaidPlan2 := GenerateShareablePaidTestPlan()
+	cPaidPlan2, err = sjson.Set(cPaidPlan2, "maximum_polling_duration", maxPollingDuration)
+	if err != nil {
+		panic(err)
+	}
+	planNotSupportingSM := GenerateShareableTestPlanWithID(planNotSupportingSMPlatform)
+	planNotSupportingSM, err = sjson.Set(planNotSupportingSM, "metadata.supportedPlatforms.-1", "kubernetes")
+	if err != nil {
+		panic(err)
+	}
+
+	cService := GenerateTestServiceWithPlansWithID(service1CatalogID, cPaidPlan1, cPaidPlan2, planNotSupportingSM)
+	cPaidPlan3 := GenerateShareableTestPlanWithID(plan1CatalogID)
+	cService2 := GenerateTestServiceWithPlansWithID(serviceNotSupportingContextUpdates, cPaidPlan3)
+	cService2, err = sjson.Set(cService2, "allow_context_updates", false)
+	if err != nil {
+		panic(err)
+	}
+	cPaidPlan4 := GenerateShareableTestPlanWithID(plan1CatalogID)
 	cService3 := GenerateTestServiceWithPlansWithID(notRetrievableService, cPaidPlan4)
 	cService3, err = sjson.Set(cService3, "instances_retrievable", false)
 	if err != nil {

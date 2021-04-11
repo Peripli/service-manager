@@ -202,8 +202,12 @@ var _ = DescribeTestsFor(TestCase{
 					Status(expectedStatusCode)
 			}
 
-			preparePrerequisitesWithMaxPollingDuration := func(maxPollingDuration int) {
-				brokerID, brokerServer, servicePlanID, servicePlanCatalogID, serviceCatalogID = newServicePlanWithMaxPollingDuration(ctx, true, maxPollingDuration)
+			preparePrerequisitesWithMaxPollingDuration := func(maxPollingDuration int, supportInstanceSharing bool) {
+				if supportInstanceSharing == true {
+					brokerID, brokerServer, servicePlanID, servicePlanCatalogID, serviceCatalogID = newShareableServicePlanWithMaxPollingDuration(ctx, true, maxPollingDuration)
+				} else {
+					brokerID, brokerServer, servicePlanID, servicePlanCatalogID, serviceCatalogID = newServicePlanWithMaxPollingDuration(ctx, true, maxPollingDuration)
+				}
 				brokerServer.ShouldRecordRequests(false)
 				EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 				resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
@@ -224,7 +228,7 @@ var _ = DescribeTestsFor(TestCase{
 			}
 
 			preparePrerequisites := func() {
-				preparePrerequisitesWithMaxPollingDuration(0)
+				preparePrerequisitesWithMaxPollingDuration(0, false)
 			}
 
 			BeforeEach(func() {
@@ -401,9 +405,12 @@ var _ = DescribeTestsFor(TestCase{
 							})
 						})
 
-						Context("when binding a reference instance", func() {
+						Context("Instance Sharing - when binding a reference instance", func() {
 							var referenceInstanceID = ""
 							var sharedInstanceID = ""
+							BeforeEach(func() {
+								preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration, true)
+							})
 							JustBeforeEach(func() {
 								// Setup broker
 								brokerServer.BindingHandlerFunc(http.MethodPost, http.MethodPost+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
@@ -982,7 +989,7 @@ var _ = DescribeTestsFor(TestCase{
 								When("maximum polling duration is reached while polling", func() {
 									var newCtx *TestContext
 									BeforeEach(func() {
-										preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration)
+										preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration, false)
 
 										newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
 											Expect(set.Set("operations.action_timeout", ((MaximumPollingDuration + 1) * time.Second).String())).ToNot(HaveOccurred())
@@ -2010,7 +2017,7 @@ var _ = DescribeTestsFor(TestCase{
 								When("maximum polling duration is reached while polling", func() {
 									var newCtx *TestContext
 									BeforeEach(func() {
-										preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration)
+										preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration, false)
 
 										resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
 										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -2716,6 +2723,37 @@ func newServicePlanWithMaxPollingDuration(ctx *TestContext, bindable bool, maxPo
 	cService := GenerateTestServiceWithPlans(cPaidPlan1, cPaidPlan2)
 
 	freePlan := GenerateFreeTestPlan()
+	service2 := GenerateTestServiceWithPlans(freePlan)
+	service2, err = sjson.Set(service2, "bindings_retrievable", false)
+	if err != nil {
+		panic(err)
+	}
+
+	catalog := NewEmptySBCatalog()
+	catalog.AddService(cService)
+	catalog.AddService(service2)
+
+	brokerID, _, server := ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
+	ctx.Servers[BrokerServerPrefix+brokerID] = server
+
+	servicePlanID, servicePlanCatalogID, serviceCatalogID := findPlanDetailsForBrokerID(ctx, brokerID, bindable)
+	return brokerID, server, servicePlanID, servicePlanCatalogID, serviceCatalogID
+}
+
+func newShareableServicePlanWithMaxPollingDuration(ctx *TestContext, bindable bool, maxPollingDuration int) (string, *BrokerServer, string, string, string) {
+	cPaidPlan1 := GenerateShareablePaidTestPlan()
+	cPaidPlan1, err := sjson.Set(cPaidPlan1, "maximum_polling_duration", maxPollingDuration)
+	if err != nil {
+		panic(err)
+	}
+	cPaidPlan2 := GenerateShareablePaidTestPlan()
+	cPaidPlan2, err = sjson.Set(cPaidPlan2, "bindable", false)
+	if err != nil {
+		panic(err)
+	}
+	cService := GenerateTestServiceWithPlans(cPaidPlan1, cPaidPlan2)
+
+	freePlan := GenerateShareableFreeTestPlan()
 	service2 := GenerateTestServiceWithPlans(freePlan)
 	service2, err = sjson.Set(service2, "bindings_retrievable", false)
 	if err != nil {

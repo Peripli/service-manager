@@ -589,7 +589,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									req.WithBasicAuth(targetPlatformUser, targetPlatformPassword).WithClient(ctx.HttpClient)
 								})}
 
-								plan := common.GeneratePaidShareableTestPlan()
+								plan := common.GenerateShareablePaidTestPlan()
 								sharedInstancePlanCatalogID := gjson.Get(plan, "id").String()
 								service := common.GenerateTestServiceWithPlansWithID("1", plan)
 								serviceID := gjson.Get(service, "id").String()
