@@ -67,7 +67,7 @@ type BrokerServer struct {
 }
 
 func (b *BrokerServer) URL() string {
-	return b.Server.URL
+	return  b.Server.URL
 }
 
 func JSONToMap(j string) map[string]interface{} {
@@ -116,6 +116,7 @@ func NewBrokerServerWithTLSAndCatalog(catalog SBCatalog, certificates ...[]byte)
 	}
 	uServer.TLS.ClientCAs = caCertPool
 	uServer.TLS.ClientAuth = tls.RequireAndVerifyClientCert
+
 	brokerServer.Server = uServer
 	brokerServer.StartTLS()
 	return brokerServer
