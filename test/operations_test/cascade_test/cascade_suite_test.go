@@ -38,6 +38,8 @@ var (
 	tenantOperationsCount = 14 //the number of operations that will be created after tenant creation in JustBeforeEach
 	tenantID              = "tenant_value"
 	osbInstanceID         = "test-instance"
+	sharedInstanceID      = "test-shared-instance"
+	referenceInstanceID   = ""
 	osbBindingID          = "test-binding"
 	smaapInstanceID1      = ""
 	smaapInstanceID2      = ""
@@ -210,6 +212,30 @@ func initTenantResources(createInstances bool, createSharedInstances bool) {
 			"plan_id":           "plan-service",
 			"organization_guid": "my-org",
 		})
+
+		if createSharedInstances {
+			createOSBInstance(ctx, ctx.SMWithBasic, tenantBrokerID, sharedInstanceID, map[string]interface{}{
+				"service_id":        "test-service",
+				"plan_id":           "plan-service",
+				"organization_guid": "my-org",
+				"context": map[string]string{
+					"tenant": tenantID,
+				},
+			})
+			err := ShareInstanceOnDB(ctx.SMRepository, context.Background(), sharedInstanceID)
+			Expect(err).NotTo(HaveOccurred())
+			referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", "plan-service")
+			resp := CreateReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID, referencePlan.ID, multitenancyLabel, tenantID)
+			referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+				Category:          types.CREATE,
+				State:             types.SUCCEEDED,
+				ResourceType:      types.ServiceInstanceType,
+				Reschedulable:     false,
+				DeletionScheduled: false,
+			})
+			Expect(referenceInstanceID).NotTo(BeEmpty())
+		}
+
 	} else {
 		ctx.SMWithBasic.SetBasicCredentials(ctx, tenantPlatformUser, tenantPlatformSecret)
 	}
@@ -339,13 +365,23 @@ func SimpleCatalog(serviceID, planID string, planID2 string) SBCatalog {
         "bindable": true,
         "name": "fake-plan-0",
         "id": "%s",
-        "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections."
+        "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections.",
+		"metadata": {
+			"supportInstanceSharing": {
+				"shareable": true
+			}
+		}
       },
       {
         "bindable": true,
         "name": "fake-plan-1",
         "id": "%s",
-        "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections."
+        "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections.",
+		"metadata": {
+			"supportInstanceSharing": {
+				"shareable": true
+			}
+		}
       }]
     }]
   }`, serviceID, planID2, planID))

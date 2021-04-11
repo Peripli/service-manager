@@ -30,7 +30,7 @@ var _ = Describe("cascade operations", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(children[types.PlatformType].Len()).To(BeIdenticalTo(1))
 			Expect(children[types.ServiceBrokerType].Len()).To(BeIdenticalTo(1))
-			Expect(children[types.ServiceInstanceType].Len()).To(BeIdenticalTo(6))
+			Expect(children[types.ServiceInstanceType].Len()).To(BeIdenticalTo(8))
 			Expect(children[types.PlatformType].ItemAt(0).GetID()).To(BeIdenticalTo(platformID))
 			Expect(children[types.ServiceBrokerType].ItemAt(0).GetID()).To(BeIdenticalTo(tenantBrokerID))
 			var instanceIDs []string
@@ -44,6 +44,8 @@ var _ = Describe("cascade operations", func() {
 				osbInstanceID,
 				smaapInstanceID1,
 				smaapInstanceID2,
+				sharedInstanceID,
+				referenceInstanceID,
 			}))
 		})
 		It("find platform cascade children", func() {
@@ -60,7 +62,7 @@ var _ = Describe("cascade operations", func() {
 				ctx.SMRepository,
 			)
 			Expect(err).ShouldNot(HaveOccurred())
-			Expect(children[types.ServiceInstanceType].Len()).To(BeIdenticalTo(2))
+			Expect(children[types.ServiceInstanceType].Len()).To(BeIdenticalTo(3))
 			var instanceIDs []string
 			for i := 0; i < children[types.ServiceInstanceType].Len(); i++ {
 				instanceIDs = append(instanceIDs, children[types.ServiceInstanceType].ItemAt(i).GetID())
@@ -68,6 +70,7 @@ var _ = Describe("cascade operations", func() {
 			Expect(instanceIDs).To(ConsistOf([]string{
 				tenantPlatformGlobalBrokerInstanceID,
 				osbInstanceID,
+				sharedInstanceID,
 			}))
 		})
 		It("find service broker cascade children", func() {
@@ -86,7 +89,7 @@ var _ = Describe("cascade operations", func() {
 				ctx.SMRepository,
 			)
 			Expect(err).ShouldNot(HaveOccurred())
-			Expect(children[types.ServiceInstanceType].Len()).To(BeIdenticalTo(3))
+			Expect(children[types.ServiceInstanceType].Len()).To(BeIdenticalTo(5))
 			var instanceIDs []string
 			for i := 0; i < children[types.ServiceInstanceType].Len(); i++ {
 				instanceIDs = append(instanceIDs, children[types.ServiceInstanceType].ItemAt(i).GetID())
@@ -95,9 +98,10 @@ var _ = Describe("cascade operations", func() {
 				globalPlatformTenantBrokerInstanceID,
 				smaapInstanceID1,
 				osbInstanceID,
+				sharedInstanceID,
+				referenceInstanceID,
 			}))
 		})
-
 		It("find service instance without bindings cascade children", func() {
 			instanceObj, err := ctx.SMRepository.Get(context.Background(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "id", smaapInstanceID2))
 			Expect(err).NotTo(HaveOccurred())
@@ -138,6 +142,30 @@ var _ = Describe("cascade operations", func() {
 			Expect(bindingIDs).To(ConsistOf([]string{
 				osbBindingID1,
 				osbBindingID2,
+			}))
+		})
+		It("find service instance with shared references cascade children", func() {
+			instanceObj, err := ctx.SMRepository.Get(context.Background(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "id", sharedInstanceID))
+			Expect(err).NotTo(HaveOccurred())
+			instanceResource := instanceObj.(*types.ServiceInstance)
+			Expect(err).ToNot(HaveOccurred())
+			instanceCascade := &cascade.ServiceInstanceCascade{
+				ServiceInstance: instanceResource,
+			}
+			children, err := operations.ListCascadeChildren(
+				context.Background(),
+				instanceCascade.GetChildrenCriterion(),
+				ctx.SMRepository,
+			)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(children[types.ServiceBindingType].Len()).To(BeIdenticalTo(0))
+			Expect(children[types.ServiceInstanceType].Len()).To(BeIdenticalTo(1))
+			var instanceIDs []string
+			for i := 0; i < children[types.ServiceInstanceType].Len(); i++ {
+				instanceIDs = append(instanceIDs, children[types.ServiceInstanceType].ItemAt(i).GetID())
+			}
+			Expect(instanceIDs).To(ConsistOf([]string{
+				referenceInstanceID,
 			}))
 		})
 	})

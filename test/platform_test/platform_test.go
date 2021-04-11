@@ -579,17 +579,15 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 						When("shared instances exists", func() {
 							var targetPlatform *types.Platform
-							var otherPlatform *types.Platform
 							var shareableInstanceID string
 							var sharedInstancePlan *types.ServicePlan
 							BeforeEach(func() {
 								targetPlatform = common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuthForTenant, nil)
 								targetPlatformUser := targetPlatform.Credentials.Basic.Username
 								targetPlatformPassword := targetPlatform.Credentials.Basic.Password
-								tenantExpect := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+								targetPlatformExpect := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
 									req.WithBasicAuth(targetPlatformUser, targetPlatformPassword).WithClient(ctx.HttpClient)
 								})}
-								otherPlatform = common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuthForTenant, nil)
 
 								plan := common.GeneratePaidShareableTestPlan()
 								sharedInstancePlanCatalogID := gjson.Get(plan, "id").String()
@@ -610,7 +608,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect(err).ToNot(HaveOccurred())
 								shareableInstanceID = shareableInstanceUUID.String()
 
-								tenantExpect.PUT(web.BrokerPlatformCredentialsURL).WithJSON(common.Object{
+								targetPlatformExpect.PUT(web.BrokerPlatformCredentialsURL).WithJSON(common.Object{
 									"broker_id":     brokerID,
 									"username":      "admin",
 									"password_hash": hashPassword("admin"),
@@ -626,7 +624,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 										"plan_id":    sharedInstancePlanCatalogID,
 									}).Expect().Status(http.StatusCreated)
 
-								common.ShareInstanceOnDB(ctx.SMRepository, context.Background(), shareableInstanceID)
+								err = common.ShareInstanceOnDB(ctx.SMRepository, context.Background(), shareableInstanceID)
+								Expect(err).NotTo(HaveOccurred())
 							})
 
 							Context("no references exists", func() {
@@ -639,6 +638,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							})
 							Context("references exists in the other platform", func() {
 								BeforeEach(func() {
+									otherPlatform := common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuthForTenant, nil)
 									referencePlan := common.GetReferencePlanOfExistingPlan(ctx, "id", sharedInstancePlan.GetID())
 									test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, otherPlatform.GetID(), referencePlan.ID, TenantIDValue)
 									resp := common.CreateReferenceInstance(ctx, false, http.StatusCreated, shareableInstanceID, referencePlan.ID, TenantIdentifier, TenantIDValue)
@@ -651,7 +651,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									})
 									Expect(referenceInstanceID).NotTo(BeEmpty())
 								})
-								It("should return conflict error", func() {
+								It("should return reject", func() {
 									ctx.SMWithOAuthForTenant.DELETE(web.PlatformsURL+"/"+targetPlatform.GetID()).
 										WithQuery("cascade", "true").
 										Expect().

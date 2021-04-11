@@ -107,6 +107,7 @@ func findSharingReferenceInstancesFromOtherPlatform(ctx context.Context, platfor
 			context.Background(),
 			types.ServiceInstanceType,
 			query.ByField(query.EqualsOperator, "referenced_instance_id", sharedInstance.GetID()),
+			query.ByField(query.NotEqualsOperator, "platform_id", platform.GetID()),
 		)
 		if err != nil {
 			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
