@@ -8,7 +8,10 @@ func GenerateReferencePlanForShareableOfferings(catalogServices []*types.Service
 			if servicePlan.IsShareablePlan() {
 				referencePlan := generateReferencePlanObject(servicePlan.ServiceOfferingID)
 				service.Plans = append(service.Plans, referencePlan)
-				catalogPlansMap[service.CatalogID] = append(catalogPlansMap[service.CatalogID], referencePlan)
+				// When not on "update catalog" flow:
+				if catalogPlansMap != nil {
+					catalogPlansMap[service.CatalogID] = append(catalogPlansMap[service.CatalogID], referencePlan)
+				}
 				break
 			}
 		}

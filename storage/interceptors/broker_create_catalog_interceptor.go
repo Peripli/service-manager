@@ -67,7 +67,7 @@ func (c *brokerCreateCatalogInterceptor) OnTxCreate(f storage.InterceptCreateOnT
 		}
 		broker := obj.(*types.ServiceBroker)
 
-		generateReferencePlanForShareableOfferings(broker)
+		GenerateReferencePlanForShareableOfferings(broker.Services, nil)
 
 		for _, service := range broker.Services {
 			if _, err := storage.Create(ctx, service); err != nil {
@@ -81,17 +81,6 @@ func (c *brokerCreateCatalogInterceptor) OnTxCreate(f storage.InterceptCreateOnT
 		}
 
 		return createdObj, nil
-	}
-}
-
-func generateReferencePlanForShareableOfferings(broker *types.ServiceBroker) {
-	for _, service := range broker.Services {
-		for _, servicePlan := range service.Plans {
-			if servicePlan.IsShareablePlan() {
-				service.Plans = append(service.Plans, generateReferencePlanObject(servicePlan.ServiceOfferingID))
-				break
-			}
-		}
 	}
 }
 
