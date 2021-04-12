@@ -367,9 +367,7 @@ func SimpleCatalog(serviceID, planID string, planID2 string) SBCatalog {
         "id": "%s",
         "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections.",
 		"metadata": {
-			"supportInstanceSharing": {
-				"shareable": true
-			}
+			"supportInstanceSharing": true
 		}
       },
       {
@@ -378,9 +376,7 @@ func SimpleCatalog(serviceID, planID string, planID2 string) SBCatalog {
         "id": "%s",
         "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections.",
 		"metadata": {
-			"supportInstanceSharing": {
-				"shareable": true
-			}
+			"supportInstanceSharing": true
 		}
       }]
     }]

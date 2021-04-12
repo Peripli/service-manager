@@ -90,10 +90,9 @@ func CreateReferenceInstance(ctx *TestContext, async bool, expectedStatusCode in
 		"context": Object{
 			tenantIdentifier: tenantIDValue,
 		},
-		//"referenced_instance_id": referencedInstanceID,
-	}
-	requestBody["parameters"] = map[string]string{
-		"referenced_instance_id": referencedInstanceID,
+		"parameters": map[string]string{
+			"referenced_instance_id": referencedInstanceID,
+		},
 	}
 	resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 		WithQuery("async", async).

@@ -133,6 +133,8 @@ var _ = Describe("Instance Sharing", func() {
 			AfterEach(func() {
 			})
 			Context("in CF platform", func() {
+				var cfSharedInstanceID string
+				var k8sReferenceInstanceID string
 				BeforeEach(func() {
 					platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 				})
@@ -146,6 +148,37 @@ var _ = Describe("Instance Sharing", func() {
 						JSON().
 						Object().ContainsKey("service_instance_id").
 						ValueEqual("service_instance_id", referenceInstanceID)
+				})
+				It("binds reference instance successfully from different platform", func() {
+					cfSharedInstanceID = createAndShareInstance()
+
+					k8SPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+					k8sPlatform := common.RegisterPlatformInSM(k8SPlatformJSON, ctx.SMWithOAuth, map[string]string{})
+
+					k8sReferenceInstanceID = createReferenceInstance(k8sPlatform.ID, cfSharedInstanceID)
+
+					bindingID := createBinding(k8sReferenceInstanceID)
+					ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
+						Expect().
+						Status(http.StatusOK).
+						JSON().
+						Object().ContainsKey("service_instance_id").
+						ValueEqual("service_instance_id", k8sReferenceInstanceID)
+
+					verifyOperationExists(operationExpectations{
+						Type:         types.CREATE,
+						State:        types.SUCCEEDED,
+						ResourceID:   bindingID,
+						ResourceType: "/v1/service_bindings",
+						ExternalID:   "",
+					})
+
+					VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+						ID:    bindingID,
+						Type:  types.ServiceBindingType,
+						Ready: true,
+					})
+
 				})
 			})
 			Context("in K8S platform", func() {
@@ -216,9 +249,10 @@ func createBinding(instanceID string) string {
 	}
 	bindingID := UUID.String()
 
+	body := provisionRequestBodyMap()()
 	ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+instanceID+"/service_bindings/"+bindingID).
 		WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-		WithJSON(provisionRequestBodyMap()()).
+		WithJSON(body).
 		Expect().
 		Status(http.StatusCreated)
 
@@ -240,7 +274,7 @@ func executeProvisionTest(platform *types.Platform) (string, string) {
 		Type:  types.ServiceInstanceType,
 		Ready: true,
 	})
-	referenceInstanceID := createReferenceInstance(platform, sharedInstanceID)
+	referenceInstanceID := createReferenceInstance(platform.ID, sharedInstanceID)
 	obj := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 		ID:    referenceInstanceID,
 		Type:  types.ServiceInstanceType,
@@ -252,7 +286,7 @@ func executeProvisionTest(platform *types.Platform) (string, string) {
 	return sharedInstanceID, referenceInstanceID
 }
 
-func createReferenceInstance(platform *types.Platform, sharedInstanceID string) string {
+func createReferenceInstance(platformID string, sharedInstanceID string) string {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
@@ -261,7 +295,7 @@ func createReferenceInstance(platform *types.Platform, sharedInstanceID string) 
 
 	referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", plan1CatalogID)
 	referenceProvisionBody := buildReferenceProvisionBody(referencePlan.CatalogID, sharedInstanceID)
-	utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(referencePlan.CatalogID, platform.ID, organizationGUID)
+	utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(referencePlan.CatalogID, platformID, organizationGUID)
 	ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+instanceID).
 		WithQuery("async", "false").
 		WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).

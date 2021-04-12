@@ -77,8 +77,8 @@ func (e *ServicePlan) ExcludedPlatformNames() []string {
 // If there are no excluded platforms names, empty array is returned
 func (e *ServicePlan) IsShareablePlan() bool {
 	// epsilontal todo : retrieve real shareable value -> supportInstanceSharing=boolean
-	isShareable := gjson.GetBytes(e.Metadata, "supportInstanceSharing").Get("shareable")
-	return isShareable.Raw == "true"
+	isShareable := gjson.GetBytes(e.Metadata, "supportInstanceSharing").Raw
+	return isShareable == "true"
 }
 
 func (e *ServicePlan) metadataPropertyAsStringArray(propertyKey string) []string {

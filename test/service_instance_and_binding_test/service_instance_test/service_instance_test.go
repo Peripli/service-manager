@@ -1963,7 +1963,7 @@ var _ = DescribeTestsFor(TestCase{
 						planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID)
 						plan := planObject.(*types.ServicePlan)
 
-						shareableMetadata := `{"supportInstanceSharing": { "shareable": true }}`
+						shareableMetadata := `{"supportInstanceSharing": true}`
 						plan.Metadata = json.RawMessage(shareableMetadata)
 						ctx.SMRepository.Update(context.TODO(), plan, nil)
 
@@ -2037,7 +2037,7 @@ var _ = DescribeTestsFor(TestCase{
 							planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID)
 							plan := planObject.(*types.ServicePlan)
 
-							shareableMetadata := `{"supportInstanceSharing": { "shareable": true }}`
+							shareableMetadata := `{"supportInstanceSharing": true}`
 							plan.Metadata = json.RawMessage(shareableMetadata)
 							ctx.SMRepository.Update(context.TODO(), plan, nil)
 

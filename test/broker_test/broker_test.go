@@ -832,14 +832,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				/*Context("Sharing Instances", func() {
-					Context("When a plan has supportInstanceSharing in metadata", func() {
-						verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
-							r.Status(http.StatusCreated)
-						}, "services.1.plans.1.metadata.supportInstanceSharing", common.Object{"shareable": true})
-					})
-				})*/
-
 				Context("transitive resources", func() {
 					It("should be saved in the operation", func() {
 						broker := t.ResourceBlueprint(ctx, ctx.SMWithOAuth, true)
