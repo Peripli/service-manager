@@ -90,7 +90,7 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 		log.C(ctx).Debugf("Found %d services currently known for broker", len(existingServicesOfferingsMap))
 
 		catalogServices, catalogPlansMap, err := getBrokerCatalogServicesAndPlans(newBrokerObj.Services)
-		GenerateReferencePlanForShareableOfferings(catalogServices)
+		GenerateReferencePlanForShareableOfferings(catalogServices, catalogPlansMap)
 		if err != nil {
 			return nil, err
 		}

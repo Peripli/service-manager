@@ -159,6 +159,7 @@ func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
 	referencePlan.CatalogName = identity
 	referencePlan.ServiceOfferingID = serviceOfferingId
 	referencePlan.Name = identity
+	referencePlan.Description = "Reference plan"
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(fmt.Errorf("could not generate GUID for ServicePlan: %s", err))

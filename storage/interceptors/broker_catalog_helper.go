@@ -2,11 +2,13 @@ package interceptors
 
 import "github.com/Peripli/service-manager/pkg/types"
 
-func GenerateReferencePlanForShareableOfferings(catalogServices []*types.ServiceOffering) {
+func GenerateReferencePlanForShareableOfferings(catalogServices []*types.ServiceOffering, catalogPlansMap map[string][]*types.ServicePlan) {
 	for _, service := range catalogServices {
 		for _, servicePlan := range service.Plans {
 			if servicePlan.IsShareablePlan() {
-				service.Plans = append(service.Plans, generateReferencePlanObject(servicePlan.ServiceOfferingID))
+				referencePlan := generateReferencePlanObject(servicePlan.ServiceOfferingID)
+				service.Plans = append(service.Plans, referencePlan)
+				catalogPlansMap[service.CatalogID] = append(catalogPlansMap[service.CatalogID], referencePlan)
 				break
 			}
 		}
