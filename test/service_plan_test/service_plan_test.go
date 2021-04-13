@@ -262,7 +262,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("Instance Sharing", func() {
 					var referencePlanID string
 
-					FWhen("catalog contains a shareable plan", func() {
+					When("catalog contains a shareable plan", func() {
 						Context("positive", func() {
 							BeforeEach(func() {
 								_, shareableCatalogID := sharingInstanceBlueprint(ctx, ctx.SMWithOAuth, false)
