@@ -4521,7 +4521,7 @@ func prepareBrokerWithShareableCatalogAndPollingDuration(ctx *TestContext, auth 
 	if err != nil {
 		panic(err)
 	}
-	cPaidPlan2 := GenerateShareablePaidTestPlan()
+	cPaidPlan2, _ := GenerateShareablePaidTestPlan()
 	cPaidPlan2, err = sjson.Set(cPaidPlan2, "maximum_polling_duration", maxPollingDuration)
 	if err != nil {
 		panic(err)

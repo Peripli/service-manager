@@ -259,20 +259,34 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				Context("sharing instances", func() {
+				Context("Instance Sharing", func() {
 					var referencePlanID string
-					BeforeEach(func() {
-						sharingInstanceBlueprint(ctx, ctx.SMWithOAuth, false)
-						referencePlanID = "reference-plan"
-					})
 
-					When("catalog contains a shareable plan", func() {
-						It("should create a new reference plan", func() {
-							common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, referencePlanID, "")
-							assertPlansForPlatformWithQuery(k8sAgent,
-								map[string]interface{}{
-									"fieldQuery": fmt.Sprintf("catalog_name in ('%s')", referencePlanID),
-								}, referencePlanID)
+					FWhen("catalog contains a shareable plan", func() {
+						Context("positive", func() {
+							BeforeEach(func() {
+								_, shareableCatalogID := sharingInstanceBlueprint(ctx, ctx.SMWithOAuth, false)
+								referencePlan := common.GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareableCatalogID)
+								referencePlanID = referencePlan.ID
+
+							})
+							It("should create a new reference plan", func() {
+								assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusNotFound)
+								assertPlansForPlatform(k8sAgent, nil...)
+
+								common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, referencePlanID, k8sPlatform.ID)
+								assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusOK)
+								assertPlansForPlatform(k8sAgent, referencePlanID)
+							})
+						})
+						Context("negative", func() {
+							It("should fail creating a new reference plan when service and plan are not bindable", func() {
+								cShareablePlan := common.GenerateShareableNonBindablePlan()
+								cService := common.GenerateTestServiceWithPlansNonBindable(cShareablePlan)
+								catalog := common.NewEmptySBCatalog()
+								catalog.AddService(cService)
+								ctx.TryRegisterBrokerWithCatalogAndLabels(catalog, common.Object{}, ctx.SMWithOAuth, http.StatusBadRequest)
+							})
 						})
 					})
 				})
@@ -537,8 +551,8 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Ob
 	return sp.Object().Raw()
 }
 
-func sharingInstanceBlueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
-	cShareablePlan := common.GenerateShareablePaidTestPlan()
+func sharingInstanceBlueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) (common.Object, string) {
+	cShareablePlan, shareableCatalogID := common.GenerateShareablePaidTestPlan()
 	cService := common.GenerateTestServiceWithPlans(cShareablePlan)
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(cService)
@@ -548,5 +562,5 @@ func sharingInstanceBlueprint(ctx *common.TestContext, auth *common.SMExpect, _ 
 
 	sp := auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).First()
 
-	return sp.Object().Raw()
+	return sp.Object().Raw(), shareableCatalogID
 }

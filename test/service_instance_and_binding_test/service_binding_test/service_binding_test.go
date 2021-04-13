@@ -2741,12 +2741,12 @@ func newServicePlanWithMaxPollingDuration(ctx *TestContext, bindable bool, maxPo
 }
 
 func newShareableServicePlanWithMaxPollingDuration(ctx *TestContext, bindable bool, maxPollingDuration int) (string, *BrokerServer, string, string, string) {
-	cPaidPlan1 := GenerateShareablePaidTestPlan()
+	cPaidPlan1, _ := GenerateShareablePaidTestPlan()
 	cPaidPlan1, err := sjson.Set(cPaidPlan1, "maximum_polling_duration", maxPollingDuration)
 	if err != nil {
 		panic(err)
 	}
-	cPaidPlan2 := GenerateShareablePaidTestPlan()
+	cPaidPlan2, _ := GenerateShareablePaidTestPlan()
 	cPaidPlan2, err = sjson.Set(cPaidPlan2, "bindable", false)
 	if err != nil {
 		panic(err)

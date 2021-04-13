@@ -321,17 +321,18 @@ func removeAll(repository storage.TransactionalRepository, entity types.ObjectTy
 	}
 }
 
-func RegisterBrokerInSM(brokerJSON Object, SM *SMExpect, headers map[string]string) Object {
+func RegisterBrokerInSM(brokerJSON Object, SM *SMExpect, headers map[string]string, expectedStatus int) Object {
 	return SM.POST(web.ServiceBrokersURL).
 		WithHeaders(headers).
-		WithJSON(brokerJSON).Expect().Status(http.StatusCreated).JSON().Object().Raw()
+		WithJSON(brokerJSON).Expect().Status(expectedStatus).JSON().Object().Raw()
 }
 
 func RegisterVisibilityForPlanAndPlatform(SM *SMExpect, planID, platformID string) string {
-	return SM.POST(web.VisibilitiesURL).WithJSON(Object{
+	expect := SM.POST(web.VisibilitiesURL).WithJSON(Object{
 		"service_plan_id": planID,
 		"platform_id":     platformID,
-	}).Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+	}).Expect()
+	return expect.Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 }
 
 func CreateVisibilitiesForAllBrokerPlans(SM *SMExpect, brokerID string) {

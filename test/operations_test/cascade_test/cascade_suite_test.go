@@ -128,7 +128,7 @@ var _ = BeforeSuite(func() {
 
 func registerGlobalBroker(ctx *TestContext, serviceNameID string, planID string) (string, *BrokerServer) {
 	catalog := SimpleCatalog(serviceNameID, planID, generateID())
-	id, _, brokerServer := ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, map[string]interface{}{}, ctx.SMWithOAuth).GetBrokerAsParams()
+	id, _, brokerServer := ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, map[string]interface{}{}, ctx.SMWithOAuth, http.StatusCreated).GetBrokerAsParams()
 	CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, id)
 	return id, brokerServer
 }
@@ -286,7 +286,7 @@ func createOSBBinding(ctx *TestContext, sm *SMExpect, brokerID string, instanceI
 func registertenantScopedBroker(ctx *TestContext, serviceNameID string, planID string) (string, *BrokerServer) {
 	// registering a tenant scope broker
 	catalog := SimpleCatalog(serviceNameID, planID, generateID())
-	id, _, brokerServer := ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, map[string]interface{}{}, ctx.SMWithOAuthForTenant).GetBrokerAsParams()
+	id, _, brokerServer := ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, map[string]interface{}{}, ctx.SMWithOAuthForTenant, http.StatusCreated).GetBrokerAsParams()
 	brokerServer.ShouldRecordRequests(false)
 
 	brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut, func(req *http.Request) (int, map[string]interface{}) {

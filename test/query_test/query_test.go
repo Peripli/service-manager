@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
+	"net/http"
 	"testing"
 	"time"
 
@@ -332,7 +333,7 @@ var _ = Describe("Service Manager Query", func() {
 							"tenant_id": common.Array{"tenant_id_value"},
 						},
 					}
-					ctx.RegisterBrokerWithCatalogAndLabels(tenantCatalog, labels)
+					ctx.RegisterBrokerWithCatalogAndLabels(tenantCatalog, labels, http.StatusCreated)
 					globalCatalog := common.NewEmptySBCatalog()
 					globalCatalog.AddService(globalService)
 					ctx.RegisterBrokerWithCatalog(globalCatalog)

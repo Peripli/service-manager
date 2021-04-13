@@ -336,7 +336,7 @@ var _ = Describe("Catalog", func() {
 					},
 				}
 
-				prefixedBrokerID = common.RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth, map[string]string{})["id"].(string)
+				prefixedBrokerID = common.RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth, map[string]string{}, http.StatusCreated)["id"].(string)
 				ctx.Servers[common.BrokerServerPrefix+prefixedBrokerID] = server
 				osbURL = "/v1/osb/" + prefixedBrokerID
 

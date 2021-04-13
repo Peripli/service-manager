@@ -113,7 +113,7 @@ var _ = Describe("Notifications Suite", func() {
 			ResourceTenantScoped: tenantScoped,
 			ResourceCreateFunc: func() common.Object {
 
-				obj := ctx.RegisterBrokerWithCatalogAndLabelsExpect(common.NewRandomSBCatalog(), common.Object{}, smAuth(tenantScoped)).Broker.JSON
+				obj := ctx.RegisterBrokerWithCatalogAndLabelsExpect(common.NewRandomSBCatalog(), common.Object{}, smAuth(tenantScoped), http.StatusCreated).Broker.JSON
 				delete(obj, "credentials")
 				delete(obj, "last_operation")
 				return obj

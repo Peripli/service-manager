@@ -635,8 +635,8 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	}, smb.Storage, scheduler, smb.OperationMaintainer, cfg
 }
 
-func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) *BrokerUtils {
-	return ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, brokerData, ctx.SMWithOAuth)
+func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object, expectedStatus int) *BrokerUtils {
+	return ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, brokerData, ctx.SMWithOAuth, expectedStatus)
 }
 
 func (ctx *TestContext) RegisterBrokerWithRandomCatalogAndTLS(expect *SMExpect) *BrokerUtils {
@@ -662,7 +662,7 @@ func (ctx *TestContext) RegisterBrokerWithRandomCatalogAndTLS(expect *SMExpect) 
 			},
 		},
 	}
-	brokerTLS := RegisterBrokerInSM(brokerJSONWithTLS, expect, map[string]string{})
+	brokerTLS := RegisterBrokerInSM(brokerJSONWithTLS, expect, map[string]string{}, http.StatusCreated)
 	tlsBrokerID := brokerTLS["id"].(string)
 	brokerJSONWithTLS["id"] = tlsBrokerID
 
@@ -679,7 +679,27 @@ func (ctx *TestContext) RegisterBrokerWithRandomCatalogAndTLS(expect *SMExpect) 
 
 }
 
-func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatalog, brokerData Object, expect *SMExpect) *BrokerUtils {
+func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatalog, brokerData Object, expect *SMExpect, expectedStatus int) *BrokerUtils {
+	brokerServer, brokerServerWithTLS, brokerJSON, broker := ctx.TryRegisterBrokerWithCatalogAndLabels(catalog, brokerData, expect, expectedStatus)
+	brokerID := broker["id"].(string)
+
+	brokerServer.ResetCallHistory()
+	brokerServerWithTLS.ResetCallHistory()
+	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
+	brokerJSON["id"] = brokerID
+
+	brokerUtils := BrokerUtils{
+		Broker: BrokerContext{
+			BrokerServer: brokerServer,
+			JSON:         broker,
+			ID:           brokerID,
+		},
+	}
+
+	return &brokerUtils
+}
+
+func (ctx *TestContext) TryRegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object, expect *SMExpect, expectedStatus int) (*BrokerServer, *BrokerServer, Object, Object) {
 	brokerServer := NewBrokerServerWithCatalog(catalog)
 	generatedCatalog := NewRandomSBCatalog()
 	brokerServerWithTLS := NewBrokerServerWithTLSAndCatalog(generatedCatalog)
@@ -705,23 +725,8 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatal
 	}
 
 	MergeObjects(brokerJSON, brokerData)
-	broker := RegisterBrokerInSM(brokerJSON, expect, map[string]string{})
-	brokerID := broker["id"].(string)
-
-	brokerServer.ResetCallHistory()
-	brokerServerWithTLS.ResetCallHistory()
-	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
-	brokerJSON["id"] = brokerID
-
-	brokerUtils := BrokerUtils{
-		Broker: BrokerContext{
-			BrokerServer: brokerServer,
-			JSON:         broker,
-			ID:           brokerID,
-		},
-	}
-
-	return &brokerUtils
+	broker := RegisterBrokerInSM(brokerJSON, expect, map[string]string{}, expectedStatus)
+	return brokerServer, brokerServerWithTLS, brokerJSON, broker
 }
 
 func MergeObjects(target, source Object) {
@@ -749,7 +754,7 @@ func MergeObjects(target, source Object) {
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalog(catalog SBCatalog) *BrokerUtils {
-	return ctx.RegisterBrokerWithCatalogAndLabels(catalog, Object{})
+	return ctx.RegisterBrokerWithCatalogAndLabels(catalog, Object{}, http.StatusCreated)
 }
 
 func (ctx *TestContext) RegisterBroker() *BrokerUtils {

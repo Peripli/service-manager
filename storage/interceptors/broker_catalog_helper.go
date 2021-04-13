@@ -3,13 +3,22 @@ package interceptors
 import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/gofrs/uuid"
+	"net/http"
 )
 
-func GenerateReferencePlanForShareableOfferings(catalogServices []*types.ServiceOffering, catalogPlansMap map[string][]*types.ServicePlan) {
+func GenerateReferencePlanForShareableOfferings(catalogServices []*types.ServiceOffering, catalogPlansMap map[string][]*types.ServicePlan) error {
 	for _, service := range catalogServices {
 		for _, plan := range service.Plans {
 			if plan.IsShareablePlan() {
+				if !isPlanBindable(service, plan) {
+					return &util.HTTPError{
+						ErrorType:   "BadRequest",
+						Description: fmt.Sprintf("plan %s must be bindable in order to support instance sharing.", plan.Name),
+						StatusCode:  http.StatusBadRequest,
+					}
+				}
 				referencePlan := generateReferencePlanObject(plan.ServiceOfferingID)
 				service.Plans = append(service.Plans, referencePlan)
 				// When not on "update catalog" flow:
@@ -20,6 +29,7 @@ func GenerateReferencePlanForShareableOfferings(catalogServices []*types.Service
 			}
 		}
 	}
+	return nil
 }
 
 func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
@@ -35,6 +45,20 @@ func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
 	}
 	referencePlan.ID = UUID.String()
 	referencePlan.CatalogID = UUID.String()
+	referencePlan.Bindable = newTrue()
 
 	return referencePlan
+}
+
+func isPlanBindable(service *types.ServiceOffering, plan *types.ServicePlan) bool {
+	if plan.Bindable != nil {
+		return *plan.Bindable
+	}
+
+	return service.Bindable
+}
+
+func newTrue() *bool {
+	b := true
+	return &b
 }
