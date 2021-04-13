@@ -181,9 +181,9 @@ var _ = BeforeSuite(func() {
 
 	shareablePlan := common.GenerateShareableTestPlanWithID(shareablePlanCatalogID)
 	service2 := common.GenerateTestServiceWithPlansWithID(service2CatalogID, shareablePlan)
-	catalog = common.NewEmptySBCatalog()
-	catalog.AddService(service2)
-	instanceSharingUtils = ctx.RegisterBrokerWithCatalog(catalog)
+	instanceSharingCatalog := common.NewEmptySBCatalog()
+	instanceSharingCatalog.AddService(service2)
+	instanceSharingUtils = ctx.RegisterBrokerWithCatalog(instanceSharingCatalog)
 	instanceSharingBrokerID = instanceSharingUtils.Broker.ID
 
 	var instanceSharingBrokerObject common.Object
