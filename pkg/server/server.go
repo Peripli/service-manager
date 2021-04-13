@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -101,7 +102,16 @@ func registerControllers(API *web.API, router *mux.Router, config *Settings) {
 			log.D().Debugf("Registering endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
 			handler := web.Filters(API.Filters).ChainMatching(route)
 			apiHandler := api.NewHTTPHandler(handler, config.MaxBodyBytes)
-			router.Handle(route.Endpoint.Path, apiHandler).Methods(route.Endpoint.Method)
+			if !route.DisableHTTPTimeouts {
+				requestTimeout := config.RequestTimeout
+				if config.LongRequestTimeout != 0 && strings.HasPrefix(route.Endpoint.Path, web.ServiceBrokersURL) && route.Endpoint.Method == http.MethodPatch {
+					log.D().Debugf("Setting request timeout to %s for endpoint: %s %s", config.LongRequestTimeout.String(), route.Endpoint.Method, route.Endpoint.Path)
+					requestTimeout = config.LongRequestTimeout
+				}
+				router.Handle(route.Endpoint.Path, newContentTypeHandler(http.TimeoutHandler(apiHandler, requestTimeout, `{"error":"Timeout", "description": "operation has timed out"}`))).Methods(route.Endpoint.Method)
+			} else {
+				router.Handle(route.Endpoint.Path, apiHandler).Methods(route.Endpoint.Method)
+			}
 		}
 	}
 }
