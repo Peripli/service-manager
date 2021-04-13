@@ -49,7 +49,6 @@ func (*sharingInstanceFilter) Name() string {
 
 func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	return f.handleServiceUpdate(req, next)
-
 }
 
 func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {

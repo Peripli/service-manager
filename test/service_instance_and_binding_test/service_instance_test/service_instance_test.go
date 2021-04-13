@@ -1992,24 +1992,6 @@ var _ = DescribeTestsFor(TestCase{
 							Status(http.StatusOK).
 							JSON().Object().ValueEqual("shared", false)
 					})
-					It("successfully create reference to shared instance", func() {
-						//TODO: this test should not be under "PATCH" Description
-						referencePlan := GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
-						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
-						referenceInstanceResp := CreateReferenceInstance(ctx, false, http.StatusCreated, instanceID, referencePlan.ID, TenantIdentifier, TenantIDValue)
-						referenceInstanceID, _ := VerifyOperationExists(ctx, referenceInstanceResp.Header("Location").Raw(), OperationExpectations{
-							Category:          types.CREATE,
-							State:             types.SUCCEEDED,
-							ResourceType:      types.ServiceInstanceType,
-							Reschedulable:     false,
-							DeletionScheduled: false,
-						})
-						VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-							ID:    referenceInstanceID,
-							Type:  types.ServiceInstanceType,
-							Ready: true,
-						})
-					})
 					When("renaming instance name", func() {
 						It("successfully renames the instance", func() {
 							delete(postInstanceRequestTLS, "shared")

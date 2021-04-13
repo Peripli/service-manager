@@ -125,7 +125,7 @@ func (f *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next web
 
 	dbInstanceObject, err := f.getObjectByID(ctx, types.ServiceInstanceType, resourceID)
 	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+		return next.Handle(req)
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
 

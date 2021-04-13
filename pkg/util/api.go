@@ -184,7 +184,7 @@ func BytesToObjectNoLabels(bytes []byte, object interface{}) error {
 		return err
 	}
 
-	if err := unmarshal(bytesNoLabels, object); err != nil {
+	if err = unmarshal(bytesNoLabels, object); err != nil {
 		return err
 	}
 	return nil
