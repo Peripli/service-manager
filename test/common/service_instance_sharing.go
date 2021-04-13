@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -75,8 +76,7 @@ func GetReferencePlanOfExistingPlan(ctx *TestContext, byOperator, servicePlanID 
 	plan := planObject.(*types.ServicePlan)
 
 	byID = query.ByField(query.EqualsOperator, "service_offering_id", plan.ServiceOfferingID)
-	// epsilontal todo: extract the name "reference-plan" once we choose it:
-	byName := query.ByField(query.EqualsOperator, "name", "reference-plan")
+	byName := query.ByField(query.EqualsOperator, "name", constant.ReferencePlanName)
 	referencePlanObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID, byName)
 	return referencePlanObject.(*types.ServicePlan)
 }

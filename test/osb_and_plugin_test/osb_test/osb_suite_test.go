@@ -60,8 +60,10 @@ const (
 	plan1CatalogID              = "plan1CatalogID"
 	plan2CatalogID              = "plan2CatalogID"
 	plan3CatalogID              = "plan3CatalogID"
+	shareablePlanCatalogID      = "shareablePlanCatalogID"
 	service0CatalogID           = "service0CatalogID"
 	service1CatalogID           = "service1CatalogID"
+	service2CatalogID           = "service2CatalogID"
 	organizationGUID            = "1113aa0-124e-4af2-1526-6bfacf61b111"
 	SID                         = "12345"
 	timeoutDuration             = time.Millisecond * 1500
@@ -92,6 +94,14 @@ var (
 	brokerID     string
 	brokerName   string
 	smBrokerURL  string
+
+	instanceSharingUtils        *common.BrokerUtils
+	instanceSharingBrokerServer *common.BrokerServer
+	instanceSharingBrokerID     string
+	instanceSharingBrokerName   string
+	instanceSharingBrokerHost   string
+	instanceSharingBrokerPath   string
+	instanceSharingBrokerURL    string
 
 	provisionRequestBody string
 
@@ -168,6 +178,32 @@ var _ = BeforeSuite(func() {
 	service1 := common.GenerateTestServiceWithPlansWithID(service1CatalogID, plan1, plan2, plan3)
 	catalog = common.NewEmptySBCatalog()
 	catalog.AddService(service1)
+
+	shareablePlan := common.GenerateShareableTestPlanWithID(shareablePlanCatalogID)
+	service2 := common.GenerateTestServiceWithPlansWithID(service2CatalogID, shareablePlan)
+	catalog = common.NewEmptySBCatalog()
+	catalog.AddService(service2)
+	instanceSharingUtils = ctx.RegisterBrokerWithCatalog(catalog)
+	instanceSharingBrokerID = instanceSharingUtils.Broker.ID
+
+	var instanceSharingBrokerObject common.Object
+	instanceSharingBrokerObject = instanceSharingUtils.Broker.JSON
+	instanceSharingBrokerServer = instanceSharingUtils.Broker.BrokerServer
+	instanceSharingUtils.BrokerWithTLS = ctx.RegisterBrokerWithRandomCatalogAndTLS(ctx.SMWithOAuth).BrokerWithTLS
+	instanceSharingPlans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("catalog_id in ('%s','%s')", plan1CatalogID, plan2CatalogID)).Iter()
+	for _, p := range instanceSharingPlans {
+		common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, p.Object().Value("id").String().Raw(), ctx.TestPlatform.ID)
+	}
+	instanceSharingBrokerHost = ctx.Servers[common.SMServer].URL()
+	instanceSharingBrokerPath = "/v1/osb/" + instanceSharingBrokerID
+	instanceSharingBrokerURL = instanceSharingBrokerHost + instanceSharingBrokerPath
+	instanceSharingBrokerName = instanceSharingBrokerObject["name"].(string)
+
+	username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, instanceSharingBrokerID)
+	brokerPlatformCredentialsIDMap[instanceSharingBrokerID] = brokerPlatformCredentials{
+		username: username,
+		password: password,
+	}
 
 	var brokerObject common.Object
 
@@ -326,6 +362,7 @@ func resetBrokersHandlers() {
 	brokerServerWithEmptyCatalog.ResetHandlers()
 	stoppedBrokerServer.ResetHandlers()
 	brokerServer.ResetHandlers()
+	instanceSharingBrokerServer.ResetHandlers()
 
 }
 
@@ -333,6 +370,7 @@ func resetBrokersCallHistory() {
 	brokerServerWithEmptyCatalog.ResetCallHistory()
 	stoppedBrokerServer.ResetCallHistory()
 	brokerServer.ResetCallHistory()
+	instanceSharingBrokerServer.ResetCallHistory()
 }
 
 func buildRequestBody(serviceID, planID string) string {

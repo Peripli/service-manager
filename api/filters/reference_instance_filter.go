@@ -19,6 +19,7 @@ package filters
 import (
 	"context"
 	"errors"
+	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -116,11 +117,11 @@ func (f *referenceInstanceFilter) handleProvision(req *web.Request, next web.Han
 
 func (f *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next web.Handler) (*web.Response, error) {
 	// we don't want to allow plan_id and/or parameters changes on a reference service instance
-	ctx := req.Context()
 	resourceID := req.PathParams["resource_id"]
 	if resourceID == "" {
-		return nil, errors.New("missing resource ID")
+		return next.Handle(req)
 	}
+	ctx := req.Context()
 
 	dbInstanceObject, err := f.getObjectByID(ctx, types.ServiceInstanceType, resourceID)
 	if err != nil {
@@ -189,7 +190,7 @@ func (f *referenceInstanceFilter) isReferencePlan(ctx context.Context, servicePl
 		return false, err
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
-	return plan.Name == "reference-plan", nil
+	return plan.Name == constant.ReferencePlanName, nil
 }
 
 func (f *referenceInstanceFilter) getObjectByID(ctx context.Context, objectType types.ObjectType, resourceID string) (types.Object, error) {

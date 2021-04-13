@@ -2,7 +2,10 @@ package osb
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -14,6 +17,9 @@ import (
 )
 
 const ReferenceInstancePluginName = "ReferenceInstancePlugin"
+const planIDProperty = "plan_id"
+const catalogIDProperty = "catalog_id"
+const referencedKey = "referenced_instance_id"
 
 type referenceInstancePlugin struct {
 	repository       storage.TransactionalRepository
@@ -35,8 +41,8 @@ func (p *referenceInstancePlugin) Name() string {
 
 func (p *referenceInstancePlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
-	servicePlanID := gjson.GetBytes(req.Body, "plan_id").Str
-	isReferencePlan, err := p.isReferencePlan(ctx, "catalog_id", servicePlanID)
+	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).Str
+	isReferencePlan, err := p.isReferencePlan(ctx, catalogIDProperty, servicePlanID)
 	if err != nil {
 		return nil, err
 	}
@@ -52,33 +58,36 @@ func (p *referenceInstancePlugin) Provision(req *web.Request, next web.Handler) 
 			return nil, err
 		}
 	}
-
-	referencedKey := "referenced_instance_id"
 	parameters := gjson.GetBytes(req.Body, "parameters").Map()
 	referencedInstanceID, exists := parameters[referencedKey]
-	// epsilontal todo: should we validate that the input is string? can be any object for example...
 	if !exists {
-		return nil, errors.New("missing referenced_instance_id")
+		return nil, &util.HTTPError{
+			ErrorType:   "InvalidRequest",
+			Description: fmt.Sprintf("missing parameter %s.", referencedKey),
+			StatusCode:  http.StatusBadRequest,
+		}
 	}
 	_, err = p.isReferencedShared(ctx, referencedInstanceID.Str)
 	if err != nil {
 		return nil, err
 	}
 	// epsilontal todo: should we handle 201 status for async requests?
+	headers := http.Header{}
+	headers.Add("Content-Type", "application/json")
 	return &web.Response{
 		Body:       []byte(`{}`),
 		StatusCode: http.StatusCreated,
-		Header:     http.Header{},
+		Header:     headers,
 	}, nil
 }
 
 // Deprovision intercepts deprovision requests and check if the instance is in the platform from where the request comes
 func (p *referenceInstancePlugin) Deprovision(req *web.Request, next web.Handler) (*web.Response, error) {
-	ctx := req.Context()
 	instanceID := req.PathParams["instance_id"]
 	if instanceID == "" {
-		return nil, errors.New("missing resource ID")
+		return next.Handle(req)
 	}
+	ctx := req.Context()
 
 	dbInstanceObject, err := p.getObjectByOperator(ctx, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
@@ -102,23 +111,22 @@ func (p *referenceInstancePlugin) Deprovision(req *web.Request, next web.Handler
 	}, nil
 }
 
-/*
 // UpdateService intercepts update service instance requests and check if the instance is in the platform from where the request comes
 func (p *referenceInstancePlugin) UpdateService(req *web.Request, next web.Handler) (*web.Response, error) {
 	// we don't want to allow plan_id and/or parameters changes on a reference service instance
-	ctx := req.Context()
 	resourceID := req.PathParams["resource_id"]
 	if resourceID == "" {
-		return nil, errors.New("missing resource ID")
+		return next.Handle(req)
 	}
+	ctx := req.Context()
 
-	dbInstanceObject, err := p.getObjectByOperator(ctx, types.ServiceInstanceType, resourceID)
+	dbInstanceObject, err := p.getObjectByOperator(ctx, types.ServiceInstanceType, "id", resourceID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
 
-	isReferencePlan, err := p.isReferencePlan(ctx, instance.ServicePlanID)
+	isReferencePlan, err := p.isReferencePlan(ctx, planIDProperty, instance.ServicePlanID)
 	if err != nil {
 		return nil, err
 	}
@@ -138,12 +146,6 @@ func (p *referenceInstancePlugin) UpdateService(req *web.Request, next web.Handl
 		Header:     http.Header{},
 	}, nil
 }
-*/
-/*// PollInstance intercepts poll instance operation requests and check if the instance is in the platform from where the request comes
-func (p *referenceInstancePlugin) PollInstance(req *web.Request, next web.Handler) (*web.Response, error) {
-	// epsilontal todo: no need to support poll instance as we always return sync responses
-	return p.assertPlatformID(req, next)
-}*/
 
 // Bind intercepts bind requests and check if the instance is in the platform from where the request comes
 func (p *referenceInstancePlugin) Bind(req *web.Request, next web.Handler) (*web.Response, error) {
@@ -155,59 +157,34 @@ func (p *referenceInstancePlugin) Unbind(req *web.Request, next web.Handler) (*w
 	return p.handleBinding(req, next)
 }
 
-/*
-// PollBinding intercepts poll binding operation requests and check if the instance is in the platform from where the request comes
-func (p *referenceInstancePlugin) PollBinding(req *web.Request, next web.Handler) (*web.Response, error) {
-	return p.assertPlatformID(req, next)
-}
-
-// FetchService intercepts get service instance requests and check if the instance owner is the same as the one requesting the operation
-func (p *referenceInstancePlugin) FetchService(req *web.Request, next web.Handler) (*web.Response, error) {
-	return p.assertPlatformID(req, next)
-}
-
 // FetchBinding intercepts get service binding requests and check if the instance owner is the same as the one requesting the operation
 func (p *referenceInstancePlugin) FetchBinding(req *web.Request, next web.Handler) (*web.Response, error) {
-	return p.assertPlatformID(req, next)
-}*/
-/*
-func (p *referenceInstancePlugin) assertPlatformID(req *web.Request, next web.Handler) (*web.Response, error) {
-	ctx := req.Context()
-	user, _ := web.UserFromContext(ctx)
-	platform := &types.Platform{}
-	if err := user.Data(platform); err != nil {
-		return nil, err
-	}
-	if err := platform.Validate(); err != nil {
-		log.C(ctx).WithError(err).Errorf("Invalid platform found in context")
-		return nil, err
-	}
-
-	instanceID := req.PathParams["instance_id"]
-	byID := query.ByField(query.EqualsOperator, "id", instanceID)
-	object, err := p.repository.Get(ctx, types.ServiceInstanceType, byID)
-	if err != nil {
-		if err == util.ErrNotFoundInStorage {
-			return next.Handle(req)
-		}
-		return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
-	}
-
-	instance := object.(*types.ServiceInstance)
-	req.Request = req.WithContext(types.ContextWithInstance(req.Context(), instance))
-
-	if platform.ID != instance.PlatformID {
-		log.C(ctx).Errorf("Instance with id %s and platform id %s does not belong to platform with id %s", instance.ID, instance.PlatformID, platform.ID)
-		return nil, &util.HTTPError{
-			ErrorType:   "NotFound",
-			Description: "could not find such service instance",
-			StatusCode:  http.StatusNotFound,
-		}
-	}
-
-	return next.Handle(req)
+	return p.handleBinding(req, next)
 }
-*/
+
+func (p *referenceInstancePlugin) FetchService(req *web.Request, next web.Handler) (*web.Response, error) {
+	ctx := req.Context()
+	instanceID := req.PathParams["instance_id"]
+	dbInstanceObject, err := p.getObjectByOperator(ctx, types.ServiceInstanceType, "id", instanceID)
+	if err != nil {
+		return next.Handle(req)
+	}
+	instance := dbInstanceObject.(*types.ServiceInstance)
+	marshal, _ := json.Marshal(instance)
+	headers := http.Header{}
+	headers.Add("Content-Type", "application/json")
+	return &web.Response{
+		Body:       marshal,
+		StatusCode: http.StatusOK,
+		Header:     headers,
+	}, nil
+}
+
+// PollBinding intercepts poll binding operation requests and check if the instance is in the platform from where the request comes
+func (p *referenceInstancePlugin) PollBinding(req *web.Request, next web.Handler) (*web.Response, error) {
+	return p.handleBinding(req, next)
+}
+
 func (p *referenceInstancePlugin) validateOwnership(req *web.Request) error {
 	ctx := req.Context()
 	callerTenantID := gjson.GetBytes(req.Body, "context."+p.tenantIdentifier).String()
@@ -222,22 +199,26 @@ func (p *referenceInstancePlugin) validateOwnership(req *web.Request) error {
 
 	if referencedOwnerTenantID != callerTenantID {
 		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", referencedOwnerTenantID, callerTenantID)
-		return errors.New("could not find such service instance")
+		return &util.HTTPError{
+			ErrorType:   "NotFound",
+			Description: "could not find such service instance",
+			StatusCode:  http.StatusNotFound,
+		}
 	}
 	return nil
 }
 
-func (p *referenceInstancePlugin) isReferencePlan(ctx context.Context, op, servicePlanID string) (bool, error) {
-	dbPlanObject, err := p.getObjectByOperator(ctx, types.ServicePlanType, op, servicePlanID)
+func (p *referenceInstancePlugin) isReferencePlan(ctx context.Context, byKey, servicePlanID string) (bool, error) {
+	dbPlanObject, err := p.getObjectByOperator(ctx, types.ServicePlanType, byKey, servicePlanID)
 	if err != nil {
 		return false, err
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
-	return plan.Name == "reference-plan", nil
+	return plan.Name == constant.ReferencePlanName, nil
 }
 
-func (p *referenceInstancePlugin) getObjectByOperator(ctx context.Context, objectType types.ObjectType, op, resourceID string) (types.Object, error) {
-	byID := query.ByField(query.EqualsOperator, op, resourceID)
+func (p *referenceInstancePlugin) getObjectByOperator(ctx context.Context, objectType types.ObjectType, byKey, byValue string) (types.Object, error) {
+	byID := query.ByField(query.EqualsOperator, byKey, byValue)
 	dbObject, err := p.repository.Get(ctx, objectType, byID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, objectType.String())
@@ -261,14 +242,22 @@ func (p *referenceInstancePlugin) isReferencedShared(ctx context.Context, refere
 
 func (p *referenceInstancePlugin) isValidPatchRequest(req *web.Request, instance *types.ServiceInstance) (bool, error) {
 	// epsilontal todo: How can we update labels and do we want to allow the change?
-	newPlanID := gjson.GetBytes(req.Body, "service_plan_id").String()
+	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	if instance.ServicePlanID != newPlanID {
-		return false, errors.New("can't modify reference's plan")
+		return false, &util.HTTPError{
+			ErrorType:   "InvalidRequest",
+			Description: fmt.Sprintf("can't modify reference's %s.", planIDProperty),
+			StatusCode:  http.StatusBadRequest,
+		}
 	}
 
 	parametersRaw := gjson.GetBytes(req.Body, "parameters").Raw
 	if parametersRaw != "" {
-		return false, errors.New("can't modify reference's parameters")
+		return false, &util.HTTPError{
+			ErrorType:   "InvalidRequest",
+			Description: "can't modify reference's parameters.",
+			StatusCode:  http.StatusBadRequest,
+		}
 	}
 
 	return true, nil

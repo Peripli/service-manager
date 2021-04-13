@@ -2,6 +2,7 @@ package interceptors
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/gofrs/uuid"
@@ -34,7 +35,7 @@ func GenerateReferencePlanForShareableOfferings(catalogServices []*types.Service
 
 func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
 	referencePlan := new(types.ServicePlan)
-	identity := "reference-plan"
+	identity := constant.ReferencePlanName
 	referencePlan.CatalogName = identity
 	referencePlan.ServiceOfferingID = serviceOfferingId
 	referencePlan.Name = identity
