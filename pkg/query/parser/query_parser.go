@@ -1,3 +1,5 @@
+// Generated from /Users/i355594/go/src/github.com/Peripli/service-manager/pkg/query/Query.g4 by ANTLR 4.7.
+
 package parser // Query
 
 import (
