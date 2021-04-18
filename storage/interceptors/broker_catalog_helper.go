@@ -9,6 +9,20 @@ import (
 	"net/http"
 )
 
+func VerifyCatalogDoesNotUseReferencePlan(catalogServices []*types.ServiceOffering) error {
+	for _, service := range catalogServices {
+		for _, plan := range service.Plans {
+			if plan.Name == constant.ReferencePlanName || plan.CatalogName == constant.ReferencePlanName {
+				return &util.HTTPError{
+					ErrorType:   "BadRequest",
+					Description: fmt.Sprintf("Registration of a plan with the name \"%s\" is reserved for the platform, another name must be chosen", constant.ReferencePlanName),
+					StatusCode:  http.StatusBadRequest,
+				}
+			}
+		}
+	}
+	return nil
+}
 func GenerateReferencePlanForShareableOfferings(catalogServices []*types.ServiceOffering, catalogPlansMap map[string][]*types.ServicePlan) error {
 	for _, service := range catalogServices {
 		for _, plan := range service.Plans {
