@@ -178,13 +178,6 @@ func (c Criterion) Validate() error {
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
 		return &util.UnsupportedQueryError{Message: "nullable operations are supported only for field queries"}
 	}
-	if !c.Operator.IsNumeric() && isDateTime(c.RightOp[0]) {
-		return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s operator doesn't support datetime %s", c.Operator, c.RightOp[0])}
-	}
-	if !c.Operator.IsNumeric() && isNumeric(c.RightOp[0]) {
-		return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s is not numeric operator, but the right operand %s is numeric", c.Operator, c.RightOp[0])}
-	}
-
 	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) && !isDateTime(c.RightOp[0]) {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand %s is not numeric or datetime", c.Operator, c.RightOp[0])}
 	}

@@ -17,6 +17,7 @@
 package postgres
 
 import (
+	"database/sql"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
 	"reflect"
 	"strings"
@@ -39,6 +40,8 @@ var (
 	int64Type     = reflect.TypeOf(int64(1))
 	timeType      = reflect.TypeOf(time.Time{})
 	byteSliceType = reflect.TypeOf([]byte{})
+	stringType    = reflect.TypeOf("")
+	nullableStringType = reflect.TypeOf(sql.NullString{})
 	jsonType      = reflect.TypeOf(sqlxtypes.JSONText{})
 )
 
