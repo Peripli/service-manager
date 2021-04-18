@@ -279,7 +279,7 @@ func (p *referenceInstancePlugin) handleBinding(req *web.Request, next web.Handl
 
 	if instance.ReferencedInstanceID != "" {
 		byID = query.ByField(query.EqualsOperator, "id", instance.ReferencedInstanceID)
-		object, err = p.repository.Get(ctx, types.ServiceInstanceType, byID)
+		sharedInstanceObject, err := p.repository.Get(ctx, types.ServiceInstanceType, byID)
 		if err != nil {
 			if err == util.ErrNotFoundInStorage {
 				return next.Handle(req)
@@ -287,8 +287,8 @@ func (p *referenceInstancePlugin) handleBinding(req *web.Request, next web.Handl
 			return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
 		}
 
-		instance = object.(*types.ServiceInstance)
-		req.Request = req.WithContext(types.ContextWithInstance(req.Context(), instance))
+		sharedInstance := sharedInstanceObject.(*types.ServiceInstance)
+		req.Request = req.WithContext(types.ContextWithInstance(req.Context(), sharedInstance))
 	}
 	return next.Handle(req)
 }

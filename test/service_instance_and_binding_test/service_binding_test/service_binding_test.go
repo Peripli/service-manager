@@ -413,6 +413,7 @@ var _ = DescribeTestsFor(TestCase{
 							})
 							JustBeforeEach(func() {
 								// Setup broker
+								brokerServer.ShouldRecordRequests(true)
 								brokerServer.BindingHandlerFunc(http.MethodPost, http.MethodPost+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
 								brokerServer.BindingLastOpHandlerFunc(http.MethodPost+"1", MultiplePollsRequiredHandler("in progress", "succeeded"))
 
@@ -451,13 +452,15 @@ var _ = DescribeTestsFor(TestCase{
 									DeletionScheduled: false,
 								})
 
+								Expect(brokerServer.LastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
+
 								objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 									ID:    bindingID,
 									Type:  types.ServiceBindingType,
 									Ready: true,
 								})
 
-								By("verify binding points to the reference instnace id")
+								By("verify binding points to the reference instance id")
 								objAfterOp.Value("service_instance_id").Equal(referenceInstanceID)
 
 							})
@@ -471,6 +474,8 @@ var _ = DescribeTestsFor(TestCase{
 									Reschedulable:     false,
 									DeletionScheduled: false,
 								})
+
+								Expect(brokerServer.LastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
 
 								objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 									ID:    bindingID,

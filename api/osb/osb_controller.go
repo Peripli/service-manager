@@ -26,6 +26,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"regexp"
+	"strings"
 
 	"github.com/Peripli/service-manager/pkg/client"
 	"github.com/tidwall/gjson"
@@ -116,9 +117,9 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 		modifiedRequest.SetBasicAuth(broker.Credentials.Basic.Username, broker.Credentials.Basic.Password)
 	}
 
+	modifyRequestURLPath(ctx, m, modifiedRequest)
 	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(r.Body))
 	modifiedRequest.ContentLength = int64(len(r.Body))
-	modifiedRequest.URL.Path = m[1]
 
 	// This is needed because the request is shallow copy of the request to the Service Manager
 	// This sets the host header to point to the service broker that the request will be proxied to
@@ -134,6 +135,29 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 
 	proxy.ServeHTTP(recorder, modifiedRequest)
 	return validateBrokerResponse(recorder, broker)
+}
+
+func modifyRequestURLPath(ctx context.Context, m []string, modifiedRequest *http.Request) {
+	if isInstanceSharingFlow(ctx) {
+		modifiedRequest.URL.Path = getPathForInstanceSharing(ctx, m[1])
+	} else {
+		modifiedRequest.URL.Path = m[1]
+	}
+}
+
+func isInstanceSharingFlow(ctx context.Context) bool {
+	instanceFromContext, exists := types.InstanceFromContext(ctx)
+	return exists && instanceFromContext.Shared != nil && *instanceFromContext.Shared == true
+}
+
+func getPathForInstanceSharing(ctx context.Context, currentPath string) string {
+	instanceFromContext, _ := types.InstanceFromContext(ctx)
+	splitted := strings.Split(currentPath, "/")
+	if splitted[3] != "" {
+		splitted[3] = instanceFromContext.ID
+		return strings.Join(splitted, "/")
+	}
+	return currentPath
 }
 
 func validateBrokerResponse(recorder *httptest.ResponseRecorder, broker *types.ServiceBroker) (*web.Response, error) {

@@ -19,12 +19,11 @@ package osb_test
 import (
 	"context"
 	"fmt"
-	"github.com/gofrs/uuid"
-	"net/http"
-
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/test"
 	"github.com/Peripli/service-manager/test/common"
+	"github.com/gofrs/uuid"
+	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -151,10 +150,13 @@ var _ = Describe("Instance Sharing", func() {
 				var k8sReferenceInstanceID string
 				BeforeEach(func() {
 					platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
+					instanceSharingBrokerServer.ShouldRecordRequests(true)
 				})
 				It("binds reference instance successfully", func() {
-					_, referenceInstanceID = executeProvisionTest(platform, false)
+					sharedInstanceID, referenceInstanceID := executeProvisionTest(platform, false)
 					bindingID := createBinding(referenceInstanceID)
+
+					Expect(instanceSharingBrokerServer.LastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
 
 					ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
 						Expect().
@@ -162,6 +164,7 @@ var _ = Describe("Instance Sharing", func() {
 						JSON().
 						Object().ContainsKey("service_instance_id").
 						ValueEqual("service_instance_id", referenceInstanceID)
+
 				})
 				It("binds reference instance successfully from different platform", func() {
 					_, cfSharedInstanceID = createAndShareInstance(false)
@@ -172,6 +175,7 @@ var _ = Describe("Instance Sharing", func() {
 					_, k8sReferenceInstanceID = createReferenceInstance(k8sPlatform.ID, cfSharedInstanceID, false)
 
 					bindingID := createBinding(k8sReferenceInstanceID)
+					Expect(instanceSharingBrokerServer.LastRequest.RequestURI).To(ContainSubstring(cfSharedInstanceID))
 					ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
 						Expect().
 						Status(http.StatusOK).

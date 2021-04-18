@@ -112,8 +112,6 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			return nil, fmt.Errorf("operation missing from context")
 		}
 
-		//var referenceInstance = &types.ServiceInstance{}
-
 		if instance.ReferencedInstanceID != "" {
 			//referenceInstance = instance
 			instance, _ = getInstanceByID(ctx, instance.ReferencedInstanceID, i.repository)
