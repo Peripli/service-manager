@@ -700,7 +700,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							}, "services.0.plans.0.metadata", common.Object{"supportedPlatformNames": []string{"a"}, "excludedPlatformNames": []string{"a"}})
 						})
 
-						FContext(fmt.Sprintf("that has same name with the reserved reference plan: %s", constant.ReferencePlanName), func() {
+						Context(fmt.Sprintf("that has same name with the reserved reference plan: %s", constant.ReferencePlanName), func() {
 							verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
 								r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
 							}, "services.0.plans.0.name", constant.ReferencePlanName)
