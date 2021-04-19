@@ -1,4 +1,4 @@
 package constant
 
-const ReferencePlanName = "instance-reference"
-const ReferencePlanDescription = "reference-plan-description"
+const ReferencePlanName = "reference-instances"
+const ReferencePlanDescription = "Allows creation and management of instances that can be shared across various environments in the subaccount."
