@@ -23,7 +23,7 @@ func VerifyCatalogDoesNotUseReferencePlan(catalogServices []*types.ServiceOfferi
 }
 func GenerateReferencePlanForShareableOfferings(ctx context.Context, repository storage.Repository, catalogServices []*types.ServiceOffering, catalogPlansMap map[string][]*types.ServicePlan) error {
 	for _, service := range catalogServices {
-		existingReferencePlanID, err := getExistingReferencePlanID(ctx, repository, service.ID)
+		existingReferencePlan, err := getExistingReferencePlan(ctx, repository, service.ID)
 		if err != nil {
 			return err
 		}
@@ -32,7 +32,12 @@ func GenerateReferencePlanForShareableOfferings(ctx context.Context, repository 
 				if !isPlanBindable(service, plan) {
 					return util.HandleInstanceSharingError(util.ErrPlanMustBeBindable, plan.Name)
 				}
-				referencePlan := generateReferencePlanObject(plan.ServiceOfferingID, existingReferencePlanID)
+				var referencePlan *types.ServicePlan
+				if existingReferencePlan != nil {
+					referencePlan = existingReferencePlan
+				} else {
+					referencePlan = generateReferencePlanObject(plan.ServiceOfferingID)
+				}
 				service.Plans = append(service.Plans, referencePlan)
 				// When not on "update catalog" flow:
 				if catalogPlansMap != nil {
@@ -45,41 +50,38 @@ func GenerateReferencePlanForShareableOfferings(ctx context.Context, repository 
 	return nil
 }
 
-func getExistingReferencePlanID(ctx context.Context, repository storage.Repository, serviceID string) (string, error) {
-	byID := query.ByField(query.EqualsOperator, "id", serviceID)
-	var plan types.Object
+func getExistingReferencePlan(ctx context.Context, repository storage.Repository, serviceID string) (*types.ServicePlan, error) {
+	byID := query.ByField(query.EqualsOperator, "service_offering_id", serviceID)
+	byName := query.ByField(query.EqualsOperator, "name", constant.ReferencePlanName)
+	var planObject types.Object
 	var err error
-	if plan, err = repository.Get(ctx, types.ServicePlanType, byID); err != nil {
+	if planObject, err = repository.Get(ctx, types.ServicePlanType, byID, byName); err != nil {
 		if err != util.ErrNotFoundInStorage {
-			return "", util.HandleStorageError(err, string(types.ServicePlanType))
+			return nil, util.HandleStorageError(err, string(types.ServicePlanType))
 		}
 	}
-	if plan == nil {
-		return "", nil
+	if planObject == nil {
+		return nil, nil
 	}
-	return plan.GetID(), nil
+	plan := planObject.(*types.ServicePlan)
+	return plan, nil
 }
 
-func generateReferencePlanObject(serviceOfferingId string, existingPlanID string) *types.ServicePlan {
+func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
 	referencePlan := new(types.ServicePlan)
-	var uuidString string
 	identity := constant.ReferencePlanName
+
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Errorf("could not generate GUID for ServicePlan: %s", err))
+	}
 
 	referencePlan.CatalogName = identity
 	referencePlan.ServiceOfferingID = serviceOfferingId
 	referencePlan.Name = identity
 	referencePlan.Description = "Reference plan"
-	if existingPlanID == "" {
-		UUID, err := uuid.NewV4()
-		if err != nil {
-			panic(fmt.Errorf("could not generate GUID for ServicePlan: %s", err))
-		}
-		uuidString = UUID.String()
-	} else {
-		uuidString = existingPlanID
-	}
-	referencePlan.ID = uuidString
-	referencePlan.CatalogID = uuidString
+	referencePlan.ID = UUID.String()
+	referencePlan.CatalogID = UUID.String()
 	referencePlan.Bindable = newTrue()
 
 	return referencePlan
