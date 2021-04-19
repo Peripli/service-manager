@@ -247,7 +247,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrReferencedInstanceNotShared:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("Failed to share the instance   . The root reference instance \"%s\" must be shared first.", entityName),
+			Description: fmt.Sprintf("Failed to create the reference. The instance \"%s\", for which you want to create the reference, must be shared first.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrChangingPlanOfReferenceInstance:
