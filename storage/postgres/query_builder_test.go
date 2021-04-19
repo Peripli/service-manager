@@ -207,7 +207,7 @@ FROM visibilities
 WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources)
 ORDER BY visibilities.paging_sequence ASC ;`)))
 					Expect(queryArgs).To(HaveLen(1))
-					Expect(queryArgs[0]).Should(Equal("%1%"))
+					Expect(queryArgs[0]).Should(Equal("%fdsfdsfds1%"))
 				})
 				Context("when column type is not supported", func() {
 					It("should return an error", func() {
