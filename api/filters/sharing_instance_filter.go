@@ -154,12 +154,7 @@ func (f *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.H
 		}
 
 		if referencesList.Len() > 0 {
-			errorMessage := fmt.Sprintf("could not delete the service instance. The service instance has %d references which should be deleted first", referencesList.Len())
-			return nil, &util.HTTPError{
-				ErrorType:   "BadRequest",
-				Description: errorMessage,
-				StatusCode:  http.StatusBadRequest,
-			}
+			return nil, util.HandleReferencesError(util.ErrSharedInstanceHasReferences, types.ObjectListIDsToStringArray(referencesList))
 		}
 	}
 

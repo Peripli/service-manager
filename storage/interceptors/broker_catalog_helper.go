@@ -6,18 +6,13 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/gofrs/uuid"
-	"net/http"
 )
 
 func VerifyCatalogDoesNotUseReferencePlan(catalogServices []*types.ServiceOffering) error {
 	for _, service := range catalogServices {
 		for _, plan := range service.Plans {
 			if plan.Name == constant.ReferencePlanName || plan.CatalogName == constant.ReferencePlanName {
-				return &util.HTTPError{
-					ErrorType:   "BadRequest",
-					Description: fmt.Sprintf("Registration of a plan with the name \"%s\" is reserved for the platform, another name must be chosen", constant.ReferencePlanName),
-					StatusCode:  http.StatusBadRequest,
-				}
+				return util.HandleInstanceSharingError(util.ErrCatalogUsesReservedPlanName, constant.ReferencePlanName)
 			}
 		}
 	}
@@ -28,11 +23,7 @@ func GenerateReferencePlanForShareableOfferings(catalogServices []*types.Service
 		for _, plan := range service.Plans {
 			if plan.IsShareablePlan() {
 				if !isPlanBindable(service, plan) {
-					return &util.HTTPError{
-						ErrorType:   "BadRequest",
-						Description: fmt.Sprintf("plan %s must be bindable in order to support instance sharing.", plan.Name),
-						StatusCode:  http.StatusBadRequest,
-					}
+					return util.HandleInstanceSharingError(util.ErrPlanMustBeBindable, plan.Name)
 				}
 				referencePlan := generateReferencePlanObject(plan.ServiceOfferingID)
 				service.Plans = append(service.Plans, referencePlan)

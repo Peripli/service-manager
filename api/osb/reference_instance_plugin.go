@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -61,17 +60,12 @@ func (p *referenceInstancePlugin) Provision(req *web.Request, next web.Handler) 
 	parameters := gjson.GetBytes(req.Body, "parameters").Map()
 	referencedInstanceID, exists := parameters[referencedKey]
 	if !exists {
-		return nil, &util.HTTPError{
-			ErrorType:   "InvalidRequest",
-			Description: fmt.Sprintf("missing parameter %s.", referencedKey),
-			StatusCode:  http.StatusBadRequest,
-		}
+		return nil, util.HandleInstanceSharingError(util.ErrMissingReferenceParameter, referencedKey)
 	}
 	_, err = p.isReferencedShared(ctx, referencedInstanceID.Str)
 	if err != nil {
 		return nil, err
 	}
-	// epsilontal todo: should we handle 201 status for async requests?
 	headers := http.Header{}
 	headers.Add("Content-Type", "application/json")
 	return &web.Response{
@@ -244,20 +238,12 @@ func (p *referenceInstancePlugin) isValidPatchRequest(req *web.Request, instance
 	// epsilontal todo: How can we update labels and do we want to allow the change?
 	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	if instance.ServicePlanID != newPlanID {
-		return false, &util.HTTPError{
-			ErrorType:   "InvalidRequest",
-			Description: fmt.Sprintf("can't modify reference's %s.", planIDProperty),
-			StatusCode:  http.StatusBadRequest,
-		}
+		return false, util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, instance.Name)
 	}
 
 	parametersRaw := gjson.GetBytes(req.Body, "parameters").Raw
 	if parametersRaw != "" {
-		return false, &util.HTTPError{
-			ErrorType:   "InvalidRequest",
-			Description: "can't modify reference's parameters.",
-			StatusCode:  http.StatusBadRequest,
-		}
+		return false, util.HandleInstanceSharingError(util.ErrChangingParametersOfReferenceInstance, instance.Name)
 	}
 
 	return true, nil

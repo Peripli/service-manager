@@ -153,11 +153,7 @@ func (f *referenceInstanceFilter) isReferencedShared(ctx context.Context, refere
 	referencedInstance := dbReferencedObject.(*types.ServiceInstance)
 
 	if *referencedInstance.Shared != true {
-		return false, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: "referenced instance is not shared",
-			StatusCode:  http.StatusBadRequest,
-		}
+		return false, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, referencedInstanceID)
 	}
 	return true, nil
 }
@@ -165,20 +161,12 @@ func (f *referenceInstanceFilter) isReferencedShared(ctx context.Context, refere
 func (f *referenceInstanceFilter) isValidPatchRequest(req *web.Request, instance *types.ServiceInstance) (bool, error) {
 	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	if instance.ServicePlanID != newPlanID {
-		return false, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: "can't modify reference's plan",
-			StatusCode:  http.StatusBadRequest,
-		}
+		return false, util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, instance.Name)
 	}
 
 	parametersRaw := gjson.GetBytes(req.Body, "parameters").Raw
 	if parametersRaw != "" {
-		return false, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: "can't modify reference's parameters",
-			StatusCode:  http.StatusBadRequest,
-		}
+		return false, util.HandleInstanceSharingError(util.ErrChangingParametersOfReferenceInstance, instance.Name)
 	}
 
 	return true, nil

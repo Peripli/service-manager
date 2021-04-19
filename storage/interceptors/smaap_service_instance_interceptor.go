@@ -432,11 +432,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 			log.C(ctx).Errorf("Could not retrieve references of the service instance (%s)s: %v", instance.ID, err)
 		}
 		if referencesList != nil && referencesList.Len() > 0 {
-			var guidsList []string
-			for index := 0; index < referencesList.Len(); index++ {
-				guidsList = append(guidsList, referencesList.ItemAt(index).GetID())
-			}
-			return util.HandleReferencesError(util.ErrSharedInstanceHasReferences, guidsList)
+			return util.HandleReferencesError(util.ErrSharedInstanceHasReferences, types.ObjectListIDsToStringArray(referencesList))
 		}
 	}
 
