@@ -22,10 +22,17 @@ func VerifyCatalogDoesNotUseReferencePlan(catalogServices []*types.ServiceOfferi
 	return nil
 }
 func GenerateReferencePlanForShareableOfferings(ctx context.Context, repository storage.Repository, catalogServices []*types.ServiceOffering, catalogPlansMap map[string][]*types.ServicePlan) error {
+	var existingReferencePlan *types.ServicePlan
 	for _, service := range catalogServices {
-		existingReferencePlan, err := getExistingReferencePlan(ctx, repository, service.ID)
+		serviceOffering, err := getServiceOfferingByCatalogID(ctx, repository, service.CatalogID)
 		if err != nil {
 			return err
+		}
+		if serviceOffering != nil {
+			existingReferencePlan, err = getExistingReferencePlan(ctx, repository, serviceOffering.ID)
+			if err != nil {
+				return err
+			}
 		}
 		for _, plan := range service.Plans {
 			if plan.IsShareablePlan() {
@@ -65,6 +72,22 @@ func getExistingReferencePlan(ctx context.Context, repository storage.Repository
 	}
 	plan := planObject.(*types.ServicePlan)
 	return plan, nil
+}
+
+func getServiceOfferingByCatalogID(ctx context.Context, repository storage.Repository, serviceID string) (*types.ServiceOffering, error) {
+	byID := query.ByField(query.EqualsOperator, "catalog_id", serviceID)
+	var serviceObject types.Object
+	var err error
+	if serviceObject, err = repository.Get(ctx, types.ServiceOfferingType, byID); err != nil {
+		if err != util.ErrNotFoundInStorage {
+			return nil, util.HandleStorageError(err, string(types.ServicePlanType))
+		}
+	}
+	if serviceObject == nil {
+		return nil, nil
+	}
+	service := serviceObject.(*types.ServiceOffering)
+	return service, nil
 }
 
 func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
