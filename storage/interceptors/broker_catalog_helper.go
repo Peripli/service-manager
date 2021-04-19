@@ -49,7 +49,8 @@ func GenerateReferencePlanForShareableOfferings(ctx context.Context, repository 
 					catalogPlansMap[service.CatalogID] = append(catalogPlansMap[service.CatalogID], referencePlan)
 				}
 				generateExecuted = true
-				break
+			} else if plan.IsShareablePlan() && !isBindablePlan(service, plan) {
+				return false, util.HandleInstanceSharingError(util.ErrPlanMustBeBindable, plan.Name)
 			}
 		}
 	}
