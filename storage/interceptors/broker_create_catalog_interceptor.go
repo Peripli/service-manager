@@ -18,7 +18,9 @@ package interceptors
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
@@ -71,7 +73,7 @@ func (c *brokerCreateCatalogInterceptor) OnTxCreate(f storage.InterceptCreateOnT
 		if err != nil {
 			return nil, err
 		}
-		err = GenerateReferencePlanForShareableOfferings(ctx, storage, broker.Services, nil)
+		generateExecuted, err := GenerateReferencePlanForShareableOfferings(ctx, storage, broker.Services, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -86,6 +88,13 @@ func (c *brokerCreateCatalogInterceptor) OnTxCreate(f storage.InterceptCreateOnT
 			}
 		}
 
+		if generateExecuted == true {
+			broker.Catalog, err = json.Marshal(broker.Services)
+			if err != nil {
+				return nil, util.HandleInstanceSharingError(util.ErrParsingNewCatalogWithReference, constant.ReferencePlanName)
+			}
+			return broker, nil
+		}
 		return createdObj, nil
 	}
 }

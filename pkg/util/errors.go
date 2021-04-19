@@ -219,6 +219,7 @@ var (
 	ErrChangingPlanOfReferenceInstance       = errors.New("changing plan of reference instance")
 	ErrChangingParametersOfReferenceInstance = errors.New("changing parameters of reference instance")
 	ErrMissingReferenceParameter             = errors.New("missing referenced_instance_id parameter")
+	ErrParsingNewCatalogWithReference        = errors.New("failed generating reference-plan")
 )
 
 func HandleInstanceSharingError(err error, entityName string) error {
@@ -234,7 +235,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrCatalogUsesReservedPlanName:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("Registration of a plan with the name \"%s\" is reserved for the platform, another name must be chosen", entityName),
+			Description: fmt.Sprintf("Registration of a plan with the name \"%s\" is reserved for the platform, another name must be chosen.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrPlanMustBeBindable:
@@ -265,6 +266,12 @@ func HandleInstanceSharingError(err error, entityName string) error {
 		return &HTTPError{
 			ErrorType:   "InvalidRequest",
 			Description: fmt.Sprintf("missing parameter \"%s\".", entityName),
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrParsingNewCatalogWithReference:
+		return &HTTPError{
+			ErrorType:   "InvalidRequest",
+			Description: fmt.Sprintf("failed generating / parsing new catalog with the \"%s\" plan.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	default:

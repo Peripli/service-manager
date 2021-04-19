@@ -21,23 +21,24 @@ func VerifyCatalogDoesNotUseReferencePlan(catalogServices []*types.ServiceOfferi
 	}
 	return nil
 }
-func GenerateReferencePlanForShareableOfferings(ctx context.Context, repository storage.Repository, catalogServices []*types.ServiceOffering, catalogPlansMap map[string][]*types.ServicePlan) error {
+func GenerateReferencePlanForShareableOfferings(ctx context.Context, repository storage.Repository, catalogServices []*types.ServiceOffering, catalogPlansMap map[string][]*types.ServicePlan) (bool, error) {
 	var existingReferencePlan *types.ServicePlan
+	generateExecuted := false
 	for _, service := range catalogServices {
 		serviceOffering, err := getServiceOfferingByCatalogID(ctx, repository, service.CatalogID)
 		if err != nil {
-			return err
+			return false, err
 		}
 		if serviceOffering != nil {
 			existingReferencePlan, err = getExistingReferencePlan(ctx, repository, serviceOffering.ID)
 			if err != nil {
-				return err
+				return false, err
 			}
 		}
 		for _, plan := range service.Plans {
 			if plan.IsShareablePlan() {
 				if !isPlanBindable(service, plan) {
-					return util.HandleInstanceSharingError(util.ErrPlanMustBeBindable, plan.Name)
+					return false, util.HandleInstanceSharingError(util.ErrPlanMustBeBindable, plan.Name)
 				}
 				var referencePlan *types.ServicePlan
 				if existingReferencePlan != nil {
@@ -50,11 +51,12 @@ func GenerateReferencePlanForShareableOfferings(ctx context.Context, repository 
 				if catalogPlansMap != nil {
 					catalogPlansMap[service.CatalogID] = append(catalogPlansMap[service.CatalogID], referencePlan)
 				}
+				generateExecuted = true
 				break
 			}
 		}
 	}
-	return nil
+	return generateExecuted, nil
 }
 
 func getExistingReferencePlan(ctx context.Context, repository storage.Repository, serviceID string) (*types.ServicePlan, error) {

@@ -17,9 +17,14 @@
 package service_test
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/storage"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/gavv/httpexpect"
@@ -264,8 +269,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					When("catalog contains a shareable plan", func() {
 						Context("positive", func() {
+							var brokerID string
+							//var brokerJSON common.Object
+							//var BrokerServer *common.BrokerServer
+							var shareableCatalogID string
 							BeforeEach(func() {
-								_, shareableCatalogID := sharingInstanceBlueprint(ctx, ctx.SMWithOAuth, false)
+								_, shareableCatalogID, brokerID, _, _ = sharingInstanceBlueprint(ctx, ctx.SMWithOAuth, false)
 								referencePlan := common.GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareableCatalogID)
 								referencePlanID = referencePlan.ID
 
@@ -277,6 +286,23 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, referencePlanID, k8sPlatform.ID)
 								assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusOK)
 								assertPlansForPlatform(k8sAgent, referencePlanID)
+							})
+							It("should not generate new reference plan, when updating service broker when reference plan already exist", func() {
+								assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusNotFound)
+								assertPlansForPlatform(k8sAgent, nil...)
+
+								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
+									WithJSON(common.Object{}).Expect()
+
+								catalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
+								marshalCatalog, _ := json.Marshal(catalog)
+								Expect(getServicePlanByID(ctx.SMRepository, context.TODO(), referencePlanID)).ToNot(Equal(nil))
+								Expect(strings.Contains(string(marshalCatalog), referencePlanID)).To(Equal(true))
+							})
+							It("catalog should contain reference plan, when has shareable plan", func() {
+								catalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
+								marshalCatalog, _ := json.Marshal(catalog)
+								Expect(strings.Contains(string(marshalCatalog), referencePlanID)).To(Equal(true))
 							})
 						})
 						Context("negative", func() {
@@ -551,16 +577,38 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Ob
 	return sp.Object().Raw()
 }
 
-func sharingInstanceBlueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) (common.Object, string) {
+func sharingInstanceBlueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) (common.Object, string, string, common.Object, *common.BrokerServer) {
 	cShareablePlan, shareableCatalogID := common.GenerateShareablePaidTestPlan()
 	cService := common.GenerateTestServiceWithPlans(cShareablePlan)
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(cService)
-	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
+	brokerID, brokerJSON, BrokerServer := ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
 
-	so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", id)).First()
+	so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
 
 	sp := auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).First()
 
-	return sp.Object().Raw(), shareableCatalogID
+	return sp.Object().Raw(), shareableCatalogID, brokerID, brokerJSON, BrokerServer
+}
+
+func getCatalogByBrokerID(storage storage.TransactionalRepository, ctx context.Context, brokerID string) (json.RawMessage, error) {
+	byID := query.ByField(query.EqualsOperator, "id", brokerID)
+	object, err := storage.Get(ctx, types.ServiceBrokerType, byID)
+	if err != nil {
+		return nil, err
+	}
+
+	broker := object.(*types.ServiceBroker)
+	return broker.Catalog, nil
+}
+
+func getServicePlanByID(storage storage.TransactionalRepository, ctx context.Context, planID string) (*types.ServicePlan, error) {
+	byID := query.ByField(query.EqualsOperator, "id", planID)
+	object, err := storage.Get(ctx, types.ServicePlanType, byID)
+	if err != nil {
+		return nil, err
+	}
+
+	plan := object.(*types.ServicePlan)
+	return plan, nil
 }
