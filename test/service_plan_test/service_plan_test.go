@@ -306,7 +306,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								marshalCatalog, _ := json.Marshal(catalog)
 								Expect(strings.Contains(string(marshalCatalog), referencePlanID)).To(Equal(true))
 							})
-							FIt("should have only single reference plan when two plan support instance sharing", func() {
+							It("should have only single reference plan when two plan support instance sharing", func() {
 								cPaidPlan1, _ := common.GenerateShareablePaidTestPlan()
 								cPaidPlan1, err := sjson.Set(cPaidPlan1, "maximum_polling_duration", 2)
 								cPaidPlan1, err = sjson.Set(cPaidPlan1, "bindable", true)
