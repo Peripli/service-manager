@@ -78,7 +78,7 @@ func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
 	referencePlan.CatalogName = identity
 	referencePlan.ServiceOfferingID = serviceOfferingId
 	referencePlan.Name = identity
-	referencePlan.Description = "Reference plan"
+	referencePlan.Description = constant.ReferencePlanDescription
 	referencePlan.ID = UUID.String()
 	referencePlan.CatalogID = UUID.String()
 	referencePlan.Bindable = newTrue()

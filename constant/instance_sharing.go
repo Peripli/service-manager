@@ -1,3 +1,4 @@
 package constant
 
-const ReferencePlanName = "reference-plan"
+const ReferencePlanName = "instance-reference"
+const ReferencePlanDescription = "reference-plan-description"
