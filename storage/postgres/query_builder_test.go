@@ -715,7 +715,7 @@ WHERE visibilities.id::text = ? ;`)))
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(executedQuery).Should(Equal(trim(`SELECT COUNT(DISTINCT visibilities.id)
 FROM visibilities
-WHERE visibilities.platform_id::text = ? ;`)))
+WHERE visibilities.platform_id::text LIKE ? ;`)))
 					Expect(queryArgs).To(HaveLen(1))
 					Expect(queryArgs[0]).Should(Equal("%dfsfdsfdsfsd%"))
 				})
@@ -1065,7 +1065,7 @@ FROM visibilities ;`)))
 				criteria1 := query.ByLabel(query.EqualsOperator, "left1", "right1")
 				criteria2 := query.ByLabel(query.InOperator, "left2", "right2", "right3")
 				criteria3 := query.ByLabel(query.ContainsOPerator, "left3", "right3")
-				_, err := qb.NewQuery(entity).WithCriteria(criteria1, criteria2,criteria3).Delete(ctx)
+				_, err := qb.NewQuery(entity).WithCriteria(criteria1, criteria2, criteria3).Delete(ctx)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
 DELETE
@@ -1103,6 +1103,22 @@ WHERE visibilities.id::text = ? ;`)))
 				Expect(queryArgs[0]).Should(Equal("1"))
 			})
 
+			Context("contains operator", func() {
+				It("should not return an error", func() {
+					_, err := qb.NewQuery(entity).
+						WithCriteria(query.ByField(query.ContainsOPerator, "platform_id", "dfsfdsfdsfsd")).
+						Delete(ctx)
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(executedQuery).Should(Equal(trim(`
+DELETE
+FROM visibilities
+WHERE visibilities.platform_id::text LIKE ? ;`)))
+					Expect(queryArgs).To(HaveLen(1))
+					Expect(queryArgs[0]).Should(Equal("%dfsfdsfdsfsd%"))
+				})
+
+			})
+
 			Context("when field is missing", func() {
 				It("returns error", func() {
 					criteria := query.ByField(query.EqualsOperator, "non-existing-field", "value")
@@ -1115,6 +1131,19 @@ WHERE visibilities.id::text = ? ;`)))
 				It("returns error", func() {
 					_, err := qb.NewQuery(entity).DeleteReturning(ctx)
 					Expect(err).To(HaveOccurred())
+				})
+			})
+
+			Context("when column type is not supported by operation", func() {
+				It("returns error", func() {
+					By("type is boolean")
+					criteria := query.ByField(query.ContainsOPerator, "ready", "true")
+					_, err := qb.NewQuery(entity).WithCriteria(criteria).Delete(ctx)
+					Expect(err.Error()).To(ContainSubstring("the operator 'contains' is not applicable on"))
+					By("type is datetime")
+					criteria = query.ByField(query.ContainsOPerator, "created_at", "2021-04-18T17:44:55.43761Z")
+					_, err = qb.NewQuery(entity).WithCriteria(criteria).Delete(ctx)
+					Expect(err.Error()).To(ContainSubstring("the operator 'contains' is not applicable on"))
 				})
 			})
 		})
@@ -1154,14 +1183,14 @@ RETURNING *;`)))
 				criteria1 := query.ByField(query.NotEqualsOperator, "id", "1")
 				criteria2 := query.ByField(query.NotInOperator, "service_plan_id", "2", "3", "4")
 				criteria3 := query.ByField(query.EqualsOrNilOperator, "platform_id", "5")
-
+				criteria8 := query.ByField(query.ContainsOPerator, "platform_id", "jlkdjls")
 				criteria4 := query.ByLabel(query.EqualsOperator, "left1", "right1")
 				criteria5 := query.ByLabel(query.InOperator, "left2", "right2", "right3")
 				criteria6 := query.ByLabel(query.NotEqualsOperator, "left3", "right4")
 
 				criteria7 := query.OrderResultBy("id", query.AscOrder)
 
-				_, err := qb.NewQuery(entity).WithCriteria(criteria1, criteria2, criteria3, criteria4, criteria5, criteria6, criteria7).DeleteReturning(ctx, "*")
+				_, err := qb.NewQuery(entity).WithCriteria(criteria1, criteria2, criteria3, criteria8, criteria4, criteria5, criteria6, criteria7).DeleteReturning(ctx, "*")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
 DELETE
@@ -1169,26 +1198,28 @@ FROM visibilities USING (SELECT visibilities.id
                          FROM visibilities
                                   JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
                          WHERE ((visibilities.id::text != ? AND visibilities.service_plan_id::text NOT IN (?, ?, ?) AND
-                                 (visibilities.platform_id::text = ? OR platform_id IS NULL)) AND
+                                 (visibilities.platform_id::text = ? OR platform_id IS NULL) AND
+                                 visibilities.platform_id::text LIKE ?) AND
 								 (visibility_id IN ((SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text = ?))
 										INTERSECT
 										(SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text IN (?, ?)))
 										INTERSECT
 										(SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text != ?)))))) t
 WHERE visibilities.id = t.id RETURNING *;`)))
-				Expect(queryArgs).To(HaveLen(12))
+				Expect(queryArgs).To(HaveLen(13))
 				Expect(queryArgs[0]).Should(Equal("1"))
 				Expect(queryArgs[1]).Should(Equal("2"))
 				Expect(queryArgs[2]).Should(Equal("3"))
 				Expect(queryArgs[3]).Should(Equal("4"))
 				Expect(queryArgs[4]).Should(Equal("5"))
-				Expect(queryArgs[5]).Should(Equal("left1"))
-				Expect(queryArgs[6]).Should(Equal("right1"))
-				Expect(queryArgs[7]).Should(Equal("left2"))
-				Expect(queryArgs[8]).Should(Equal("right2"))
-				Expect(queryArgs[9]).Should(Equal("right3"))
-				Expect(queryArgs[10]).Should(Equal("left3"))
-				Expect(queryArgs[11]).Should(Equal("right4"))
+				Expect(queryArgs[5]).Should(Equal("%jlkdjls%"))
+				Expect(queryArgs[6]).Should(Equal("left1"))
+				Expect(queryArgs[7]).Should(Equal("right1"))
+				Expect(queryArgs[8]).Should(Equal("left2"))
+				Expect(queryArgs[9]).Should(Equal("right2"))
+				Expect(queryArgs[10]).Should(Equal("right3"))
+				Expect(queryArgs[11]).Should(Equal("left3"))
+				Expect(queryArgs[12]).Should(Equal("right4"))
 			})
 		})
 	})
