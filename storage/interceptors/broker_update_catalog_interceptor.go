@@ -97,7 +97,15 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 		if err != nil {
 			return nil, err
 		}
-		err = GenerateReferencePlanForShareableOfferings(ctx, txStorage, catalogServices, catalogPlansMap)
+
+		existingReferencePlan, err := getExistingReferencePlan(ctx, txStorage, catalogServices)
+		if existingReferencePlan != nil {
+			catalogPlansMap[existingReferencePlan.ServiceOfferingID] = append(catalogPlansMap[existingReferencePlan.ServiceOfferingID], existingReferencePlan)
+		}
+		if err != nil {
+			return nil, err
+		}
+		err = GenerateReferencePlanForShareableOfferings(catalogServices, catalogPlansMap, existingReferencePlan)
 		if err != nil {
 			return nil, err
 		}

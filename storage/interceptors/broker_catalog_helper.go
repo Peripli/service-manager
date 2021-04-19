@@ -21,12 +21,8 @@ func VerifyCatalogDoesNotUseReferencePlan(catalogServices []*types.ServiceOfferi
 	}
 	return nil
 }
-func GenerateReferencePlanForShareableOfferings(ctx context.Context, repository storage.Repository, catalogServices []*types.ServiceOffering, catalogPlansMap map[string][]*types.ServicePlan) error {
+func GenerateReferencePlanForShareableOfferings(catalogServices []*types.ServiceOffering, catalogPlansMap map[string][]*types.ServicePlan, existingReferencePlan *types.ServicePlan) error {
 	for _, service := range catalogServices {
-		existingReferencePlan, err := getExistingReferencePlan(ctx, repository, service.ID)
-		if err != nil {
-			return err
-		}
 		for _, plan := range service.Plans {
 			if plan.IsShareablePlan() {
 				if !isPlanBindable(service, plan) {
@@ -50,21 +46,24 @@ func GenerateReferencePlanForShareableOfferings(ctx context.Context, repository 
 	return nil
 }
 
-func getExistingReferencePlan(ctx context.Context, repository storage.Repository, serviceID string) (*types.ServicePlan, error) {
-	byID := query.ByField(query.EqualsOperator, "service_offering_id", serviceID)
-	byName := query.ByField(query.EqualsOperator, "name", constant.ReferencePlanName)
-	var planObject types.Object
-	var err error
-	if planObject, err = repository.Get(ctx, types.ServicePlanType, byID, byName); err != nil {
-		if err != util.ErrNotFoundInStorage {
-			return nil, util.HandleStorageError(err, string(types.ServicePlanType))
+func getExistingReferencePlan(ctx context.Context, repository storage.Repository, catalogServices []*types.ServiceOffering) (*types.ServicePlan, error) {
+	for _, service := range catalogServices {
+		byID := query.ByField(query.EqualsOperator, "service_offering_id", service.ID)
+		byName := query.ByField(query.EqualsOperator, "name", constant.ReferencePlanName)
+		var planObject types.Object
+		var err error
+		if planObject, err = repository.Get(ctx, types.ServicePlanType, byID, byName); err != nil {
+			if err != util.ErrNotFoundInStorage {
+				return nil, util.HandleStorageError(err, string(types.ServicePlanType))
+			}
 		}
+		if planObject == nil {
+			return nil, nil
+		}
+		plan := planObject.(*types.ServicePlan)
+		return plan, nil
 	}
-	if planObject == nil {
-		return nil, nil
-	}
-	plan := planObject.(*types.ServicePlan)
-	return plan, nil
+	return nil, nil
 }
 
 func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
