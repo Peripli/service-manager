@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/lib/pq"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -183,14 +182,6 @@ func HandleStorageError(err error, entityName string) error {
 				StatusCode:  http.StatusBadRequest,
 			}
 		default:
-			sqlErr, ok := err.(*pq.Error)
-			if ok && (sqlErr.Code == "42883") {
-				return &HTTPError{
-					ErrorType:   "BadRequest",
-					Description: fmt.Sprintf("storage err: %s", "operator is not applicable for the given value type"),
-					StatusCode:  http.StatusBadRequest,
-				}
-			}
 			return err
 		}
 	}
