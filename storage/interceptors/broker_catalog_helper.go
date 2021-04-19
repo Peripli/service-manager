@@ -36,10 +36,7 @@ func GenerateReferencePlanForShareableOfferings(ctx context.Context, repository 
 			}
 		}
 		for _, plan := range service.Plans {
-			if plan.IsShareablePlan() {
-				if !isPlanBindable(service, plan) {
-					return false, util.HandleInstanceSharingError(util.ErrPlanMustBeBindable, plan.Name)
-				}
+			if plan.IsShareablePlan() && isBindablePlan(service, plan) {
 				var referencePlan *types.ServicePlan
 				if existingReferencePlan != nil {
 					referencePlan = existingReferencePlan
@@ -112,7 +109,7 @@ func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
 	return referencePlan
 }
 
-func isPlanBindable(service *types.ServiceOffering, plan *types.ServicePlan) bool {
+func isBindablePlan(service *types.ServiceOffering, plan *types.ServicePlan) bool {
 	if plan.Bindable != nil {
 		return *plan.Bindable
 	}
