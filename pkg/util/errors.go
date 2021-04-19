@@ -271,7 +271,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrParsingNewCatalogWithReference:
 		return &HTTPError{
 			ErrorType:   "InvalidRequest",
-			Description: fmt.Sprintf("Failed to generate or parse the new catalog with the plan \"%s\".", entityName),
+			Description: fmt.Sprintf("Parsing failed. Couldn't generate the new catalog with the plan \"%s\".", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	default:
