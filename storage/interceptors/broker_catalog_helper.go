@@ -23,7 +23,7 @@ func VerifyCatalogDoesNotUseReferencePlan(catalogServices []*types.ServiceOfferi
 }
 func GenerateReferencePlanForShareableOfferings(ctx context.Context, repository storage.Repository, catalogServices []*types.ServiceOffering, catalogPlansMap map[string][]*types.ServicePlan) (bool, error) {
 	var existingReferencePlan *types.ServicePlan
-	generateExecuted := false
+	generateExecutedForCatalog := false
 	for _, service := range catalogServices {
 		serviceOffering, err := getServiceOfferingByCatalogID(ctx, repository, service.CatalogID)
 		if err != nil {
@@ -35,26 +35,33 @@ func GenerateReferencePlanForShareableOfferings(ctx context.Context, repository 
 				return false, err
 			}
 		}
+		generateExecutedForServiceOffering := false
 		for _, plan := range service.Plans {
-			if plan.IsShareablePlan() && isBindablePlan(service, plan) {
-				var referencePlan *types.ServicePlan
-				if existingReferencePlan != nil {
-					referencePlan = existingReferencePlan
-				} else {
-					referencePlan = generateReferencePlanObject(plan.ServiceOfferingID)
-				}
-				service.Plans = append(service.Plans, referencePlan)
-				// When not on "update catalog" flow:
-				if catalogPlansMap != nil {
-					catalogPlansMap[service.CatalogID] = append(catalogPlansMap[service.CatalogID], referencePlan)
-				}
-				generateExecuted = true
+			if plan.IsShareablePlan() && isBindablePlan(service, plan) && !generateExecutedForServiceOffering {
+				generateExecutedForServiceOffering = executeGenerationOnValidInstanceSharingPlan(existingReferencePlan, generateExecutedForServiceOffering, plan, service, catalogPlansMap)
+				generateExecutedForCatalog = true
 			} else if plan.IsShareablePlan() && !isBindablePlan(service, plan) {
 				return false, util.HandleInstanceSharingError(util.ErrPlanMustBeBindable, plan.Name)
 			}
 		}
 	}
-	return generateExecuted, nil
+	return generateExecutedForCatalog, nil
+}
+
+func executeGenerationOnValidInstanceSharingPlan(existingReferencePlan *types.ServicePlan, generateExecutedForServiceOffering bool, plan *types.ServicePlan, service *types.ServiceOffering, catalogPlansMap map[string][]*types.ServicePlan) bool {
+	var referencePlan *types.ServicePlan
+	if existingReferencePlan != nil {
+		referencePlan = existingReferencePlan
+	} else if !generateExecutedForServiceOffering {
+		referencePlan = generateReferencePlanObject(plan.ServiceOfferingID)
+		generateExecutedForServiceOffering = true
+	}
+	service.Plans = append(service.Plans, referencePlan)
+	// When not on "update catalog" flow:
+	if catalogPlansMap != nil {
+		catalogPlansMap[service.CatalogID] = append(catalogPlansMap[service.CatalogID], referencePlan)
+	}
+	return generateExecutedForServiceOffering
 }
 
 func getExistingReferencePlan(ctx context.Context, repository storage.Repository, serviceID string) (*types.ServicePlan, error) {

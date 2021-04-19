@@ -20,8 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/tidwall/sjson"
 	"net/http"
 	"net/url"
 	"strings"
@@ -303,6 +305,28 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								catalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
 								marshalCatalog, _ := json.Marshal(catalog)
 								Expect(strings.Contains(string(marshalCatalog), referencePlanID)).To(Equal(true))
+							})
+							FIt("should have only single reference plan when two plan support instance sharing", func() {
+								cPaidPlan1, _ := common.GenerateShareablePaidTestPlan()
+								cPaidPlan1, err := sjson.Set(cPaidPlan1, "maximum_polling_duration", 2)
+								cPaidPlan1, err = sjson.Set(cPaidPlan1, "bindable", true)
+								if err != nil {
+									panic(err)
+								}
+								cPaidPlan2, _ := common.GenerateShareablePaidTestPlan()
+								cPaidPlan2, err = sjson.Set(cPaidPlan2, "bindable", true)
+								if err != nil {
+									panic(err)
+								}
+								cService := common.GenerateTestServiceWithPlansNonBindable(cPaidPlan1, cPaidPlan2)
+								catalog := common.NewEmptySBCatalog()
+								catalog.AddService(cService)
+								ctx.TryRegisterBrokerWithCatalogAndLabels(catalog, common.Object{}, ctx.SMWithOAuth, http.StatusCreated)
+								// count should be 2 for catalog name and plan name
+								newCatalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
+								s := string(newCatalog)
+								count := strings.Count(s, constant.ReferencePlanName)
+								Expect(count).To(Equal(2))
 							})
 						})
 						Context("negative", func() {
