@@ -201,7 +201,7 @@ func HandleReferencesError(err error, guidsArray []string) error {
 
 	switch err {
 	case ErrSharedInstanceHasReferences:
-		errorMessage := fmt.Sprintf("could not delete the service instance. The service instance has %d references which should be deleted first: %s", len(guidsArray), guidsArray)
+		errorMessage := fmt.Sprintf("Couldn't delete the service instance. Before you can delete it, you first need to delete these %d references: %s", len(guidsArray), guidsArray)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
@@ -235,43 +235,43 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrCatalogUsesReservedPlanName:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("Registration of a plan with the name \"%s\" is reserved for the platform, another name must be chosen.", entityName),
+			Description: fmt.Sprintf("The plan name you used for registration \"%s\" is reserved for the Service Manager; you must choose a different name.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrPlanMustBeBindable:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("plan \"%s\" must be bindable in order to support instance sharing.", entityName),
+			Description: fmt.Sprintf("The plan \"%s\" must be defined as 'bindable' so that it can support instance sharing.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrReferencedInstanceNotShared:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("referenced instance \"%s\" must be shared first.", entityName),
+			Description: fmt.Sprintf("Failed to share the instance   . The root reference instance \"%s\" must be shared first.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrChangingPlanOfReferenceInstance:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("the instance \"%s\" is a reference type, its plan cannot be changed.", entityName),
+			Description: fmt.Sprintf("Failed to update the instance \"%s\". This is a reference instance, therefore its plan can't be changed.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrChangingParametersOfReferenceInstance:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("the instance \"%s\" is a reference type, its parameters cannot be changed.", entityName),
+			Description: fmt.Sprintf("Failed to update the instance \"%s\". This is a reference instance, therefore its parameters can't be changed.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrMissingReferenceParameter:
 		return &HTTPError{
 			ErrorType:   "InvalidRequest",
-			Description: fmt.Sprintf("missing parameter \"%s\".", entityName),
+			Description: fmt.Sprintf("Failed to create the instance. Missing parameter \"%s\".", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrParsingNewCatalogWithReference:
 		return &HTTPError{
 			ErrorType:   "InvalidRequest",
-			Description: fmt.Sprintf("failed generating / parsing new catalog with the \"%s\" plan.", entityName),
+			Description: fmt.Sprintf("Failed to generate or parse the new catalog with the plan \"%s\".", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	default:
