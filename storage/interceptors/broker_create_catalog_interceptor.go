@@ -71,7 +71,7 @@ func (c *brokerCreateCatalogInterceptor) OnTxCreate(f storage.InterceptCreateOnT
 		if err != nil {
 			return nil, err
 		}
-		err = GenerateReferencePlanForShareableOfferings(broker.Services, nil)
+		err = GenerateReferencePlanForShareableOfferings(ctx, storage, broker.Services, nil)
 		if err != nil {
 			return nil, err
 		}
