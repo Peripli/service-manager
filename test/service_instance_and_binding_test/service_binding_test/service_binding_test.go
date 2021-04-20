@@ -106,7 +106,7 @@ var _ = DescribeTestsFor(TestCase{
 	PatchResource:                          StorageResourcePatch,
 	SubResourcesBlueprint:                  nil,
 	AdditionalTests: func(ctx *TestContext, t *TestCase) {
-		FContext("additional non-generic tests", func() {
+		Context("additional non-generic tests", func() {
 			var (
 				postBindingRequest   Object
 				instanceID           string
