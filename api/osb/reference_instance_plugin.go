@@ -10,6 +10,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/test/common"
 	"github.com/tidwall/gjson"
 	"net/http"
 )
@@ -65,13 +66,7 @@ func (p *referenceInstancePlugin) Provision(req *web.Request, next web.Handler) 
 	if err != nil {
 		return nil, err
 	}
-	headers := http.Header{}
-	headers.Add("Content-Type", "application/json")
-	return &web.Response{
-		Body:       []byte(`{}`),
-		StatusCode: http.StatusCreated,
-		Header:     headers,
-	}, nil
+	return p.generateOSBResponse(ctx, "Provision", nil)
 }
 
 // Deprovision intercepts deprovision requests and check if the instance is in the platform from where the request comes
@@ -97,11 +92,7 @@ func (p *referenceInstancePlugin) Deprovision(req *web.Request, next web.Handler
 		return next.Handle(req)
 	}
 
-	return &web.Response{
-		Body:       nil,
-		StatusCode: http.StatusOK,
-		Header:     http.Header{},
-	}, nil
+	return p.generateOSBResponse(ctx, "Deprovision", nil)
 }
 
 // UpdateService intercepts update service instance requests and check if the instance is in the platform from where the request comes
@@ -132,12 +123,7 @@ func (p *referenceInstancePlugin) UpdateService(req *web.Request, next web.Handl
 		return nil, err
 	}
 
-	marshal, _ := json.Marshal(nil)
-	return &web.Response{
-		Body:       marshal,
-		StatusCode: http.StatusOK,
-		Header:     http.Header{},
-	}, nil
+	return p.generateOSBResponse(ctx, "UpdateService", nil)
 }
 
 // Bind intercepts bind requests and check if the instance is in the platform from where the request comes
@@ -174,15 +160,65 @@ func (p *referenceInstancePlugin) FetchService(req *web.Request, next web.Handle
 		return next.Handle(req)
 	}
 
-	marshal, _ := json.Marshal(instance)
-	// epsilontal todo: build response as osb spec shows
+	return p.generateOSBResponse(ctx, "FetchService", instance)
+}
+
+func (p *referenceInstancePlugin) generateOSBResponse(ctx context.Context, method string, instance *types.ServiceInstance) (*web.Response, error) {
+	var marshal []byte
 	headers := http.Header{}
 	headers.Add("Content-Type", "application/json")
-	return &web.Response{
-		Body:       marshal,
-		StatusCode: http.StatusOK,
-		Header:     headers,
-	}, nil
+	switch method {
+	case "Provision":
+		return &web.Response{
+			Body:       []byte(`{}`),
+			StatusCode: http.StatusCreated,
+			Header:     headers,
+		}, nil
+	case "Deprovision":
+		return &web.Response{
+			Body:       []byte(`{}`),
+			StatusCode: http.StatusOK,
+			Header:     headers,
+		}, nil
+	case "UpdateService":
+		return &web.Response{
+			Body:       []byte(`{}`),
+			StatusCode: http.StatusOK,
+			Header:     headers,
+		}, nil
+	case "FetchService":
+		osbResponse, err := p.buildOSBFetchServiceResponse(ctx, instance)
+		if err != nil {
+			return nil, err
+		}
+		marshal, err = json.Marshal(osbResponse)
+		if err != nil {
+			return nil, err
+		}
+		return &web.Response{
+			Body:       marshal,
+			StatusCode: http.StatusOK,
+			Header:     headers,
+		}, nil
+	}
+	return nil, util.HandleInstanceSharingError(util.ErrUnknownOSBMethod, method)
+
+}
+
+func (p *referenceInstancePlugin) buildOSBFetchServiceResponse(ctx context.Context, instance *types.ServiceInstance) (common.Object, error) {
+	serviceOffering, plan, err := p.getServiceOfferingAndPlanByPlanID(ctx, instance.ServicePlanID)
+	if err != nil {
+		return nil, util.HandleInstanceSharingError(util.ErrNotFoundInStorage, string(types.ServiceOfferingType))
+	}
+	osbResponse := common.Object{
+		"service_id":       serviceOffering.CatalogID,
+		"plan_id":          plan.CatalogID,
+		"maintenance_info": instance.MaintenanceInfo,
+		"parameters": map[string]string{
+			referencedKey: instance.ReferencedInstanceID,
+		},
+	}
+	return osbResponse, nil
 }
 
 // PollBinding intercepts poll binding operation requests and check if the instance is in the platform from where the request comes
@@ -288,4 +324,36 @@ func (p *referenceInstancePlugin) handleBinding(req *web.Request, next web.Handl
 		req.Request = req.WithContext(types.ContextWithInstance(req.Context(), sharedInstance))
 	}
 	return next.Handle(req)
+}
+
+func (p *referenceInstancePlugin) getServiceOfferingAndPlanByPlanID(ctx context.Context, planID string) (*types.ServiceOffering, *types.ServicePlan, error) {
+	plan, err := p.getPlanByID(ctx, planID)
+	if err != nil {
+		return nil, nil, err
+	}
+	serviceOffering, err := p.getServiceOfferingByID(ctx, plan.ServiceOfferingID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return serviceOffering, plan, nil
+}
+
+func (p *referenceInstancePlugin) getPlanByID(ctx context.Context, planID string) (*types.ServicePlan, error) {
+	byID := query.ByField(query.EqualsOperator, "id", planID)
+	dbPlanObject, err := p.repository.Get(ctx, types.ServicePlanType, byID)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServicePlanType.String())
+	}
+	plan := dbPlanObject.(*types.ServicePlan)
+	return plan, nil
+}
+
+func (p *referenceInstancePlugin) getServiceOfferingByID(ctx context.Context, serviceOfferingID string) (*types.ServiceOffering, error) {
+	byID := query.ByField(query.EqualsOperator, "id", serviceOfferingID)
+	dbServiceOfferingObject, err := p.repository.Get(ctx, types.ServiceOfferingType, byID)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceOfferingType.String())
+	}
+	serviceOffering := dbServiceOfferingObject.(*types.ServiceOffering)
+	return serviceOffering, nil
 }

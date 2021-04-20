@@ -220,6 +220,7 @@ var (
 	ErrChangingParametersOfReferenceInstance = errors.New("changing parameters of reference instance")
 	ErrMissingReferenceParameter             = errors.New("missing referenced_instance_id parameter")
 	ErrParsingNewCatalogWithReference        = errors.New("failed generating reference-plan")
+	ErrUnknownOSBMethod                      = errors.New("osb method is unknown")
 )
 
 func HandleInstanceSharingError(err error, entityName string) error {
@@ -272,6 +273,12 @@ func HandleInstanceSharingError(err error, entityName string) error {
 		return &HTTPError{
 			ErrorType:   "InvalidRequest",
 			Description: fmt.Sprintf("Parsing failed. Couldn't generate the new catalog with the plan \"%s\".", entityName),
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrUnknownOSBMethod:
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("Unknown OSB method: \"%s\".", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	default:
