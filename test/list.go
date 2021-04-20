@@ -120,7 +120,6 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 				expectedStatusCode:        http.StatusBadRequest,
 			},
 		),
-
 		Entry("returns 200",
 			listOpEntry{
 				resourcesToExpectBeforeOp: []common.Object{r[0]},
