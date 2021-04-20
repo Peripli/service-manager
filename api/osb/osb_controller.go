@@ -147,7 +147,7 @@ func modifyRequestURLPath(ctx context.Context, m []string, modifiedRequest *http
 
 func isInstanceSharingFlow(ctx context.Context) bool {
 	instanceFromContext, exists := types.InstanceFromContext(ctx)
-	return exists && instanceFromContext.Shared != nil && *instanceFromContext.Shared == true
+	return exists && instanceFromContext.Shared != nil && *instanceFromContext.Shared
 }
 
 func getPathForInstanceSharing(ctx context.Context, currentPath string) string {

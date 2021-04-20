@@ -152,7 +152,7 @@ func (f *referenceInstanceFilter) isReferencedShared(ctx context.Context, refere
 	}
 	referencedInstance := dbReferencedObject.(*types.ServiceInstance)
 
-	if *referencedInstance.Shared != true {
+	if !*referencedInstance.Shared {
 		return false, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, referencedInstanceID)
 	}
 	return true, nil
