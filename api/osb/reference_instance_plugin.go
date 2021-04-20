@@ -10,7 +10,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/test/common"
 	"github.com/tidwall/gjson"
 	"net/http"
 )
@@ -24,6 +23,8 @@ type referenceInstancePlugin struct {
 	repository       storage.TransactionalRepository
 	tenantIdentifier string
 }
+
+type osbObject = map[string]interface{}
 
 // NewCheckPlatformIDPlugin creates new plugin that checks the platform_id of the instance
 func NewReferenceInstancePlugin(repository storage.TransactionalRepository, tenantIdentifier string) *referenceInstancePlugin {
@@ -205,12 +206,12 @@ func (p *referenceInstancePlugin) generateOSBResponse(ctx context.Context, metho
 
 }
 
-func (p *referenceInstancePlugin) buildOSBFetchServiceResponse(ctx context.Context, instance *types.ServiceInstance) (common.Object, error) {
+func (p *referenceInstancePlugin) buildOSBFetchServiceResponse(ctx context.Context, instance *types.ServiceInstance) (osbObject, error) {
 	serviceOffering, plan, err := p.getServiceOfferingAndPlanByPlanID(ctx, instance.ServicePlanID)
 	if err != nil {
 		return nil, util.HandleInstanceSharingError(util.ErrNotFoundInStorage, string(types.ServiceOfferingType))
 	}
-	osbResponse := common.Object{
+	osbResponse := osbObject{
 		"service_id":       serviceOffering.CatalogID,
 		"plan_id":          plan.CatalogID,
 		"maintenance_info": instance.MaintenanceInfo,
