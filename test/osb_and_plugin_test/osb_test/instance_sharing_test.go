@@ -271,7 +271,8 @@ var _ = Describe("Instance Sharing", func() {
 						Expect().
 						Status(http.StatusOK)
 					referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareablePlanCatalogID)
-					resp.JSON().Object().Value("service_plan_id").String().Contains(referencePlan.ID)
+					resp.JSON().Object().Value("plan_id").String().Contains(referencePlan.ID)
+					resp.JSON().Object().Value("service_id").String().Contains(service2CatalogID)
 				})
 			})
 		})
