@@ -159,12 +159,24 @@ func (p *referenceInstancePlugin) FetchBinding(req *web.Request, next web.Handle
 func (p *referenceInstancePlugin) FetchService(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	instanceID := req.PathParams["instance_id"]
+
 	dbInstanceObject, err := p.getObjectByOperator(ctx, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
 		return next.Handle(req)
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
+
+	isReferencePlan, err := p.isReferencePlan(ctx, "id", instance.ServicePlanID)
+
+	if err != nil {
+		return nil, err
+	}
+	if !isReferencePlan {
+		return next.Handle(req)
+	}
+
 	marshal, _ := json.Marshal(instance)
+	// epsilontal todo: build response as osb spec shows
 	headers := http.Header{}
 	headers.Add("Content-Type", "application/json")
 	return &web.Response{
