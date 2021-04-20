@@ -105,22 +105,20 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 		Entry("return 200 when contains operator is valid",
 			listOpEntry{
 				resourcesToExpectBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
-				queryTemplate:               "%s contains '%v'",
-				queryArgs:                  common.RemoveBooleanArgs(common.RemoveNumericAndDateArgs(r[0])),
+				queryTemplate:             "%s contains '%v'",
+				queryArgs:                 common.RemoveBooleanArgs(common.RemoveNumericAndDateArgs(r[0])),
 				resourcesToExpectAfterOp:  []common.Object{r[0]},
 				expectedStatusCode:        http.StatusOK,
 			},
-
 		),
 		Entry("return 400 when contains operator is applied on non-strings fields",
 			listOpEntry{
 				resourcesToExpectBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
-				queryTemplate:               "%s eq '%v'",
-				queryArgs:                  common.RemoveNonNumericOrDateArgs(common.CopyFields(r[0])),
+				queryTemplate:             "%s eq '%v'",
+				queryArgs:                 common.RemoveNonNumericOrDateArgs(common.CopyFields(r[0])),
 				resourcesToExpectAfterOp:  []common.Object{r[0]},
 				expectedStatusCode:        http.StatusBadRequest,
 			},
-
 		),
 
 		Entry("returns 200",
@@ -151,7 +149,6 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 				expectedStatusCode:        http.StatusOK,
 			},
 		),
-
 
 		Entry("returns 200",
 			listOpEntry{
@@ -302,7 +299,6 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 				expectedStatusCode: http.StatusBadRequest,
 			},
 		),
-
 
 		Entry("returns 400 when field query left operands are unknown",
 			listOpEntry{
