@@ -240,7 +240,7 @@ func (p *referenceInstancePlugin) isReferencedShared(ctx context.Context, refere
 	}
 	referencedInstance := dbReferencedObject.(*types.ServiceInstance)
 
-	if *referencedInstance.Shared != true {
+	if *referencedInstance.Shared {
 		return false, errors.New("referenced referencedInstance is not shared")
 	}
 	return true, nil
