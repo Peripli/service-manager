@@ -106,7 +106,7 @@ var _ = DescribeTestsFor(TestCase{
 	PatchResource:                          StorageResourcePatch,
 	SubResourcesBlueprint:                  nil,
 	AdditionalTests: func(ctx *TestContext, t *TestCase) {
-		Context("additional non-generic tests", func() {
+		FContext("additional non-generic tests", func() {
 			var (
 				postBindingRequest   Object
 				instanceID           string
@@ -2752,7 +2752,6 @@ func newShareableServicePlanWithMaxPollingDuration(ctx *TestContext, bindable bo
 		panic(err)
 	}
 	cPaidPlan2, _ := GenerateShareablePaidTestPlan()
-	cPaidPlan2, err = sjson.Set(cPaidPlan2, "bindable", false)
 	if err != nil {
 		panic(err)
 	}
