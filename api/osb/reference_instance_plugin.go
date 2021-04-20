@@ -3,7 +3,6 @@ package osb
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -240,8 +239,8 @@ func (p *referenceInstancePlugin) isReferencedShared(ctx context.Context, refere
 	}
 	referencedInstance := dbReferencedObject.(*types.ServiceInstance)
 
-	if *referencedInstance.Shared {
-		return false, errors.New("referenced referencedInstance is not shared")
+	if !*referencedInstance.Shared {
+		return false, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, referencedInstanceID)
 	}
 	return true, nil
 }
