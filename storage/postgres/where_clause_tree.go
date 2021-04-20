@@ -144,7 +144,7 @@ func buildRightOp(operator query.Operator, rightOp []string) (string, interface{
 		rhs = rightOp
 	} else {
 		rhs = rightOp[0]
-		if operator == query.ContainsOPerator {
+		if operator == query.ContainsOperator {
 			rhs = fmt.Sprintf("%s%s%s", "%", rhs, "%")
 		}
 	}
@@ -173,7 +173,7 @@ func translateOperationToSQLEquivalent(operator query.Operator) string {
 		return "="
 	case query.NotEqualsOperator:
 		return "!="
-	case query.ContainsOPerator:
+	case query.ContainsOperator:
 		return "LIKE"
 
 	default:

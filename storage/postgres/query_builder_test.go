@@ -126,7 +126,7 @@ ORDER BY visibilities.paging_sequence ASC ;`)))
 			Context("contains operator", func() {
 				It("valid contains operator", func() {
 					_, err := qb.NewQuery(entity).
-						WithCriteria(query.ByLabel(query.ContainsOPerator, "labelKey", "labelValue")).
+						WithCriteria(query.ByLabel(query.ContainsOperator, "labelKey", "labelValue")).
 						List(ctx)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(executedQuery).Should(Equal(trim(`
@@ -188,7 +188,7 @@ ORDER BY visibilities.paging_sequence ASC ;`)))
 			Context("contains operator", func() {
 				It("valid contains criteria", func() {
 					_, err := qb.NewQuery(entity).
-						WithCriteria(query.ByField(query.ContainsOPerator, "platform_id", "fdsfdsfds1")).
+						WithCriteria(query.ByField(query.ContainsOperator, "platform_id", "fdsfdsfds1")).
 						List(ctx)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(executedQuery).Should(Equal(trim(`
@@ -212,11 +212,11 @@ ORDER BY visibilities.paging_sequence ASC ;`)))
 				Context("when column type is not supported", func() {
 					It("should return an error", func() {
 						By("type is datetime")
-						_, err := qb.NewQuery(entity).WithCriteria(query.ByField(query.ContainsOPerator, "created_at", "2021-04-18T17:44:55.43761Z")).List(ctx)
+						_, err := qb.NewQuery(entity).WithCriteria(query.ByField(query.ContainsOperator, "created_at", "2021-04-18T17:44:55.43761Z")).List(ctx)
 						Expect(err).Should(HaveOccurred())
 						Expect(err.Error()).To(ContainSubstring("the operator 'contains' is not applicable on non-string columns"))
 						By("type is boolean")
-						_, err = qb.NewQuery(entity).WithCriteria(query.ByField(query.ContainsOPerator, "ready", "true")).List(ctx)
+						_, err = qb.NewQuery(entity).WithCriteria(query.ByField(query.ContainsOperator, "ready", "true")).List(ctx)
 						Expect(err).Should(HaveOccurred())
 						Expect(err.Error()).To(ContainSubstring("the operator 'contains' is not applicable on non-string columns"))
 					})
@@ -337,7 +337,7 @@ ORDER BY visibilities.paging_sequence ASC ;`)))
 				criteria1 := query.ByField(query.NotEqualsOperator, "id", "1")
 				criteria2 := query.ByField(query.NotInOperator, "service_plan_id", "2", "3", "4")
 				criteria3 := query.ByField(query.EqualsOrNilOperator, "platform_id", "5")
-				criteria9 := query.ByField(query.ContainsOPerator, "platform_id", "platformidlalla")
+				criteria9 := query.ByField(query.ContainsOperator, "platform_id", "platformidlalla")
 				criteria4 := query.ByLabel(query.EqualsOperator, "left1", "right1")
 				criteria5 := query.ByLabel(query.InOperator, "left2", "right2", "right3")
 				criteria6 := query.ByLabel(query.NotEqualsOperator, "left3", "right4")
@@ -436,7 +436,7 @@ ORDER BY visibilities.paging_sequence ASC ;
 			Context("contains operator", func() {
 				It("should not return an error", func() {
 					_, err := qb.NewQuery(entity).
-						WithCriteria(query.ByLabel(query.ContainsOPerator, "labelKey", "labelValue")).
+						WithCriteria(query.ByLabel(query.ContainsOperator, "labelKey", "labelValue")).
 						ListNoLabels(ctx)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(executedQuery).Should(Equal(trim(`
@@ -475,7 +475,7 @@ ORDER BY visibilities.paging_sequence ASC ;`)))
 			Context("contains operator", func() {
 				It("should not return an error", func() {
 					_, err := qb.NewQuery(entity).
-						WithCriteria(query.ByField(query.ContainsOPerator, "platform_id", "dfsfdsfdsfsd")).
+						WithCriteria(query.ByField(query.ContainsOperator, "platform_id", "dfsfdsfdsfsd")).
 						ListNoLabels(ctx)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(executedQuery).Should(Equal(trim(`
@@ -502,11 +502,11 @@ ORDER BY visibilities.paging_sequence ASC ;`)))
 			Context("when column type is not supported by operation", func() {
 				It("returns error", func() {
 					By("type is boolean")
-					criteria := query.ByField(query.ContainsOPerator, "ready", "true")
+					criteria := query.ByField(query.ContainsOperator, "ready", "true")
 					_, err := qb.NewQuery(entity).WithCriteria(criteria).ListNoLabels(ctx)
 					Expect(err.Error()).To(ContainSubstring("the operator 'contains' is not applicable on"))
 					By("type is datetime")
-					criteria = query.ByField(query.ContainsOPerator, "created_at", "2021-04-18T17:44:55.43761Z")
+					criteria = query.ByField(query.ContainsOperator, "created_at", "2021-04-18T17:44:55.43761Z")
 					_, err = qb.NewQuery(entity).WithCriteria(criteria).ListNoLabels(ctx)
 					Expect(err.Error()).To(ContainSubstring("the operator 'contains' is not applicable on"))
 				})
@@ -681,7 +681,7 @@ WHERE (key::text = ? AND val::text = ?) ;`)))
 			Context("contains operator", func() {
 				It("should not return an error", func() {
 					_, err := qb.NewQuery(entity).
-						WithCriteria(query.ByLabel(query.ContainsOPerator, "labelKey", "labelValue")).
+						WithCriteria(query.ByLabel(query.ContainsOperator, "labelKey", "labelValue")).
 						Count(ctx)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(executedQuery).Should(Equal(trim(`
@@ -710,7 +710,7 @@ WHERE visibilities.id::text = ? ;`)))
 			Context("contains operator", func() {
 				It("should not return an error", func() {
 					_, err := qb.NewQuery(entity).
-						WithCriteria(query.ByField(query.ContainsOPerator, "platform_id", "dfsfdsfdsfsd")).
+						WithCriteria(query.ByField(query.ContainsOperator, "platform_id", "dfsfdsfdsfsd")).
 						Count(ctx)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(executedQuery).Should(Equal(trim(`SELECT COUNT(DISTINCT visibilities.id)
@@ -732,11 +732,11 @@ WHERE visibilities.platform_id::text LIKE ? ;`)))
 			Context("when column type is not supported by operation", func() {
 				It("returns error", func() {
 					By("type is boolean")
-					criteria := query.ByField(query.ContainsOPerator, "ready", "true")
+					criteria := query.ByField(query.ContainsOperator, "ready", "true")
 					_, err := qb.NewQuery(entity).WithCriteria(criteria).Count(ctx)
 					Expect(err.Error()).To(ContainSubstring("the operator 'contains' is not applicable on"))
 					By("type is datetime")
-					criteria = query.ByField(query.ContainsOPerator, "created_at", "2021-04-18T17:44:55.43761Z")
+					criteria = query.ByField(query.ContainsOperator, "created_at", "2021-04-18T17:44:55.43761Z")
 					_, err = qb.NewQuery(entity).WithCriteria(criteria).Count(ctx)
 					Expect(err.Error()).To(ContainSubstring("the operator 'contains' is not applicable on"))
 				})
@@ -802,7 +802,7 @@ LIMIT ?;`)))
 				criteria7 := query.LimitResultBy(10)
 				criteria8 := query.OrderResultBy("id", query.AscOrder)
 
-				criteria9 := query.ByField(query.ContainsOPerator, "service_plan_id", "dfsfds")
+				criteria9 := query.ByField(query.ContainsOperator, "service_plan_id", "dfsfds")
 				_, err := qb.NewQuery(entity).
 					WithCriteria(criteria1, criteria2, criteria3, criteria9, criteria4, criteria5, criteria6, criteria7, criteria8).
 					Count(ctx)
@@ -879,7 +879,7 @@ WHERE (key::text = ? AND val::text = ?) ;`)))
 			Context("contains operator", func() {
 				It("should not return an error", func() {
 					_, err := qb.NewQuery(entity).
-						WithCriteria(query.ByLabel(query.ContainsOPerator, "labelKey", "labelValue")).
+						WithCriteria(query.ByLabel(query.ContainsOperator, "labelKey", "labelValue")).
 						CountLabelValues(ctx)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(executedQuery).Should(Equal(trim(`
@@ -909,7 +909,7 @@ WHERE visibilities.id::text = ? ;`)))
 			Context("contains operator", func() {
 				It("should not return an error", func() {
 					_, err := qb.NewQuery(entity).
-						WithCriteria(query.ByField(query.ContainsOPerator, "platform_id", "dfsfdsfdsfsd")).
+						WithCriteria(query.ByField(query.ContainsOperator, "platform_id", "dfsfdsfdsfsd")).
 						CountLabelValues(ctx)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(executedQuery).Should(Equal(trim(`
@@ -932,11 +932,11 @@ WHERE visibilities.platform_id::text LIKE ? ;`)))
 				Context("when column type is not supported by operation", func() {
 					It("returns error", func() {
 						By("type is boolean")
-						criteria := query.ByField(query.ContainsOPerator, "ready", "true")
+						criteria := query.ByField(query.ContainsOperator, "ready", "true")
 						_, err := qb.NewQuery(entity).WithCriteria(criteria).CountLabelValues(ctx)
 						Expect(err.Error()).To(ContainSubstring("the operator 'contains' is not applicable on"))
 						By("type is datetime")
-						criteria = query.ByField(query.ContainsOPerator, "created_at", "2021-04-18T17:44:55.43761Z")
+						criteria = query.ByField(query.ContainsOperator, "created_at", "2021-04-18T17:44:55.43761Z")
 						_, err = qb.NewQuery(entity).WithCriteria(criteria).CountLabelValues(ctx)
 						Expect(err.Error()).To(ContainSubstring("the operator 'contains' is not applicable on"))
 					})
@@ -1003,7 +1003,7 @@ LIMIT ?;`)))
 
 				criteria7 := query.LimitResultBy(10)
 				criteria8 := query.OrderResultBy("id", query.AscOrder)
-				criteria9 := query.ByField(query.ContainsOPerator, "platform_id", "fdfsfds5")
+				criteria9 := query.ByField(query.ContainsOperator, "platform_id", "fdfsfds5")
 				_, err := qb.NewQuery(entity).
 					WithCriteria(criteria1, criteria2, criteria3, criteria9, criteria4, criteria5, criteria6, criteria7, criteria8).
 					CountLabelValues(ctx)
@@ -1064,7 +1064,7 @@ FROM visibilities ;`)))
 			It("builds query with label criteria", func() {
 				criteria1 := query.ByLabel(query.EqualsOperator, "left1", "right1")
 				criteria2 := query.ByLabel(query.InOperator, "left2", "right2", "right3")
-				criteria3 := query.ByLabel(query.ContainsOPerator, "left3", "right3")
+				criteria3 := query.ByLabel(query.ContainsOperator, "left3", "right3")
 				_, err := qb.NewQuery(entity).WithCriteria(criteria1, criteria2, criteria3).Delete(ctx)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
@@ -1106,7 +1106,7 @@ WHERE visibilities.id::text = ? ;`)))
 			Context("contains operator", func() {
 				It("should not return an error", func() {
 					_, err := qb.NewQuery(entity).
-						WithCriteria(query.ByField(query.ContainsOPerator, "platform_id", "dfsfdsfdsfsd")).
+						WithCriteria(query.ByField(query.ContainsOperator, "platform_id", "dfsfdsfdsfsd")).
 						Delete(ctx)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(executedQuery).Should(Equal(trim(`
@@ -1137,11 +1137,11 @@ WHERE visibilities.platform_id::text LIKE ? ;`)))
 			Context("when column type is not supported by operation", func() {
 				It("returns error", func() {
 					By("type is boolean")
-					criteria := query.ByField(query.ContainsOPerator, "ready", "true")
+					criteria := query.ByField(query.ContainsOperator, "ready", "true")
 					_, err := qb.NewQuery(entity).WithCriteria(criteria).Delete(ctx)
 					Expect(err.Error()).To(ContainSubstring("the operator 'contains' is not applicable on"))
 					By("type is datetime")
-					criteria = query.ByField(query.ContainsOPerator, "created_at", "2021-04-18T17:44:55.43761Z")
+					criteria = query.ByField(query.ContainsOperator, "created_at", "2021-04-18T17:44:55.43761Z")
 					_, err = qb.NewQuery(entity).WithCriteria(criteria).Delete(ctx)
 					Expect(err.Error()).To(ContainSubstring("the operator 'contains' is not applicable on"))
 				})
@@ -1183,7 +1183,7 @@ RETURNING *;`)))
 				criteria1 := query.ByField(query.NotEqualsOperator, "id", "1")
 				criteria2 := query.ByField(query.NotInOperator, "service_plan_id", "2", "3", "4")
 				criteria3 := query.ByField(query.EqualsOrNilOperator, "platform_id", "5")
-				criteria8 := query.ByField(query.ContainsOPerator, "platform_id", "jlkdjls")
+				criteria8 := query.ByField(query.ContainsOperator, "platform_id", "jlkdjls")
 				criteria4 := query.ByLabel(query.EqualsOperator, "left1", "right1")
 				criteria5 := query.ByLabel(query.InOperator, "left2", "right2", "right3")
 				criteria6 := query.ByLabel(query.NotEqualsOperator, "left3", "right4")

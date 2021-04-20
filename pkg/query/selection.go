@@ -83,7 +83,7 @@ var (
 		EqualsOperator, NotEqualsOperator,
 		GreaterThanOperator, LessThanOperator,
 		GreaterThanOrEqualOperator, LessThanOrEqualOperator,
-		InOperator, NotInOperator, EqualsOrNilOperator, ContainsOPerator,
+		InOperator, NotInOperator, EqualsOrNilOperator, ContainsOperator,
 	}
 	// CriteriaTypes returns the supported query criteria types
 	CriteriaTypes = []CriterionType{FieldQuery, LabelQuery, ExistQuery}
