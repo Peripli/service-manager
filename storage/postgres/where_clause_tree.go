@@ -145,7 +145,7 @@ func buildRightOp(operator query.Operator, rightOp []string) (string, interface{
 	} else {
 		rhs = rightOp[0]
 		if operator == query.ContainsOperator {
-			rhs = fmt.Sprintf("%s%s%s", "%", rhs, "%")
+			rightOpBindVar = "'%' || ? || '%'"
 		}
 	}
 	return rightOpBindVar, rhs
