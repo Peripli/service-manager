@@ -114,7 +114,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 		Entry("return 400 when contains operator is applied on non-strings fields",
 			listOpEntry{
 				resourcesToExpectBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
-				queryTemplate:             "%s eq '%v'",
+				queryTemplate:             "%s contains '%v'",
 				queryArgs:                 common.RemoveNonNumericOrDateArgs(common.CopyFields(r[0])),
 				resourcesToExpectAfterOp:  []common.Object{r[0]},
 				expectedStatusCode:        http.StatusBadRequest,
@@ -797,6 +797,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 						DescribeTable(fmt.Sprintf("%s", multiQueryValue), func(test listOpEntry) {
 							verifyListOp(test, fquery)
 						}, entries[i])
+
 					}
 				})
 
