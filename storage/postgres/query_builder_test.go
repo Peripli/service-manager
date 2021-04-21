@@ -133,7 +133,7 @@ ORDER BY visibilities.paging_sequence ASC ;`)))
 WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
                             FROM visibilities
 								JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-                            WHERE (key::text = ? AND val::text LIKE ?) )
+                            WHERE (key::text = ? AND val::text LIKE '%' || ? || '%') )
 SELECT visibilities.*,
        visibility_labels.id            "visibility_labels.id",
        visibility_labels.key           "visibility_labels.key",
@@ -147,7 +147,7 @@ WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence
 ORDER BY visibilities.paging_sequence ASC ;`)))
 					Expect(queryArgs).To(HaveLen(2))
 					Expect(queryArgs[0]).Should(Equal("labelKey"))
-					Expect(queryArgs[1]).Should(Equal("%labelValue%"))
+					Expect(queryArgs[1]).Should(Equal("labelValue"))
 				})
 			})
 		})
@@ -188,13 +188,13 @@ ORDER BY visibilities.paging_sequence ASC ;`)))
 			Context("contains operator", func() {
 				It("valid contains criteria", func() {
 					_, err := qb.NewQuery(entity).
-						WithCriteria(query.ByField(query.ContainsOperator, "platform_id", "fdsfdsfds1")).
+						WithCriteria(query.ByField(query.ContainsOperator, "platform_id", "fdsfdsfds")).
 						List(ctx)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(executedQuery).Should(Equal(trim(`
 WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
                             FROM visibilities
-                            WHERE visibilities.platform_id::text LIKE ? )
+                            WHERE visibilities.platform_id::text LIKE '%' || ? || '%' )
 SELECT visibilities.*,
        visibility_labels.id            "visibility_labels.id",
        visibility_labels.key           "visibility_labels.key",
@@ -207,7 +207,7 @@ FROM visibilities
 WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources)
 ORDER BY visibilities.paging_sequence ASC ;`)))
 					Expect(queryArgs).To(HaveLen(1))
-					Expect(queryArgs[0]).Should(Equal("%fdsfdsfds1%"))
+					Expect(queryArgs[0]).Should(Equal("fdsfdsfds"))
 				})
 				Context("when column type is not supported", func() {
 					It("should return an error", func() {
@@ -356,7 +356,7 @@ WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
                             WHERE ((visibilities.id::text != ? AND
                                     visibilities.service_plan_id::text NOT IN (?, ?, ?) AND
                                     (visibilities.platform_id::text = ? OR platform_id IS NULL) AND
-									visibilities.platform_id::text LIKE ?) AND
+									visibilities.platform_id::text LIKE '%' || ? || '%') AND
 									(visibility_id IN ((SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text = ?))
 										INTERSECT
 										(SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text IN (?, ?)))
@@ -381,7 +381,7 @@ ORDER BY id ASC ;`)))
 				Expect(queryArgs[2]).Should(Equal("3"))
 				Expect(queryArgs[3]).Should(Equal("4"))
 				Expect(queryArgs[4]).Should(Equal("5"))
-				Expect(queryArgs[5]).Should(Equal("%platformidlalla%"))
+				Expect(queryArgs[5]).Should(Equal("platformidlalla"))
 				Expect(queryArgs[6]).Should(Equal("left1"))
 				Expect(queryArgs[7]).Should(Equal("right1"))
 				Expect(queryArgs[8]).Should(Equal("left2"))
@@ -442,7 +442,7 @@ ORDER BY visibilities.paging_sequence ASC ;
 					Expect(executedQuery).Should(Equal(trim(`
 WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence 
 							FROM visibilities JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id 
-							WHERE (key::text = ? AND val::text LIKE ?) ) 
+							WHERE (key::text = ? AND val::text LIKE '%' || ? || '%') ) 
 SELECT * 
 FROM visibilities 
 WHERE visibilities.paging_sequence IN 
@@ -481,13 +481,13 @@ ORDER BY visibilities.paging_sequence ASC ;`)))
 					Expect(executedQuery).Should(Equal(trim(`
 WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
                             FROM visibilities
-                            WHERE visibilities.platform_id::text LIKE ? )
+                            WHERE visibilities.platform_id::text LIKE '%' || ? || '%' )
 SELECT *
 FROM visibilities
 WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources)
 ORDER BY visibilities.paging_sequence ASC ;`)))
 					Expect(queryArgs).To(HaveLen(1))
-					Expect(queryArgs[0]).Should(Equal("%dfsfdsfdsfsd%"))
+					Expect(queryArgs[0]).Should(Equal("dfsfdsfdsfsd"))
 				})
 			})
 
@@ -688,7 +688,7 @@ WHERE (key::text = ? AND val::text = ?) ;`)))
 SELECT COUNT(DISTINCT visibilities.id)
 FROM visibilities
 	JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-WHERE (key::text = ? AND val::text LIKE ?) ;`)))
+WHERE (key::text = ? AND val::text LIKE '%' || ? || '%') ;`)))
 				})
 			})
 
@@ -715,9 +715,9 @@ WHERE visibilities.id::text = ? ;`)))
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(executedQuery).Should(Equal(trim(`SELECT COUNT(DISTINCT visibilities.id)
 FROM visibilities
-WHERE visibilities.platform_id::text LIKE ? ;`)))
+WHERE visibilities.platform_id::text LIKE '%' || ? || '%' ;`)))
 					Expect(queryArgs).To(HaveLen(1))
-					Expect(queryArgs[0]).Should(Equal("%dfsfdsfdsfsd%"))
+					Expect(queryArgs[0]).Should(Equal("dfsfdsfdsfsd"))
 				})
 			})
 
@@ -813,7 +813,7 @@ FROM visibilities
          JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
 WHERE ((visibilities.id::text != ? AND
 	visibilities.service_plan_id::text NOT IN (?, ?, ?) AND
-		(visibilities.platform_id::text = ? OR platform_id IS NULL) AND visibilities.service_plan_id::text LIKE ?) AND
+		(visibilities.platform_id::text = ? OR platform_id IS NULL) AND visibilities.service_plan_id::text LIKE '%' || ? || '%') AND
 		(visibility_id IN ((SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text = ?))
 										INTERSECT
 										(SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text IN (?, ?)))
@@ -826,7 +826,7 @@ LIMIT ?;`)))
 				Expect(queryArgs[2]).Should(Equal("3"))
 				Expect(queryArgs[3]).Should(Equal("4"))
 				Expect(queryArgs[4]).Should(Equal("5"))
-				Expect(queryArgs[5]).Should(Equal("%dfsfds%"))
+				Expect(queryArgs[5]).Should(Equal("dfsfds"))
 				Expect(queryArgs[6]).Should(Equal("left1"))
 				Expect(queryArgs[7]).Should(Equal("right1"))
 				Expect(queryArgs[8]).Should(Equal("left2"))
@@ -886,7 +886,7 @@ WHERE (key::text = ? AND val::text = ?) ;`)))
 SELECT COUNT(DISTINCT visibility_labels.id) 
 FROM visibilities 
 	INNER JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id 
-WHERE (key::text = ? AND val::text LIKE ?) ;`)))
+WHERE (key::text = ? AND val::text LIKE '%' || ? || '%') ;`)))
 				})
 			})
 		})
@@ -916,9 +916,9 @@ WHERE visibilities.id::text = ? ;`)))
 SELECT COUNT(DISTINCT visibility_labels.id) 
 FROM visibilities 
 	INNER JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id 
-WHERE visibilities.platform_id::text LIKE ? ;`)))
+WHERE visibilities.platform_id::text LIKE '%' || ? || '%' ;`)))
 					Expect(queryArgs).To(HaveLen(1))
-					Expect(queryArgs[0]).Should(Equal("%dfsfdsfdsfsd%"))
+					Expect(queryArgs[0]).Should(Equal("dfsfdsfdsfsd"))
 				})
 			})
 
@@ -1015,7 +1015,7 @@ INNER JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_i
 WHERE ((visibilities.id::text != ? AND
 	visibilities.service_plan_id::text NOT IN (?, ?, ?) AND
 	(visibilities.platform_id::text = ? OR platform_id IS NULL) AND
-	visibilities.platform_id::text LIKE ?) AND
+	visibilities.platform_id::text LIKE '%' || ? || '%') AND
 	(visibility_id IN ((SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text = ?)) 
 									INTERSECT 
 									(SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text IN (?, ?))) 
@@ -1028,7 +1028,7 @@ LIMIT ?;`)))
 				Expect(queryArgs[2]).Should(Equal("3"))
 				Expect(queryArgs[3]).Should(Equal("4"))
 				Expect(queryArgs[4]).Should(Equal("5"))
-				Expect(queryArgs[5]).Should(Equal("%fdfsfds5%"))
+				Expect(queryArgs[5]).Should(Equal("fdfsfds5"))
 				Expect(queryArgs[6]).Should(Equal("left1"))
 				Expect(queryArgs[7]).Should(Equal("right1"))
 				Expect(queryArgs[8]).Should(Equal("left2"))
@@ -1076,7 +1076,7 @@ FROM visibilities USING (SELECT visibilities.id
 										INTERSECT
 										(SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text IN (?, ?)))
 										INTERSECT										
-										(SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text LIKE ?))))) t
+										(SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text LIKE '%' || ? || '%'))))) t
 WHERE visibilities.id = t.id ;`)))
 				Expect(queryArgs).To(HaveLen(7))
 				Expect(queryArgs[0]).Should(Equal("left1"))
@@ -1085,7 +1085,7 @@ WHERE visibilities.id = t.id ;`)))
 				Expect(queryArgs[3]).Should(Equal("right2"))
 				Expect(queryArgs[4]).Should(Equal("right3"))
 				Expect(queryArgs[5]).Should(Equal("left3"))
-				Expect(queryArgs[6]).Should(Equal("%right3%"))
+				Expect(queryArgs[6]).Should(Equal("right3"))
 			})
 		})
 
@@ -1112,9 +1112,9 @@ WHERE visibilities.id::text = ? ;`)))
 					Expect(executedQuery).Should(Equal(trim(`
 DELETE
 FROM visibilities
-WHERE visibilities.platform_id::text LIKE ? ;`)))
+WHERE visibilities.platform_id::text LIKE '%' || ? || '%' ;`)))
 					Expect(queryArgs).To(HaveLen(1))
-					Expect(queryArgs[0]).Should(Equal("%dfsfdsfdsfsd%"))
+					Expect(queryArgs[0]).Should(Equal("dfsfdsfdsfsd"))
 				})
 
 			})
@@ -1199,7 +1199,7 @@ FROM visibilities USING (SELECT visibilities.id
                                   JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
                          WHERE ((visibilities.id::text != ? AND visibilities.service_plan_id::text NOT IN (?, ?, ?) AND
                                  (visibilities.platform_id::text = ? OR platform_id IS NULL) AND
-                                 visibilities.platform_id::text LIKE ?) AND
+                                 visibilities.platform_id::text LIKE '%' || ? || '%') AND
 								 (visibility_id IN ((SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text = ?))
 										INTERSECT
 										(SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text IN (?, ?)))
@@ -1212,7 +1212,7 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 				Expect(queryArgs[2]).Should(Equal("3"))
 				Expect(queryArgs[3]).Should(Equal("4"))
 				Expect(queryArgs[4]).Should(Equal("5"))
-				Expect(queryArgs[5]).Should(Equal("%jlkdjls%"))
+				Expect(queryArgs[5]).Should(Equal("jlkdjls"))
 				Expect(queryArgs[6]).Should(Equal("left1"))
 				Expect(queryArgs[7]).Should(Equal("right1"))
 				Expect(queryArgs[8]).Should(Equal("left2"))
