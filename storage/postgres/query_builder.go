@@ -325,7 +325,7 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 
 			if criterion.Operator == query.ContainsOperator {
 				ttype := findTagType(pq.entityTags, columnName)
-				if ttype != stringType && ttype != nullableStringType {
+				if ttype != stringType && ttype != nullableStringType && ttype != jsonType {
 					pq.err = &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query: the operator '%s' is not applicable on non-string columns: %s", criterion.Operator.String(), columnName)}
 					return pq
 				}
