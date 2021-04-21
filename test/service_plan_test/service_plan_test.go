@@ -306,11 +306,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							It("catalog should contain reference plan, when has shareable plan", func() {
 								common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, referencePlanID, k8sPlatform.ID)
 								assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusOK)
-								//catalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
-								//marshalCatalog, _ := json.Marshal(catalog)
-								//Expect(strings.Contains(string(marshalCatalog), referencePlanID)).To(Equal(true))
+								catalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
+								marshalCatalog, _ := json.Marshal(catalog)
+								Expect(strings.Contains(string(marshalCatalog), referencePlanID)).To(Equal(true))
 							})
-							XIt("should have only single reference plan when two plan support instance sharing", func() {
+							It("should have only single reference plan when two plan support instance sharing", func() {
 								cPaidPlan1, _ := common.GenerateShareablePaidTestPlan()
 								cPaidPlan1, err := sjson.Set(cPaidPlan1, "maximum_polling_duration", 2)
 								cPaidPlan1, err = sjson.Set(cPaidPlan1, "bindable", true)
@@ -326,11 +326,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								catalog := common.NewEmptySBCatalog()
 								catalog.AddService(cService)
 								ctx.TryRegisterBrokerWithCatalogAndLabels(catalog, common.Object{}, ctx.SMWithOAuth, http.StatusCreated)
-								// count should be 2 for catalog name and plan name
 								newCatalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
 								s := string(newCatalog)
 								count := strings.Count(s, constant.ReferencePlanName)
-								Expect(count).To(Equal(2))
+								Expect(count).To(Equal(1))
 							})
 						})
 						Context("negative", func() {

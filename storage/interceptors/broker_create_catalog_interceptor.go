@@ -19,10 +19,12 @@ package interceptors
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
+	"github.com/tidwall/sjson"
 	"net/http"
 )
 
@@ -67,14 +69,6 @@ func (c *brokerCreateCatalogInterceptor) OnTxCreate(f storage.InterceptCreateOnT
 		}
 		broker := obj.(*types.ServiceBroker)
 
-		err = VerifyCatalogDoesNotUseReferencePlan(broker.Services)
-		if err != nil {
-			return nil, err
-		}
-		_, err = GenerateReferencePlanForShareableOfferings(ctx, storage, broker.Services, nil)
-		if err != nil {
-			return nil, err
-		}
 		for _, service := range broker.Services {
 			if _, err := storage.Create(ctx, service); err != nil {
 				return nil, err
@@ -86,13 +80,6 @@ func (c *brokerCreateCatalogInterceptor) OnTxCreate(f storage.InterceptCreateOnT
 			}
 		}
 
-		/*if generateExecuted == true {
-			broker.Catalog, err = json.Marshal(broker.Services)
-			if err != nil {
-				return nil, util.HandleInstanceSharingError(util.ErrParsingNewCatalogWithReference, constant.ReferencePlanName)
-			}
-			return broker, nil
-		}*/
 		return createdObj, nil
 	}
 }
@@ -103,7 +90,6 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 		return err
 	}
 	broker.Catalog = catalogBytes
-
 	catalogResponse := struct {
 		Services []*types.ServiceOffering `json:"services"`
 	}{}
@@ -111,7 +97,7 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 		return err
 	}
 
-	for _, service := range catalogResponse.Services {
+	for serviceIndex, service := range catalogResponse.Services {
 		service.CatalogID = service.ID
 		service.CatalogName = service.Name
 		service.BrokerID = broker.ID
@@ -130,7 +116,11 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 				StatusCode:  http.StatusBadRequest,
 			}
 		}
+		var sharedPlanFound = false
 		for _, servicePlan := range service.Plans {
+			if servicePlan.Name == constant.ReferencePlanName || servicePlan.CatalogName == constant.ReferencePlanName {
+				return util.HandleInstanceSharingError(util.ErrCatalogUsesReservedPlanName, constant.ReferencePlanName)
+			}
 			servicePlan.CatalogID = servicePlan.ID
 			servicePlan.CatalogName = servicePlan.Name
 			servicePlan.ServiceOfferingID = service.ID
@@ -149,6 +139,25 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 					StatusCode:  http.StatusBadRequest,
 				}
 			}
+			if servicePlan.IsShareablePlan() {
+				if !isBindablePlan(service, servicePlan) {
+					return util.HandleInstanceSharingError(util.ErrPlanMustBeBindable, servicePlan.Name)
+				}
+				sharedPlanFound = true
+			}
+		}
+		if sharedPlanFound {
+			referencePlan := generateReferencePlanObject(service.ID)
+			service.Plans = append(service.Plans, referencePlan)
+			// Adds OSB spec properties only
+			referencePlanOSBObj := convertReferencePlanObjectToOSBPlan(referencePlan)
+			// The path should append reference plan into service plans json
+			catalogJsonPath := fmt.Sprintf("services.%d.plans.-1", serviceIndex)
+			catalogJson, err := sjson.SetBytes(broker.Catalog, catalogJsonPath, referencePlanOSBObj)
+			if err != nil {
+				return err
+			}
+			broker.Catalog = catalogJson
 		}
 	}
 	broker.Services = catalogResponse.Services

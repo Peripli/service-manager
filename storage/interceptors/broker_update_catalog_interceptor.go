@@ -19,6 +19,8 @@ package interceptors
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/constant"
+	"github.com/tidwall/sjson"
 	"net/http"
 
 	"github.com/gofrs/uuid"
@@ -78,6 +80,11 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 
 		oldBroker.Services = existingServiceOfferingsWithServicePlans.ServiceOfferings
 
+		err = reuseReferenceInstancePlans(oldObj.(*types.ServiceBroker), newObj.(*types.ServiceBroker))
+		if err != nil {
+			return nil, err
+		}
+
 		_, err = f(ctx, txStorage, oldObj, newObj, labelChanges...)
 		if err != nil {
 			return nil, err
@@ -90,14 +97,6 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 		log.C(ctx).Debugf("Found %d services currently known for broker", len(existingServicesOfferingsMap))
 
 		catalogServices, catalogPlansMap, err := getBrokerCatalogServicesAndPlans(newBrokerObj.Services)
-		if err != nil {
-			return nil, err
-		}
-		err = VerifyCatalogDoesNotUseReferencePlan(catalogServices)
-		if err != nil {
-			return nil, err
-		}
-		_, err = GenerateReferencePlanForShareableOfferings(ctx, txStorage, catalogServices, catalogPlansMap)
 		if err != nil {
 			return nil, err
 		}
@@ -234,6 +233,39 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 		log.C(ctx).Debugf("Successfully resynced service plans for broker with id %s", brokerID)
 		return newBrokerObj, nil
 	}
+}
+
+func reuseReferenceInstancePlans(oldBroker *types.ServiceBroker, newBroker *types.ServiceBroker) error {
+	var newServicesByCatalogID = make(map[string]*types.ServiceOffering)
+	var newServicesIdxByCatalogID = make(map[string]int)
+	for index, newService := range newBroker.Services {
+		newServicesByCatalogID[newService.CatalogID] = newService
+		newServicesIdxByCatalogID[newService.CatalogID] = index
+	}
+	for _, oldService := range oldBroker.Services {
+		for _, oldPlan := range oldService.Plans {
+			if oldPlan.Name == constant.ReferencePlanName {
+				if newServicesByCatalogID[oldService.CatalogID] != nil {
+					newService := newServicesByCatalogID[oldService.CatalogID]
+					for newPlanIndex, newPlan := range newService.Plans {
+						if newPlan.Name == constant.ReferencePlanName {
+							newPlan.CatalogID = oldPlan.CatalogID
+							newPlan.ID = oldPlan.ID
+							jsonPath := fmt.Sprintf("services.%d.plans.%d.id", newServicesIdxByCatalogID[newService.CatalogID], newPlanIndex)
+							catalog, err := sjson.SetBytes(newBroker.Catalog, jsonPath, oldPlan.ID)
+							if err != nil {
+								return err
+							}
+							newBroker.Catalog = catalog
+							break
+						}
+					}
+				}
+				break
+			}
+		}
+	}
+	return nil
 }
 
 func createPlan(ctx context.Context, txStorage storage.Repository, servicePlan *types.ServicePlan, brokerID string) error {
