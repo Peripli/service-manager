@@ -17,6 +17,7 @@
 package types
 
 import (
+	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/tidwall/gjson"
 )
@@ -76,8 +77,7 @@ func (e *ServicePlan) ExcludedPlatformNames() []string {
 // ExcludedPlatformNames returns the excludedPlatformNames provided in a plan's metadata (if a value is provided at all).
 // If there are no excluded platforms names, empty array is returned
 func (e *ServicePlan) IsShareablePlan() bool {
-	// epsilontal todo : retrieve real shareable value -> supportInstanceSharing=boolean
-	isShareable := gjson.GetBytes(e.Metadata, "supportInstanceSharing").Raw
+	isShareable := gjson.GetBytes(e.Metadata, constant.SupportInstanceSharingKey).Raw
 	return isShareable == "true"
 }
 

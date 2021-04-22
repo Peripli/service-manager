@@ -1,4 +1,5 @@
 package constant
 
-const ReferencePlanName = "reference-instances"
-const ReferencePlanDescription = "Allows creation and management of instances that can be shared across various environments in the subaccount."
+const ReferencePlanName = "reference-instance"
+const ReferencePlanDescription = "Allows to create a reference to a shared service instance from any environment in a subaccount and manage service bindings to that service instance."
+const SupportInstanceSharingKey = "supportInstanceSharing"
