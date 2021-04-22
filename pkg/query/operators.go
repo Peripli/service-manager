@@ -25,6 +25,8 @@ const (
 	GreaterThanOperator gtOperator = "gt"
 	// GreaterThanOrEqualOperator takes two operands and tests if the left is greater than or equal the right
 	GreaterThanOrEqualOperator geOperator = "ge"
+	// Contains takes two operands and tests if the left contains the right
+	ContainsOperator containsOperator = "contains"
 	// LessThanOperator takes two operands and tests if the left is lesser than the right
 	LessThanOperator ltOperator = "lt"
 	// LessThanOrEqualOperator takes two operands and tests if the left is lesser than or equal the right
@@ -150,6 +152,24 @@ func (notInOperator) IsNullable() bool {
 }
 
 func (notInOperator) IsNumeric() bool {
+	return false
+}
+
+type containsOperator string
+
+func (o containsOperator) String() string {
+	return string(o)
+}
+
+func (containsOperator) Type() OperatorType {
+	return UnivariateOperator
+}
+
+func (containsOperator) IsNullable() bool {
+	return false
+}
+
+func (containsOperator) IsNumeric() bool {
 	return false
 }
 
