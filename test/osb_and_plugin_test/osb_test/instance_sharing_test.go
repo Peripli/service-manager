@@ -19,6 +19,7 @@ package osb_test
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/test"
 	"github.com/Peripli/service-manager/test/common"
@@ -373,7 +374,7 @@ func buildReferenceProvisionBody(planID, sharedInstanceID string) Object {
 		"organization_guid": organizationGUID,
 		"space_guid":        "aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
 		"parameters": Object{
-			"referenced_instance_id": sharedInstanceID,
+			constant.ReferencedInstanceIDKey: sharedInstanceID,
 		},
 		"context": Object{
 			"platform":          "cloudfoundry",

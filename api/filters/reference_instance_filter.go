@@ -18,7 +18,7 @@ package filters
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -96,15 +96,14 @@ func (f *referenceInstanceFilter) handleProvision(req *web.Request, next web.Han
 		}
 	}
 
-	referencedKey := "referenced_instance_id" // epsilontal todo: extract for global use
 	parameters := gjson.GetBytes(req.Body, "parameters").Map()
 
-	referencedInstanceID, exists := parameters[referencedKey]
+	referencedInstanceID, exists := parameters[constant.ReferencedInstanceIDKey]
 	// epsilontal todo: should we validate that the input is string? can be any object for example...
 	if !exists {
-		return nil, errors.New("missing referenced_instance_id")
+		return nil, util.HandleInstanceSharingError(util.ErrMissingReferenceParameter, constant.ReferencedInstanceIDKey)
 	}
-	req.Body, err = sjson.SetBytes(req.Body, referencedKey, referencedInstanceID.Str)
+	req.Body, err = sjson.SetBytes(req.Body, constant.ReferencedInstanceIDKey, referencedInstanceID.Str)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +192,8 @@ func (f *referenceInstanceFilter) getObjectByID(ctx context.Context, objectType 
 func (f *referenceInstanceFilter) validateOwnership(req *web.Request) error {
 	ctx := req.Context()
 	callerTenantID := gjson.GetBytes(req.Body, "context."+f.tenantIdentifier).String()
-	referencedInstanceID := gjson.GetBytes(req.Body, "parameters.referenced_instance_id").String()
+	path := fmt.Sprintf("parameters.%s", constant.ReferencedInstanceIDKey)
+	referencedInstanceID := gjson.GetBytes(req.Body, path).String()
 	byID := query.ByField(query.EqualsOperator, "id", referencedInstanceID)
 	dbReferencedObject, err := f.repository.Get(ctx, types.ServiceInstanceType, byID)
 	if err != nil {

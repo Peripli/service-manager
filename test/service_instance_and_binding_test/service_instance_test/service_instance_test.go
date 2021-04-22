@@ -1936,7 +1936,7 @@ var _ = DescribeTestsFor(TestCase{
 									"service_plan_id":  referencePlan.ID,
 									"maintenance_info": "{}",
 									"parameters": Object{
-										"referenced_instance_id": "new_instance_id",
+										constant.ReferencedInstanceIDKey: "new_instance_id",
 									},
 								}).
 								Expect().

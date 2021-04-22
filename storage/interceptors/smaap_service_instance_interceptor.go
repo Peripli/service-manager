@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/constant"
 	"github.com/tidwall/gjson"
 	"math"
 	"net"
@@ -844,7 +845,7 @@ func (i *ServiceInstanceInterceptor) getInstanceReferencesByID(instanceID string
 	references, err := i.repository.List(
 		context.Background(),
 		types.ServiceInstanceType,
-		query.ByField(query.EqualsOperator, "referenced_instance_id", instanceID))
+		query.ByField(query.EqualsOperator, constant.ReferencedInstanceIDKey, instanceID))
 	if err != nil {
 		return nil, err
 	}

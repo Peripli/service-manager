@@ -3,6 +3,7 @@ package osb
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -17,7 +18,6 @@ import (
 const ReferenceInstancePluginName = "ReferenceInstancePlugin"
 const planIDProperty = "plan_id"
 const catalogIDProperty = "catalog_id"
-const referencedKey = "referenced_instance_id"
 
 type referenceInstancePlugin struct {
 	repository       storage.TransactionalRepository
@@ -59,9 +59,9 @@ func (p *referenceInstancePlugin) Provision(req *web.Request, next web.Handler) 
 		}
 	}
 	parameters := gjson.GetBytes(req.Body, "parameters").Map()
-	referencedInstanceID, exists := parameters[referencedKey]
+	referencedInstanceID, exists := parameters[constant.ReferencedInstanceIDKey]
 	if !exists {
-		return nil, util.HandleInstanceSharingError(util.ErrMissingReferenceParameter, referencedKey)
+		return nil, util.HandleInstanceSharingError(util.ErrMissingReferenceParameter, constant.ReferencedInstanceIDKey)
 	}
 	_, err = p.isReferencedShared(ctx, referencedInstanceID.Str)
 	if err != nil {
@@ -216,7 +216,7 @@ func (p *referenceInstancePlugin) buildOSBFetchServiceResponse(ctx context.Conte
 		"plan_id":          plan.CatalogID,
 		"maintenance_info": instance.MaintenanceInfo,
 		"parameters": map[string]string{
-			referencedKey: instance.ReferencedInstanceID,
+			constant.ReferencedInstanceIDKey: instance.ReferencedInstanceID,
 		},
 	}
 	return osbResponse, nil
@@ -230,7 +230,8 @@ func (p *referenceInstancePlugin) PollBinding(req *web.Request, next web.Handler
 func (p *referenceInstancePlugin) validateOwnership(req *web.Request) error {
 	ctx := req.Context()
 	callerTenantID := gjson.GetBytes(req.Body, "context."+p.tenantIdentifier).String()
-	referencedInstanceID := gjson.GetBytes(req.Body, "parameters.referenced_instance_id").String()
+	path := fmt.Sprintf("parameters.%s", constant.ReferencedInstanceIDKey)
+	referencedInstanceID := gjson.GetBytes(req.Body, path).String()
 	byID := query.ByField(query.EqualsOperator, "id", referencedInstanceID)
 	dbReferencedObject, err := p.repository.Get(ctx, types.ServiceInstanceType, byID)
 	if err != nil {
