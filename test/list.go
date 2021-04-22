@@ -102,6 +102,24 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 	}
 
 	entries := []TableEntry{
+		Entry("return 200 when contains operator is valid",
+			listOpEntry{
+				resourcesToExpectBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
+				queryTemplate:             "%s contains '%v'",
+				queryArgs:                 common.RemoveBooleanArgs(common.RemoveNumericAndDateArgs(r[0])),
+				resourcesToExpectAfterOp:  []common.Object{r[0]},
+				expectedStatusCode:        http.StatusOK,
+			},
+		),
+		Entry("return 400 when contains operator is applied on non-strings fields",
+			listOpEntry{
+				resourcesToExpectBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
+				queryTemplate:             "%s contains '%v'",
+				queryArgs:                 common.RemoveNonNumericOrDateArgs(common.CopyFields(r[0])),
+				resourcesToExpectAfterOp:  []common.Object{r[0]},
+				expectedStatusCode:        http.StatusBadRequest,
+			},
+		),
 		Entry("returns 200",
 			listOpEntry{
 				resourcesToExpectBeforeOp: []common.Object{r[0]},
@@ -221,6 +239,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 				expectedStatusCode:        http.StatusOK,
 			},
 		),
+
 		Entry("returns 400 for label queries with operator en",
 			listOpEntry{
 				queryTemplate: "%s en '%v'",
@@ -778,6 +797,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 						DescribeTable(fmt.Sprintf("%s", multiQueryValue), func(test listOpEntry) {
 							verifyListOp(test, fquery)
 						}, entries[i])
+
 					}
 				})
 

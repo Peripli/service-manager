@@ -316,11 +316,21 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 					pq.err = &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query: json notation on non json column: %s", columnName)}
 					return pq
 				}
+
 			}
 			if !columns[columnName] {
 				pq.err = &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
 				return pq
 			}
+
+			if criterion.Operator == query.ContainsOperator {
+				ttype := findTagType(pq.entityTags, columnName)
+				if ttype != stringType && ttype != nullableStringType && ttype != jsonType {
+					pq.err = &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query: the operator '%s' is not applicable on non-string columns: %s", criterion.Operator.String(), columnName)}
+					return pq
+				}
+			}
+
 			pq.fieldsWhereClause.children = append(pq.fieldsWhereClause.children, &whereClauseTree{
 				criterion: criterion,
 				dbTags:    pq.entityTags,

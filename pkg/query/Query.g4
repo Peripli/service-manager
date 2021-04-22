@@ -9,7 +9,7 @@ multiValues: OpenBracket manyValues? CloseBracket ;
 manyValues: Value (ValueSeparator manyValues)? ;
 
 MultiOp:  'in' | 'notin' ;
-UniOp: 'eq' | 'ne' | 'gt' | 'lt' | 'ge' | 'le' | 'en' ;
+UniOp: 'eq' | 'ne' | 'gt' | 'lt' | 'ge' | 'le' | 'en' | 'contains' ;
 Concat: Whitespace 'and' Whitespace ;
 Value: STRING | NUMBER | BOOLEAN | DATETIME ;
 ValueSeparator: ',' | ', ' ;

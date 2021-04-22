@@ -46,6 +46,37 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 	commonLabelValue := "str1"
 
 	entriesWithQuery := []TableEntry{
+
+		Entry("return 400 when contains operator is applied on non-strings field",
+			deleteOpEntry{
+				resourcesToExpectBeforeOp: func() []common.Object {
+					return []common.Object{r[0]}
+				},
+				queryTemplate: "%s contains '%v",
+				queryArgs: func() common.Object {
+					return common.RemoveNonNumericOrDateArgs(common.CopyFields(r[0]))
+				},
+				resourcesNotToExpectAfterOp: func() []common.Object {
+					return []common.Object{r[0]}
+				},
+				expectedStatusCode: http.StatusOK,
+			},
+		),
+		Entry("return 200 when contains operator is valid",
+			deleteOpEntry{
+				resourcesToExpectBeforeOp: func() []common.Object {
+					return []common.Object{r[0]}
+				},
+				queryTemplate: "%s contains '%v'",
+				queryArgs: func() common.Object {
+					return common.RemoveBooleanArgs(common.RemoveNumericAndDateArgs(r[0]))
+				},
+				resourcesNotToExpectAfterOp: func() []common.Object {
+					return []common.Object{r[0]}
+				},
+				expectedStatusCode: http.StatusOK,
+			},
+		),
 		Entry("returns 200 for operator =",
 			deleteOpEntry{
 				resourcesToExpectBeforeOp: func() []common.Object {

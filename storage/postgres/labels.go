@@ -17,6 +17,7 @@
 package postgres
 
 import (
+	"database/sql"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
 	"reflect"
 	"strings"
@@ -35,11 +36,13 @@ func findTagType(tags []tagType, tagName string) reflect.Type {
 }
 
 var (
-	intType       = reflect.TypeOf(int(1))
-	int64Type     = reflect.TypeOf(int64(1))
-	timeType      = reflect.TypeOf(time.Time{})
-	byteSliceType = reflect.TypeOf([]byte{})
-	jsonType      = reflect.TypeOf(sqlxtypes.JSONText{})
+	intType            = reflect.TypeOf(int(1))
+	int64Type          = reflect.TypeOf(int64(1))
+	timeType           = reflect.TypeOf(time.Time{})
+	byteSliceType      = reflect.TypeOf([]byte{})
+	stringType         = reflect.TypeOf("")
+	nullableStringType = reflect.TypeOf(sql.NullString{})
+	jsonType           = reflect.TypeOf(sqlxtypes.JSONText{})
 )
 
 func determineCastByType(tagType reflect.Type) string {
