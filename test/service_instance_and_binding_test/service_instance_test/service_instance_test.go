@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/query"
 	"strings"
@@ -1963,10 +1964,10 @@ var _ = DescribeTestsFor(TestCase{
 						planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID)
 						plan := planObject.(*types.ServicePlan)
 
-						shareableMetadata := `{"supportInstanceSharing": true}`
+						shareableMetadata := fmt.Sprintf(`{"%s": true}`, constant.SupportInstanceSharingKey)
 						plan.Metadata = json.RawMessage(shareableMetadata)
-						ctx.SMRepository.Update(context.TODO(), plan, nil)
-
+						_, err := ctx.SMRepository.Update(context.TODO(), plan, nil)
+						Expect(err).NotTo(HaveOccurred())
 						resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 							WithQuery("async", false).
 							WithJSON(postInstanceRequestTLS).
@@ -2018,10 +2019,10 @@ var _ = DescribeTestsFor(TestCase{
 							byID := query.ByField(query.EqualsOperator, "id", servicePlanIDWithTLS)
 							planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID)
 							plan := planObject.(*types.ServicePlan)
-
-							shareableMetadata := `{"supportInstanceSharing": true}`
+							shareableMetadata := fmt.Sprintf(`{"%s": true}`, constant.SupportInstanceSharingKey)
 							plan.Metadata = json.RawMessage(shareableMetadata)
-							ctx.SMRepository.Update(context.TODO(), plan, nil)
+							_, err := ctx.SMRepository.Update(context.TODO(), plan, nil)
+							Expect(err).NotTo(HaveOccurred())
 
 							resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 								WithQuery("async", false).

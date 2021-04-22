@@ -3,6 +3,7 @@ package cascade_test
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -367,7 +368,7 @@ func SimpleCatalog(serviceID, planID string, planID2 string) SBCatalog {
         "id": "%s",
         "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections.",
 		"metadata": {
-			"supportInstanceSharing": true
+			"%s": true
 		}
       },
       {
@@ -376,11 +377,11 @@ func SimpleCatalog(serviceID, planID string, planID2 string) SBCatalog {
         "id": "%s",
         "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections.",
 		"metadata": {
-			"supportInstanceSharing": true
+			"%s": true
 		}
       }]
     }]
-  }`, serviceID, planID2, planID))
+  }`, serviceID, planID2, constant.SupportInstanceSharingKey, planID, constant.SupportInstanceSharingKey))
 }
 
 func fetchFullTree(repository storage.TransactionalRepository, rootID string) (*tree, error) {

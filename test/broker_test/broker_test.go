@@ -2416,11 +2416,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 						It("removes the reference plan when changing the supportInstanceSharing to 'false'", func() {
 							// validate plans has shareable status
-							shareableValue = gjson.Get(plan1, "metadata.supportInstanceSharing").Bool()
+							path := fmt.Sprintf("metadata.%s", constant.SupportInstanceSharingKey)
+							shareableValue = gjson.Get(plan1, path).Bool()
 							Expect(shareableValue).To(Equal(true))
-							shareableValue = gjson.Get(plan2, "metadata.supportInstanceSharing").Bool()
+							shareableValue = gjson.Get(plan2, path).Bool()
 							Expect(shareableValue).To(Equal(true))
-							shareableValue = gjson.Get(plan3, "metadata.supportInstanceSharing").Bool()
+							shareableValue = gjson.Get(plan3, path).Bool()
 							Expect(shareableValue).To(Equal(true))
 							// validate reference plan exists
 							// reference of service_1:
@@ -2433,9 +2434,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect(referencePlan2).NotTo(Equal(nil))
 
 							// set catalog as support instance sharing false
-							newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), "services.0.plans.0.metadata.supportInstanceSharing", false)
-							newCatalogBytes, _ = sjson.SetBytes(newCatalogBytes, "services.0.plans.1.metadata.supportInstanceSharing", false)
-							newCatalogBytes, _ = sjson.SetBytes(newCatalogBytes, "services.1.plans.0.metadata.supportInstanceSharing", false)
+							newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), fmt.Sprintf("services.0.plans.0.metadata.%s", constant.SupportInstanceSharingKey), false)
+							newCatalogBytes, _ = sjson.SetBytes(newCatalogBytes, fmt.Sprintf("services.0.plans.1.metadata.%s", constant.SupportInstanceSharingKey), false)
+							newCatalogBytes, _ = sjson.SetBytes(newCatalogBytes, fmt.Sprintf("services.1.plans.0.metadata.%s", constant.SupportInstanceSharingKey), false)
 							brokerServer.Catalog = SBCatalog(newCatalogBytes)
 
 							// update broker
