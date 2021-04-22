@@ -166,38 +166,44 @@ var _ = Describe("Instance Sharing", func() {
 						ValueEqual("service_instance_id", referenceInstanceID)
 
 				})
-				It("binds reference instance successfully from different platform", func() {
-					_, cfSharedInstanceID = createAndShareInstance(false)
-
-					k8SPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
-					k8sPlatform := common.RegisterPlatformInSM(k8SPlatformJSON, ctx.SMWithOAuth, map[string]string{})
-
-					_, k8sReferenceInstanceID = createReferenceInstance(k8sPlatform.ID, cfSharedInstanceID, false)
-
-					bindingID := createBinding(k8sReferenceInstanceID)
-					Expect(instanceSharingBrokerServer.LastRequest.RequestURI).To(ContainSubstring(cfSharedInstanceID))
-					ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
-						Expect().
-						Status(http.StatusOK).
-						JSON().
-						Object().ContainsKey("service_instance_id").
-						ValueEqual("service_instance_id", k8sReferenceInstanceID)
-
-					verifyOperationExists(operationExpectations{
-						Type:         types.CREATE,
-						State:        types.SUCCEEDED,
-						ResourceID:   bindingID,
-						ResourceType: "/v1/service_bindings",
-						ExternalID:   "",
+				Context("different platform exists", func() {
+					var k8sPlatform *types.Platform
+					BeforeEach(func() {
+						k8SPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s-test5")
+						k8sPlatform = common.RegisterPlatformInSM(k8SPlatformJSON, ctx.SMWithOAuth, map[string]string{})
 					})
-
-					VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-						ID:    bindingID,
-						Type:  types.ServiceBindingType,
-						Ready: true,
+					AfterEach(func() {
+						ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + k8sPlatform.ID).Expect().Status(http.StatusOK)
 					})
+					It("binds reference instance successfully from different platform", func() {
+						_, cfSharedInstanceID = createAndShareInstance(false)
+						_, k8sReferenceInstanceID = createReferenceInstance(k8sPlatform.ID, cfSharedInstanceID, false)
+						bindingID := createBinding(k8sReferenceInstanceID)
+						Expect(instanceSharingBrokerServer.LastRequest.RequestURI).To(ContainSubstring(cfSharedInstanceID))
+						ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
+							Expect().
+							Status(http.StatusOK).
+							JSON().
+							Object().ContainsKey("service_instance_id").
+							ValueEqual("service_instance_id", k8sReferenceInstanceID)
 
+						verifyOperationExists(operationExpectations{
+							Type:         types.CREATE,
+							State:        types.SUCCEEDED,
+							ResourceID:   bindingID,
+							ResourceType: "/v1/service_bindings",
+							ExternalID:   "",
+						})
+
+						VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+							ID:    bindingID,
+							Type:  types.ServiceBindingType,
+							Ready: true,
+						})
+
+					})
 				})
+
 			})
 			Context("in K8S platform", func() {
 				BeforeEach(func() {
