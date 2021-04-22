@@ -78,6 +78,9 @@ func GetReferencePlanOfExistingPlan(ctx *TestContext, byOperator, servicePlanID 
 	byID = query.ByField(query.EqualsOperator, "service_offering_id", plan.ServiceOfferingID)
 	byName := query.ByField(query.EqualsOperator, "name", constant.ReferencePlanName)
 	referencePlanObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID, byName)
+	if referencePlanObject == nil {
+		return nil
+	}
 	return referencePlanObject.(*types.ServicePlan)
 }
 

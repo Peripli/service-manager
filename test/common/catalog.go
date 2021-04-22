@@ -311,6 +311,22 @@ func NewRandomSBCatalog() SBCatalog {
 	return catalog
 }
 
+// NewRandomSBCatalog returns a service broker catalog containg one random service with one free and one paid random plans
+func NewShareableCatalog() (SBCatalog, string, string, string, string, string) {
+	plan1, _ := GenerateShareablePaidTestPlan()
+	plan2, _ := GenerateShareablePaidTestPlan()
+	plan3, _ := GenerateShareablePaidTestPlan()
+
+	service1 := GenerateTestServiceWithPlans(plan1, plan2)
+	service2 := GenerateTestServiceWithPlans(plan3)
+
+	catalog := NewEmptySBCatalog()
+	catalog.AddService(service1)
+	catalog.AddService(service2)
+
+	return catalog, service1, service2, plan1, plan2, plan3
+}
+
 // NewEmptySBCatalog returns an empty service broker catalog tha contains no services and no plans
 func NewEmptySBCatalog() SBCatalog {
 	catalog := SBCatalog(emptyCatalog)

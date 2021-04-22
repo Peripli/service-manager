@@ -355,9 +355,8 @@ func createAndShareInstance(accepts_incomplete bool) (*httpexpect.Response, stri
 		WithQuery("accepts_incomplete", accepts_incomplete).
 		WithJSON(json).
 		Expect().Status(http.StatusCreated)
-	fmt.Print(resp)
-	ShareInstanceOnDB(ctx.SMRepository, context.TODO(), sharedInstanceID)
-
+	err = ShareInstanceOnDB(ctx.SMRepository, context.TODO(), sharedInstanceID)
+	Expect(err).NotTo(HaveOccurred())
 	return resp, sharedInstanceID
 }
 
