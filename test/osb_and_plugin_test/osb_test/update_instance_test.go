@@ -22,6 +22,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/test"
+	"github.com/gofrs/uuid"
 
 	"net/http"
 
@@ -354,7 +355,9 @@ var _ = Describe("Update", func() {
 
 		Context("in CF platform", func() {
 			BeforeEach(func() {
-				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
+				id, err := uuid.NewV4()
+				Expect(err).ToNot(HaveOccurred())
+				platformJSON = common.MakePlatform(id.String(), "cf-platform", "cloudfoundry", "test-platform-cf")
 			})
 
 			It("should return 404 if new plan is not visible in the org", func() {
@@ -389,7 +392,9 @@ var _ = Describe("Update", func() {
 
 		Context("in K8S platform", func() {
 			BeforeEach(func() {
-				platformJSON = common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+				id, err := uuid.NewV4()
+				Expect(err).ToNot(HaveOccurred())
+				platformJSON = common.MakePlatform(id.String(), "k8s-platform", "kubernetes", "test-platform-k8s")
 			})
 
 			It("should return 404 if new plan is not visible in the platform", func() {
