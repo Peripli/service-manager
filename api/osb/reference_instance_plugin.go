@@ -18,6 +18,7 @@ import (
 const ReferenceInstancePluginName = "ReferenceInstancePlugin"
 const planIDProperty = "plan_id"
 const catalogIDProperty = "catalog_id"
+const contextKey = "context"
 
 type referenceInstancePlugin struct {
 	repository       storage.TransactionalRepository
@@ -209,7 +210,7 @@ func (p *referenceInstancePlugin) generateOSBResponse(ctx context.Context, metho
 func (p *referenceInstancePlugin) buildOSBFetchServiceResponse(ctx context.Context, instance *types.ServiceInstance) (osbObject, error) {
 	serviceOffering, plan, err := p.getServiceOfferingAndPlanByPlanID(ctx, instance.ServicePlanID)
 	if err != nil {
-		return nil, util.HandleInstanceSharingError(util.ErrNotFoundInStorage, string(types.ServiceOfferingType))
+		return nil, util.HandleInstanceSharingError(util.ErrNotFoundInStorage, types.ServiceOfferingType.String())
 	}
 	osbResponse := osbObject{
 		"service_id":       serviceOffering.CatalogID,
@@ -229,7 +230,8 @@ func (p *referenceInstancePlugin) PollBinding(req *web.Request, next web.Handler
 
 func (p *referenceInstancePlugin) validateOwnership(req *web.Request) error {
 	ctx := req.Context()
-	callerTenantID := gjson.GetBytes(req.Body, "context."+p.tenantIdentifier).String()
+	tenantPath := fmt.Sprintf("%s.%s", contextKey, p.tenantIdentifier)
+	callerTenantID := gjson.GetBytes(req.Body, tenantPath).String()
 	path := fmt.Sprintf("parameters.%s", constant.ReferencedInstanceIDKey)
 	referencedInstanceID := gjson.GetBytes(req.Body, path).String()
 	byID := query.ByField(query.EqualsOperator, "id", referencedInstanceID)
@@ -307,7 +309,7 @@ func (p *referenceInstancePlugin) handleBinding(req *web.Request, next web.Handl
 		if err == util.ErrNotFoundInStorage {
 			return next.Handle(req)
 		}
-		return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
+		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 
 	instance := object.(*types.ServiceInstance)
@@ -319,7 +321,7 @@ func (p *referenceInstancePlugin) handleBinding(req *web.Request, next web.Handl
 			if err == util.ErrNotFoundInStorage {
 				return next.Handle(req)
 			}
-			return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
+			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 		}
 
 		sharedInstance := sharedInstanceObject.(*types.ServiceInstance)
