@@ -41,7 +41,7 @@ func (p *referenceInstancePlugin) Name() string {
 
 func (p *referenceInstancePlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
-	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).Str
+	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	isReferencePlan, err := p.isReferencePlan(ctx, catalogIDProperty, servicePlanID)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func (p *referenceInstancePlugin) Provision(req *web.Request, next web.Handler) 
 	if !exists {
 		return nil, util.HandleInstanceSharingError(util.ErrMissingReferenceParameter, constant.ReferencedInstanceIDKey)
 	}
-	_, err = p.isReferencedShared(ctx, referencedInstanceID.Str)
+	_, err = p.isReferencedShared(ctx, referencedInstanceID.String())
 	if err != nil {
 		return nil, err
 	}

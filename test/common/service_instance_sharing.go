@@ -7,7 +7,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/storage"
 	"github.com/gavv/httpexpect"
 	"net/http"
 )
@@ -48,17 +47,17 @@ func ShareInstance(smClient *SMExpect, async bool, expectedStatusCode int, insta
 
 	return resp
 }
-func ShareInstanceOnDB(storage storage.TransactionalRepository, ctx context.Context, instanceID string) error {
+func ShareInstanceOnDB(ctx *TestContext, instanceID string) error {
 	byID := query.ByField(query.EqualsOperator, "id", instanceID)
 	var err error
-	object, err := storage.Get(ctx, types.ServiceInstanceType, byID)
+	object, err := ctx.SMRepository.Get(context.TODO(), types.ServiceInstanceType, byID)
 	if err != nil {
 		return err
 	}
 
 	instance := object.(*types.ServiceInstance)
 	instance.Shared = newTrue()
-	if _, err := storage.Update(ctx, instance, types.LabelChanges{}); err != nil {
+	if _, err := ctx.SMRepository.Update(context.TODO(), instance, types.LabelChanges{}); err != nil {
 		return util.HandleStorageError(err, string(instance.GetType()))
 	}
 	return nil

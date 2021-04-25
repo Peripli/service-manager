@@ -265,11 +265,12 @@ var _ = Describe("Instance Sharing", func() {
 
 		When("Fetch Instance", func() {
 			Context("in CF platform", func() {
+				var sharedInstanceID string
 				BeforeEach(func() {
 					platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 				})
 				JustBeforeEach(func() {
-					_, referenceInstanceID = executeProvisionTest(platform, false)
+					sharedInstanceID, referenceInstanceID = executeProvisionTest(platform, false)
 				})
 				It("fetches reference instance successfully", func() {
 					instanceSharingBrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
@@ -280,6 +281,7 @@ var _ = Describe("Instance Sharing", func() {
 					referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareablePlanCatalogID)
 					resp.JSON().Object().Value("plan_id").String().Contains(referencePlan.ID)
 					resp.JSON().Object().Value("service_id").String().Contains(service2CatalogID)
+					resp.JSON().Object().Value("parameters").Object().Value("referenced_instance_id").String().Contains(sharedInstanceID)
 				})
 			})
 		})
@@ -362,7 +364,7 @@ func createAndShareInstance(accepts_incomplete bool) (*httpexpect.Response, stri
 		WithQuery("accepts_incomplete", accepts_incomplete).
 		WithJSON(json).
 		Expect().Status(http.StatusCreated)
-	err = ShareInstanceOnDB(ctx.SMRepository, context.TODO(), sharedInstanceID)
+	err = ShareInstanceOnDB(ctx, sharedInstanceID)
 	Expect(err).NotTo(HaveOccurred())
 	return resp, sharedInstanceID
 }

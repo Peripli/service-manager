@@ -624,7 +624,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 										"plan_id":    sharedInstancePlanCatalogID,
 									}).Expect().Status(http.StatusCreated)
 
-								err = common.ShareInstanceOnDB(ctx.SMRepository, context.Background(), shareableInstanceID)
+								err = common.ShareInstanceOnDB(ctx, shareableInstanceID)
 								Expect(err).NotTo(HaveOccurred())
 							})
 

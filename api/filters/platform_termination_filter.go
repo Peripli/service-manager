@@ -105,7 +105,7 @@ func findSharingReferenceInstancesFromOtherPlatform(ctx context.Context, platfor
 	for i := 0; i < sharedInstances.Len(); i++ {
 		sharedInstance := sharedInstances.ItemAt(i).(*types.ServiceInstance)
 		references, err := repository.ListNoLabels(
-			context.Background(),
+			ctx,
 			types.ServiceInstanceType,
 			query.ByField(query.EqualsOperator, constant.ReferencedInstanceIDKey, sharedInstance.GetID()),
 			query.ByField(query.NotEqualsOperator, "platform_id", platform.GetID()),

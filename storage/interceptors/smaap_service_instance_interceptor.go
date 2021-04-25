@@ -428,7 +428,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 	}
 
 	if instance.Shared != nil && *instance.Shared {
-		referencesList, err := i.getInstanceReferencesByID(instance.ID)
+		referencesList, err := i.getInstanceReferencesByID(ctx, instance.ID)
 		if err != nil {
 			log.C(ctx).Errorf("Could not retrieve references of the service instance (%s)s: %v", instance.ID, err)
 		}
@@ -841,9 +841,9 @@ func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(instance *type
 	}, nil
 }
 
-func (i *ServiceInstanceInterceptor) getInstanceReferencesByID(instanceID string) (types.ObjectList, error) {
+func (i *ServiceInstanceInterceptor) getInstanceReferencesByID(ctx context.Context, instanceID string) (types.ObjectList, error) {
 	references, err := i.repository.List(
-		context.Background(),
+		ctx,
 		types.ServiceInstanceType,
 		query.ByField(query.EqualsOperator, constant.ReferencedInstanceIDKey, instanceID))
 	if err != nil {

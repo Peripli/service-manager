@@ -35,6 +35,7 @@ import (
 const (
 	ReferenceInstanceFilterName        = "ReferenceInstanceFilter"
 	ReferenceParametersAreNotSupported = "Reference service instance parameters are not supported"
+	contextKey                         = "context"
 )
 
 // serviceInstanceVisibilityFilter ensures that the tenant making the provisioning/update request
@@ -78,7 +79,7 @@ func (*referenceInstanceFilter) FilterMatchers() []web.FilterMatcher {
 
 func (f *referenceInstanceFilter) handleProvision(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
-	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).Str
+	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	isReferencePlan, err := f.isReferencePlan(ctx, servicePlanID)
 	if err != nil {
 		return nil, err
@@ -88,7 +89,8 @@ func (f *referenceInstanceFilter) handleProvision(req *web.Request, next web.Han
 	}
 
 	// Ownership validation
-	callerTenantID := gjson.GetBytes(req.Body, "context."+f.tenantIdentifier).String()
+	path := fmt.Sprintf("%s.%s", contextKey, f.tenantIdentifier)
+	callerTenantID := gjson.GetBytes(req.Body, path).String()
 	if callerTenantID != "" {
 		err = f.validateOwnership(req)
 		if err != nil {
@@ -103,11 +105,11 @@ func (f *referenceInstanceFilter) handleProvision(req *web.Request, next web.Han
 	if !exists {
 		return nil, util.HandleInstanceSharingError(util.ErrMissingReferenceParameter, constant.ReferencedInstanceIDKey)
 	}
-	req.Body, err = sjson.SetBytes(req.Body, constant.ReferencedInstanceIDKey, referencedInstanceID.Str)
+	req.Body, err = sjson.SetBytes(req.Body, constant.ReferencedInstanceIDKey, referencedInstanceID.String())
 	if err != nil {
 		return nil, err
 	}
-	_, err = f.isReferencedShared(ctx, referencedInstanceID.Str)
+	_, err = f.isReferencedShared(ctx, referencedInstanceID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -191,9 +193,10 @@ func (f *referenceInstanceFilter) getObjectByID(ctx context.Context, objectType 
 
 func (f *referenceInstanceFilter) validateOwnership(req *web.Request) error {
 	ctx := req.Context()
-	callerTenantID := gjson.GetBytes(req.Body, "context."+f.tenantIdentifier).String()
-	path := fmt.Sprintf("parameters.%s", constant.ReferencedInstanceIDKey)
-	referencedInstanceID := gjson.GetBytes(req.Body, path).String()
+	contextPath := fmt.Sprintf("%s.%s", contextKey, f.tenantIdentifier)
+	callerTenantID := gjson.GetBytes(req.Body, contextPath).String()
+	referencedInstancePath := fmt.Sprintf("parameters.%s", constant.ReferencedInstanceIDKey)
+	referencedInstanceID := gjson.GetBytes(req.Body, referencedInstancePath).String()
 	byID := query.ByField(query.EqualsOperator, "id", referencedInstanceID)
 	dbReferencedObject, err := f.repository.Get(ctx, types.ServiceInstanceType, byID)
 	if err != nil {

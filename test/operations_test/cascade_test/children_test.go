@@ -22,11 +22,7 @@ var _ = Describe("cascade operations", func() {
 			tenantCascade := &cascade.TenantCascade{
 				Tenant: tenantResource,
 			}
-			children, err := operations.ListCascadeChildren(
-				context.Background(),
-				tenantCascade.GetChildrenCriterion(),
-				ctx.SMRepository,
-			)
+			children, err := operations.ListCascadeChildren(tenantCascade.GetChildrenCriterion(), ctx.SMRepository)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(children[types.PlatformType].Len()).To(BeIdenticalTo(1))
 			Expect(children[types.ServiceBrokerType].Len()).To(BeIdenticalTo(1))
@@ -56,11 +52,7 @@ var _ = Describe("cascade operations", func() {
 			platformCascade := &cascade.PlatformCascade{
 				Platform: platformResource,
 			}
-			children, err := operations.ListCascadeChildren(
-				context.Background(),
-				platformCascade.GetChildrenCriterion(),
-				ctx.SMRepository,
-			)
+			children, err := operations.ListCascadeChildren(platformCascade.GetChildrenCriterion(), ctx.SMRepository)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(children[types.ServiceInstanceType].Len()).To(BeIdenticalTo(3))
 			var instanceIDs []string
@@ -83,11 +75,7 @@ var _ = Describe("cascade operations", func() {
 			brokerCascade := &cascade.ServiceBrokerCascade{
 				ServiceBroker: brokerResource,
 			}
-			children, err := operations.ListCascadeChildren(
-				context.Background(),
-				brokerCascade.GetChildrenCriterion(),
-				ctx.SMRepository,
-			)
+			children, err := operations.ListCascadeChildren(brokerCascade.GetChildrenCriterion(), ctx.SMRepository)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(children[types.ServiceInstanceType].Len()).To(BeIdenticalTo(5))
 			var instanceIDs []string
@@ -110,11 +98,7 @@ var _ = Describe("cascade operations", func() {
 			instanceCascade := &cascade.ServiceInstanceCascade{
 				ServiceInstance: instanceResource,
 			}
-			children, err := operations.ListCascadeChildren(
-				context.Background(),
-				instanceCascade.GetChildrenCriterion(),
-				ctx.SMRepository,
-			)
+			children, err := operations.ListCascadeChildren(instanceCascade.GetChildrenCriterion(), ctx.SMRepository)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(children[types.ServiceInstanceType].Len()).To(BeIdenticalTo(0))
 			Expect(children[types.ServiceBindingType].Len()).To(BeIdenticalTo(0))
@@ -127,11 +111,7 @@ var _ = Describe("cascade operations", func() {
 			instanceCascade := &cascade.ServiceInstanceCascade{
 				ServiceInstance: instanceResource,
 			}
-			children, err := operations.ListCascadeChildren(
-				context.Background(),
-				instanceCascade.GetChildrenCriterion(),
-				ctx.SMRepository,
-			)
+			children, err := operations.ListCascadeChildren(instanceCascade.GetChildrenCriterion(), ctx.SMRepository)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(children[types.ServiceInstanceType].Len()).To(BeIdenticalTo(0))
 			Expect(children[types.ServiceBindingType].Len()).To(BeIdenticalTo(2))
@@ -152,11 +132,7 @@ var _ = Describe("cascade operations", func() {
 			instanceCascade := &cascade.ServiceInstanceCascade{
 				ServiceInstance: instanceResource,
 			}
-			children, err := operations.ListCascadeChildren(
-				context.Background(),
-				instanceCascade.GetChildrenCriterion(),
-				ctx.SMRepository,
-			)
+			children, err := operations.ListCascadeChildren(instanceCascade.GetChildrenCriterion(), ctx.SMRepository)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(children[types.ServiceBindingType].Len()).To(BeIdenticalTo(0))
 			Expect(children[types.ServiceInstanceType].Len()).To(BeIdenticalTo(1))

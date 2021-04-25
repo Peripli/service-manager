@@ -223,7 +223,7 @@ func initTenantResources(createInstances bool, createSharedInstances bool) {
 					"tenant": tenantID,
 				},
 			})
-			err := ShareInstanceOnDB(ctx.SMRepository, context.Background(), sharedInstanceID)
+			err := ShareInstanceOnDB(ctx, sharedInstanceID)
 			Expect(err).NotTo(HaveOccurred())
 			referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", "plan-service")
 			resp := CreateReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID, referencePlan.ID, multitenancyLabel, tenantID)

@@ -86,9 +86,9 @@ func (f *sharingInstanceFilter) validateOnlySharedPropertyIsChanged(persistedIns
 	return nil
 }
 
-func (f *sharingInstanceFilter) getInstanceReferencesByID(instanceID string) (types.ObjectList, error) {
+func (f *sharingInstanceFilter) getInstanceReferencesByID(ctx context.Context, instanceID string) (types.ObjectList, error) {
 	references, err := f.storageRepository.List(
-		context.Background(),
+		ctx,
 		types.ServiceInstanceType,
 		query.ByField(query.EqualsOperator, constant.ReferencedInstanceIDKey, instanceID))
 	if err != nil {
@@ -146,7 +146,7 @@ func (f *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.H
 
 	// When un-sharing a service instance with references
 	if persistedInstance.Shared != nil && !*reqServiceInstance.Shared {
-		referencesList, err := f.getInstanceReferencesByID(persistedInstance.ID)
+		referencesList, err := f.getInstanceReferencesByID(ctx, persistedInstance.ID)
 
 		if err != nil {
 			logger.Errorf("Could not retrieve references of the service instance (%s): %v", instanceID, err)
