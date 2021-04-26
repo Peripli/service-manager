@@ -251,6 +251,11 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			return nil, fmt.Errorf("operation missing from context")
 		}
 
+		if updatedInstance.ReferencedInstanceID != "" {
+			UpdatedObject, err := f(ctx, updatedObj)
+			return UpdatedObject, err
+		}
+
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, updatedInstance)
 		if err != nil {
 			return nil, err
