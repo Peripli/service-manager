@@ -151,7 +151,7 @@ func isReferenceBinding(ctx context.Context) bool {
 }
 
 func getPathForInstanceSharing(ctx context.Context, currentPath string) string {
-	instanceFromContext, _ := types.InstanceFromContext(ctx)
+	instanceFromContext, _ := types.SharedInstanceFromContext(ctx)
 	splitted := strings.Split(currentPath, "/")
 	if splitted[3] != "" {
 		splitted[3] = instanceFromContext.ID
