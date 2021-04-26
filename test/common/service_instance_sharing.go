@@ -32,6 +32,17 @@ func CreateInstance(smClient *SMExpect, async bool, expectedStatusCode int, name
 
 	return resp, instanceID
 }
+
+func GetInstanceObjectByID(ctx *TestContext, instanceID string) (*types.ServiceInstance, error) {
+	byID := query.ByField(query.EqualsOperator, "id", instanceID)
+	var err error
+	object, err := ctx.SMRepository.Get(context.TODO(), types.ServiceInstanceType, byID)
+	if err != nil {
+		return nil, err
+	}
+
+	return object.(*types.ServiceInstance), nil
+}
 func ShareInstance(smClient *SMExpect, async bool, expectedStatusCode int, instanceID string) *httpexpect.Response {
 	shareInstanceBody := Object{
 		"shared": true,
@@ -48,14 +59,11 @@ func ShareInstance(smClient *SMExpect, async bool, expectedStatusCode int, insta
 	return resp
 }
 func ShareInstanceOnDB(ctx *TestContext, instanceID string) error {
-	byID := query.ByField(query.EqualsOperator, "id", instanceID)
-	var err error
-	object, err := ctx.SMRepository.Get(context.TODO(), types.ServiceInstanceType, byID)
+	instance, err := GetInstanceObjectByID(ctx, instanceID)
 	if err != nil {
 		return err
 	}
 
-	instance := object.(*types.ServiceInstance)
 	instance.Shared = newTrue()
 	if _, err := ctx.SMRepository.Update(context.TODO(), instance, types.LabelChanges{}); err != nil {
 		return util.HandleStorageError(err, string(instance.GetType()))
@@ -121,11 +129,11 @@ func CreateReferenceInstance(ctx *TestContext, async bool, expectedStatusCode in
 	return resp
 }
 
-func CreateBindingByInstanceID(SM *SMExpect, async string, expectedStatusCode int, instanceID string) *httpexpect.Response {
+func CreateBindingByInstanceID(SM *SMExpect, async string, expectedStatusCode int, instanceID string, bindingName string) *httpexpect.Response {
 	resp := SM.POST(web.ServiceBindingsURL).
 		WithQuery("async", async).
 		WithJSON(Object{
-			"name":                "test-binding",
+			"name":                bindingName,
 			"service_instance_id": instanceID,
 		}).
 		Expect().
