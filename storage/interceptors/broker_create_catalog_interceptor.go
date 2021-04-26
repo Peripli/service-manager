@@ -118,7 +118,7 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 		}
 		var sharedPlanFound = false
 		for _, servicePlan := range service.Plans {
-			if servicePlan.Name == constant.ReferencePlanName || servicePlan.CatalogName == constant.ReferencePlanName {
+			if servicePlanUsesReservedNameForReferencePlan(servicePlan) {
 				return util.HandleInstanceSharingError(util.ErrCatalogUsesReservedPlanName, constant.ReferencePlanName)
 			}
 			servicePlan.CatalogID = servicePlan.ID

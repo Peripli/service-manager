@@ -83,6 +83,12 @@ func GetReferencePlanOfExistingPlan(ctx *TestContext, byOperator, servicePlanID 
 	return referencePlanObject.(*types.ServicePlan)
 }
 
+func GetPlanByKey(ctx *TestContext, byKeyName, planCatalogID string) *types.ServicePlan {
+	byKey := query.ByField(query.EqualsOperator, byKeyName, planCatalogID)
+	planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byKey)
+	return planObject.(*types.ServicePlan)
+}
+
 func CreateReferenceInstance(ctx *TestContext, async bool, expectedStatusCode int, referencedInstanceID, referencePlanID, tenantIdentifier, tenantIDValue string) *httpexpect.Response {
 	// epsilontal todo: extract the context from the body request and pass it using a new test-filter, in order to test the ownership.
 	requestBody := Object{

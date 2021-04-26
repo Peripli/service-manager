@@ -93,7 +93,7 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 		newBrokerObj := newObj.(*types.ServiceBroker)
 		brokerID := newObj.GetID()
 
-		existingServicesOfferingsMap, existingServicePlansPerOfferingMap := convertExistingServiceOfferringsToMaps(existingServiceOfferingsWithServicePlans.ServiceOfferings)
+		existingServicesOfferingsMap, existingServicePlansPerOfferingMap := convertExistingServiceOfferingsToMaps(existingServiceOfferingsWithServicePlans.ServiceOfferings)
 		log.C(ctx).Debugf("Found %d services currently known for broker", len(existingServicesOfferingsMap))
 
 		catalogServices, catalogPlansMap, err := getBrokerCatalogServicesAndPlans(newBrokerObj.Services)
@@ -183,6 +183,13 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 						}
 					}
 					if existingPlanUpdated != nil {
+						hasSharedInstances, err := planHasSharedInstances(txStorage, ctx, existingPlanUpdated.ID)
+						if err != nil {
+							return nil, err
+						}
+						if hasSharedInstances && !existingPlanUpdated.IsShareablePlan() {
+							return nil, util.HandleInstanceSharingError(util.ErrSharedPlanHasReferences, existingPlanUpdated.Name)
+						}
 						if err := existingPlanUpdated.Validate(); err != nil {
 							return nil, &util.HTTPError{
 								ErrorType:   "BadRequest",
@@ -288,7 +295,7 @@ func createPlan(ctx context.Context, txStorage storage.Repository, servicePlan *
 	return nil
 }
 
-func convertExistingServiceOfferringsToMaps(serviceOfferings []*types.ServiceOffering) (map[string]*types.ServiceOffering, map[string][]*types.ServicePlan) {
+func convertExistingServiceOfferingsToMaps(serviceOfferings []*types.ServiceOffering) (map[string]*types.ServiceOffering, map[string][]*types.ServicePlan) {
 	serviceOfferingsMap := make(map[string]*types.ServiceOffering)
 	servicePlansMap := make(map[string][]*types.ServicePlan)
 

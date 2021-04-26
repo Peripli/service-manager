@@ -16,10 +16,10 @@ import (
 
 func CreateInstanceInPlatform(ctx *TestContext, platformID string) (string, *types.ServiceInstance) {
 	brokerID, planID := preparePlan(ctx)
-	return brokerID, CreateInstanceInPlatformForPlan(ctx, platformID, planID)
+	return brokerID, CreateInstanceInPlatformForPlan(ctx, platformID, planID, false)
 }
 
-func CreateInstanceInPlatformForPlan(ctx *TestContext, platformID, planID string) *types.ServiceInstance {
+func CreateInstanceInPlatformForPlan(ctx *TestContext, platformID, planID string, shared bool) *types.ServiceInstance {
 	operationID, err := uuid.NewV4()
 	if err != nil {
 		Fail(fmt.Sprintf("failed to generate instance GUID: %s", err))
@@ -51,6 +51,51 @@ func CreateInstanceInPlatformForPlan(ctx *TestContext, platformID, planID string
 		ServicePlanID: planID,
 		PlatformID:    platformID,
 		DashboardURL:  "http://testurl.com",
+		Shared:        &shared,
+	}
+
+	if _, err := ctx.SMScheduler.ScheduleSyncStorageAction(context.TODO(), operation, func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+		return repository.Create(ctx, instance)
+	}); err != nil {
+		Fail(fmt.Sprintf("failed to create instance with name %s", instance.Name))
+	}
+
+	return instance
+}
+
+func CreateReferenceInstanceInPlatform(ctx *TestContext, platformID, planID, referencedInstanceID string) *types.ServiceInstance {
+	operationID, err := uuid.NewV4()
+	if err != nil {
+		Fail(fmt.Sprintf("failed to generate instance GUID: %s", err))
+	}
+	instanceID, err := uuid.NewV4()
+	if err != nil {
+		Fail(fmt.Sprintf("failed to generate instance GUID: %s", err))
+	}
+	operation := &types.Operation{
+		Base: types.Base{
+			ID:        operationID.String(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		Type:         types.CREATE,
+		State:        types.IN_PROGRESS,
+		ResourceID:   instanceID.String(),
+		ResourceType: types.ServiceInstanceType,
+	}
+
+	instance := &types.ServiceInstance{
+		Base: types.Base{
+			ID:        instanceID.String(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Ready:     true,
+		},
+		Name:                 "test-service-instance",
+		ServicePlanID:        planID,
+		PlatformID:           platformID,
+		DashboardURL:         "http://testurl.com",
+		ReferencedInstanceID: referencedInstanceID,
 	}
 
 	if _, err := ctx.SMScheduler.ScheduleSyncStorageAction(context.TODO(), operation, func(ctx context.Context, repository storage.Repository) (types.Object, error) {

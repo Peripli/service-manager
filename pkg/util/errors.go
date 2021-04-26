@@ -221,6 +221,7 @@ var (
 	ErrMissingReferenceParameter             = errors.New("missing referenced_instance_id parameter")
 	ErrParsingNewCatalogWithReference        = errors.New("failed generating reference-plan")
 	ErrUnknownOSBMethod                      = errors.New("osb method is unknown")
+	ErrSharedPlanHasReferences               = errors.New("shared plan has references")
 )
 
 func HandleInstanceSharingError(err error, entityName string) error {
@@ -279,6 +280,13 @@ func HandleInstanceSharingError(err error, entityName string) error {
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: fmt.Sprintf("Unknown OSB method: \"%s\".", entityName),
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrSharedPlanHasReferences:
+		errorMessage := fmt.Sprintf("Couldn't update the service plan. Before you can set it as supportInstanceSharing=false, you first need to un-share the instances of the plan: \"%s\".", entityName)
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: errorMessage,
 			StatusCode:  http.StatusBadRequest,
 		}
 	default:

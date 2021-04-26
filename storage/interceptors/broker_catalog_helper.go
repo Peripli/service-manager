@@ -1,10 +1,14 @@
 package interceptors
 
 import (
+	"context"
 	"fmt"
 	"github.com/Peripli/service-manager/constant"
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
+	"strconv"
 	"time"
 )
 
@@ -45,6 +49,23 @@ func isBindablePlan(service *types.ServiceOffering, plan *types.ServicePlan) boo
 	}
 
 	return service.Bindable
+}
+
+func servicePlanUsesReservedNameForReferencePlan(servicePlan *types.ServicePlan) bool {
+	return servicePlan.Name == constant.ReferencePlanName || servicePlan.CatalogName == constant.ReferencePlanName
+}
+
+func planHasSharedInstances(storage storage.Repository, ctx context.Context, planID string) (bool, error) {
+	byServicePlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
+	bySharedValue := query.ByField(query.EqualsOperator, "shared", strconv.FormatBool(true))
+	listOfSharedInstances, err := storage.List(ctx, types.ServiceInstanceType, byServicePlanID, bySharedValue)
+	if err != nil {
+		return false, err
+	}
+	if listOfSharedInstances.Len() > 0 {
+		return true, nil
+	}
+	return false, nil
 }
 
 func newTrue() *bool {

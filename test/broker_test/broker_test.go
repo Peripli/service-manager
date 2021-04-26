@@ -1759,7 +1759,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							BeforeEach(func() {
 								serviceInstances = make([]*types.ServiceInstance, 0)
 								for _, planID := range planIDsForService {
-									serviceInstance := CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, planID)
+									serviceInstance := CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, planID, false)
 									serviceInstances = append(serviceInstances, serviceInstance)
 								}
 							})
@@ -1975,7 +1975,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								removedPlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_id eq '%s'", removedPlanCatalogID)).
 									First().Object().Value("id").String().Raw()
 
-								serviceInstance = CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, removedPlanID)
+								serviceInstance = CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, removedPlanID, false)
 
 							})
 
@@ -2405,7 +2405,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect(strings.Contains(string(brokerServer.Catalog), constant.ReferencePlanName)).To(Equal(false))
 						})
 					})
-					When("an existing plan changes the supportInstanceSharing property", func() {
+					When("changing the supportInstanceSharing property of an existing plan", func() {
 						var _, _, plan1, plan2, plan3 string
 						var shareableValue bool
 						var testContext *BrokerUtils
@@ -2414,53 +2414,152 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							testContext = ctx.RegisterBrokerWithCatalog(catalog)
 							brokerServer = testContext.Broker.BrokerServer
 						})
-						It("removes the reference plan when changing the supportInstanceSharing to 'false'", func() {
-							// validate plans has shareable status
-							path := fmt.Sprintf("metadata.%s", constant.SupportInstanceSharingKey)
-							shareableValue = gjson.Get(plan1, path).Bool()
-							Expect(shareableValue).To(Equal(true))
-							shareableValue = gjson.Get(plan2, path).Bool()
-							Expect(shareableValue).To(Equal(true))
-							shareableValue = gjson.Get(plan3, path).Bool()
-							Expect(shareableValue).To(Equal(true))
-							// validate reference plan exists
-							// reference of service_1:
-							planID1 := gjson.Get(plan1, "id").String()
-							referencePlan1 := GetReferencePlanOfExistingPlan(ctx, "catalog_id", planID1)
-							Expect(referencePlan1).NotTo(Equal(nil))
-							// reference of service 2:
-							planID3 := gjson.Get(plan3, "id").String()
-							referencePlan2 := GetReferencePlanOfExistingPlan(ctx, "catalog_id", planID3)
-							Expect(referencePlan2).NotTo(Equal(nil))
+						When("the shareable plan not in use", func() {
+							var planID1, planID3 string
+							var referencePlan1, referencePlan2 *types.ServicePlan
+							BeforeEach(func() {
+								// validate plans has shareable status
+								path := fmt.Sprintf("metadata.%s", constant.SupportInstanceSharingKey)
+								shareableValue = gjson.Get(plan1, path).Bool()
+								Expect(shareableValue).To(Equal(true))
+								shareableValue = gjson.Get(plan2, path).Bool()
+								Expect(shareableValue).To(Equal(true))
+								shareableValue = gjson.Get(plan3, path).Bool()
+								Expect(shareableValue).To(Equal(true))
+								// validate reference plan exists
+								// reference of service_1:
+								planID1 := gjson.Get(plan1, "id").String()
+								referencePlan1 := GetReferencePlanOfExistingPlan(ctx, "catalog_id", planID1)
+								Expect(referencePlan1).NotTo(Equal(nil))
+								// reference of service 2:
+								planID3 := gjson.Get(plan3, "id").String()
+								referencePlan2 := GetReferencePlanOfExistingPlan(ctx, "catalog_id", planID3)
+								Expect(referencePlan2).NotTo(Equal(nil))
 
-							// set catalog as support instance sharing false
-							newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), fmt.Sprintf("services.0.plans.0.metadata.%s", constant.SupportInstanceSharingKey), false)
-							newCatalogBytes, _ = sjson.SetBytes(newCatalogBytes, fmt.Sprintf("services.0.plans.1.metadata.%s", constant.SupportInstanceSharingKey), false)
-							newCatalogBytes, _ = sjson.SetBytes(newCatalogBytes, fmt.Sprintf("services.1.plans.0.metadata.%s", constant.SupportInstanceSharingKey), false)
-							brokerServer.Catalog = SBCatalog(newCatalogBytes)
-
-							// update broker
-							location := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+testContext.Broker.ID).
-								WithQuery(web.QueryParamAsync, "true").
-								WithJSON(common.Object{}).
-								Expect().Status(http.StatusAccepted).Header("Location").Raw()
-							common.VerifyOperationExists(ctx, location, common.OperationExpectations{
-								State:        types.SUCCEEDED,
-								Category:     types.UPDATE,
-								ResourceType: types.ServiceBrokerType,
+								// set catalog as support instance sharing false
+								metadataPathPlan1 := fmt.Sprintf("services.0.plans.0.metadata.%s", constant.SupportInstanceSharingKey)
+								newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), metadataPathPlan1, false)
+								newCatalogBytes, _ = sjson.SetBytes(newCatalogBytes, fmt.Sprintf("services.0.plans.1.metadata.%s", constant.SupportInstanceSharingKey), false)
+								newCatalogBytes, _ = sjson.SetBytes(newCatalogBytes, fmt.Sprintf("services.1.plans.0.metadata.%s", constant.SupportInstanceSharingKey), false)
+								brokerServer.Catalog = SBCatalog(newCatalogBytes)
 							})
+							AfterEach(func() {
+								// validate reference plan does not exists
+								// reference of service_1:
+								planID1 = gjson.Get(plan1, "id").String()
+								referencePlan1 = GetReferencePlanOfExistingPlan(ctx, "catalog_id", planID1)
+								Expect(referencePlan1).To(BeNil())
+								// reference of service 2:
+								planID3 = gjson.Get(plan3, "id").String()
+								referencePlan2 = GetReferencePlanOfExistingPlan(ctx, "catalog_id", planID3)
+								Expect(referencePlan2).To(BeNil())
 
-							Expect(strings.Contains(string(brokerServer.Catalog), constant.ReferencePlanName)).To(Equal(false))
+							})
+							It("removes the reference plan when changing the supportInstanceSharing to 'false'", func() {
 
-							// validate reference plan does not exists
-							// reference of service_1:
-							planID1 = gjson.Get(plan1, "id").String()
-							referencePlan1 = GetReferencePlanOfExistingPlan(ctx, "catalog_id", planID1)
-							Expect(referencePlan1).To(BeNil())
-							// reference of service 2:
-							planID3 = gjson.Get(plan3, "id").String()
-							referencePlan2 = GetReferencePlanOfExistingPlan(ctx, "catalog_id", planID3)
-							Expect(referencePlan2).To(BeNil())
+								// update broker
+								location := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+testContext.Broker.ID).
+									WithQuery(web.QueryParamAsync, "true").
+									WithJSON(common.Object{}).
+									Expect().Status(http.StatusAccepted).Header("Location").Raw()
+								common.VerifyOperationExists(ctx, location, common.OperationExpectations{
+									State:        types.SUCCEEDED,
+									Category:     types.UPDATE,
+									ResourceType: types.ServiceBrokerType,
+								})
+
+								Expect(strings.Contains(string(brokerServer.Catalog), constant.ReferencePlanName)).To(Equal(false))
+
+							})
+						})
+						When("the shareable plan has reference instance", func() {
+							var planID1 string
+							var referencePlan1 *types.ServicePlan
+							var sharedInstance *types.ServiceInstance
+							var referenceInstance *types.ServiceInstance
+							BeforeEach(func() {
+								// validate plans has shareable status
+								path := fmt.Sprintf("metadata.%s", constant.SupportInstanceSharingKey)
+								shareableValue = gjson.Get(plan1, path).Bool()
+								Expect(shareableValue).To(Equal(true))
+								// validate reference plan exists
+								// reference of service_1:
+								planID1 = gjson.Get(plan1, "id").String()
+								referencePlan1 = GetReferencePlanOfExistingPlan(ctx, "catalog_id", planID1)
+								Expect(referencePlan1).NotTo(Equal(nil))
+
+								sharedPlan := GetPlanByKey(ctx, "catalog_id", planID1)
+								sharedInstance = CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, sharedPlan.ID, true)
+								referenceInstance = CreateReferenceInstanceInPlatform(ctx, ctx.TestPlatform.ID, referencePlan1.ID, sharedInstance.ID)
+								//set catalog as support instance sharing false
+								newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), fmt.Sprintf("services.0.plans.0.metadata.%s", constant.SupportInstanceSharingKey), false)
+								brokerServer.Catalog = SBCatalog(newCatalogBytes)
+							})
+							AfterEach(func() {
+								Expect(strings.Contains(string(brokerServer.Catalog), constant.ReferencePlanName)).To(Equal(false))
+								// validate reference plan does not exists
+								// reference of service_1:
+								planID1 = gjson.Get(plan1, "id").String()
+								referencePlan1 = GetReferencePlanOfExistingPlan(ctx, "catalog_id", planID1)
+								Expect(referencePlan1).NotTo(BeNil())
+								DeleteInstance(ctx, referenceInstance.ID, referenceInstance.ServicePlanID)
+								DeleteInstance(ctx, sharedInstance.ID, sharedInstance.ServicePlanID)
+							})
+							It("fails removing the reference plan after changing the supportInstanceSharing to 'false' (for planID1) due to existing shared instance of a plan", func() {
+								// update broker
+								location := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+testContext.Broker.ID).
+									WithQuery(web.QueryParamAsync, "true").
+									WithJSON(common.Object{}).
+									Expect().Status(http.StatusAccepted).Header("Location").Raw()
+								common.VerifyOperationExists(ctx, location, common.OperationExpectations{
+									State:        types.FAILED,
+									Category:     types.UPDATE,
+									ResourceType: types.ServiceBrokerType,
+								})
+							})
+						})
+						When("the shareable plan has shared instance", func() {
+							var planID1 string
+							var referencePlan1 *types.ServicePlan
+							var sharedInstance *types.ServiceInstance
+							BeforeEach(func() {
+								// validate plans has shareable status
+								path := fmt.Sprintf("metadata.%s", constant.SupportInstanceSharingKey)
+								shareableValue = gjson.Get(plan1, path).Bool()
+								Expect(shareableValue).To(Equal(true))
+								// validate reference plan exists
+								// reference of service_1:
+								planID1 = gjson.Get(plan1, "id").String()
+								referencePlan1 = GetReferencePlanOfExistingPlan(ctx, "catalog_id", planID1)
+								Expect(referencePlan1).NotTo(Equal(nil))
+
+								sharedPlan := GetPlanByKey(ctx, "catalog_id", planID1)
+								sharedInstance = CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, sharedPlan.ID, true)
+								//set catalog as support instance sharing false
+								newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), fmt.Sprintf("services.0.plans.0.metadata.%s", constant.SupportInstanceSharingKey), false)
+								brokerServer.Catalog = SBCatalog(newCatalogBytes)
+							})
+							AfterEach(func() {
+								Expect(strings.Contains(string(brokerServer.Catalog), constant.ReferencePlanName)).To(Equal(false))
+								// validate reference plan does not exists
+								// reference of service_1:
+								planID1 = gjson.Get(plan1, "id").String()
+								referencePlan1 = GetReferencePlanOfExistingPlan(ctx, "catalog_id", planID1)
+								Expect(referencePlan1).NotTo(BeNil())
+								DeleteInstance(ctx, sharedInstance.ID, sharedInstance.ServicePlanID)
+							})
+							It("fails removing the reference plan after changing the supportInstanceSharing to 'false' (for planID1) due to existing shared instance of a plan", func() {
+								// update broker
+								location := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+testContext.Broker.ID).
+									WithQuery(web.QueryParamAsync, "true").
+									WithJSON(common.Object{}).
+									Expect().Status(http.StatusAccepted).Header("Location").Raw()
+								common.VerifyOperationExists(ctx, location, common.OperationExpectations{
+									State:        types.FAILED,
+									Category:     types.UPDATE,
+									ResourceType: types.ServiceBrokerType,
+								})
+							})
 						})
 					})
 				})
