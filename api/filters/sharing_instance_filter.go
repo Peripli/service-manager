@@ -47,8 +47,8 @@ func (*sharingInstanceFilter) Name() string {
 	return SharingInstanceFilterName
 }
 
-func (f *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	return f.handleServiceUpdate(req, next)
+func (sf *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+	return sf.handleServiceUpdate(req, next)
 }
 
 func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
@@ -62,7 +62,7 @@ func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
 	}
 }
 
-func (f *sharingInstanceFilter) validateOnlySharedPropertyIsChanged(persistedInstance *types.ServiceInstance, reqInstanceBytes *[]byte) error {
+func (sf *sharingInstanceFilter) validateOnlySharedPropertyIsChanged(persistedInstance *types.ServiceInstance, reqInstanceBytes *[]byte) error {
 	var updatedInstance types.ServiceInstance
 	persistedInstanceBytes, err := json.Marshal(&persistedInstance)
 	if err != nil {
@@ -86,8 +86,8 @@ func (f *sharingInstanceFilter) validateOnlySharedPropertyIsChanged(persistedIns
 	return nil
 }
 
-func (f *sharingInstanceFilter) getInstanceReferencesByID(ctx context.Context, instanceID string) (types.ObjectList, error) {
-	references, err := f.storageRepository.List(
+func (sf *sharingInstanceFilter) getInstanceReferencesByID(ctx context.Context, instanceID string) (types.ObjectList, error) {
+	references, err := sf.storageRepository.List(
 		ctx,
 		types.ServiceInstanceType,
 		query.ByField(query.EqualsOperator, constant.ReferencedInstanceIDKey, instanceID))
@@ -97,7 +97,7 @@ func (f *sharingInstanceFilter) getInstanceReferencesByID(ctx context.Context, i
 	return references, nil
 }
 
-func (f *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.Handler) (*web.Response, error) {
+func (sf *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.Handler) (*web.Response, error) {
 	var reqServiceInstance types.ServiceInstance
 	err := util.BytesToObjectNoLabels(req.Body, &reqServiceInstance)
 
@@ -114,13 +114,13 @@ func (f *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.H
 
 	// Get instance from database
 	instanceID := req.PathParams["resource_id"]
-	persistedInstance, err := f.retrievePersistedInstanceByID(ctx, instanceID)
+	persistedInstance, err := sf.retrievePersistedInstanceByID(ctx, instanceID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 
 	//we cannot use reqServiceInstance in this validation because the struct has default values (like "" for string type properties)
-	err = f.validateOnlySharedPropertyIsChanged(persistedInstance, &req.Body)
+	err = sf.validateOnlySharedPropertyIsChanged(persistedInstance, &req.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (f *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.H
 	// Get plan object from database, on service_instance patch flow
 	planID := persistedInstance.ServicePlanID
 	byID := query.ByField(query.EqualsOperator, "id", planID)
-	planObject, err := f.storageRepository.Get(ctx, types.ServicePlanType, byID)
+	planObject, err := sf.storageRepository.Get(ctx, types.ServicePlanType, byID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServicePlanType.String())
 	}
@@ -146,7 +146,7 @@ func (f *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.H
 
 	// When un-sharing a service instance with references
 	if persistedInstance.Shared != nil && !*reqServiceInstance.Shared {
-		referencesList, err := f.getInstanceReferencesByID(ctx, persistedInstance.ID)
+		referencesList, err := sf.getInstanceReferencesByID(ctx, persistedInstance.ID)
 
 		if err != nil {
 			logger.Errorf("Could not retrieve references of the service instance (%s): %v", instanceID, err)
@@ -157,12 +157,13 @@ func (f *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.H
 		}
 	}
 
+	log.C(ctx).Infof("Reference Instance Update passed successfully. InstanceID: \"%s\"", instanceID)
 	return next.Handle(req)
 }
 
-func (f *sharingInstanceFilter) retrievePersistedInstanceByID(ctx context.Context, instanceID string) (*types.ServiceInstance, error) {
+func (sf *sharingInstanceFilter) retrievePersistedInstanceByID(ctx context.Context, instanceID string) (*types.ServiceInstance, error) {
 	byID := query.ByField(query.EqualsOperator, "id", instanceID)
-	dbInstanceObject, err := f.storageRepository.Get(ctx, types.ServiceInstanceType, byID)
+	dbInstanceObject, err := sf.storageRepository.Get(ctx, types.ServiceInstanceType, byID)
 	persistedInstance := dbInstanceObject.(*types.ServiceInstance)
 	return persistedInstance, err
 }

@@ -65,7 +65,7 @@ func (f *platformTerminationFilter) Run(req *web.Request, next web.Handler) (*we
 				StatusCode:  http.StatusUnprocessableEntity,
 			}
 		}
-		sharingReferences, err := findSharingReferenceInstancesFromOtherPlatform(ctx, platform, f.repository)
+		sharingReferences, err := findReferencesOfSharedInstancesInOtherPlatforms(ctx, platform, f.repository)
 		if err != nil {
 			return nil, err
 		}
@@ -93,7 +93,7 @@ type SharingReferences struct {
 	referenceIDs     []string
 }
 
-func findSharingReferenceInstancesFromOtherPlatform(ctx context.Context, platform *types.Platform, repository storage.Repository) ([]*SharingReferences, error) {
+func findReferencesOfSharedInstancesInOtherPlatforms(ctx context.Context, platform *types.Platform, repository storage.Repository) ([]*SharingReferences, error) {
 	sharedInstances, err := repository.ListNoLabels(ctx, types.ServiceInstanceType,
 		query.ByField(query.EqualsOperator, "platform_id", platform.ID),
 		query.ByField(query.EqualsOperator, "shared", "true"),
@@ -101,7 +101,7 @@ func findSharingReferenceInstancesFromOtherPlatform(ctx context.Context, platfor
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
-	var result []*SharingReferences
+	var referencesInOtherPlatforms []*SharingReferences
 	for i := 0; i < sharedInstances.Len(); i++ {
 		sharedInstance := sharedInstances.ItemAt(i).(*types.ServiceInstance)
 		references, err := repository.ListNoLabels(
@@ -118,13 +118,13 @@ func findSharingReferenceInstancesFromOtherPlatform(ctx context.Context, platfor
 			for ri := 0; ri < references.Len(); ri++ {
 				referenceIDs = append(referenceIDs, references.ItemAt(ri).GetID())
 			}
-			result = append(result, &SharingReferences{
+			referencesInOtherPlatforms = append(referencesInOtherPlatforms, &SharingReferences{
 				sharedInstanceID: sharedInstance.GetID(),
 				referenceIDs:     referenceIDs,
 			})
 		}
 	}
-	return result, nil
+	return referencesInOtherPlatforms, nil
 }
 
 func (*platformTerminationFilter) FilterMatchers() []web.FilterMatcher {

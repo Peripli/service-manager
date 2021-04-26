@@ -1,6 +1,7 @@
 package osb
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -44,7 +45,8 @@ func (p *checkInstanceOwnershipPlugin) UpdateService(req *web.Request, next web.
 
 func (p *checkInstanceOwnershipPlugin) assertOwner(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
-	callerTenantID := gjson.GetBytes(req.Body, "context."+p.tenantIdentifier).String()
+	path := fmt.Sprintf("context.%s", p.tenantIdentifier)
+	callerTenantID := gjson.GetBytes(req.Body, path).String()
 
 	if len(callerTenantID) == 0 {
 		log.C(ctx).Info("Tenant identifier not found in request context.")

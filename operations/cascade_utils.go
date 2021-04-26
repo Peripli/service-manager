@@ -66,11 +66,11 @@ func recursiveGetAllLevelsCascadeOperations(ctx context.Context, object types.Ob
 	return operations, nil
 }
 
-func ListCascadeChildren(childrenCriterion cascade.ChildrenCriterion, storage storage.Repository) (cascade.CascadeChildren, error) {
+func ListCascadeChildren(ctx context.Context, childrenCriterion cascade.ChildrenCriterion, storage storage.Repository) (cascade.CascadeChildren, error) {
 	cascadeChildren := make(cascade.CascadeChildren)
 	for childType, criterionDisjunction := range childrenCriterion {
 		for _, criterionConjunction := range criterionDisjunction {
-			childrenList, err := storage.List(context.TODO(), childType, criterionConjunction...)
+			childrenList, err := storage.List(ctx, childType, criterionConjunction...)
 			if err != nil {
 				return nil, err
 			}
@@ -89,7 +89,7 @@ func ListCascadeChildren(childrenCriterion cascade.ChildrenCriterion, storage st
 func GetObjectChildren(ctx context.Context, object types.Object, storage storage.Repository) (cascade.CascadeChildren, error) {
 	cascadeObject, isCascade := cascade.GetCascadeObject(ctx, object)
 	if isCascade {
-		children, err := ListCascadeChildren(cascadeObject.GetChildrenCriterion(), storage)
+		children, err := ListCascadeChildren(ctx, cascadeObject.GetChildrenCriterion(), storage)
 		if err != nil {
 			return nil, err
 		}

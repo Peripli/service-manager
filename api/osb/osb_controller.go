@@ -138,15 +138,15 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 }
 
 func modifyRequestURLPath(ctx context.Context, m []string, modifiedRequest *http.Request) {
-	if isInstanceSharingFlow(ctx) {
+	if isReferenceBinding(ctx) {
 		modifiedRequest.URL.Path = getPathForInstanceSharing(ctx, m[1])
 	} else {
 		modifiedRequest.URL.Path = m[1]
 	}
 }
 
-func isInstanceSharingFlow(ctx context.Context) bool {
-	instanceFromContext, exists := types.InstanceFromContext(ctx)
+func isReferenceBinding(ctx context.Context) bool {
+	instanceFromContext, exists := types.SharedInstanceFromContext(ctx)
 	return exists && instanceFromContext.Shared != nil && *instanceFromContext.Shared
 }
 
