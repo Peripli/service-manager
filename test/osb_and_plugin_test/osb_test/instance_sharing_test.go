@@ -38,7 +38,6 @@ var _ = Describe("Instance Sharing", func() {
 	Context("References", func() {
 		var platform *types.Platform
 		var platformJSON common.Object
-		var referenceInstanceID string
 
 		JustBeforeEach(func() {
 			instanceSharingBrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
@@ -73,21 +72,18 @@ var _ = Describe("Instance Sharing", func() {
 					platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 				})
 				It("creates reference instance successfully", func() {
-					_, referenceInstanceID = executeProvisionTest(platform, false)
+					executeProvisionTest(platform, false)
 				})
 				It("creates reference instance successfully and return operation when async=true", func() {
 					_, sharedInstanceID := createAndShareInstance(false)
-					resp, referenceInstanceID := createReferenceInstance(platform.ID, sharedInstanceID, false)
+					_, referenceInstanceID := createReferenceInstance(platform.ID, sharedInstanceID, false)
 
-					respObject := resp.JSON().Object()
-					fmt.Print(respObject)
-					obj := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					referenceInstanceObject := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 						ID:    referenceInstanceID,
 						Type:  types.ServiceInstanceType,
 						Ready: true,
 					})
-					obj.
-						ContainsKey("platform_id").
+					referenceInstanceObject.ContainsKey("platform_id").
 						ValueEqual("platform_id", platform.ID)
 				})
 
@@ -98,7 +94,7 @@ var _ = Describe("Instance Sharing", func() {
 					platformJSON = common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
 				})
 				It("creates reference instance successfully", func() {
-					_, referenceInstanceID = executeProvisionTest(platform, false)
+					executeProvisionTest(platform, false)
 				})
 			})
 		})
@@ -106,6 +102,7 @@ var _ = Describe("Instance Sharing", func() {
 		When("Deprovision", func() {
 
 			Context("in CF platform", func() {
+				var referenceInstanceID string
 				BeforeEach(func() {
 					platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 				})
@@ -130,13 +127,11 @@ var _ = Describe("Instance Sharing", func() {
 				})
 
 				It("deletes reference instance successfully", func() {
-					_, referenceInstanceID = executeProvisionTest(platform, false)
-					resp := ctx.SMWithBasic.DELETE(instanceSharingBrokerURL+"/v2/service_instances/"+referenceInstanceID).
+					_, referenceInstanceID := executeProvisionTest(platform, false)
+					ctx.SMWithBasic.DELETE(instanceSharingBrokerURL+"/v2/service_instances/"+referenceInstanceID).
 						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						WithQuery("async", "false").
 						Expect().Status(http.StatusOK)
-					fmt.Print(resp)
-					//deleteInstance(referenceInstanceID)
 				})
 
 			})
@@ -153,19 +148,28 @@ var _ = Describe("Instance Sharing", func() {
 					platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 					instanceSharingBrokerServer.ShouldRecordRequests(true)
 				})
-				It("binds reference instance successfully", func() {
-					sharedInstanceID, referenceInstanceID := executeProvisionTest(platform, false)
-					bindingID := createBinding(referenceInstanceID)
+				When("instance is reference type", func() {
+					It("creates bindings successfully", func() {
+						sharedInstanceID, referenceInstanceID := executeProvisionTest(platform, false)
+						bindingID := createBinding(referenceInstanceID)
 
-					Expect(instanceSharingBrokerServer.LastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
+						lastRequest := instanceSharingBrokerServer.LastRequest
+						Expect(lastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
+						Expect(lastRequest.Method).To(ContainSubstring("PUT"))
 
-					ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
-						Expect().
-						Status(http.StatusOK).
-						JSON().
-						Object().ContainsKey("service_instance_id").
-						ValueEqual("service_instance_id", referenceInstanceID)
+						ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
+							Expect().
+							Status(http.StatusOK).
+							JSON().
+							Object().
+							ContainsKey("service_instance_id").
+							ValueEqual("service_instance_id", referenceInstanceID)
 
+						// verify not communicating the service broker after the get request.
+						lastRequest = instanceSharingBrokerServer.LastRequest
+						Expect(lastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
+						Expect(lastRequest.Method).To(ContainSubstring("PUT"))
+					})
 				})
 				Context("different platform exists", func() {
 					var k8sPlatform *types.Platform
@@ -212,7 +216,7 @@ var _ = Describe("Instance Sharing", func() {
 					platformJSON = common.MakePlatform(UUID.String(), UUID.String(), "kubernetes", "test-platform-k8s")
 				})
 				It("binds reference instance successfully", func() {
-					_, referenceInstanceID = executeProvisionTest(platform, false)
+					_, referenceInstanceID := executeProvisionTest(platform, false)
 					bindingID := createBinding(referenceInstanceID)
 
 					ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
@@ -227,12 +231,12 @@ var _ = Describe("Instance Sharing", func() {
 
 		When("Unbind", func() {
 			Context("in CF platform", func() {
-				var bindingID string
+				var referenceInstanceID, bindingID string
 				BeforeEach(func() {
 					platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 				})
 				JustBeforeEach(func() {
-					_, referenceInstanceID = executeProvisionTest(platform, false)
+					_, referenceInstanceID := executeProvisionTest(platform, false)
 					bindingID = createBinding(referenceInstanceID)
 					ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
 						Expect().
@@ -265,7 +269,7 @@ var _ = Describe("Instance Sharing", func() {
 
 		When("Fetch Instance", func() {
 			Context("in CF platform", func() {
-				var sharedInstanceID string
+				var sharedInstanceID, referenceInstanceID string
 				BeforeEach(func() {
 					platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 				})

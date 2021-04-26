@@ -187,6 +187,12 @@ func (referencePlugin *referenceInstancePlugin) generateOSBResponse(ctx context.
 	headers := http.Header{}
 	headers.Add("Content-Type", "application/json")
 	switch method {
+	case Provision:
+		return &web.Response{
+			Body:       []byte(`{}`),
+			StatusCode: http.StatusCreated,
+			Header:     headers,
+		}, nil
 	case FetchService:
 		osbResponse, err := referencePlugin.buildOSBFetchServiceResponse(ctx, instance)
 		if err != nil {
