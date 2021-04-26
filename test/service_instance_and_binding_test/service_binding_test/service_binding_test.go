@@ -401,9 +401,10 @@ var _ = DescribeTestsFor(TestCase{
 							"instance_name":  sharedInstance.Name,
 							TenantIdentifier: TenantIDValue,
 						})
-						uri := brokerServer.LastRequest.RequestURI
-						// Expect to retrieve the data from the broker of the shared instance and not of the reference instance
-						Expect(uri).To(ContainSubstring(sharedInstanceID))
+						lastRequest := brokerServer.LastRequest
+						// The last broker request should be the "PUT" binding request:
+						Expect(lastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
+						Expect(lastRequest.Method).To(Equal("PUT"))
 					})
 				})
 				When("service binding contains tenant identifier in OSB context", func() {
