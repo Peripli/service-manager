@@ -72,7 +72,7 @@ var _ = Describe("Instance Sharing", func() {
 					platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 				})
 				It("creates reference instance successfully", func() {
-					executeProvisionTest(platform, false)
+					createSharedInstanceAndReference(platform, false)
 				})
 				It("creates reference instance successfully and return operation when async=true", func() {
 					_, sharedInstanceID := createAndShareInstance(false)
@@ -94,7 +94,7 @@ var _ = Describe("Instance Sharing", func() {
 					platformJSON = common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
 				})
 				It("creates reference instance successfully", func() {
-					executeProvisionTest(platform, false)
+					createSharedInstanceAndReference(platform, false)
 				})
 			})
 		})
@@ -116,7 +116,7 @@ var _ = Describe("Instance Sharing", func() {
 				})
 
 				It("deletes reference instance successfully", func() {
-					_, referenceInstanceID = executeProvisionTest(platform, false)
+					_, referenceInstanceID = createSharedInstanceAndReference(platform, false)
 					deleteInstance(referenceInstanceID)
 				})
 			})
@@ -127,7 +127,7 @@ var _ = Describe("Instance Sharing", func() {
 				})
 
 				It("deletes reference instance successfully", func() {
-					_, referenceInstanceID := executeProvisionTest(platform, false)
+					_, referenceInstanceID := createSharedInstanceAndReference(platform, false)
 					ctx.SMWithBasic.DELETE(instanceSharingBrokerURL+"/v2/service_instances/"+referenceInstanceID).
 						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						WithQuery("async", "false").
@@ -149,8 +149,8 @@ var _ = Describe("Instance Sharing", func() {
 					instanceSharingBrokerServer.ShouldRecordRequests(true)
 				})
 				When("instance is reference type", func() {
-					It("creates bindings successfully", func() {
-						sharedInstanceID, referenceInstanceID := executeProvisionTest(platform, false)
+					FIt("creates bindings successfully", func() {
+						sharedInstanceID, referenceInstanceID := createSharedInstanceAndReference(platform, false)
 						bindingID := createBinding(referenceInstanceID)
 
 						lastRequest := instanceSharingBrokerServer.LastRequest
@@ -216,7 +216,7 @@ var _ = Describe("Instance Sharing", func() {
 					platformJSON = common.MakePlatform(UUID.String(), UUID.String(), "kubernetes", "test-platform-k8s")
 				})
 				It("binds reference instance successfully", func() {
-					_, referenceInstanceID := executeProvisionTest(platform, false)
+					_, referenceInstanceID := createSharedInstanceAndReference(platform, false)
 					bindingID := createBinding(referenceInstanceID)
 
 					ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
@@ -236,7 +236,7 @@ var _ = Describe("Instance Sharing", func() {
 					platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 				})
 				JustBeforeEach(func() {
-					_, referenceInstanceID = executeProvisionTest(platform, false)
+					_, referenceInstanceID = createSharedInstanceAndReference(platform, false)
 					bindingID = createBinding(referenceInstanceID)
 					ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
 						Expect().
@@ -274,7 +274,7 @@ var _ = Describe("Instance Sharing", func() {
 					platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 				})
 				JustBeforeEach(func() {
-					sharedInstanceID, referenceInstanceID = executeProvisionTest(platform, false)
+					sharedInstanceID, referenceInstanceID = createSharedInstanceAndReference(platform, false)
 				})
 				It("fetches reference instance successfully", func() {
 					instanceSharingBrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
@@ -317,7 +317,7 @@ func deleteInstance(instanceID string) *httpexpect.Response {
 		Expect().Status(http.StatusOK)
 }
 
-func executeProvisionTest(platform *types.Platform, async bool) (string, string) {
+func createSharedInstanceAndReference(platform *types.Platform, async bool) (string, string) {
 	_, sharedInstanceID := createAndShareInstance(async)
 	VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 		ID:    sharedInstanceID,
@@ -330,8 +330,7 @@ func executeProvisionTest(platform *types.Platform, async bool) (string, string)
 		Type:  types.ServiceInstanceType,
 		Ready: true,
 	})
-	obj.
-		ContainsKey("platform_id").
+	obj.ContainsKey("platform_id").
 		ValueEqual("platform_id", platform.ID)
 	return sharedInstanceID, referenceInstanceID
 }

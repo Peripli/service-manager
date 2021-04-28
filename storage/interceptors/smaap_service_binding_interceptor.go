@@ -113,7 +113,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		}
 
 		if instance.ReferencedInstanceID != "" {
-			//referenceInstance = instance
+			log.C(ctx).Infof("Creating a reference-binding. Switching the reference-instance context of \"%s\", with the shared instance: \"%s\"", instance.ID, instance.ReferencedInstanceID)
 			instance, _ = getInstanceByID(ctx, instance.ReferencedInstanceID, i.repository)
 			binding.Context = instance.Context
 		}
@@ -316,6 +316,7 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 	}
 
 	if instance.ReferencedInstanceID != "" {
+		log.C(ctx).Infof("Deleting a reference-binding. Switching the reference-instance context of \"%s\", with the shared instance: \"%s\"", instance.ID, instance.ReferencedInstanceID)
 		instance, _ = getInstanceByID(ctx, instance.ReferencedInstanceID, i.repository)
 		binding.Context = instance.Context
 	}
