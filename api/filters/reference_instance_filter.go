@@ -18,6 +18,7 @@ package filters
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
@@ -28,6 +29,7 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"net/http"
+	"strings"
 
 	"github.com/Peripli/service-manager/pkg/web"
 )
@@ -58,12 +60,46 @@ func (*referenceInstanceFilter) Name() string {
 
 func (rif *referenceInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	switch req.Request.Method {
+	case http.MethodGet:
+		if strings.Contains(req.RequestURI, "/parameters") {
+			return rif.handleGetParameters(req, next)
+		}
 	case http.MethodPost:
 		return rif.handleProvision(req, next)
 	case http.MethodPatch:
 		return rif.handleServiceUpdate(req, next)
 	}
-	return nil, nil
+	return next.Handle(req)
+}
+
+func (rif *referenceInstanceFilter) handleGetParameters(req *web.Request, next web.Handler) (*web.Response, error) {
+	ctx := req.Context()
+	instanceID := req.PathParams[web.PathParamResourceID]
+
+	dbInstanceObject, err := rif.getObjectByID(ctx, types.ServiceInstanceType, instanceID)
+	if err != nil {
+		return next.Handle(req)
+	}
+	instance := dbInstanceObject.(*types.ServiceInstance)
+	if instance.ReferencedInstanceID == "" {
+		return next.Handle(req)
+	}
+
+	var marshal []byte
+	headers := http.Header{}
+	headers.Add("Content-Type", "application/json")
+	body := map[string]string{
+		instance_sharing.ReferencedInstanceIDKey: instance.ReferencedInstanceID,
+	}
+	marshal, err = json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	return &web.Response{
+		Body:       marshal,
+		StatusCode: http.StatusOK,
+		Header:     headers,
+	}, nil
 }
 
 func (*referenceInstanceFilter) FilterMatchers() []web.FilterMatcher {
@@ -71,7 +107,7 @@ func (*referenceInstanceFilter) FilterMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Path(web.ServiceInstancesURL + "/**"),
-				web.Methods(http.MethodPost, http.MethodPatch),
+				web.Methods(http.MethodPost, http.MethodPatch, http.MethodGet),
 			},
 		},
 	}

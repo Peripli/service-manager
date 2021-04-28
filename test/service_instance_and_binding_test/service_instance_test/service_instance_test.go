@@ -284,6 +284,86 @@ var _ = DescribeTestsFor(TestCase{
 			})
 
 			Describe("get parameters", func() {
+				When("instance is reference type", func() {
+					var sharedInstanceID = ""
+					var referenceInstanceID = ""
+					var referencePlan *types.ServicePlan
+					BeforeEach(func() {
+						preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration, true)
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+
+						// Create instance and share it
+						resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
+						sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+							Category:          types.CREATE,
+							State:             types.SUCCEEDED,
+							ResourceType:      types.ServiceInstanceType,
+							Reschedulable:     false,
+							DeletionScheduled: false,
+						})
+						VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+							ID:    sharedInstanceID,
+							Type:  types.ServiceInstanceType,
+							Ready: true,
+						})
+
+						ShareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
+
+						// Create reference service instance
+						referencePlan = GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
+						resp = CreateReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID, referencePlan.ID, TenantIdentifier, TenantIDValue)
+						referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+							Category:          types.CREATE,
+							State:             types.SUCCEEDED,
+							ResourceType:      types.ServiceInstanceType,
+							Reschedulable:     false,
+							DeletionScheduled: false,
+						})
+						VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+							ID:    referenceInstanceID,
+							Type:  types.ServiceInstanceType,
+							Ready: true,
+						})
+					})
+					AfterEach(func() {
+						// delete the reference instance
+						resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+referenceInstanceID).WithQuery("async", false).
+							Expect().StatusRange(httpexpect.Status2xx)
+						VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+							Category:          types.DELETE,
+							State:             types.SUCCEEDED,
+							ResourceType:      types.ServiceInstanceType,
+							Reschedulable:     false,
+							DeletionScheduled: false,
+						})
+						VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+							ID:   referenceInstanceID,
+							Type: types.ServiceInstanceType,
+						})
+
+						// delete the shared instance
+						resp = ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).WithQuery("async", false).
+							Expect().StatusRange(httpexpect.Status2xx)
+						VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+							Category:          types.DELETE,
+							State:             types.SUCCEEDED,
+							ResourceType:      types.ServiceInstanceType,
+							Reschedulable:     false,
+							DeletionScheduled: false,
+						})
+						VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+							ID:   sharedInstanceID,
+							Type: types.ServiceInstanceType,
+						})
+					})
+					It("fails retrieving the parameters of the reference instance", func() {
+						path := fmt.Sprintf("%s/%s%s", web.ServiceInstancesURL, referenceInstanceID, web.ParametersURL)
+						resp := ctx.SMWithOAuthForTenant.GET(path).Expect().
+							Status(http.StatusOK)
+						resp.JSON().Object().Value(instance_sharing.ReferencedInstanceIDKey).String().Equal(sharedInstanceID)
+					})
+				})
 				When("service instance does not exist", func() {
 					It("should return an error", func() {
 						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/jkljlj" + web.ParametersURL).Expect().
