@@ -344,7 +344,6 @@ var _ = DescribeTestsFor(TestCase{
 
 			Describe("GET", func() {
 				When("service binding is a reference type", func() {
-					//var sharedInstance *types.ServiceInstance
 					var sharedInstanceID, referenceInstanceID, referenceBindingID string
 					var referencePlanID string
 					BeforeEach(func() {
@@ -359,7 +358,6 @@ var _ = DescribeTestsFor(TestCase{
 							Reschedulable:     false,
 							DeletionScheduled: false,
 						})
-						//sharedInstance, _ = GetInstanceObjectByID(ctx, sharedInstanceID)
 						ShareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
 
 						// Create reference-instance
