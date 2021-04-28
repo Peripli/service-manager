@@ -236,7 +236,7 @@ var _ = Describe("Instance Sharing", func() {
 					platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 				})
 				JustBeforeEach(func() {
-					_, referenceInstanceID := executeProvisionTest(platform, false)
+					_, referenceInstanceID = executeProvisionTest(platform, false)
 					bindingID = createBinding(referenceInstanceID)
 					ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
 						Expect().
@@ -245,7 +245,7 @@ var _ = Describe("Instance Sharing", func() {
 						Object().ContainsKey("service_instance_id").
 						ValueEqual("service_instance_id", referenceInstanceID)
 				})
-				It("unbinds reference instance successfully", func() {
+				It("deletes reference binding successfully", func() {
 					ctx.SMWithBasic.DELETE(instanceSharingBrokerURL+"/v2/service_instances/"+referenceInstanceID+"/service_bindings/"+bindingID).
 						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().
