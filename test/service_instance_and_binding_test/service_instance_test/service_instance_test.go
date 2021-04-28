@@ -1816,84 +1816,80 @@ var _ = DescribeTestsFor(TestCase{
 			})
 
 			Describe("PATCH", func() {
-				Context("Instance Sharing - Reference Instance", func() {
+				Context("shared instance with references", func() {
+					var sharedInstanceID = ""
+					var referenceInstanceID = ""
+					var referencePlan *types.ServicePlan
 					BeforeEach(func() {
 						preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration, true)
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+
+						// Create instance and share it
+						resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
+						sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+							Category:          types.CREATE,
+							State:             types.SUCCEEDED,
+							ResourceType:      types.ServiceInstanceType,
+							Reschedulable:     false,
+							DeletionScheduled: false,
+						})
+						VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+							ID:    sharedInstanceID,
+							Type:  types.ServiceInstanceType,
+							Ready: true,
+						})
+
+						ShareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
+
+						// Create reference service instance
+						referencePlan = GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
+						resp = CreateReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID, referencePlan.ID, TenantIdentifier, TenantIDValue)
+						referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+							Category:          types.CREATE,
+							State:             types.SUCCEEDED,
+							ResourceType:      types.ServiceInstanceType,
+							Reschedulable:     false,
+							DeletionScheduled: false,
+						})
+						VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+							ID:    referenceInstanceID,
+							Type:  types.ServiceInstanceType,
+							Ready: true,
+						})
 					})
-
-					When("Updating a reference service instance", func() {
-						var sharedInstanceID = ""
-						var referenceInstanceID = ""
-						var referencePlan *types.ServicePlan
-						BeforeEach(func() {
-							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
-
-							// Create instance and share it
-							resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
-							sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-								Category:          types.CREATE,
-								State:             types.SUCCEEDED,
-								ResourceType:      types.ServiceInstanceType,
-								Reschedulable:     false,
-								DeletionScheduled: false,
-							})
-							VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-								ID:    sharedInstanceID,
-								Type:  types.ServiceInstanceType,
-								Ready: true,
-							})
-
-							ShareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
-
-							// Create reference service instance
-							referencePlan = GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
-							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
-							resp = CreateReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID, referencePlan.ID, TenantIdentifier, TenantIDValue)
-							referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-								Category:          types.CREATE,
-								State:             types.SUCCEEDED,
-								ResourceType:      types.ServiceInstanceType,
-								Reschedulable:     false,
-								DeletionScheduled: false,
-							})
-							VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-								ID:    referenceInstanceID,
-								Type:  types.ServiceInstanceType,
-								Ready: true,
-							})
+					AfterEach(func() {
+						// delete the reference instance
+						resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+referenceInstanceID).WithQuery("async", false).
+							Expect().StatusRange(httpexpect.Status2xx)
+						VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+							Category:          types.DELETE,
+							State:             types.SUCCEEDED,
+							ResourceType:      types.ServiceInstanceType,
+							Reschedulable:     false,
+							DeletionScheduled: false,
+						})
+						VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+							ID:   referenceInstanceID,
+							Type: types.ServiceInstanceType,
 						})
 
-						AfterEach(func() {
-							// delete the reference instance
-							resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+referenceInstanceID).WithQuery("async", false).
-								Expect().StatusRange(httpexpect.Status2xx)
-							VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-								Category:          types.DELETE,
-								State:             types.SUCCEEDED,
-								ResourceType:      types.ServiceInstanceType,
-								Reschedulable:     false,
-								DeletionScheduled: false,
-							})
-							VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
-								ID:   referenceInstanceID,
-								Type: types.ServiceInstanceType,
-							})
-
-							// delete the shared instance
-							resp = ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).WithQuery("async", false).
-								Expect().StatusRange(httpexpect.Status2xx)
-							VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-								Category:          types.DELETE,
-								State:             types.SUCCEEDED,
-								ResourceType:      types.ServiceInstanceType,
-								Reschedulable:     false,
-								DeletionScheduled: false,
-							})
-							VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
-								ID:   sharedInstanceID,
-								Type: types.ServiceInstanceType,
-							})
+						// delete the shared instance
+						resp = ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).WithQuery("async", false).
+							Expect().StatusRange(httpexpect.Status2xx)
+						VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+							Category:          types.DELETE,
+							State:             types.SUCCEEDED,
+							ResourceType:      types.ServiceInstanceType,
+							Reschedulable:     false,
+							DeletionScheduled: false,
 						})
+						VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+							ID:   sharedInstanceID,
+							Type: types.ServiceInstanceType,
+						})
+					})
+					When("updating a reference service instance", func() {
 
 						It("returns 201 when renaming the reference-instance", func() {
 							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
@@ -2002,7 +1998,136 @@ var _ = DescribeTestsFor(TestCase{
 							objAfterOp.Value("service_plan_id").Equal(referencePlan.ID)
 
 						})
+					})
+					When("updating a shared service instance", func() {
+						It("fails unsharing an instance with references", func() {
+							resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
+								WithQuery("async", "false").
+								WithJSON(Object{
+									"shared": false,
+								}).
+								Expect().
+								Status(http.StatusBadRequest)
+							VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+								ID:    referenceInstanceID,
+								Type:  types.ServiceInstanceType,
+								Ready: true,
+							})
 
+							var guidsArray []string
+							guidsArray = append(guidsArray, referenceInstanceID)
+							expectedErrorDescription := fmt.Sprintf("Couldn't delete the service instance. Before you can delete it, you first need to delete these %d references: %s", len(guidsArray), guidsArray)
+							resp.JSON().Object().ContainsKey("description").
+								ValueEqual("description", expectedErrorDescription)
+
+						})
+						It("fails re-sharing a shared instance", func() {
+							resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
+								WithQuery("async", "false").
+								WithJSON(Object{
+									"shared": true,
+								}).
+								Expect().
+								Status(http.StatusBadRequest)
+
+							expectedDescription := fmt.Sprintf("the service instance %s, is already at the desried \"shared\" state", sharedInstanceID)
+							resp.JSON().Object().ContainsKey("description").
+								ValueEqual("description", expectedDescription)
+
+						})
+						It("fails sharing an instance with invalid share request", func() {
+							resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
+								WithQuery("async", "false").
+								WithJSON(Object{
+									"shared": true,
+									"name":   "new-name",
+								}).
+								Expect().
+								Status(http.StatusBadRequest)
+
+							expectedDescription := fmt.Sprintf("could set the 'shared' property of the instance %s with other changes at the same time.", sharedInstanceID)
+							resp.JSON().Object().ContainsKey("description").
+								ValueEqual("description", expectedDescription)
+
+						})
+					})
+				})
+				Context("shared instance without references", func() {
+					var sharedInstanceID = ""
+					BeforeEach(func() {
+						preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration, true)
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+
+						// Create instance and share it
+						resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
+						sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+							Category:          types.CREATE,
+							State:             types.SUCCEEDED,
+							ResourceType:      types.ServiceInstanceType,
+							Reschedulable:     false,
+							DeletionScheduled: false,
+						})
+						VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+							ID:    sharedInstanceID,
+							Type:  types.ServiceInstanceType,
+							Ready: true,
+						})
+
+						ShareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
+					})
+					AfterEach(func() {
+						// delete the shared instance
+						resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).WithQuery("async", false).
+							Expect().StatusRange(httpexpect.Status2xx)
+						VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+							Category:          types.DELETE,
+							State:             types.SUCCEEDED,
+							ResourceType:      types.ServiceInstanceType,
+							Reschedulable:     false,
+							DeletionScheduled: false,
+						})
+						VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+							ID:   sharedInstanceID,
+							Type: types.ServiceInstanceType,
+						})
+					})
+					When("updating a shared service instance", func() {
+						It("fails re-unsharing a non shared instance", func() {
+							resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
+								WithQuery("async", "false").
+								WithJSON(Object{
+									"shared": false,
+								}).
+								Expect().
+								Status(http.StatusOK)
+							resp = ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
+								WithQuery("async", "false").
+								WithJSON(Object{
+									"shared": false,
+								}).
+								Expect().
+								Status(http.StatusBadRequest)
+
+							expectedDescription := fmt.Sprintf("the service instance %s, is already at the desried \"shared\" state", sharedInstanceID)
+							resp.JSON().Object().ContainsKey("description").
+								ValueEqual("description", expectedDescription)
+
+						})
+						It("fails sharing an instance with invalid share request", func() {
+							resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
+								WithQuery("async", "false").
+								WithJSON(Object{
+									"shared": false,
+									"name":   "new-name",
+								}).
+								Expect().
+								Status(http.StatusBadRequest)
+
+							expectedDescription := fmt.Sprintf("could set the 'shared' property of the instance %s with other changes at the same time.", sharedInstanceID)
+							resp.JSON().Object().ContainsKey("description").
+								ValueEqual("description", expectedDescription)
+
+						})
 					})
 				})
 				Context("Instance is shared", func() {

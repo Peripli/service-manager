@@ -19,7 +19,6 @@ package filters
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -81,7 +80,7 @@ func (sf *sharingInstanceFilter) validateOnlySharedPropertyIsChanged(persistedIn
 	updatedInstance.Context = persistedInstance.Context
 
 	if !persistedInstance.Equals(&updatedInstance) {
-		return fmt.Errorf("could not modify the 'shared' property with other changes at the same time")
+		return util.HandleInstanceSharingError(util.ErrInvalidShareRequest, updatedInstance.ID)
 	}
 	return nil
 }
@@ -141,7 +140,7 @@ func (sf *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.
 	}
 
 	if persistedInstance.Shared != nil && *persistedInstance.Shared == *reqServiceInstance.Shared {
-		return nil, fmt.Errorf("the service instance is already at the desried state=%t", *reqServiceInstance.Shared)
+		return nil, util.HandleInstanceSharingError(util.ErrInstanceIsAlreadyAtDesiredSharedState, persistedInstance.ID)
 	}
 
 	// When un-sharing a service instance with references

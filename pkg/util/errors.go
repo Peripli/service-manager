@@ -222,6 +222,8 @@ var (
 	ErrParsingNewCatalogWithReference        = errors.New("failed generating reference-plan")
 	ErrUnknownOSBMethod                      = errors.New("osb method is unknown")
 	ErrSharedPlanHasReferences               = errors.New("shared plan has references")
+	ErrInstanceIsAlreadyAtDesiredSharedState = errors.New("instance already at the desired shared state")
+	ErrInvalidShareRequest                   = errors.New("invalid share request")
 )
 
 func HandleInstanceSharingError(err error, entityName string) error {
@@ -284,6 +286,20 @@ func HandleInstanceSharingError(err error, entityName string) error {
 		}
 	case ErrSharedPlanHasReferences:
 		errorMessage := fmt.Sprintf("Couldn't update the service plan. Before you can set it as supportInstanceSharing=false, you first need to un-share the instances of the plan: %s.", entityName)
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: errorMessage,
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrInvalidShareRequest:
+		errorMessage := fmt.Sprintf("could set the 'shared' property of the instance %s with other changes at the same time.", entityName)
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: errorMessage,
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrInstanceIsAlreadyAtDesiredSharedState:
+		errorMessage := fmt.Sprintf("the service instance %s, is already at the desried \"shared\" state", entityName)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
