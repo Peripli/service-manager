@@ -243,25 +243,25 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrPlanMustBeBindable:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("The plan \"%s\" must be defined as 'bindable' so that it can support instance sharing.", entityName),
+			Description: fmt.Sprintf("The plan %s must be defined as 'bindable' so that it can support instance sharing.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrReferencedInstanceNotShared:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("Failed to create the reference. The instance \"%s\", for which you want to create the reference, must be shared first.", entityName),
+			Description: fmt.Sprintf("Failed to create the reference. The instance %s, for which you want to create the reference, must be shared first.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrChangingPlanOfReferenceInstance:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("Failed to update the instance \"%s\". This is a reference instance, therefore its plan can't be changed.", entityName),
+			Description: fmt.Sprintf("Failed to update the instance %s. This is a reference instance, therefore its plan can't be changed.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrChangingParametersOfReferenceInstance:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("Failed to update the instance \"%s\". This is a reference instance, therefore its parameters can't be changed.", entityName),
+			Description: fmt.Sprintf("Failed to update the instance %s. This is a reference instance, therefore its parameters can't be changed.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrMissingReferenceParameter:
@@ -283,7 +283,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrSharedPlanHasReferences:
-		errorMessage := fmt.Sprintf("Couldn't update the service plan. Before you can set it as supportInstanceSharing=false, you first need to un-share the instances of the plan: \"%s\".", entityName)
+		errorMessage := fmt.Sprintf("Couldn't update the service plan. Before you can set it as supportInstanceSharing=false, you first need to un-share the instances of the plan: %s.", entityName)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,

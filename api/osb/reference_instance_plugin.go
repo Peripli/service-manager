@@ -17,7 +17,6 @@ import (
 
 const ReferenceInstancePluginName = "ReferenceInstancePlugin"
 const planIDProperty = "plan_id"
-const catalogIDProperty = "catalog_id"
 const contextKey = "context"
 
 type OperationCategory string
@@ -114,11 +113,14 @@ func (referencePlugin *referenceInstancePlugin) Deprovision(req *web.Request, ne
 // UpdateService intercepts update service instance requests and check if the instance is in the platform from where the request comes
 func (referencePlugin *referenceInstancePlugin) UpdateService(req *web.Request, next web.Handler) (*web.Response, error) {
 	// we don't want to allow plan_id and/or parameters changes on a reference service instance
-	resourceID := req.PathParams["instance_id"]
+	instanceID := req.PathParams["instance_id"]
 	ctx := req.Context()
 
-	dbInstanceObject, err := referencePlugin.getObjectByOperator(ctx, types.ServiceInstanceType, "id", resourceID)
+	dbInstanceObject, err := referencePlugin.getObjectByOperator(ctx, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
+		if err == util.ErrNotFoundInStorage {
+			return next.Handle(req)
+		}
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
@@ -269,7 +271,7 @@ func (referencePlugin *referenceInstancePlugin) getObjectByOperator(ctx context.
 	byID := query.ByField(query.EqualsOperator, byKey, byValue)
 	dbObject, err := referencePlugin.repository.Get(ctx, objectType, byID)
 	if err != nil {
-		return nil, util.HandleStorageError(err, objectType.String())
+		return nil, err
 	}
 	return dbObject, nil
 }

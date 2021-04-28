@@ -141,7 +141,7 @@ var _ = Describe("Instance Sharing", func() {
 				referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareablePlanCatalogID)
 
 				body := generateUpdateRequestBody(service2CatalogID, referencePlan.CatalogID, shareablePlanCatalogID, "new-reference-name")()
-				expectedErrorDescription := fmt.Sprintf("Failed to update the instance \"%s\". This is a reference instance, therefore its plan can't be changed.", referenceInstanceID)
+				expectedErrorDescription := fmt.Sprintf("Failed to update the instance %s. This is a reference instance, therefore its plan can't be changed.", referenceInstanceID)
 				resp := updateInstance(referenceInstanceID, body, http.StatusBadRequest)
 				resp.JSON().Object().ContainsKey("description").
 					ValueEqual("description", expectedErrorDescription)
@@ -154,7 +154,7 @@ var _ = Describe("Instance Sharing", func() {
 				body["parameters"] = map[string]string{
 					instance_sharing.ReferencedInstanceIDKey: "fake-guid",
 				}
-				expectedErrorDescription := fmt.Sprintf("Failed to update the instance \"%s\". This is a reference instance, therefore its parameters can't be changed.", referenceInstanceID)
+				expectedErrorDescription := fmt.Sprintf("Failed to update the instance %s. This is a reference instance, therefore its parameters can't be changed.", referenceInstanceID)
 				resp := updateInstance(referenceInstanceID, body, http.StatusBadRequest)
 				resp.JSON().Object().ContainsKey("description").
 					ValueEqual("description", expectedErrorDescription)
