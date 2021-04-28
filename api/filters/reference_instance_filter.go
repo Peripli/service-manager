@@ -164,11 +164,7 @@ func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next w
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
 
-	isReferencePlan, err := rif.isReferencePlan(ctx, instance.ServicePlanID)
-	if err != nil {
-		return nil, err
-	}
-	if !isReferencePlan {
+	if instance.ReferencedInstanceID == "" {
 		return next.Handle(req)
 	}
 
