@@ -415,13 +415,10 @@ var _ = DescribeTestsFor(TestCase{
 							Status(http.StatusOK).
 							JSON().
 							Object()
-						object.Value("context").Object().Equal(map[string]interface{}{
-							"platform":       types.SMPlatform,
-							"instance_name":  referenceInstanceID,
-							TenantIdentifier: TenantIDValue,
-						})
-						uri := brokerServer.LastRequest.RequestURI
+						// should not return context of reference binding:
+						object.NotContainsKey("context")
 						// Expect to retrieve the data from the broker of the shared instance and not of the reference instance
+						uri := brokerServer.LastRequest.RequestURI
 						Expect(uri).To(ContainSubstring(sharedInstanceID))
 					})
 				})

@@ -116,6 +116,11 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			log.C(ctx).Infof("Creating a reference-binding. Switching the reference-instance context of \"%s\", with the shared instance: \"%s\"", instance.ID, instance.ReferencedInstanceID)
 			instance, _ = getInstanceByID(ctx, instance.ReferencedInstanceID, i.repository)
 			binding.Context = instance.Context
+			// used to identify bindings of a reference instance, won't be sent to the service broker
+			binding.Context, err = sjson.SetBytes(binding.Context, "is_reference", true)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)

@@ -141,7 +141,7 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 			}
 			if servicePlan.IsShareablePlan() {
 				if !isBindablePlan(service, servicePlan) {
-					return util.HandleInstanceSharingError(util.ErrPlanMustBeBindable, servicePlan.Name)
+					return util.HandleInstanceSharingError(util.ErrPlanMustBeBindable, servicePlan.ID)
 				}
 				sharedPlanFound = true
 			}

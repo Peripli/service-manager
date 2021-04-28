@@ -120,9 +120,6 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next web.Handler) (*web.Response, error) {
 	// we don't want to allow plan_id and/or parameters changes on a reference service instance
 	resourceID := req.PathParams["resource_id"]
-	if resourceID == "" {
-		return next.Handle(req)
-	}
 	ctx := req.Context()
 
 	dbInstanceObject, err := rif.getObjectByID(ctx, types.ServiceInstanceType, resourceID)
@@ -167,12 +164,12 @@ func (rif *referenceInstanceFilter) isReferencedShared(ctx context.Context, refe
 func (rif *referenceInstanceFilter) isValidPatchRequest(req *web.Request, instance *types.ServiceInstance) (bool, error) {
 	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	if instance.ServicePlanID != newPlanID {
-		return false, util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, instance.Name)
+		return false, util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, instance.ID)
 	}
 
 	parametersRaw := gjson.GetBytes(req.Body, "parameters").Raw
 	if parametersRaw != "" {
-		return false, util.HandleInstanceSharingError(util.ErrChangingParametersOfReferenceInstance, instance.Name)
+		return false, util.HandleInstanceSharingError(util.ErrChangingParametersOfReferenceInstance, instance.ID)
 	}
 
 	return true, nil

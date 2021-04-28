@@ -65,6 +65,7 @@ const (
 	service1CatalogID           = "service1CatalogID"
 	service2CatalogID           = "service2CatalogID"
 	organizationGUID            = "1113aa0-124e-4af2-1526-6bfacf61b111"
+	instanceSharingSpaceGUID    = "aaaa1234-da91-4f12-8ffa-b51d0336aaaa"
 	SID                         = "12345"
 	timeoutDuration             = time.Millisecond * 1500
 	additionalDelayAfterTimeout = time.Millisecond * 5
@@ -72,6 +73,8 @@ const (
 
 	brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
 	brokerAPIVersionHeaderValue = "2.16"
+
+	acceptsIncompleteKey = "accepts_incomplete"
 )
 
 var (
@@ -466,6 +469,37 @@ func updateRequestBody(serviceID, oldPlanID, newPlanID string) string {
 	return body
 }
 
+func updateRequestBodyForInstanceSharing(serviceID, oldPlanID, newPlanID, newName string) string {
+	body := fmt.Sprintf(`{
+		"service_id":        "%s",
+		"plan_id":           "%s",
+		"organization_id": "%s",
+		"space_id":        "%s",
+		"context": {
+			"platform": "cloudfoundry",
+			"organization_guid": "%s",
+			"organization_name": "system",
+			"space_guid": "%s",
+			"space_name": "development",
+			"instance_name": "%s",
+			"%s":"%s"
+		},
+		"maintenance_info": {
+			"version": "new"
+		},
+		"previous_values": {
+			"service_id":        "%s",
+			"plan_id":           "%s",
+			"organization_id": "%s",
+			"space_id":        "%s",
+			"maintenance_info": {
+				"version": "old"
+			}
+		}
+}`, serviceID, newPlanID, organizationGUID, instanceSharingSpaceGUID, organizationGUID, instanceSharingSpaceGUID, newName, TenantIdentifier, TenantValue, serviceID, oldPlanID, organizationGUID, instanceSharingSpaceGUID)
+	return body
+}
+
 func updateRequestBodyMapWith(key, value string) func() map[string]interface{} {
 	return func() map[string]interface{} {
 		defer GinkgoRecover()
@@ -475,6 +509,14 @@ func updateRequestBodyMapWith(key, value string) func() map[string]interface{} {
 		if err != nil {
 			Fail(err.Error())
 		}
+		return common.JSONToMap(body)
+	}
+}
+
+func generateUpdateRequestBody(serviceID, oldPlan, newPlan, newName string) func() map[string]interface{} {
+	return func() map[string]interface{} {
+		defer GinkgoRecover()
+		body := updateRequestBodyForInstanceSharing(serviceID, oldPlan, newPlan, newName)
 		return common.JSONToMap(body)
 	}
 }

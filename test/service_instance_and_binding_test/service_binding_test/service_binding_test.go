@@ -344,7 +344,7 @@ var _ = DescribeTestsFor(TestCase{
 
 			Describe("GET", func() {
 				When("service binding is a reference type", func() {
-					var sharedInstance *types.ServiceInstance
+					//var sharedInstance *types.ServiceInstance
 					var sharedInstanceID, referenceInstanceID, referenceBindingID string
 					var referencePlanID string
 					BeforeEach(func() {
@@ -359,7 +359,7 @@ var _ = DescribeTestsFor(TestCase{
 							Reschedulable:     false,
 							DeletionScheduled: false,
 						})
-						sharedInstance, _ = GetInstanceObjectByID(ctx, sharedInstanceID)
+						//sharedInstance, _ = GetInstanceObjectByID(ctx, sharedInstanceID)
 						ShareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
 
 						// Create reference-instance
@@ -396,13 +396,10 @@ var _ = DescribeTestsFor(TestCase{
 							Status(http.StatusOK).
 							JSON().
 							Object()
-						object.Value("context").Object().Equal(map[string]interface{}{
-							"platform":       types.SMPlatform,
-							"instance_name":  sharedInstance.Name,
-							TenantIdentifier: TenantIDValue,
-						})
-						lastRequest := brokerServer.LastRequest
+						// should not return context of reference binding:
+						object.NotContainsKey("context")
 						// The last broker request should be the "PUT" binding request:
+						lastRequest := brokerServer.LastRequest
 						Expect(lastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
 						Expect(lastRequest.Method).To(Equal("PUT"))
 					})

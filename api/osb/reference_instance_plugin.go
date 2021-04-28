@@ -59,7 +59,7 @@ func (referencePlugin *referenceInstancePlugin) Name() string {
 func (referencePlugin *referenceInstancePlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).String()
-	isReferencePlan, err := referencePlugin.isReferencePlan(ctx, catalogIDProperty, servicePlanID)
+	isReferencePlan, err := referencePlugin.isReferencePlan(ctx, "catalog_id", servicePlanID)
 	if err != nil {
 		return nil, err
 	}
@@ -91,9 +91,6 @@ func (referencePlugin *referenceInstancePlugin) Provision(req *web.Request, next
 // Deprovision intercepts deprovision requests and check if the instance is in the platform from where the request comes
 func (referencePlugin *referenceInstancePlugin) Deprovision(req *web.Request, next web.Handler) (*web.Response, error) {
 	instanceID := req.PathParams["instance_id"]
-	if instanceID == "" {
-		return next.Handle(req)
-	}
 	ctx := req.Context()
 
 	dbInstanceObject, err := referencePlugin.getObjectByOperator(ctx, types.ServiceInstanceType, "id", instanceID)
@@ -117,10 +114,7 @@ func (referencePlugin *referenceInstancePlugin) Deprovision(req *web.Request, ne
 // UpdateService intercepts update service instance requests and check if the instance is in the platform from where the request comes
 func (referencePlugin *referenceInstancePlugin) UpdateService(req *web.Request, next web.Handler) (*web.Response, error) {
 	// we don't want to allow plan_id and/or parameters changes on a reference service instance
-	resourceID := req.PathParams["resource_id"]
-	if resourceID == "" {
-		return next.Handle(req)
-	}
+	resourceID := req.PathParams["instance_id"]
 	ctx := req.Context()
 
 	dbInstanceObject, err := referencePlugin.getObjectByOperator(ctx, types.ServiceInstanceType, "id", resourceID)
@@ -129,7 +123,7 @@ func (referencePlugin *referenceInstancePlugin) UpdateService(req *web.Request, 
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
 
-	isReferencePlan, err := referencePlugin.isReferencePlan(ctx, planIDProperty, instance.ServicePlanID)
+	isReferencePlan, err := referencePlugin.isReferencePlan(ctx, "id", instance.ServicePlanID)
 	if err != nil {
 		return nil, err
 	}
@@ -298,12 +292,12 @@ func (referencePlugin *referenceInstancePlugin) isValidPatchRequest(req *web.Req
 	// epsilontal todo: How can we update labels and do we want to allow the change?
 	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	if instance.ServicePlanID != newPlanID {
-		return false, util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, instance.Name)
+		return false, util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, instance.ID)
 	}
 
 	parametersRaw := gjson.GetBytes(req.Body, "parameters").Raw
 	if parametersRaw != "" {
-		return false, util.HandleInstanceSharingError(util.ErrChangingParametersOfReferenceInstance, instance.Name)
+		return false, util.HandleInstanceSharingError(util.ErrChangingParametersOfReferenceInstance, instance.ID)
 	}
 
 	return true, nil
