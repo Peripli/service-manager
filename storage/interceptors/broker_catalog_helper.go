@@ -3,7 +3,7 @@ package interceptors
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/constant"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
@@ -31,9 +31,9 @@ func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
 
 	referencePlan.ID = UUID.String()
 	referencePlan.CatalogID = UUID.String()
-	referencePlan.CatalogName = constant.ReferencePlanName
-	referencePlan.Name = constant.ReferencePlanName
-	referencePlan.Description = constant.ReferencePlanDescription
+	referencePlan.CatalogName = instance_sharing.ReferencePlanName
+	referencePlan.Name = instance_sharing.ReferencePlanName
+	referencePlan.Description = instance_sharing.ReferencePlanDescription
 	referencePlan.ServiceOfferingID = serviceOfferingId
 	referencePlan.Bindable = newTrue()
 	referencePlan.Ready = true
@@ -52,7 +52,7 @@ func isBindablePlan(service *types.ServiceOffering, plan *types.ServicePlan) boo
 }
 
 func servicePlanUsesReservedNameForReferencePlan(servicePlan *types.ServicePlan) bool {
-	return servicePlan.Name == constant.ReferencePlanName || servicePlan.CatalogName == constant.ReferencePlanName
+	return servicePlan.Name == instance_sharing.ReferencePlanName || servicePlan.CatalogName == instance_sharing.ReferencePlanName
 }
 
 func planHasSharedInstances(storage storage.Repository, ctx context.Context, planID string) (bool, error) {

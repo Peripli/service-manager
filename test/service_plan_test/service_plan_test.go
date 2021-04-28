@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/constant"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/tidwall/sjson"
@@ -328,7 +328,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								ctx.TryRegisterBrokerWithCatalogAndLabels(catalog, common.Object{}, ctx.SMWithOAuth, http.StatusCreated)
 								newCatalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
 								s := string(newCatalog)
-								count := strings.Count(s, constant.ReferencePlanName)
+								count := strings.Count(s, instance_sharing.ReferencePlanName)
 								Expect(count).To(Equal(1))
 							})
 						})

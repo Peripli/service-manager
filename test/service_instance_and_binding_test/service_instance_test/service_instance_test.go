@@ -20,8 +20,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
 	"strings"
 	"sync/atomic"
@@ -371,6 +371,60 @@ var _ = DescribeTestsFor(TestCase{
 
 			Describe("GET", func() {
 				var instanceName string
+
+				When("service instance is a reference type", func() {
+					//var sharedInstance *types.ServiceInstance
+					var sharedInstanceID, referenceInstanceID string
+					var referencePlanID string
+					BeforeEach(func() {
+						preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration, true)
+						brokerServer.ShouldRecordRequests(true)
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+						// Create instance and share it
+						resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
+						sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+							Category:          types.CREATE,
+							State:             types.SUCCEEDED,
+							ResourceType:      types.ServiceInstanceType,
+							Reschedulable:     false,
+							DeletionScheduled: false,
+						})
+						//sharedInstance, _ = GetInstanceObjectByID(ctx, sharedInstanceID)
+						ShareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
+
+						// Create reference-instance
+						referencePlan := GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
+						referencePlanID = referencePlan.ID
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlanID, TenantIDValue)
+						resp = CreateReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID, referencePlanID, TenantIdentifier, TenantIDValue)
+						referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+							Category:          types.CREATE,
+							State:             types.SUCCEEDED,
+							ResourceType:      types.ServiceInstanceType,
+							Reschedulable:     false,
+							DeletionScheduled: false,
+						})
+					})
+					AfterEach(func() {
+						err := DeleteInstance(ctx, referenceInstanceID, referencePlanID)
+						Expect(err).NotTo(HaveOccurred())
+						err = DeleteInstance(ctx, sharedInstanceID, servicePlanID)
+					})
+					FIt("returns the instance object without communicating the service broker", func() {
+						object := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + referenceInstanceID).Expect().
+							Status(http.StatusOK).
+							JSON().
+							Object()
+						object.Value("context").Object().Equal(map[string]interface{}{
+							"platform":       types.SMPlatform,
+							"instance_name":  referenceInstanceID,
+							TenantIdentifier: TenantIDValue,
+						})
+						uri := brokerServer.LastRequest.RequestURI
+						// Expect to retrieve the data from the broker of the shared instance and not of the reference instance
+						Expect(uri).To(ContainSubstring(sharedInstanceID))
+					})
+				})
 
 				When("service instance contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
@@ -1936,7 +1990,7 @@ var _ = DescribeTestsFor(TestCase{
 									"service_plan_id":  referencePlan.ID,
 									"maintenance_info": "{}",
 									"parameters": Object{
-										constant.ReferencedInstanceIDKey: "new_instance_id",
+										instance_sharing.ReferencedInstanceIDKey: "new_instance_id",
 									},
 								}).
 								Expect().
@@ -1964,7 +2018,7 @@ var _ = DescribeTestsFor(TestCase{
 						planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID)
 						plan := planObject.(*types.ServicePlan)
 
-						shareableMetadata := fmt.Sprintf(`{"%s": true}`, constant.SupportInstanceSharingKey)
+						shareableMetadata := fmt.Sprintf(`{"%s": true}`, instance_sharing.SupportInstanceSharingKey)
 						plan.Metadata = json.RawMessage(shareableMetadata)
 						_, err := ctx.SMRepository.Update(context.TODO(), plan, nil)
 						Expect(err).NotTo(HaveOccurred())
@@ -2019,7 +2073,7 @@ var _ = DescribeTestsFor(TestCase{
 							byID := query.ByField(query.EqualsOperator, "id", servicePlanIDWithTLS)
 							planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID)
 							plan := planObject.(*types.ServicePlan)
-							shareableMetadata := fmt.Sprintf(`{"%s": true}`, constant.SupportInstanceSharingKey)
+							shareableMetadata := fmt.Sprintf(`{"%s": true}`, instance_sharing.SupportInstanceSharingKey)
 							plan.Metadata = json.RawMessage(shareableMetadata)
 							_, err := ctx.SMRepository.Update(context.TODO(), plan, nil)
 							Expect(err).NotTo(HaveOccurred())

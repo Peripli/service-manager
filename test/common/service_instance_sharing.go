@@ -2,7 +2,7 @@ package common
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/constant"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -83,7 +83,7 @@ func GetReferencePlanOfExistingPlan(ctx *TestContext, byOperator, servicePlanID 
 	plan := planObject.(*types.ServicePlan)
 
 	byID = query.ByField(query.EqualsOperator, "service_offering_id", plan.ServiceOfferingID)
-	byName := query.ByField(query.EqualsOperator, "name", constant.ReferencePlanName)
+	byName := query.ByField(query.EqualsOperator, "name", instance_sharing.ReferencePlanName)
 	referencePlanObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byID, byName)
 	if referencePlanObject == nil {
 		return nil
@@ -107,7 +107,7 @@ func CreateReferenceInstance(ctx *TestContext, async bool, expectedStatusCode in
 			tenantIdentifier: tenantIDValue,
 		},
 		"parameters": map[string]string{
-			constant.ReferencedInstanceIDKey: referencedInstanceID,
+			instance_sharing.ReferencedInstanceIDKey: referencedInstanceID,
 		},
 	}
 	resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).

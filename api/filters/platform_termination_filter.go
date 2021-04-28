@@ -18,7 +18,7 @@ package filters
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/constant"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -107,7 +107,7 @@ func findReferencesOfSharedInstancesInOtherPlatforms(ctx context.Context, platfo
 		references, err := repository.ListNoLabels(
 			ctx,
 			types.ServiceInstanceType,
-			query.ByField(query.EqualsOperator, constant.ReferencedInstanceIDKey, sharedInstance.GetID()),
+			query.ByField(query.EqualsOperator, instance_sharing.ReferencedInstanceIDKey, sharedInstance.GetID()),
 			query.ByField(query.NotEqualsOperator, "platform_id", platform.GetID()),
 		)
 		if err != nil {

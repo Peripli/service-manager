@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/constant"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -77,9 +77,9 @@ func (referencePlugin *referenceInstancePlugin) Provision(req *web.Request, next
 		}
 	}
 	parameters := gjson.GetBytes(req.Body, "parameters").Map()
-	referencedInstanceID, exists := parameters[constant.ReferencedInstanceIDKey]
+	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
 	if !exists {
-		return nil, util.HandleInstanceSharingError(util.ErrMissingReferenceParameter, constant.ReferencedInstanceIDKey)
+		return nil, util.HandleInstanceSharingError(util.ErrMissingReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
 	}
 	_, err = referencePlugin.isReferencedShared(ctx, referencedInstanceID.String())
 	if err != nil {
@@ -226,7 +226,7 @@ func (referencePlugin *referenceInstancePlugin) buildOSBFetchServiceResponse(ctx
 		"plan_id":          plan.CatalogID,
 		"maintenance_info": instance.MaintenanceInfo,
 		"parameters": map[string]string{
-			constant.ReferencedInstanceIDKey: instance.ReferencedInstanceID,
+			instance_sharing.ReferencedInstanceIDKey: instance.ReferencedInstanceID,
 		},
 	}
 	return osbResponse, nil
@@ -241,7 +241,7 @@ func (referencePlugin *referenceInstancePlugin) validateOwnership(req *web.Reque
 	ctx := req.Context()
 	tenantPath := fmt.Sprintf("%s.%s", contextKey, referencePlugin.tenantIdentifier)
 	callerTenantID := gjson.GetBytes(req.Body, tenantPath).String()
-	path := fmt.Sprintf("parameters.%s", constant.ReferencedInstanceIDKey)
+	path := fmt.Sprintf("parameters.%s", instance_sharing.ReferencedInstanceIDKey)
 	referencedInstanceID := gjson.GetBytes(req.Body, path).String()
 	byID := query.ByField(query.EqualsOperator, "id", referencedInstanceID)
 	dbReferencedObject, err := referencePlugin.repository.Get(ctx, types.ServiceInstanceType, byID)
@@ -268,7 +268,7 @@ func (referencePlugin *referenceInstancePlugin) isReferencePlan(ctx context.Cont
 		return false, err
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
-	return plan.Name == constant.ReferencePlanName, nil
+	return plan.Name == instance_sharing.ReferencePlanName, nil
 }
 
 func (referencePlugin *referenceInstancePlugin) getObjectByOperator(ctx context.Context, objectType types.ObjectType, byKey, byValue string) (types.Object, error) {

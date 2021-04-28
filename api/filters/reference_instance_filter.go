@@ -19,7 +19,7 @@ package filters
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/constant"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -100,12 +100,12 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 
 	parameters := gjson.GetBytes(req.Body, "parameters").Map()
 
-	referencedInstanceID, exists := parameters[constant.ReferencedInstanceIDKey]
+	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
 	// epsilontal todo: should we validate that the input is string? can be any object for example...
 	if !exists {
-		return nil, util.HandleInstanceSharingError(util.ErrMissingReferenceParameter, constant.ReferencedInstanceIDKey)
+		return nil, util.HandleInstanceSharingError(util.ErrMissingReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
 	}
-	req.Body, err = sjson.SetBytes(req.Body, constant.ReferencedInstanceIDKey, referencedInstanceID.String())
+	req.Body, err = sjson.SetBytes(req.Body, instance_sharing.ReferencedInstanceIDKey, referencedInstanceID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +184,7 @@ func (rif *referenceInstanceFilter) isReferencePlan(ctx context.Context, service
 		return false, err
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
-	return plan.Name == constant.ReferencePlanName, nil
+	return plan.Name == instance_sharing.ReferencePlanName, nil
 }
 
 func (rif *referenceInstanceFilter) getObjectByID(ctx context.Context, objectType types.ObjectType, resourceID string) (types.Object, error) {
@@ -200,7 +200,7 @@ func (rif *referenceInstanceFilter) validateOwnership(req *web.Request) error {
 	ctx := req.Context()
 	contextPath := fmt.Sprintf("%s.%s", contextKey, rif.tenantIdentifier)
 	callerTenantID := gjson.GetBytes(req.Body, contextPath).String()
-	referencedInstancePath := fmt.Sprintf("parameters.%s", constant.ReferencedInstanceIDKey)
+	referencedInstancePath := fmt.Sprintf("parameters.%s", instance_sharing.ReferencedInstanceIDKey)
 	referencedInstanceID := gjson.GetBytes(req.Body, referencedInstancePath).String()
 	byID := query.ByField(query.EqualsOperator, "id", referencedInstanceID)
 	dbReferencedObject, err := rif.repository.Get(ctx, types.ServiceInstanceType, byID)

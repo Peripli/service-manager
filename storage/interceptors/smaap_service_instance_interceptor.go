@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/constant"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/tidwall/gjson"
 	"math"
 	"net"
@@ -850,7 +850,7 @@ func (i *ServiceInstanceInterceptor) getInstanceReferencesByID(ctx context.Conte
 	references, err := i.repository.List(
 		ctx,
 		types.ServiceInstanceType,
-		query.ByField(query.EqualsOperator, constant.ReferencedInstanceIDKey, instanceID))
+		query.ByField(query.EqualsOperator, instance_sharing.ReferencedInstanceIDKey, instanceID))
 	if err != nil {
 		return nil, err
 	}

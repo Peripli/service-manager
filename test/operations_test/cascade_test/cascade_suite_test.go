@@ -3,9 +3,9 @@ package cascade_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -381,7 +381,7 @@ func SimpleCatalog(serviceID, planID string, planID2 string) SBCatalog {
 		}
       }]
     }]
-  }`, serviceID, planID2, constant.SupportInstanceSharingKey, planID, constant.SupportInstanceSharingKey))
+  }`, serviceID, planID2, instance_sharing.SupportInstanceSharingKey, planID, instance_sharing.SupportInstanceSharingKey))
 }
 
 func fetchFullTree(repository storage.TransactionalRepository, rootID string) (*tree, error) {

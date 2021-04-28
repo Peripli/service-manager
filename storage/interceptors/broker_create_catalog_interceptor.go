@@ -19,7 +19,7 @@ package interceptors
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/constant"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
@@ -119,7 +119,7 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 		var sharedPlanFound = false
 		for _, servicePlan := range service.Plans {
 			if servicePlanUsesReservedNameForReferencePlan(servicePlan) {
-				return util.HandleInstanceSharingError(util.ErrCatalogUsesReservedPlanName, constant.ReferencePlanName)
+				return util.HandleInstanceSharingError(util.ErrCatalogUsesReservedPlanName, instance_sharing.ReferencePlanName)
 			}
 			servicePlan.CatalogID = servicePlan.ID
 			servicePlan.CatalogName = servicePlan.Name

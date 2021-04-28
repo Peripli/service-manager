@@ -21,8 +21,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Peripli/service-manager/constant"
 	"github.com/Peripli/service-manager/operations/opcontext"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"net/http"
 	"time"
 
@@ -785,7 +785,7 @@ func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 		instanceName = req.InstanceID
 	}
 
-	referencedInstanceID := gjson.GetBytes(req.RawParameters, constant.ReferencedInstanceIDKey).String()
+	referencedInstanceID := gjson.GetBytes(req.RawParameters, instance_sharing.ReferencedInstanceIDKey).String()
 	instance := &types.ServiceInstance{
 		Base: types.Base{
 			ID:        req.InstanceID,

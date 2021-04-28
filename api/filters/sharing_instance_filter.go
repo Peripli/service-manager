@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/constant"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -90,7 +90,7 @@ func (sf *sharingInstanceFilter) getInstanceReferencesByID(ctx context.Context, 
 	references, err := sf.storageRepository.List(
 		ctx,
 		types.ServiceInstanceType,
-		query.ByField(query.EqualsOperator, constant.ReferencedInstanceIDKey, instanceID))
+		query.ByField(query.EqualsOperator, instance_sharing.ReferencedInstanceIDKey, instanceID))
 	if err != nil {
 		return nil, err
 	}

@@ -18,7 +18,7 @@ package broker_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/constant"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -700,10 +700,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							}, "services.0.plans.0.metadata", common.Object{"supportedPlatformNames": []string{"a"}, "excludedPlatformNames": []string{"a"}})
 						})
 
-						Context(fmt.Sprintf("that has same name with the reserved reference plan: %s", constant.ReferencePlanName), func() {
+						Context(fmt.Sprintf("that has same name with the reserved reference plan: %s", instance_sharing.ReferencePlanName), func() {
 							verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
 								r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
-							}, "services.0.plans.0.name", constant.ReferencePlanName)
+							}, "services.0.plans.0.name", instance_sharing.ReferencePlanName)
 						})
 					})
 				})
@@ -2402,7 +2402,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							//brokerID = testContext.Broker.ID
 							brokerServer = testContext.Broker.BrokerServer
 
-							Expect(strings.Contains(string(brokerServer.Catalog), constant.ReferencePlanName)).To(Equal(false))
+							Expect(strings.Contains(string(brokerServer.Catalog), instance_sharing.ReferencePlanName)).To(Equal(false))
 						})
 					})
 					When("changing the supportInstanceSharing property of an existing plan", func() {
@@ -2419,7 +2419,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							var referencePlan1, referencePlan2 *types.ServicePlan
 							BeforeEach(func() {
 								// validate plans has shareable status
-								path := fmt.Sprintf("metadata.%s", constant.SupportInstanceSharingKey)
+								path := fmt.Sprintf("metadata.%s", instance_sharing.SupportInstanceSharingKey)
 								shareableValue = gjson.Get(plan1, path).Bool()
 								Expect(shareableValue).To(Equal(true))
 								shareableValue = gjson.Get(plan2, path).Bool()
@@ -2437,10 +2437,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect(referencePlan2).NotTo(Equal(nil))
 
 								// set catalog as support instance sharing false
-								metadataPathPlan1 := fmt.Sprintf("services.0.plans.0.metadata.%s", constant.SupportInstanceSharingKey)
+								metadataPathPlan1 := fmt.Sprintf("services.0.plans.0.metadata.%s", instance_sharing.SupportInstanceSharingKey)
 								newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), metadataPathPlan1, false)
-								newCatalogBytes, _ = sjson.SetBytes(newCatalogBytes, fmt.Sprintf("services.0.plans.1.metadata.%s", constant.SupportInstanceSharingKey), false)
-								newCatalogBytes, _ = sjson.SetBytes(newCatalogBytes, fmt.Sprintf("services.1.plans.0.metadata.%s", constant.SupportInstanceSharingKey), false)
+								newCatalogBytes, _ = sjson.SetBytes(newCatalogBytes, fmt.Sprintf("services.0.plans.1.metadata.%s", instance_sharing.SupportInstanceSharingKey), false)
+								newCatalogBytes, _ = sjson.SetBytes(newCatalogBytes, fmt.Sprintf("services.1.plans.0.metadata.%s", instance_sharing.SupportInstanceSharingKey), false)
 								brokerServer.Catalog = SBCatalog(newCatalogBytes)
 							})
 							AfterEach(func() {
@@ -2468,7 +2468,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									ResourceType: types.ServiceBrokerType,
 								})
 
-								Expect(strings.Contains(string(brokerServer.Catalog), constant.ReferencePlanName)).To(Equal(false))
+								Expect(strings.Contains(string(brokerServer.Catalog), instance_sharing.ReferencePlanName)).To(Equal(false))
 
 							})
 						})
@@ -2479,7 +2479,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							var referenceInstance *types.ServiceInstance
 							BeforeEach(func() {
 								// validate plans has shareable status
-								path := fmt.Sprintf("metadata.%s", constant.SupportInstanceSharingKey)
+								path := fmt.Sprintf("metadata.%s", instance_sharing.SupportInstanceSharingKey)
 								shareableValue = gjson.Get(plan1, path).Bool()
 								Expect(shareableValue).To(Equal(true))
 								// validate reference plan exists
@@ -2492,11 +2492,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								sharedInstance = CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, sharedPlan.ID, true)
 								referenceInstance = CreateReferenceInstanceInPlatform(ctx, ctx.TestPlatform.ID, referencePlan1.ID, sharedInstance.ID)
 								//set catalog as support instance sharing false
-								newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), fmt.Sprintf("services.0.plans.0.metadata.%s", constant.SupportInstanceSharingKey), false)
+								newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), fmt.Sprintf("services.0.plans.0.metadata.%s", instance_sharing.SupportInstanceSharingKey), false)
 								brokerServer.Catalog = SBCatalog(newCatalogBytes)
 							})
 							AfterEach(func() {
-								Expect(strings.Contains(string(brokerServer.Catalog), constant.ReferencePlanName)).To(Equal(false))
+								Expect(strings.Contains(string(brokerServer.Catalog), instance_sharing.ReferencePlanName)).To(Equal(false))
 								// validate reference plan does not exists
 								// reference of service_1:
 								planID1 = gjson.Get(plan1, "id").String()
@@ -2524,7 +2524,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							var sharedInstance *types.ServiceInstance
 							BeforeEach(func() {
 								// validate plans has shareable status
-								path := fmt.Sprintf("metadata.%s", constant.SupportInstanceSharingKey)
+								path := fmt.Sprintf("metadata.%s", instance_sharing.SupportInstanceSharingKey)
 								shareableValue = gjson.Get(plan1, path).Bool()
 								Expect(shareableValue).To(Equal(true))
 								// validate reference plan exists
@@ -2536,11 +2536,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								sharedPlan := GetPlanByKey(ctx, "catalog_id", planID1)
 								sharedInstance = CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, sharedPlan.ID, true)
 								//set catalog as support instance sharing false
-								newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), fmt.Sprintf("services.0.plans.0.metadata.%s", constant.SupportInstanceSharingKey), false)
+								newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), fmt.Sprintf("services.0.plans.0.metadata.%s", instance_sharing.SupportInstanceSharingKey), false)
 								brokerServer.Catalog = SBCatalog(newCatalogBytes)
 							})
 							AfterEach(func() {
-								Expect(strings.Contains(string(brokerServer.Catalog), constant.ReferencePlanName)).To(Equal(false))
+								Expect(strings.Contains(string(brokerServer.Catalog), instance_sharing.ReferencePlanName)).To(Equal(false))
 								// validate reference plan does not exists
 								// reference of service_1:
 								planID1 = gjson.Get(plan1, "id").String()

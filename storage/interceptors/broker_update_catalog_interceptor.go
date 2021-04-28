@@ -19,7 +19,7 @@ package interceptors
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/constant"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/tidwall/sjson"
 	"net/http"
 
@@ -251,11 +251,11 @@ func reuseReferenceInstancePlans(oldBroker *types.ServiceBroker, newBroker *type
 	}
 	for _, oldService := range oldBroker.Services {
 		for _, oldPlan := range oldService.Plans {
-			if oldPlan.Name == constant.ReferencePlanName {
+			if oldPlan.Name == instance_sharing.ReferencePlanName {
 				if newServicesByCatalogID[oldService.CatalogID] != nil {
 					newService := newServicesByCatalogID[oldService.CatalogID]
 					for newPlanIndex, newPlan := range newService.Plans {
-						if newPlan.Name == constant.ReferencePlanName {
+						if newPlan.Name == instance_sharing.ReferencePlanName {
 							newPlan.CatalogID = oldPlan.CatalogID
 							newPlan.ID = oldPlan.ID
 							jsonPath := fmt.Sprintf("services.%d.plans.%d.id", newServicesIdxByCatalogID[newService.CatalogID], newPlanIndex)
