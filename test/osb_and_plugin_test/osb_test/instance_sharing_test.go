@@ -86,7 +86,7 @@ var _ = Describe("Instance Sharing", func() {
 					ValueEqual("platform_id", platform.ID)
 			})
 		})
-		When("Provisioning a reference instance in K8S platform", func() {
+		When("provisioning a reference instance in K8S platform", func() {
 			BeforeEach(func() {
 				platformJSON = common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
 			})
@@ -236,7 +236,7 @@ var _ = Describe("Instance Sharing", func() {
 
 				})
 			})
-			Context("in K8S platform", func() {
+			When("a reference instance exists in k8s platform", func() {
 				BeforeEach(func() {
 					UUID, _ := uuid.NewV4()
 					platformJSON = common.MakePlatform(UUID.String(), UUID.String(), "kubernetes", "test-platform-k8s")
@@ -257,7 +257,7 @@ var _ = Describe("Instance Sharing", func() {
 	})
 
 	Describe("UNBIND", func() {
-		When("Unbinding a reference instance in cf platform", func() {
+		When("unbinding a reference instance in cf platform", func() {
 			var referenceInstanceID, bindingID string
 			BeforeEach(func() {
 				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")

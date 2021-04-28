@@ -464,86 +464,88 @@ var _ = DescribeTestsFor(TestCase{
 							})
 						})
 
-						Context("Instance Sharing - when binding a reference instance", func() {
-							var referenceInstanceID = ""
-							var sharedInstanceID = ""
-							BeforeEach(func() {
-								preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration, true)
-							})
-							JustBeforeEach(func() {
-								// Setup broker
-								brokerServer.ShouldRecordRequests(true)
-								brokerServer.BindingHandlerFunc(http.MethodPost, http.MethodPost+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
-								brokerServer.BindingLastOpHandlerFunc(http.MethodPost+"1", MultiplePollsRequiredHandler("in progress", "succeeded"))
-
-								// Create instance and share it
-								resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
-								sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-									Category:          types.CREATE,
-									State:             types.SUCCEEDED,
-									ResourceType:      types.ServiceInstanceType,
-									Reschedulable:     false,
-									DeletionScheduled: false,
+						Context("Instance Sharing", func() {
+							When("binding a reference instance", func() {
+								var referenceInstanceID = ""
+								var sharedInstanceID = ""
+								BeforeEach(func() {
+									preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration, true)
 								})
-								ShareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
+								JustBeforeEach(func() {
+									// Setup broker
+									brokerServer.ShouldRecordRequests(true)
+									brokerServer.BindingHandlerFunc(http.MethodPost, http.MethodPost+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+									brokerServer.BindingLastOpHandlerFunc(http.MethodPost+"1", MultiplePollsRequiredHandler("in progress", "succeeded"))
 
-								// Create reference-instance
-								referencePlan := GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
-								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
-								resp = CreateReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID, referencePlan.ID, TenantIdentifier, TenantIDValue)
-								referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-									Category:          types.CREATE,
-									State:             types.SUCCEEDED,
-									ResourceType:      types.ServiceInstanceType,
-									Reschedulable:     false,
-									DeletionScheduled: false,
-								})
-							})
+									// Create instance and share it
+									resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+									sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+									ShareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
 
-							It("returns 202", func() {
-								// create binding for the reference instance
-								resp := CreateBindingByInstanceID(ctx.SMWithOAuthForTenant, "true", http.StatusAccepted, referenceInstanceID, "binding-name")
-								bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-									Category:          types.CREATE,
-									State:             types.SUCCEEDED,
-									ResourceType:      types.ServiceBindingType,
-									Reschedulable:     false,
-									DeletionScheduled: false,
+									// Create reference-instance
+									referencePlan := GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
+									EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
+									resp = CreateReferenceInstance(ctx, false, http.StatusCreated, sharedInstanceID, referencePlan.ID, TenantIdentifier, TenantIDValue)
+									referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
 								})
 
-								Expect(brokerServer.LastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
+								It("returns 202", func() {
+									// create binding for the reference instance
+									resp := CreateBindingByInstanceID(ctx.SMWithOAuthForTenant, "true", http.StatusAccepted, referenceInstanceID, "binding-name")
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
 
-								objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-									ID:    bindingID,
-									Type:  types.ServiceBindingType,
-									Ready: true,
+									Expect(brokerServer.LastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
+
+									objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    bindingID,
+										Type:  types.ServiceBindingType,
+										Ready: true,
+									})
+
+									By("verify binding points to the reference instance id")
+									objAfterOp.Value("service_instance_id").Equal(referenceInstanceID)
+
 								})
+								It("returns 201", func() {
+									// create binding for the reference instance
+									resp := CreateBindingByInstanceID(ctx.SMWithOAuthForTenant, "false", http.StatusCreated, referenceInstanceID, "binding-name")
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
 
-								By("verify binding points to the reference instance id")
-								objAfterOp.Value("service_instance_id").Equal(referenceInstanceID)
+									Expect(brokerServer.LastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
 
-							})
-							It("returns 201", func() {
-								// create binding for the reference instance
-								resp := CreateBindingByInstanceID(ctx.SMWithOAuthForTenant, "false", http.StatusCreated, referenceInstanceID, "binding-name")
-								bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-									Category:          types.CREATE,
-									State:             types.SUCCEEDED,
-									ResourceType:      types.ServiceBindingType,
-									Reschedulable:     false,
-									DeletionScheduled: false,
+									objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    bindingID,
+										Type:  types.ServiceBindingType,
+										Ready: true,
+									})
+
+									By("verify binding points to the reference instnace id")
+									objAfterOp.Value("service_instance_id").Equal(referenceInstanceID)
 								})
-
-								Expect(brokerServer.LastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
-
-								objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-									ID:    bindingID,
-									Type:  types.ServiceBindingType,
-									Ready: true,
-								})
-
-								By("verify binding points to the reference instnace id")
-								objAfterOp.Value("service_instance_id").Equal(referenceInstanceID)
 							})
 						})
 
