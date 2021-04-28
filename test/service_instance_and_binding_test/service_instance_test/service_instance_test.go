@@ -410,7 +410,7 @@ var _ = DescribeTestsFor(TestCase{
 						Expect(err).NotTo(HaveOccurred())
 						err = DeleteInstance(ctx, sharedInstanceID, servicePlanID)
 					})
-					FIt("returns the instance object without communicating the service broker", func() {
+					It("returns the instance object without communicating the service broker", func() {
 						object := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + referenceInstanceID).Expect().
 							Status(http.StatusOK).
 							JSON().
