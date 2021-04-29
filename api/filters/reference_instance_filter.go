@@ -113,6 +113,10 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 	ctx := req.Context()
 	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	isReferencePlan, err := storage.IsReferencePlan(ctx, rif.repository, types.ServicePlanType.String(), "id", servicePlanID)
+	// If plan not found on provisioning, allow sm to handle the issue
+	if err == util.ErrNotFoundInStorage {
+		return next.Handle(req)
+	}
 	if err != nil {
 		return nil, err
 	}

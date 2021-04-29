@@ -622,6 +622,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									WithJSON(common.Object{
 										"service_id": serviceID,
 										"plan_id":    sharedInstancePlanCatalogID,
+										"context": map[string]string{
+											TenantIdentifier: TenantIDValue,
+										},
 									}).Expect().Status(http.StatusCreated)
 
 								err = common.ShareInstanceOnDB(ctx, shareableInstanceID)

@@ -58,6 +58,10 @@ func (referencePlugin *referenceInstancePlugin) Provision(req *web.Request, next
 	ctx := req.Context()
 	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	isReferencePlan, err := storage.IsReferencePlan(ctx, referencePlugin.repository, types.ServicePlanType.String(), "catalog_id", servicePlanID)
+	// If plan not found on provisioning, allow sm to handle the issue
+	if err == util.ErrNotFoundInStorage {
+		return next.Handle(req)
+	}
 	if err != nil {
 		return nil, err
 	}
