@@ -2125,9 +2125,8 @@ var _ = DescribeTestsFor(TestCase{
 								Expect().
 								Status(http.StatusBadRequest)
 
-							expectedDescription := util.HandleInstanceSharingError(util.ErrInvalidShareRequest, sharedInstanceID)
-							resp.JSON().Object().ContainsKey("description").
-								ValueEqual("description", expectedDescription)
+							expectedError := util.HandleInstanceSharingError(util.ErrInvalidShareRequest, sharedInstanceID)
+							resp.JSON().Object().Equal(expectedError)
 
 						})
 					})
@@ -2203,9 +2202,8 @@ var _ = DescribeTestsFor(TestCase{
 								Expect().
 								Status(http.StatusBadRequest)
 
-							expectedDescription := util.HandleInstanceSharingError(util.ErrInvalidShareRequest, sharedInstanceID)
-							resp.JSON().Object().ContainsKey("description").
-								ValueEqual("description", expectedDescription.Error())
+							expectedError := util.HandleInstanceSharingError(util.ErrInvalidShareRequest, sharedInstanceID)
+							resp.JSON().Object().Equal(expectedError)
 
 						})
 					})
