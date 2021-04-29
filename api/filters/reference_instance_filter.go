@@ -34,11 +34,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const (
-	ReferenceInstanceFilterName        = "ReferenceInstanceFilter"
-	ReferenceParametersAreNotSupported = "Reference service instance parameters are not supported"
-	contextKey                         = "context"
-)
+const ReferenceInstanceFilterName = "ReferenceInstanceFilter"
 
 // serviceInstanceVisibilityFilter ensures that the tenant making the provisioning/update request
 // has the necessary visibilities - i.e. that he has the right to consume the requested plan.

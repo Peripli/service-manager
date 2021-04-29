@@ -17,7 +17,6 @@ import (
 
 const ReferenceInstancePluginName = "ReferenceInstancePlugin"
 const planIDProperty = "plan_id"
-const contextKey = "context"
 
 type OperationCategory string
 
