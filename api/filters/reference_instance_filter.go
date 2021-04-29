@@ -76,7 +76,7 @@ func (rif *referenceInstanceFilter) handleGetParameters(req *web.Request, next w
 	ctx := req.Context()
 	instanceID := req.PathParams[web.PathParamResourceID]
 
-	dbInstanceObject, err := instance_sharing.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", instanceID)
+	dbInstanceObject, err := storage.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
 		return next.Handle(req)
 	}
@@ -116,7 +116,7 @@ func (*referenceInstanceFilter) FilterMatchers() []web.FilterMatcher {
 func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).String()
-	isReferencePlan, err := instance_sharing.IsReferencePlan(ctx, rif.repository, "id", servicePlanID)
+	isReferencePlan, err := storage.IsReferencePlan(ctx, rif.repository, types.ServicePlanType.String(), "id", servicePlanID)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next w
 	resourceID := req.PathParams["resource_id"]
 	ctx := req.Context()
 
-	dbInstanceObject, err := instance_sharing.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", resourceID)
+	dbInstanceObject, err := storage.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", resourceID)
 	if err != nil {
 		return next.Handle(req)
 	}
@@ -209,7 +209,7 @@ func (rif *referenceInstanceFilter) validateOwnership(req *web.Request) error {
 	callerTenantID := gjson.GetBytes(req.Body, contextPath).String()
 	referencedInstancePath := fmt.Sprintf("parameters.%s", instance_sharing.ReferencedInstanceIDKey)
 	referencedInstanceID := gjson.GetBytes(req.Body, referencedInstancePath).String()
-	dbReferencedObject, err := instance_sharing.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", referencedInstanceID)
+	dbReferencedObject, err := storage.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", referencedInstanceID)
 	if err != nil {
 		return err
 	}

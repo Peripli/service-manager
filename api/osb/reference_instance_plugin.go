@@ -58,7 +58,7 @@ func (referencePlugin *referenceInstancePlugin) Name() string {
 func (referencePlugin *referenceInstancePlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).String()
-	isReferencePlan, err := instance_sharing.IsReferencePlan(ctx, referencePlugin.repository, "catalog_id", servicePlanID)
+	isReferencePlan, err := storage.IsReferencePlan(ctx, referencePlugin.repository, types.ServicePlanType.String(), "catalog_id", servicePlanID)
 	if err != nil {
 		return nil, err
 	}
@@ -92,13 +92,12 @@ func (referencePlugin *referenceInstancePlugin) Deprovision(req *web.Request, ne
 	instanceID := req.PathParams["instance_id"]
 	ctx := req.Context()
 
-	dbInstanceObject, err := instance_sharing.GetObjectByField(ctx, referencePlugin.repository, types.ServiceInstanceType, "id", instanceID)
+	dbInstanceObject, err := storage.GetObjectByField(ctx, referencePlugin.repository, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
 		return next.Handle(req)
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
-
-	isReferencePlan, err := instance_sharing.IsReferencePlan(ctx, referencePlugin.repository, "id", instance.ServicePlanID)
+	isReferencePlan, err := storage.IsReferencePlan(ctx, referencePlugin.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
 
 	if err != nil {
 		return nil, err
@@ -116,7 +115,7 @@ func (referencePlugin *referenceInstancePlugin) UpdateService(req *web.Request, 
 	instanceID := req.PathParams["instance_id"]
 	ctx := req.Context()
 
-	dbInstanceObject, err := instance_sharing.GetObjectByField(ctx, referencePlugin.repository, types.ServiceInstanceType, "id", instanceID)
+	dbInstanceObject, err := storage.GetObjectByField(ctx, referencePlugin.repository, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
 		if err == util.ErrNotFoundInStorage {
 			return next.Handle(req)
@@ -125,7 +124,7 @@ func (referencePlugin *referenceInstancePlugin) UpdateService(req *web.Request, 
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
 
-	isReferencePlan, err := instance_sharing.IsReferencePlan(ctx, referencePlugin.repository, "id", instance.ServicePlanID)
+	isReferencePlan, err := storage.IsReferencePlan(ctx, referencePlugin.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
 	if err != nil {
 		return nil, err
 	}
@@ -159,13 +158,13 @@ func (referencePlugin *referenceInstancePlugin) FetchBinding(req *web.Request, n
 func (referencePlugin *referenceInstancePlugin) FetchService(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	instanceID := req.PathParams["instance_id"]
-	dbInstanceObject, err := instance_sharing.GetObjectByField(ctx, referencePlugin.repository, types.ServiceInstanceType, "id", instanceID)
+	dbInstanceObject, err := storage.GetObjectByField(ctx, referencePlugin.repository, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
 		return next.Handle(req)
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
 
-	isReferencePlan, err := instance_sharing.IsReferencePlan(ctx, referencePlugin.repository, "id", instance.ServicePlanID)
+	isReferencePlan, err := storage.IsReferencePlan(ctx, referencePlugin.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
 
 	if err != nil {
 		return nil, err

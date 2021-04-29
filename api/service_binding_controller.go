@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/Peripli/service-manager/api/osb"
-	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
@@ -112,7 +111,7 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 	serviceBinding := serviceBindingObject.(*types.ServiceBinding)
 
 	// Check whether the instance is reference type or not:
-	dbInstanceObject, err := instance_sharing.GetObjectByField(ctx, c.repository, types.ServiceInstanceType, "id", serviceBinding.ServiceInstanceID)
+	dbInstanceObject, err := storage.GetObjectByField(ctx, c.repository, types.ServiceInstanceType, "id", serviceBinding.ServiceInstanceID)
 	if err != nil {
 		return nil, err
 	}
