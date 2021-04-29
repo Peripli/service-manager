@@ -662,11 +662,11 @@ var _ = DescribeTestsFor(TestCase{
 					})
 				})
 
-				Context("Instance Sharing", func() {
+				Context("instance Sharing", func() {
 					BeforeEach(func() {
 						preparePrerequisitesWithMaxPollingDuration(MaximumPollingDuration, true)
 					})
-					When("Create a reference service instance", func() {
+					When("a reference service instance is created", func() {
 						var sharedInstanceID = ""
 						var referenceInstanceID = ""
 						BeforeEach(func() {
@@ -2125,7 +2125,7 @@ var _ = DescribeTestsFor(TestCase{
 								Expect().
 								Status(http.StatusBadRequest)
 
-							expectedDescription := fmt.Sprintf("could set the 'shared' property of the instance %s with other changes at the same time.", sharedInstanceID)
+							expectedDescription := util.HandleInstanceSharingError(util.ErrInvalidShareRequest, sharedInstanceID)
 							resp.JSON().Object().ContainsKey("description").
 								ValueEqual("description", expectedDescription)
 
@@ -2203,9 +2203,9 @@ var _ = DescribeTestsFor(TestCase{
 								Expect().
 								Status(http.StatusBadRequest)
 
-							expectedDescription := fmt.Sprintf("could set the 'shared' property of the instance %s with other changes at the same time.", sharedInstanceID)
+							expectedDescription := util.HandleInstanceSharingError(util.ErrInvalidShareRequest, sharedInstanceID)
 							resp.JSON().Object().ContainsKey("description").
-								ValueEqual("description", expectedDescription)
+								ValueEqual("description", expectedDescription.Error())
 
 						})
 					})
@@ -2241,10 +2241,11 @@ var _ = DescribeTestsFor(TestCase{
 
 					})
 					It("unshares the instance successfully", func() {
-						postInstanceRequestTLS["shared"] = false
 						ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
 							WithQuery("async", "false").
-							WithJSON(postInstanceRequestTLS).
+							WithJSON(Object{
+								"shared": false,
+							}).
 							Expect().
 							Status(http.StatusOK).
 							JSON().Object().ValueEqual("shared", false)
