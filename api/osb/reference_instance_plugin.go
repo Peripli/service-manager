@@ -239,7 +239,8 @@ func (referencePlugin *referenceInstancePlugin) validateOwnership(req *web.Reque
 	}
 	instance := dbReferencedObject.(*types.ServiceInstance)
 	sharedInstanceTenantID := instance.Labels["tenant"][0]
-	callerTenantID := query.RetrieveFromCriteria(referencePlugin.tenantIdentifier, query.CriteriaForContext(req.Context())...)
+	tenantPath := fmt.Sprintf("context.%s", referencePlugin.tenantIdentifier)
+	callerTenantID := gjson.GetBytes(req.Body, tenantPath).String()
 
 	if sharedInstanceTenantID != callerTenantID {
 		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", sharedInstanceTenantID, callerTenantID)
