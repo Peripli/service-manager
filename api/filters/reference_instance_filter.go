@@ -76,7 +76,7 @@ func (rif *referenceInstanceFilter) handleGetParameters(req *web.Request, next w
 	ctx := req.Context()
 	instanceID := req.PathParams[web.PathParamResourceID]
 
-	dbInstanceObject, err := rif.getObjectByID(ctx, types.ServiceInstanceType, instanceID)
+	dbInstanceObject, err := instance_sharing.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
 		return next.Handle(req)
 	}
@@ -116,7 +116,7 @@ func (*referenceInstanceFilter) FilterMatchers() []web.FilterMatcher {
 func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).String()
-	isReferencePlan, err := rif.isReferencePlan(ctx, servicePlanID)
+	isReferencePlan, err := instance_sharing.IsReferencePlan(ctx, rif.repository, "id", servicePlanID)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next w
 	resourceID := req.PathParams["resource_id"]
 	ctx := req.Context()
 
-	dbInstanceObject, err := rif.getObjectByID(ctx, types.ServiceInstanceType, resourceID)
+	dbInstanceObject, err := instance_sharing.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", resourceID)
 	if err != nil {
 		return next.Handle(req)
 	}
@@ -203,31 +203,13 @@ func (rif *referenceInstanceFilter) isValidPatchRequest(req *web.Request, instan
 	return true, nil
 }
 
-func (rif *referenceInstanceFilter) isReferencePlan(ctx context.Context, servicePlanID string) (bool, error) {
-	dbPlanObject, err := rif.getObjectByID(ctx, types.ServicePlanType, servicePlanID)
-	if err != nil {
-		return false, err
-	}
-	plan := dbPlanObject.(*types.ServicePlan)
-	return plan.Name == instance_sharing.ReferencePlanName, nil
-}
-
-func (rif *referenceInstanceFilter) getObjectByID(ctx context.Context, objectType types.ObjectType, resourceID string) (types.Object, error) {
-	byID := query.ByField(query.EqualsOperator, "id", resourceID)
-	dbObject, err := rif.repository.Get(ctx, objectType, byID)
-	if err != nil {
-		return nil, util.HandleStorageError(err, objectType.String())
-	}
-	return dbObject, nil
-}
-
 func (rif *referenceInstanceFilter) validateOwnership(req *web.Request) error {
 	ctx := req.Context()
 	contextPath := fmt.Sprintf("%s.%s", contextKey, rif.tenantIdentifier)
 	callerTenantID := gjson.GetBytes(req.Body, contextPath).String()
 	referencedInstancePath := fmt.Sprintf("parameters.%s", instance_sharing.ReferencedInstanceIDKey)
 	referencedInstanceID := gjson.GetBytes(req.Body, referencedInstancePath).String()
-	dbReferencedObject, err := rif.getObjectByID(ctx, types.ServiceInstanceType, referencedInstanceID)
+	dbReferencedObject, err := instance_sharing.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", referencedInstanceID)
 	if err != nil {
 		return err
 	}
