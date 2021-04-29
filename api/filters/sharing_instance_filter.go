@@ -61,27 +61,18 @@ func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
 	}
 }
 
-func (sf *sharingInstanceFilter) validateOnlySharedPropertyIsChanged(persistedInstance *types.ServiceInstance, reqInstanceBytes *[]byte) error {
-	var updatedInstance types.ServiceInstance
-	persistedInstanceBytes, err := json.Marshal(&persistedInstance)
+func validateRequestContainsSingleProperty(reqInstanceBytes []byte, instanceID string) error {
+	var reqAsMap map[string]interface{}
+	err := json.Unmarshal(reqInstanceBytes, &reqAsMap)
+
 	if err != nil {
 		return err
 	}
-	if err := util.BytesToObject(persistedInstanceBytes, &updatedInstance); err != nil {
-		return err
-	}
-	if err := util.BytesToObject(*reqInstanceBytes, &updatedInstance); err != nil {
-		return err
+
+	if len(reqAsMap) > 1 {
+		return util.HandleInstanceSharingError(util.ErrInvalidShareRequest, instanceID)
 	}
 
-	//in order to ignore shared property when validating the request we set it to be equals
-	//TODO: find out why the context is not the same (the persisted instance has instance_name property and updatedInstance does not have it)
-	updatedInstance.Shared = persistedInstance.Shared
-	updatedInstance.Context = persistedInstance.Context
-
-	if !persistedInstance.Equals(&updatedInstance) {
-		return util.HandleInstanceSharingError(util.ErrInvalidShareRequest, updatedInstance.ID)
-	}
 	return nil
 }
 
@@ -108,20 +99,20 @@ func (sf *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.
 		return next.Handle(req)
 	}
 
+	instanceID := req.PathParams["resource_id"]
+	//we cannot use reqServiceInstance in this validation because the struct has default values (like "" for string type properties)
+	err = validateRequestContainsSingleProperty(req.Body, instanceID)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx := req.Context()
 	logger := log.C(ctx)
 
 	// Get instance from database
-	instanceID := req.PathParams["resource_id"]
 	persistedInstance, err := sf.retrievePersistedInstanceByID(ctx, instanceID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
-	}
-
-	//we cannot use reqServiceInstance in this validation because the struct has default values (like "" for string type properties)
-	err = sf.validateOnlySharedPropertyIsChanged(persistedInstance, &req.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	// Get plan object from database, on service_instance patch flow

@@ -292,7 +292,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrInvalidShareRequest:
-		errorMessage := fmt.Sprintf("could set the 'shared' property of the instance %s with other changes at the same time.", entityName)
+		errorMessage := fmt.Sprintf("could not set the 'shared' property of the instance %s with other changes at the same time.", entityName)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
