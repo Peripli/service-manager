@@ -109,6 +109,16 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 		return nil, util.HandleStorageError(err, types.ServiceBindingType.String())
 	}
 	serviceBinding := serviceBindingObject.(*types.ServiceBinding)
+
+	dbInstanceObject, err := c.getObjectByID(ctx, types.ServiceInstanceType, serviceBinding.ServiceInstanceID)
+	if err != nil {
+		return nil, err
+	}
+	instance := dbInstanceObject.(*types.ServiceInstance)
+	if instance.ReferencedInstanceID != "" {
+		serviceBinding.ServiceInstanceID = instance.ReferencedInstanceID
+	}
+
 	service, err := storage.GetServiceOfferingByServiceInstanceId(c.repository, ctx, serviceBinding.ServiceInstanceID)
 	if err != nil {
 		return nil, err
@@ -145,4 +155,13 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 
 	return util.NewJSONResponse(http.StatusOK, &serviceBindingResponse.Parameters)
 
+}
+
+func (c *ServiceBindingController) getObjectByID(ctx context.Context, objectType types.ObjectType, resourceID string) (types.Object, error) {
+	byID := query.ByField(query.EqualsOperator, "id", resourceID)
+	dbObject, err := c.repository.Get(ctx, objectType, byID)
+	if err != nil {
+		return nil, util.HandleStorageError(err, objectType.String())
+	}
+	return dbObject, nil
 }

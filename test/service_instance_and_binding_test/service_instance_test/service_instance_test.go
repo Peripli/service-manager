@@ -357,7 +357,7 @@ var _ = DescribeTestsFor(TestCase{
 							Type: types.ServiceInstanceType,
 						})
 					})
-					It("fails retrieving the parameters of the reference instance", func() {
+					It("returns the parameters of the reference instance", func() {
 						path := fmt.Sprintf("%s/%s%s", web.ServiceInstancesURL, referenceInstanceID, web.ParametersURL)
 						resp := ctx.SMWithOAuthForTenant.GET(path).Expect().
 							Status(http.StatusOK)
