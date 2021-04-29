@@ -125,9 +125,7 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 	}
 
 	// Ownership validation
-	path := fmt.Sprintf("%s.%s", contextKey, rif.tenantIdentifier)
-	callerTenantID := gjson.GetBytes(req.Body, path).String()
-	if callerTenantID != "" {
+	if rif.tenantIdentifier != "" {
 		err = rif.validateOwnership(req)
 		if err != nil {
 			return nil, err
@@ -149,7 +147,7 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 	if err != nil {
 		return nil, err
 	}
-	log.C(ctx).Infof("Reference Instance Provision passed successfully. Called by \"%s\", instanceID: \"%s\"", callerTenantID, referencedInstanceID)
+	log.C(ctx).Infof("Reference Instance Provision passed successfully, instanceID: \"%s\"", referencedInstanceID)
 	return next.Handle(req)
 }
 
@@ -173,9 +171,7 @@ func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next w
 		return nil, err
 	}
 
-	path := fmt.Sprintf("%s.%s", contextKey, rif.tenantIdentifier)
-	callerTenantID := gjson.GetBytes(req.Body, path).String()
-	log.C(ctx).Infof("Reference Instance Update passed successfully. Called by \"%s\", instanceID: \"%s\"", callerTenantID, resourceID)
+	log.C(ctx).Infof("Reference Instance Update passed successfully, instanceID: \"%s\"", resourceID)
 	return next.Handle(req)
 }
 
@@ -231,10 +227,9 @@ func (rif *referenceInstanceFilter) validateOwnership(req *web.Request) error {
 	callerTenantID := gjson.GetBytes(req.Body, contextPath).String()
 	referencedInstancePath := fmt.Sprintf("parameters.%s", instance_sharing.ReferencedInstanceIDKey)
 	referencedInstanceID := gjson.GetBytes(req.Body, referencedInstancePath).String()
-	byID := query.ByField(query.EqualsOperator, "id", referencedInstanceID)
-	dbReferencedObject, err := rif.repository.Get(ctx, types.ServiceInstanceType, byID)
+	dbReferencedObject, err := rif.getObjectByID(ctx, types.ServiceInstanceType, referencedInstanceID)
 	if err != nil {
-		return util.HandleStorageError(err, types.ServiceInstanceType.String())
+		return err
 	}
 	instance := dbReferencedObject.(*types.ServiceInstance)
 	sharedInstanceTenantID := instance.Labels[rif.tenantIdentifier][0]

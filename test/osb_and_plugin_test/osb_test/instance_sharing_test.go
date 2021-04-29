@@ -169,6 +169,54 @@ var _ = Describe("Instance Sharing", func() {
 	})
 
 	Describe("BIND", func() {
+		When("binding a shared instance", func() {
+			BeforeEach(func() {
+				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
+				instanceSharingBrokerServer.ShouldRecordRequests(true)
+			})
+			It("creates bindings successfully async=true", func() {
+				sharedInstanceID, _ := createSharedInstanceAndReference(platform, false)
+				bindingID := createBinding(sharedInstanceID, http.StatusCreated, "true")
+
+				lastRequest := instanceSharingBrokerServer.LastRequest
+				Expect(lastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
+				Expect(lastRequest.Method).To(ContainSubstring("PUT"))
+
+				ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
+					Expect().
+					Status(http.StatusOK).
+					JSON().
+					Object().
+					ContainsKey("service_instance_id").
+					ValueEqual("service_instance_id", sharedInstanceID)
+
+				// verify not communicating the service broker after the get request.
+				lastRequest = instanceSharingBrokerServer.LastRequest
+				Expect(lastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
+				Expect(lastRequest.Method).To(ContainSubstring("PUT"))
+			})
+			It("creates bindings successfully async=false", func() {
+				sharedInstanceID, _ := createSharedInstanceAndReference(platform, false)
+				bindingID := createBinding(sharedInstanceID, http.StatusCreated, "false")
+
+				lastRequest := instanceSharingBrokerServer.LastRequest
+				Expect(lastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
+				Expect(lastRequest.Method).To(ContainSubstring("PUT"))
+
+				ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
+					Expect().
+					Status(http.StatusOK).
+					JSON().
+					Object().
+					ContainsKey("service_instance_id").
+					ValueEqual("service_instance_id", sharedInstanceID)
+
+				// verify not communicating the service broker after the get request.
+				lastRequest = instanceSharingBrokerServer.LastRequest
+				Expect(lastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
+				Expect(lastRequest.Method).To(ContainSubstring("PUT"))
+			})
+		})
 		When("binding a reference instance in cf platform", func() {
 
 			var cfSharedInstanceID string
@@ -180,7 +228,7 @@ var _ = Describe("Instance Sharing", func() {
 
 			It("creates bindings successfully", func() {
 				sharedInstanceID, referenceInstanceID := createSharedInstanceAndReference(platform, false)
-				bindingID := createBinding(referenceInstanceID, http.StatusCreated)
+				bindingID := createBinding(referenceInstanceID, http.StatusCreated, "false")
 
 				lastRequest := instanceSharingBrokerServer.LastRequest
 				Expect(lastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
@@ -211,7 +259,7 @@ var _ = Describe("Instance Sharing", func() {
 				It("binds reference instance successfully from different platform", func() {
 					_, cfSharedInstanceID = createAndShareInstance(false)
 					_, k8sReferenceInstanceID = createReferenceInstance(k8sPlatform.ID, cfSharedInstanceID, false)
-					bindingID := createBinding(k8sReferenceInstanceID, http.StatusCreated)
+					bindingID := createBinding(k8sReferenceInstanceID, http.StatusCreated, "false")
 					Expect(instanceSharingBrokerServer.LastRequest.RequestURI).To(ContainSubstring(cfSharedInstanceID))
 					ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
 						Expect().
@@ -240,17 +288,25 @@ var _ = Describe("Instance Sharing", func() {
 				BeforeEach(func() {
 					UUID, _ := uuid.NewV4()
 					platformJSON = common.MakePlatform(UUID.String(), UUID.String(), "kubernetes", "test-platform-k8s")
+					instanceSharingBrokerServer.ShouldRecordRequests(true)
 				})
 				It("binds reference instance successfully", func() {
-					_, referenceInstanceID := createSharedInstanceAndReference(platform, false)
-					bindingID := createBinding(referenceInstanceID, http.StatusCreated)
+					sharedInstanceID, referenceInstanceID := createSharedInstanceAndReference(platform, false)
+					bindingID := createBinding(referenceInstanceID, http.StatusCreated, "false")
 
+					// The last broker request should be the "PUT" binding request:
+					lastRequest := instanceSharingBrokerServer.LastRequest
+					Expect(lastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
+					Expect(lastRequest.Method).To(Equal("PUT"))
+
+					// The new binding should be registered in sm under the reference instance.
 					ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
 						Expect().
 						Status(http.StatusOK).
 						JSON().
 						Object().ContainsKey("service_instance_id").
 						ValueEqual("service_instance_id", referenceInstanceID)
+
 				})
 			})
 		})
@@ -264,7 +320,7 @@ var _ = Describe("Instance Sharing", func() {
 			})
 			JustBeforeEach(func() {
 				_, referenceInstanceID = createSharedInstanceAndReference(platform, false)
-				bindingID = createBinding(referenceInstanceID, http.StatusCreated)
+				bindingID = createBinding(referenceInstanceID, http.StatusCreated, "false")
 				ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
 					Expect().
 					Status(http.StatusOK).
@@ -318,7 +374,7 @@ var _ = Describe("Instance Sharing", func() {
 	})
 })
 
-func createBinding(instanceID string, expectedStatus int) string {
+func createBinding(instanceID string, expectedStatus int, acceptsIncomplete string) string {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
@@ -327,6 +383,7 @@ func createBinding(instanceID string, expectedStatus int) string {
 
 	body := provisionRequestBodyMap()()
 	ctx.SMWithBasic.PUT(instanceSharingBrokerURL+"/v2/service_instances/"+instanceID+"/service_bindings/"+bindingID).
+		WithQuery(acceptsIncompleteKey, acceptsIncomplete).
 		WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 		WithJSON(body).
 		Expect().
