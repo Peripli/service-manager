@@ -103,9 +103,6 @@ func CreateReferenceInstance(ctx *TestContext, async bool, expectedStatusCode in
 		"name":             "reference-instance",
 		"service_plan_id":  referencePlanID,
 		"maintenance_info": "{}",
-		"context": Object{
-			tenantIdentifier: tenantIDValue,
-		},
 		"parameters": map[string]string{
 			instance_sharing.ReferencedInstanceIDKey: referencedInstanceID,
 		},
