@@ -67,9 +67,7 @@ func (referencePlugin *referenceInstancePlugin) Provision(req *web.Request, next
 	}
 
 	// Ownership validation
-	path := fmt.Sprintf("context.%s", referencePlugin.tenantIdentifier)
-	callerTenantID := gjson.GetBytes(req.Body, path).String()
-	if callerTenantID != "" {
+	if referencePlugin.tenantIdentifier != "" {
 		err = referencePlugin.validateOwnership(req)
 		if err != nil {
 			return nil, err
@@ -233,8 +231,6 @@ func (referencePlugin *referenceInstancePlugin) PollBinding(req *web.Request, ne
 
 func (referencePlugin *referenceInstancePlugin) validateOwnership(req *web.Request) error {
 	ctx := req.Context()
-	tenantPath := fmt.Sprintf("%s.%s", contextKey, referencePlugin.tenantIdentifier)
-	callerTenantID := gjson.GetBytes(req.Body, tenantPath).String()
 	path := fmt.Sprintf("parameters.%s", instance_sharing.ReferencedInstanceIDKey)
 	referencedInstanceID := gjson.GetBytes(req.Body, path).String()
 	byID := query.ByField(query.EqualsOperator, "id", referencedInstanceID)
@@ -243,10 +239,11 @@ func (referencePlugin *referenceInstancePlugin) validateOwnership(req *web.Reque
 		return util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 	instance := dbReferencedObject.(*types.ServiceInstance)
-	referencedOwnerTenantID := instance.Labels["tenant"][0]
+	sharedInstanceTenantID := instance.Labels["tenant"][0]
+	callerTenantID := query.RetrieveFromCriteria(referencePlugin.tenantIdentifier, query.CriteriaForContext(req.Context())...)
 
-	if referencedOwnerTenantID != callerTenantID {
-		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", referencedOwnerTenantID, callerTenantID)
+	if sharedInstanceTenantID != callerTenantID {
+		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", sharedInstanceTenantID, callerTenantID)
 		return &util.HTTPError{
 			ErrorType:   "NotFound",
 			Description: "could not find such service instance",

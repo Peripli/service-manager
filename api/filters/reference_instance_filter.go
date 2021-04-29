@@ -205,8 +205,6 @@ func (rif *referenceInstanceFilter) isValidPatchRequest(req *web.Request, instan
 
 func (rif *referenceInstanceFilter) validateOwnership(req *web.Request) error {
 	ctx := req.Context()
-	contextPath := fmt.Sprintf("%s.%s", contextKey, rif.tenantIdentifier)
-	callerTenantID := gjson.GetBytes(req.Body, contextPath).String()
 	referencedInstancePath := fmt.Sprintf("parameters.%s", instance_sharing.ReferencedInstanceIDKey)
 	referencedInstanceID := gjson.GetBytes(req.Body, referencedInstancePath).String()
 	dbReferencedObject, err := storage.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", referencedInstanceID)
@@ -215,6 +213,7 @@ func (rif *referenceInstanceFilter) validateOwnership(req *web.Request) error {
 	}
 	instance := dbReferencedObject.(*types.ServiceInstance)
 	sharedInstanceTenantID := instance.Labels[rif.tenantIdentifier][0]
+	callerTenantID := query.RetrieveFromCriteria(rif.tenantIdentifier, query.CriteriaForContext(req.Context())...)
 
 	if sharedInstanceTenantID != callerTenantID {
 		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", sharedInstanceTenantID, callerTenantID)
