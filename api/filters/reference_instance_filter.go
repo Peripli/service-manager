@@ -165,7 +165,7 @@ func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next w
 		return next.Handle(req)
 	}
 
-	_, err = rif.isValidPatchRequest(req, instance)
+	_, err = rif.isValidReferencePatchRequest(req, instance)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +174,7 @@ func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next w
 	return next.Handle(req)
 }
 
-func (rif *referenceInstanceFilter) isValidPatchRequest(req *web.Request, instance *types.ServiceInstance) (bool, error) {
+func (rif *referenceInstanceFilter) isValidReferencePatchRequest(req *web.Request, instance *types.ServiceInstance) (bool, error) {
 	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	if instance.ServicePlanID != newPlanID {
 		return false, util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, instance.ID)

@@ -275,13 +275,13 @@ func isValidReferenceInstancePatchRequest(req *web.Request, instance *types.Serv
 }
 func isValidSharedInstancePatchRequest(ctx context.Context, repository storage.Repository, req *web.Request, instance *types.ServiceInstance) error {
 	// epsilontal todo: How can we update labels and do we want to allow the change?
-	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
+	newCatalogID := gjson.GetBytes(req.Body, planIDProperty).String()
 	dbPlanObject, err := storage.GetObjectByField(ctx, repository, types.ServicePlanType, "id", instance.ServicePlanID)
 	if err != nil {
 		return err
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
-	if plan.CatalogID != newPlanID {
+	if plan.CatalogID != newCatalogID {
 		return util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, instance.ID)
 	}
 	return nil
