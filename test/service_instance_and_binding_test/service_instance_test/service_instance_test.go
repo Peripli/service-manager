@@ -2328,7 +2328,6 @@ var _ = DescribeTestsFor(TestCase{
 							ValueEqual("name", "renamed")
 					})
 				})
-
 				Context("Unshare instance", func() {
 					When("platform is service-manager", func() {
 						BeforeEach(func() {
