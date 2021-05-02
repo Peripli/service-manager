@@ -136,7 +136,6 @@ var _ = Describe("Instance Sharing", func() {
 					ID:   referenceInstanceID,
 					Type: types.ServiceInstanceType,
 				})
-
 			})
 			It("deletes reference instance successfully", func() {
 				_, referenceInstanceID = createSharedInstanceAndReference(platform, false)
@@ -149,10 +148,7 @@ var _ = Describe("Instance Sharing", func() {
 			})
 			It("deletes reference instance successfully", func() {
 				_, referenceInstanceID := createSharedInstanceAndReference(platform, false)
-				ctx.SMWithBasic.DELETE(instanceSharingBrokerURL+"/v2/service_instances/"+referenceInstanceID).
-					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					WithQuery(acceptsIncompleteKey, "false").
-					Expect().Status(http.StatusOK)
+				deleteInstance(referenceInstanceID, http.StatusOK)
 			})
 		})
 		When("a shared instance has existing references", func() {
@@ -212,6 +208,12 @@ var _ = Describe("Instance Sharing", func() {
 					ID:    sharedInstanceID,
 					Type:  types.ServiceInstanceType,
 					Ready: true,
+				})
+			})
+			AfterEach(func() {
+				VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:   sharedInstanceID,
+					Type: types.ServiceInstanceType,
 				})
 			})
 			It("deletes the shared instance successfully", func() {
@@ -477,9 +479,7 @@ var _ = Describe("Instance Sharing", func() {
 				ctx.SMWithBasic.DELETE(instanceSharingBrokerURL+"/v2/service_instances/"+referenceInstanceID+"/service_bindings/"+bindingID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().
-					Status(http.StatusOK).
-					JSON().
-					Object()
+					Status(http.StatusOK)
 
 				ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + bindingID).
 					Expect().Status(http.StatusNotFound)
@@ -517,10 +517,9 @@ var _ = Describe("Instance Sharing", func() {
 			})
 			It("fetches shared instance successfully", func() {
 				instanceSharingBrokerServer.ShouldRecordRequests(true)
-				ctx.SMWithBasic.GET(instanceSharingBrokerPath+"/v2/service_instances/"+sharedInstanceID).
-					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					Expect().
-					Status(http.StatusOK)
+				resp := getInstance(sharedInstanceID, http.StatusOK)
+				object := resp.JSON().Object()
+				object.Value("shared").Boolean().Equal(true)
 				Expect(instanceSharingBrokerServer.LastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
 
 			})
@@ -560,11 +559,13 @@ func updateInstance(instanceID string, json map[string]interface{}, expectedStat
 		WithQuery(acceptsIncompleteKey, "false")
 	return resp.Expect().Status(expectedStatus)
 }
+
 func getInstance(instanceID string, expectedStatus int) *httpexpect.Response {
-	resp := ctx.SMWithBasic.GET(instanceSharingBrokerURL+"/v2/service_instances/"+instanceID).
+	resp := ctx.SMWithBasic.GET(instanceSharingBrokerPath+"/v2/service_instances/"+instanceID).
 		WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-		WithQuery(acceptsIncompleteKey, "false")
-	return resp.Expect().Status(expectedStatus)
+		Expect().
+		Status(expectedStatus)
+	return resp
 }
 
 func createSharedInstanceAndReference(platform *types.Platform, async bool) (string, string) {
