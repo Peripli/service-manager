@@ -178,13 +178,7 @@ func findSharedInstancesInPlatform(ctx context.Context, platform *types.Platform
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 
-	var sharedInstanceIDs []string
-	for i := 0; i < sharedInstances.Len(); i++ {
-		sharedInstance := sharedInstances.ItemAt(i).(*types.ServiceInstance)
-		sharedInstanceIDs = append(sharedInstanceIDs, sharedInstance.GetID())
-	}
-
-	return sharedInstanceIDs, nil
+	return types.ObjectListIDsToStringArray(sharedInstances), nil
 }
 
 func (*platformTerminationFilter) FilterMatchers() []web.FilterMatcher {
