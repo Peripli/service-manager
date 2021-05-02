@@ -105,7 +105,7 @@ func (sf *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.
 	}
 
 	// we don't allow changing plan of shared instance
-	if persistedInstance.Shared != nil && *persistedInstance.Shared && persistedInstance.ServicePlanID != reqServiceInstance.ServicePlanID {
+	if persistedInstance.Shared != nil && *persistedInstance.Shared && persistedInstance.ServicePlanID != reqServiceInstance.ServicePlanID && reqServiceInstance.Shared == nil {
 		return nil, util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, persistedInstance.ID)
 	}
 
