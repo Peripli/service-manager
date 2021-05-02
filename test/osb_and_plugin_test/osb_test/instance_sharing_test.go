@@ -510,30 +510,19 @@ var _ = Describe("Instance Sharing", func() {
 					Expect().
 					Status(http.StatusOK)
 				referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareablePlanCatalogID)
-				resp.JSON().Object().Value("plan_id").String().Contains(referencePlan.ID)
-				resp.JSON().Object().Value("service_id").String().Contains(service2CatalogID)
-				resp.JSON().Object().Value("parameters").Object().Value("referenced_instance_id").String().Contains(sharedInstanceID)
-			})
-		})
-		When("fetching a shared instance in cf platform", func() {
-			var sharedInstanceID string
-			BeforeEach(func() {
-				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
-			})
-			JustBeforeEach(func() {
-				_, sharedInstanceID = createAndShareInstance(false)
-				VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-					ID:    sharedInstanceID,
-					Type:  types.ServiceInstanceType,
-					Ready: true,
-				})
+				object := resp.JSON().Object()
+				object.Value("plan_id").String().Contains(referencePlan.ID)
+				object.Value("service_id").String().Contains(service2CatalogID)
+				object.Value("parameters").Object().Value("referenced_instance_id").String().Contains(sharedInstanceID)
 			})
 			It("fetches shared instance successfully", func() {
-				resp := ctx.SMWithBasic.GET(instanceSharingBrokerPath+"/v2/service_instances/"+sharedInstanceID).
+				instanceSharingBrokerServer.ShouldRecordRequests(true)
+				ctx.SMWithBasic.GET(instanceSharingBrokerPath+"/v2/service_instances/"+sharedInstanceID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().
 					Status(http.StatusOK)
-				resp.JSON().Object().Value("plan_id").String().Contains(shareablePlanCatalogID)
+				Expect(instanceSharingBrokerServer.LastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
+
 			})
 		})
 	})
