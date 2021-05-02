@@ -775,10 +775,11 @@ func (sp *storePlugin) storeOperation(ctx context.Context, storage storage.Repos
 }
 
 func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Repository, req *provisionRequest, resp *provisionResponse, ready bool) error {
-	planID, err := findServicePlanIDByCatalogIDs(ctx, storage, req.BrokerID, req.ServiceID, req.PlanID)
+	plan, err := findServicePlanIDByCatalogIDs(ctx, storage, req.BrokerID, req.ServiceID, req.PlanID)
 	if err != nil {
 		return err
 	}
+	planID := plan.GetID()
 	instanceName := gjson.GetBytes(req.RawContext, "instance_name").String()
 	if len(instanceName) == 0 {
 		log.C(ctx).Debugf("Instance name missing. Defaulting to id %s", req.InstanceID)
@@ -801,6 +802,7 @@ func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 		MaintenanceInfo:      req.RawMaintenanceInfo,
 		Context:              req.RawContext,
 		Usable:               true,
+		Shareable:            plan.IsShareablePlan(),
 		ReferencedInstanceID: referencedInstanceID,
 	}
 	if _, err := storage.Create(ctx, instance); err != nil {
@@ -868,10 +870,12 @@ func (sp *storePlugin) updateInstance(ctx context.Context, storage storage.Repos
 	}
 	if len(req.PlanID) != 0 && req.PreviousValues.PlanID != req.PlanID {
 		var err error
-		serviceInstance.ServicePlanID, err = findServicePlanIDByCatalogIDs(ctx, storage, req.BrokerID, req.ServiceID, req.PlanID)
+		plan, err := findServicePlanIDByCatalogIDs(ctx, storage, req.BrokerID, req.ServiceID, req.PlanID)
 		if err != nil {
 			return err
 		}
+		serviceInstance.ServicePlanID = plan.GetID()
+		serviceInstance.Shareable = plan.IsShareablePlan()
 	}
 	if len(resp.DashboardURL) != 0 {
 		serviceInstance.DashboardURL = resp.DashboardURL
@@ -950,22 +954,22 @@ func (sp *storePlugin) updateEntityReady(ctx context.Context, storage storage.Re
 	return nil
 }
 
-func findServicePlanIDByCatalogIDs(ctx context.Context, storage storage.Repository, brokerID, catalogServiceID, catalogPlanID string) (string, error) {
+func findServicePlanIDByCatalogIDs(ctx context.Context, storage storage.Repository, brokerID, catalogServiceID, catalogPlanID string) (*types.ServicePlan, error) {
 	byCatalogServiceID := query.ByField(query.EqualsOperator, "catalog_id", catalogServiceID)
 	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", brokerID)
 	serviceOffering, err := storage.Get(ctx, types.ServiceOfferingType, byBrokerID, byCatalogServiceID)
 	if err != nil {
-		return "", util.HandleStorageError(err, string(types.ServiceOfferingType))
+		return nil, util.HandleStorageError(err, string(types.ServiceOfferingType))
 	}
 
 	byServiceOfferingID := query.ByField(query.EqualsOperator, "service_offering_id", serviceOffering.GetID())
 	byCatalogPlanID := query.ByField(query.EqualsOperator, "catalog_id", catalogPlanID)
 	servicePlan, err := storage.Get(ctx, types.ServicePlanType, byServiceOfferingID, byCatalogPlanID)
 	if err != nil {
-		return "", util.HandleStorageError(err, string(types.ServicePlanType))
+		return nil, util.HandleStorageError(err, string(types.ServicePlanType))
 	}
 
-	return servicePlan.GetID(), nil
+	return servicePlan.(*types.ServicePlan), nil
 }
 
 func parseRequestForm(request *web.Request, body commonOSBRequest) error {

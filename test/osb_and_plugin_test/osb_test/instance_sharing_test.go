@@ -94,6 +94,34 @@ var _ = Describe("Instance Sharing", func() {
 			It("creates reference instance successfully", func() {
 				createSharedInstanceAndReference(platform, false)
 			})
+			It("smaap api returns the shared instance object with shared and shareable properties", func() {
+				_, sharedInstanceID := createAndShareInstance(false)
+				VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:    sharedInstanceID,
+					Type:  types.ServiceInstanceType,
+					Ready: true,
+				})
+				// shared instance
+				object := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + sharedInstanceID).
+					Expect().Status(http.StatusOK).
+					JSON().Object()
+				// should contain shared property
+				object.ContainsKey("shared").
+					ValueEqual("shared", true)
+				// should contain shareable property
+				object.ContainsKey("shareable").
+					ValueEqual("shareable", true)
+			})
+			It("smaap api returns the reference instance object with shareable property", func() {
+				_, referenceInstanceID := createSharedInstanceAndReference(platform, false)
+				// reference instance
+				object := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + referenceInstanceID).
+					Expect().Status(http.StatusOK).
+					JSON().Object()
+				// should contain shareable property
+				object.ContainsKey("shareable").
+					ValueEqual("shareable", false)
+			})
 		})
 	})
 
@@ -251,6 +279,36 @@ var _ = Describe("Instance Sharing", func() {
 				body := generateUpdateRequestBody(service2CatalogID, shareablePlanCatalogID, referencePlan.CatalogID, "renamed-shared-instance")()
 				resp := updateInstance(sharedInstanceID, body, http.StatusBadRequest)
 				resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, sharedInstanceID))
+			})
+		})
+		When("updating the shareable property of an instance", func() {
+			platformID := "cf-platform"
+			var sharedInstanceID string
+			BeforeEach(func() {
+				platformJSON = common.MakePlatform(platformID, platformID, "cloudfoundry", "test-platform-cf")
+				instanceSharingBrokerServer.ShouldRecordRequests(true)
+			})
+			JustBeforeEach(func() {
+				_, sharedInstanceID = createAndShareInstance(false)
+				VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:    sharedInstanceID,
+					Type:  types.ServiceInstanceType,
+					Ready: true,
+				})
+				body := generateUpdateRequestBody(service2CatalogID, shareablePlanCatalogID, shareablePlanCatalogID, "new-shared-instance-name")()
+				body["shareable"] = false
+				updateInstance(sharedInstanceID, body, http.StatusOK)
+			})
+			It("should not change the shareable property", func() {
+				object := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + sharedInstanceID).
+					Expect().Status(http.StatusOK).
+					JSON().Object()
+				// should contain shared property
+				object.ContainsKey("shared").
+					ValueEqual("shared", true)
+				// should contain shareable property
+				object.ContainsKey("shareable").
+					ValueEqual("shareable", true)
 			})
 		})
 	})
@@ -455,6 +513,27 @@ var _ = Describe("Instance Sharing", func() {
 				resp.JSON().Object().Value("plan_id").String().Contains(referencePlan.ID)
 				resp.JSON().Object().Value("service_id").String().Contains(service2CatalogID)
 				resp.JSON().Object().Value("parameters").Object().Value("referenced_instance_id").String().Contains(sharedInstanceID)
+			})
+		})
+		When("fetching a shared instance in cf platform", func() {
+			var sharedInstanceID string
+			BeforeEach(func() {
+				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
+			})
+			JustBeforeEach(func() {
+				_, sharedInstanceID = createAndShareInstance(false)
+				VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:    sharedInstanceID,
+					Type:  types.ServiceInstanceType,
+					Ready: true,
+				})
+			})
+			It("fetches shared instance successfully", func() {
+				resp := ctx.SMWithBasic.GET(instanceSharingBrokerPath+"/v2/service_instances/"+sharedInstanceID).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().
+					Status(http.StatusOK)
+				resp.JSON().Object().Value("plan_id").String().Contains(shareablePlanCatalogID)
 			})
 		})
 	})
