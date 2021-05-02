@@ -65,14 +65,19 @@ func (f *platformTerminationFilter) Run(req *web.Request, next web.Handler) (*we
 				StatusCode:  http.StatusUnprocessableEntity,
 			}
 		}
-		sharingReferences, err := findReferencesOfSharedInstancesInOtherPlatforms(ctx, platform, f.repository)
+		instanceInOtherPlatforms, err := hasSharedInstancesInOtherPlatforms(ctx, platform, f.repository)
 		if err != nil {
 			return nil, err
 		}
-		if len(sharingReferences) > 0 {
+
+		if instanceInOtherPlatforms {
+			sharedInstancesReferences, err := findReferencesOfSharedInstancesInOtherPlatforms(ctx, platform, f.repository)
+			if err != nil {
+				return nil, err
+			}
 			return nil, &util.HTTPError{
 				ErrorType:   "UnprocessableEntity",
-				Description: "Platform cannot be deleted because other platform(s) has reference instance(s) to the shared instances in given platform. Details: " + formatSharingReferences(sharingReferences),
+				Description: "Platform cannot be deleted because other platform(s) has reference instance(s) to the shared instances in given platform. Details: " + formatSharingReferences(sharedInstancesReferences),
 				StatusCode:  http.StatusUnprocessableEntity,
 			}
 		}
@@ -93,38 +98,93 @@ type SharingReferences struct {
 	referenceIDs     []string
 }
 
+func hasSharedInstancesInOtherPlatforms(ctx context.Context, platform *types.Platform, repository storage.Repository) (bool, error) {
+
+	sharedInstanceIDs, err := findSharedInstancesInPlatform(ctx, platform, repository)
+	if err != nil {
+		return false, err
+	}
+
+	if len(sharedInstanceIDs) == 0 {
+		return false, nil
+	}
+
+	references, err := repository.Count(ctx,
+		types.ServiceInstanceType,
+		query.ByField(query.InOperator, instance_sharing.ReferencedInstanceIDKey, sharedInstanceIDs...),
+		query.ByField(query.NotEqualsOperator, "platform_id", platform.GetID()))
+
+	if err != nil {
+		return false, util.HandleStorageError(err, types.ServiceInstanceType.String())
+	}
+
+	if references > 0 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 func findReferencesOfSharedInstancesInOtherPlatforms(ctx context.Context, platform *types.Platform, repository storage.Repository) ([]*SharingReferences, error) {
+	sharedInstanceIDs, err := findSharedInstancesInPlatform(ctx, platform, repository)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(sharedInstanceIDs) == 0 {
+		return nil, nil
+	}
+
+	references, err := repository.ListNoLabels(ctx,
+		types.ServiceInstanceType,
+		query.ByField(query.InOperator, instance_sharing.ReferencedInstanceIDKey, sharedInstanceIDs...),
+		query.ByField(query.NotEqualsOperator, "platform_id", platform.GetID()))
+
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+	}
+
+	refBySharedInstanceID := make(map[string][]string)
+
+	for i := 0; i < references.Len(); i++ {
+		referenceInstance := references.ItemAt(i).(*types.ServiceInstance)
+		sharedInstanceID := referenceInstance.ReferencedInstanceID
+		refBySharedInstanceID[sharedInstanceID] = append(refBySharedInstanceID[sharedInstanceID], referenceInstance.GetID())
+	}
+
+	var referencesInOtherPlatforms []*SharingReferences
+
+	for sharedInstanceID, refInstanceIDs := range refBySharedInstanceID {
+		var referenceIDs []string
+		for ri := 0; ri < references.Len(); ri++ {
+			referenceIDs = append(referenceIDs, references.ItemAt(ri).GetID())
+		}
+		referencesInOtherPlatforms = append(referencesInOtherPlatforms, &SharingReferences{
+			sharedInstanceID: sharedInstanceID,
+			referenceIDs:     refInstanceIDs,
+		})
+	}
+
+	return referencesInOtherPlatforms, nil
+}
+
+func findSharedInstancesInPlatform(ctx context.Context, platform *types.Platform, repository storage.Repository) ([]string, error) {
 	sharedInstances, err := repository.ListNoLabels(ctx, types.ServiceInstanceType,
 		query.ByField(query.EqualsOperator, "platform_id", platform.ID),
 		query.ByField(query.EqualsOperator, "shared", "true"),
 	)
+
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
-	var referencesInOtherPlatforms []*SharingReferences
+
+	var sharedInstanceIDs []string
 	for i := 0; i < sharedInstances.Len(); i++ {
 		sharedInstance := sharedInstances.ItemAt(i).(*types.ServiceInstance)
-		references, err := repository.ListNoLabels(
-			ctx,
-			types.ServiceInstanceType,
-			query.ByField(query.EqualsOperator, instance_sharing.ReferencedInstanceIDKey, sharedInstance.GetID()),
-			query.ByField(query.NotEqualsOperator, "platform_id", platform.GetID()),
-		)
-		if err != nil {
-			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
-		}
-		if references.Len() > 0 {
-			var referenceIDs []string
-			for ri := 0; ri < references.Len(); ri++ {
-				referenceIDs = append(referenceIDs, references.ItemAt(ri).GetID())
-			}
-			referencesInOtherPlatforms = append(referencesInOtherPlatforms, &SharingReferences{
-				sharedInstanceID: sharedInstance.GetID(),
-				referenceIDs:     referenceIDs,
-			})
-		}
+		sharedInstanceIDs = append(sharedInstanceIDs, sharedInstance.GetID())
 	}
-	return referencesInOtherPlatforms, nil
+
+	return sharedInstanceIDs, nil
 }
 
 func (*platformTerminationFilter) FilterMatchers() []web.FilterMatcher {
