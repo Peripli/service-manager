@@ -17,11 +17,8 @@
 package filters
 
 import (
-	"context"
 	"encoding/json"
-	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -103,7 +100,7 @@ func (sf *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.R
 
 	// When un-sharing a service instance with references
 	if persistedInstance.IsShared() && !*reqServiceInstance.Shared {
-		referencesList, err := sf.getInstanceReferencesByID(ctx, persistedInstance.ID)
+		referencesList, err := storage.GetInstanceReferencesByID(ctx, sf.storageRepository, persistedInstance.ID)
 
 		if err != nil {
 			logger.Errorf("Could not retrieve references of the service instance (%s): %v", instanceID, err)
@@ -142,15 +139,4 @@ func validateRequestContainsSingleProperty(reqInstanceBytes []byte, instanceID s
 	}
 
 	return nil
-}
-
-func (sf *sharingInstanceFilter) getInstanceReferencesByID(ctx context.Context, instanceID string) (types.ObjectList, error) {
-	references, err := sf.storageRepository.List(
-		ctx,
-		types.ServiceInstanceType,
-		query.ByField(query.EqualsOperator, instance_sharing.ReferencedInstanceIDKey, instanceID))
-	if err != nil {
-		return nil, err
-	}
-	return references, nil
 }
