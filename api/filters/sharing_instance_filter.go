@@ -95,25 +95,31 @@ func (sf *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.
 		return nil, err
 	}
 
-	if reqServiceInstance.Shared == nil {
-		return next.Handle(req)
-	}
-
-	instanceID := req.PathParams["resource_id"]
-	//we cannot use reqServiceInstance in this validation because the struct has default values (like "" for string type properties)
-	err = validateRequestContainsSingleProperty(req.Body, instanceID)
-	if err != nil {
-		return nil, err
-	}
-
 	ctx := req.Context()
-	logger := log.C(ctx)
+	instanceID := req.PathParams["resource_id"]
 
 	// Get instance from database
 	persistedInstance, err := sf.retrievePersistedInstanceByID(ctx, instanceID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
+
+	// we don't allow changing plan of shared instance
+	if persistedInstance.Shared != nil && *persistedInstance.Shared && persistedInstance.ServicePlanID != reqServiceInstance.ServicePlanID {
+		return nil, util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, persistedInstance.ID)
+	}
+
+	if reqServiceInstance.Shared == nil {
+		return next.Handle(req)
+	}
+
+	//we cannot use reqServiceInstance in this validation because the struct has default values (like "" for string type properties)
+	err = validateRequestContainsSingleProperty(req.Body, instanceID)
+	if err != nil {
+		return nil, err
+	}
+
+	logger := log.C(ctx)
 
 	// Get plan object from database, on service_instance patch flow
 	planID := persistedInstance.ServicePlanID

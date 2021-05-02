@@ -2206,6 +2206,18 @@ var _ = DescribeTestsFor(TestCase{
 							resp.JSON().Object().Equal(expectedError)
 
 						})
+						It("fails changing the instance plan", func() {
+							referencePlan := GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
+							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
+							delete(postInstanceRequestTLS, "shared")
+							postInstanceRequestTLS["service_plan_id"] = referencePlan.ID
+							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
+								WithQuery("async", "false").
+								WithJSON(postInstanceRequestTLS).
+								Expect().
+								Status(http.StatusBadRequest).
+								JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, instanceID))
+						})
 					})
 				})
 				Context("Instance is shared", func() {
@@ -2248,19 +2260,17 @@ var _ = DescribeTestsFor(TestCase{
 							Status(http.StatusOK).
 							JSON().Object().ValueEqual("shared", false)
 					})
-					When("renaming instance name", func() {
-						It("successfully renames the instance", func() {
-							delete(postInstanceRequestTLS, "shared")
-							postInstanceRequestTLS["name"] = "renamed"
-							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
-								WithQuery("async", "false").
-								WithJSON(postInstanceRequestTLS).
-								Expect().
-								Status(http.StatusOK).
-								JSON().Object().
-								ValueEqual("shared", true).
-								ValueEqual("name", "renamed")
-						})
+					It("should succeed renaming instance name", func() {
+						delete(postInstanceRequestTLS, "shared")
+						postInstanceRequestTLS["name"] = "renamed"
+						ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
+							WithQuery("async", "false").
+							WithJSON(postInstanceRequestTLS).
+							Expect().
+							Status(http.StatusOK).
+							JSON().Object().
+							ValueEqual("shared", true).
+							ValueEqual("name", "renamed")
 					})
 				})
 
