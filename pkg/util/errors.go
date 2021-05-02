@@ -211,7 +211,7 @@ func HandleReferencesError(err error, guidsArray []string) error {
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrUnsharingInstanceWithReferences:
-		errorMessage := fmt.Sprintf("Couldn't un-share the service instance. Before you can un-share it, you first need to delete these %d references: %s", len(guidsArray), guidsArray)
+		errorMessage := fmt.Sprintf("Couldn't unshare the service instance. Before you can unshare it, you first need to delete these %d references: %s", len(guidsArray), guidsArray)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
@@ -275,7 +275,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrChangingPlanOfSharedInstance:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("Couldn't update the instance's plan. The instance %s is shared, therefore you must un-share it first.", entityName),
+			Description: fmt.Sprintf("Couldn't update the instance's plan. The instance %s is shared, therefore you must unshare it first.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrChangingParametersOfReferenceInstance:
@@ -303,14 +303,14 @@ func HandleInstanceSharingError(err error, entityName string) error {
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrSharedPlanHasReferences:
-		errorMessage := fmt.Sprintf("Couldn't update the service plan. Before you can set it as supportInstanceSharing=false, you first need to un-share the instances of the plan: %s.", entityName)
+		errorMessage := fmt.Sprintf("Couldn't update the service plan. Before you can set it as supportInstanceSharing=false, you first need to unshare the instances of the plan: %s.", entityName)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrInvalidShareRequest:
-		errorMessage := fmt.Sprintf("Couldn't set the 'shared' property of the instance %s with other changes at the same time.", entityName)
+		errorMessage := fmt.Sprintf("Couldn't set the shared property of the instance %s with other changes at the same time.", entityName)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
