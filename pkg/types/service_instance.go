@@ -93,3 +93,7 @@ func (e *ServiceInstance) Validate() error {
 
 	return nil
 }
+
+func (e *ServiceInstance) IsShared() bool {
+	return e.Shared != nil && *e.Shared
+}

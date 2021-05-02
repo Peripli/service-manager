@@ -147,7 +147,7 @@ func modifyRequestURLPath(ctx context.Context, m []string, modifiedRequest *http
 
 func isReferenceBinding(ctx context.Context) bool {
 	instanceFromContext, exists := types.SharedInstanceFromContext(ctx)
-	return exists && instanceFromContext.Shared != nil && *instanceFromContext.Shared
+	return exists && instanceFromContext.IsShared()
 }
 
 func getPathForInstanceSharing(ctx context.Context, currentPath string) string {

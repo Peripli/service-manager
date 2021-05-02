@@ -100,7 +100,7 @@ func (referencePlugin *referenceInstancePlugin) Deprovision(req *web.Request, ne
 		return next.Handle(req)
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
-	if instance.Shared != nil && *instance.Shared {
+	if instance.IsShared() {
 		return deprovisionSharedInstance(ctx, referencePlugin.repository, req, instance, next)
 	}
 	isReferencePlan, err := storage.IsReferencePlan(ctx, referencePlugin.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
@@ -141,7 +141,7 @@ func (referencePlugin *referenceInstancePlugin) UpdateService(req *web.Request, 
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
 
-	if instance.Shared != nil && *instance.Shared {
+	if instance.IsShared() {
 		return updateSharedInstance(ctx, referencePlugin.repository, req, instance, next)
 	}
 	isReferencePlan, err := storage.IsReferencePlan(ctx, referencePlugin.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)

@@ -70,7 +70,7 @@ func IsReferencedShared(ctx context.Context, repository Repository, referencedIn
 	}
 	referencedInstance := dbReferencedObject.(*types.ServiceInstance)
 
-	if !*referencedInstance.Shared {
+	if !referencedInstance.IsShared() {
 		return false, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, referencedInstanceID)
 	}
 	return true, nil

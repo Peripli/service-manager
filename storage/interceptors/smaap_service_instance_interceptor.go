@@ -433,7 +433,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 		return fmt.Errorf("could not fetch bindings for instance with id %s", instance.ID)
 	}
 
-	if instance.Shared != nil && *instance.Shared {
+	if instance.IsShared() {
 		referencesList, err := storage.GetInstanceReferencesByID(ctx, i.repository, instance.ID)
 		if err != nil {
 			log.C(ctx).Errorf("Could not retrieve references of the service instance (%s)s: %v", instance.ID, err)

@@ -106,7 +106,7 @@ func (sf *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.
 	persistedInstance := dbPersistedInstanceObject.(*types.ServiceInstance)
 
 	// we don't allow changing plan of shared instance
-	if persistedInstance.Shared != nil && *persistedInstance.Shared && persistedInstance.ServicePlanID != reqServiceInstance.ServicePlanID && reqServiceInstance.Shared == nil {
+	if persistedInstance.IsShared() && persistedInstance.ServicePlanID != reqServiceInstance.ServicePlanID && reqServiceInstance.Shared == nil {
 		return nil, util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, persistedInstance.ID)
 	}
 
@@ -135,12 +135,12 @@ func (sf *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.
 		}
 	}
 
-	if persistedInstance.Shared != nil && *persistedInstance.Shared == *reqServiceInstance.Shared {
+	if persistedInstance.IsShared() == *reqServiceInstance.Shared {
 		return nil, util.HandleInstanceSharingError(util.ErrInstanceIsAlreadyAtDesiredSharedState, persistedInstance.ID)
 	}
 
 	// When un-sharing a service instance with references
-	if persistedInstance.Shared != nil && !*reqServiceInstance.Shared {
+	if !persistedInstance.IsShared() {
 		referencesList, err := sf.getInstanceReferencesByID(ctx, persistedInstance.ID)
 
 		if err != nil {
