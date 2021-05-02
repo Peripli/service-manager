@@ -54,6 +54,10 @@ func (sf *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.R
 		return nil, err
 	}
 
+	if reqServiceInstance.Shared == nil {
+		return next.Handle(req)
+	}
+
 	ctx := req.Context()
 	instanceID := req.PathParams["resource_id"]
 
@@ -67,10 +71,6 @@ func (sf *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.R
 	// we don't allow changing plan of shared instance
 	if persistedInstance.IsShared() && persistedInstance.ServicePlanID != reqServiceInstance.ServicePlanID && reqServiceInstance.Shared == nil {
 		return nil, util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, persistedInstance.ID)
-	}
-
-	if reqServiceInstance.Shared == nil {
-		return next.Handle(req)
 	}
 
 	isAsync := req.URL.Query().Get(web.QueryParamAsync)
