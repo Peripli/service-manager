@@ -3881,6 +3881,9 @@ var _ = DescribeTestsFor(TestCase{
 					brokerServer.ShouldRecordRequests(true)
 					EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 				})
+				AfterEach(func() {
+					ctx.CleanupAdditionalResources()
+				})
 				Context("with existing instances", func() {
 					var sharedInstanceID = ""
 					var referenceInstanceID = ""
@@ -4189,15 +4192,16 @@ var _ = DescribeTestsFor(TestCase{
 
 								})
 								It("fails changing the instance plan", func() {
-									EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
 									delete(postInstanceRequestTLS, "shared")
-									postInstanceRequestTLS["service_plan_id"] = referencePlan.ID
-									ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
+									postInstanceRequestTLS["service_plan_id"] = "new-plan"
+									resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
 										WithQuery("async", "false").
 										WithJSON(postInstanceRequestTLS).
 										Expect().
-										Status(http.StatusBadRequest).
-										JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, instanceID))
+										Status(http.StatusBadRequest)
+
+									resp.JSON().Object().
+										Equal(util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, sharedInstanceID))
 								})
 								It("should keep the shareable property unchanged", func() {
 									delete(postInstanceRequestTLS, "shared")
