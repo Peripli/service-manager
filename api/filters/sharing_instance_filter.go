@@ -99,10 +99,11 @@ func (sf *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.
 	instanceID := req.PathParams["resource_id"]
 
 	// Get instance from database
-	persistedInstance, err := sf.retrievePersistedInstanceByID(ctx, instanceID)
+	dbPersistedInstanceObject, err := storage.GetObjectByField(ctx, sf.storageRepository, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+		return nil, err
 	}
+	persistedInstance := dbPersistedInstanceObject.(*types.ServiceInstance)
 
 	// we don't allow changing plan of shared instance
 	if persistedInstance.Shared != nil && *persistedInstance.Shared && persistedInstance.ServicePlanID != reqServiceInstance.ServicePlanID && reqServiceInstance.Shared == nil {
@@ -122,13 +123,11 @@ func (sf *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.
 	logger := log.C(ctx)
 
 	// Get plan object from database, on service_instance patch flow
-	planID := persistedInstance.ServicePlanID
-	byID := query.ByField(query.EqualsOperator, "id", planID)
-	planObject, err := sf.storageRepository.Get(ctx, types.ServicePlanType, byID)
+	dbPlanObject, err := storage.GetObjectByField(ctx, sf.storageRepository, types.ServicePlanType, "id", persistedInstance.ServicePlanID)
 	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServicePlanType.String())
+		return nil, err
 	}
-	plan := planObject.(*types.ServicePlan)
+	plan := dbPlanObject.(*types.ServicePlan)
 
 	if !plan.IsShareablePlan() {
 		return nil, &util.UnsupportedQueryError{
@@ -155,11 +154,4 @@ func (sf *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.
 
 	log.C(ctx).Infof("Reference Instance Update passed successfully. InstanceID: \"%s\"", instanceID)
 	return next.Handle(req)
-}
-
-func (sf *sharingInstanceFilter) retrievePersistedInstanceByID(ctx context.Context, instanceID string) (*types.ServiceInstance, error) {
-	byID := query.ByField(query.EqualsOperator, "id", instanceID)
-	dbInstanceObject, err := sf.storageRepository.Get(ctx, types.ServiceInstanceType, byID)
-	persistedInstance := dbInstanceObject.(*types.ServiceInstance)
-	return persistedInstance, err
 }

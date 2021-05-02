@@ -2,10 +2,15 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/tidwall/gjson"
+	"net/http"
 )
 
 func GetServiceOfferingByServiceInstanceId(repository Repository, ctx context.Context, serviceInstanceId string) (*types.ServiceOffering, error) {
@@ -38,7 +43,7 @@ func GetObjectByField(ctx context.Context, repository Repository, objectType typ
 	return dbObject, nil
 }
 
-func IsReferencePlan(ctx context.Context, repository TransactionalRepository, objectType, byKey, servicePlanID string) (bool, error) {
+func IsReferencePlan(ctx context.Context, repository Repository, objectType, byKey, servicePlanID string) (bool, error) {
 	dbPlanObject, err := GetObjectByField(ctx, repository, types.ObjectType(objectType), byKey, servicePlanID)
 	if err != nil {
 		return false, err
@@ -56,4 +61,39 @@ func GetInstanceReferencesByID(ctx context.Context, repository Repository, insta
 		return nil, err
 	}
 	return references, nil
+}
+
+func IsReferencedShared(ctx context.Context, repository Repository, referencedInstanceID string) (bool, error) {
+	dbReferencedObject, err := GetObjectByField(ctx, repository, types.ServiceInstanceType, "id", referencedInstanceID)
+	if err != nil {
+		return false, util.HandleStorageError(err, types.ServiceInstanceType.String())
+	}
+	referencedInstance := dbReferencedObject.(*types.ServiceInstance)
+
+	if !*referencedInstance.Shared {
+		return false, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, referencedInstanceID)
+	}
+	return true, nil
+}
+
+func ValidateOwnership(repository Repository, tenantIdentifier string, req *web.Request, callerTenantID string) error {
+	ctx := req.Context()
+	path := fmt.Sprintf("parameters.%s", instance_sharing.ReferencedInstanceIDKey)
+	referencedInstanceID := gjson.GetBytes(req.Body, path).String()
+	dbReferencedObject, err := GetObjectByField(ctx, repository, types.ServiceInstanceType, "id", referencedInstanceID)
+	if err != nil {
+		return err
+	}
+	instance := dbReferencedObject.(*types.ServiceInstance)
+	sharedInstanceTenantID := instance.Labels[tenantIdentifier][0]
+
+	if sharedInstanceTenantID != callerTenantID {
+		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", sharedInstanceTenantID, callerTenantID)
+		return &util.HTTPError{
+			ErrorType:   "NotFound",
+			Description: "could not find such service instance",
+			StatusCode:  http.StatusNotFound,
+		}
+	}
+	return nil
 }

@@ -71,7 +71,9 @@ func (referencePlugin *referenceInstancePlugin) Provision(req *web.Request, next
 
 	// Ownership validation
 	if referencePlugin.tenantIdentifier != "" {
-		err = referencePlugin.validateOwnership(req)
+		tenantPath := fmt.Sprintf("context.%s", referencePlugin.tenantIdentifier)
+		callerTenantID := gjson.GetBytes(req.Body, tenantPath).String()
+		err = storage.ValidateOwnership(referencePlugin.repository, referencePlugin.tenantIdentifier, req, callerTenantID)
 		if err != nil {
 			return nil, err
 		}
@@ -81,7 +83,7 @@ func (referencePlugin *referenceInstancePlugin) Provision(req *web.Request, next
 	if !exists {
 		return nil, util.HandleInstanceSharingError(util.ErrMissingReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
 	}
-	_, err = referencePlugin.isReferencedShared(ctx, referencedInstanceID.String())
+	_, err = storage.IsReferencedShared(ctx, referencePlugin.repository, referencedInstanceID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -257,45 +259,6 @@ func (referencePlugin *referenceInstancePlugin) PollBinding(req *web.Request, ne
 	return referencePlugin.handleBinding(req, next)
 }
 
-func (referencePlugin *referenceInstancePlugin) validateOwnership(req *web.Request) error {
-	ctx := req.Context()
-	path := fmt.Sprintf("parameters.%s", instance_sharing.ReferencedInstanceIDKey)
-	referencedInstanceID := gjson.GetBytes(req.Body, path).String()
-	byID := query.ByField(query.EqualsOperator, "id", referencedInstanceID)
-	dbReferencedObject, err := referencePlugin.repository.Get(ctx, types.ServiceInstanceType, byID)
-	if err != nil {
-		return util.HandleStorageError(err, types.ServiceInstanceType.String())
-	}
-	instance := dbReferencedObject.(*types.ServiceInstance)
-	sharedInstanceTenantID := instance.Labels["tenant"][0]
-	tenantPath := fmt.Sprintf("context.%s", referencePlugin.tenantIdentifier)
-	callerTenantID := gjson.GetBytes(req.Body, tenantPath).String()
-
-	if sharedInstanceTenantID != callerTenantID {
-		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", sharedInstanceTenantID, callerTenantID)
-		return &util.HTTPError{
-			ErrorType:   "NotFound",
-			Description: "could not find such service instance",
-			StatusCode:  http.StatusNotFound,
-		}
-	}
-	return nil
-}
-
-func (referencePlugin *referenceInstancePlugin) isReferencedShared(ctx context.Context, referencedInstanceID string) (bool, error) {
-	byID := query.ByField(query.EqualsOperator, "id", referencedInstanceID)
-	dbReferencedObject, err := referencePlugin.repository.Get(ctx, types.ServiceInstanceType, byID)
-	if err != nil {
-		return false, util.HandleStorageError(err, types.ServiceInstanceType.String())
-	}
-	referencedInstance := dbReferencedObject.(*types.ServiceInstance)
-
-	if !*referencedInstance.Shared {
-		return false, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, referencedInstanceID)
-	}
-	return true, nil
-}
-
 func isValidReferenceInstancePatchRequest(req *web.Request, instance *types.ServiceInstance) error {
 	// epsilontal todo: How can we update labels and do we want to allow the change?
 	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
@@ -355,25 +318,19 @@ func (referencePlugin *referenceInstancePlugin) handleBinding(req *web.Request, 
 }
 
 func (referencePlugin *referenceInstancePlugin) getServiceOfferingAndPlanByPlanID(ctx context.Context, planID string) (*types.ServiceOffering, *types.ServicePlan, error) {
-	plan, err := referencePlugin.getPlanByID(ctx, planID)
+	dbPlanObject, err := storage.GetObjectByField(ctx, referencePlugin.repository, types.ServicePlanType, "id", planID)
 	if err != nil {
 		return nil, nil, err
-	}
-	serviceOffering, err := referencePlugin.getServiceOfferingByID(ctx, plan.ServiceOfferingID)
-	if err != nil {
-		return nil, nil, err
-	}
-	return serviceOffering, plan, nil
-}
-
-func (referencePlugin *referenceInstancePlugin) getPlanByID(ctx context.Context, planID string) (*types.ServicePlan, error) {
-	byID := query.ByField(query.EqualsOperator, "id", planID)
-	dbPlanObject, err := referencePlugin.repository.Get(ctx, types.ServicePlanType, byID)
-	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServicePlanType.String())
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
-	return plan, nil
+
+	dbServiceOfferingObject, err := storage.GetObjectByField(ctx, referencePlugin.repository, types.ServiceOfferingType, "id", plan.ServiceOfferingID)
+	if err != nil {
+		return nil, nil, err
+	}
+	serviceOffering := dbServiceOfferingObject.(*types.ServiceOffering)
+
+	return serviceOffering, plan, nil
 }
 
 func (referencePlugin *referenceInstancePlugin) getServiceOfferingByID(ctx context.Context, serviceOfferingID string) (*types.ServiceOffering, error) {

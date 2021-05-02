@@ -17,9 +17,7 @@
 package filters
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -126,7 +124,8 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 
 	// Ownership validation
 	if rif.tenantIdentifier != "" {
-		err = rif.validateOwnership(req)
+		callerTenantID := query.RetrieveFromCriteria(rif.tenantIdentifier, query.CriteriaForContext(req.Context())...)
+		err = storage.ValidateOwnership(rif.repository, rif.tenantIdentifier, req, callerTenantID)
 		if err != nil {
 			return nil, err
 		}
@@ -143,7 +142,7 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 	if err != nil {
 		return nil, err
 	}
-	_, err = rif.isReferencedShared(ctx, referencedInstanceID.String())
+	_, err = storage.IsReferencedShared(ctx, rif.repository, referencedInstanceID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -175,20 +174,6 @@ func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next w
 	return next.Handle(req)
 }
 
-func (rif *referenceInstanceFilter) isReferencedShared(ctx context.Context, referencedInstanceID string) (bool, error) {
-	byID := query.ByField(query.EqualsOperator, "id", referencedInstanceID)
-	dbReferencedObject, err := rif.repository.Get(ctx, types.ServiceInstanceType, byID)
-	if err != nil {
-		return false, util.HandleStorageError(err, types.ServiceInstanceType.String())
-	}
-	referencedInstance := dbReferencedObject.(*types.ServiceInstance)
-
-	if !*referencedInstance.Shared {
-		return false, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, referencedInstanceID)
-	}
-	return true, nil
-}
-
 func (rif *referenceInstanceFilter) isValidPatchRequest(req *web.Request, instance *types.ServiceInstance) (bool, error) {
 	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	if instance.ServicePlanID != newPlanID {
@@ -201,27 +186,4 @@ func (rif *referenceInstanceFilter) isValidPatchRequest(req *web.Request, instan
 	}
 
 	return true, nil
-}
-
-func (rif *referenceInstanceFilter) validateOwnership(req *web.Request) error {
-	ctx := req.Context()
-	referencedInstancePath := fmt.Sprintf("parameters.%s", instance_sharing.ReferencedInstanceIDKey)
-	referencedInstanceID := gjson.GetBytes(req.Body, referencedInstancePath).String()
-	dbReferencedObject, err := storage.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", referencedInstanceID)
-	if err != nil {
-		return err
-	}
-	instance := dbReferencedObject.(*types.ServiceInstance)
-	sharedInstanceTenantID := instance.Labels[rif.tenantIdentifier][0]
-	callerTenantID := query.RetrieveFromCriteria(rif.tenantIdentifier, query.CriteriaForContext(req.Context())...)
-
-	if sharedInstanceTenantID != callerTenantID {
-		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", sharedInstanceTenantID, callerTenantID)
-		return &util.HTTPError{
-			ErrorType:   "UnsupportedContextUpdate",
-			Description: "could not find such service instance",
-			StatusCode:  http.StatusBadRequest,
-		}
-	}
-	return nil
 }
