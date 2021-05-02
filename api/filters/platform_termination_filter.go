@@ -155,10 +155,6 @@ func findReferencesOfSharedInstancesInOtherPlatforms(ctx context.Context, platfo
 	var referencesInOtherPlatforms []*SharingReferences
 
 	for sharedInstanceID, refInstanceIDs := range refBySharedInstanceID {
-		var referenceIDs []string
-		for ri := 0; ri < references.Len(); ri++ {
-			referenceIDs = append(referenceIDs, references.ItemAt(ri).GetID())
-		}
 		referencesInOtherPlatforms = append(referencesInOtherPlatforms, &SharingReferences{
 			sharedInstanceID: sharedInstanceID,
 			referenceIDs:     refInstanceIDs,
