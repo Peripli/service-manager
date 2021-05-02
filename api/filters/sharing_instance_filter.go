@@ -47,47 +47,6 @@ func (*sharingInstanceFilter) Name() string {
 }
 
 func (sf *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	return sf.handleServiceUpdate(req, next)
-}
-
-func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
-	return []web.FilterMatcher{
-		{
-			Matchers: []web.Matcher{
-				web.Path(web.ServiceInstancesURL + "/**"),
-				web.Methods(http.MethodPatch),
-			},
-		},
-	}
-}
-
-func validateRequestContainsSingleProperty(reqInstanceBytes []byte, instanceID string) error {
-	var reqAsMap map[string]interface{}
-	err := json.Unmarshal(reqInstanceBytes, &reqAsMap)
-
-	if err != nil {
-		return err
-	}
-
-	if len(reqAsMap) > 1 {
-		return util.HandleInstanceSharingError(util.ErrInvalidShareRequest, instanceID)
-	}
-
-	return nil
-}
-
-func (sf *sharingInstanceFilter) getInstanceReferencesByID(ctx context.Context, instanceID string) (types.ObjectList, error) {
-	references, err := sf.storageRepository.List(
-		ctx,
-		types.ServiceInstanceType,
-		query.ByField(query.EqualsOperator, instance_sharing.ReferencedInstanceIDKey, instanceID))
-	if err != nil {
-		return nil, err
-	}
-	return references, nil
-}
-
-func (sf *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.Handler) (*web.Response, error) {
 	var reqServiceInstance types.ServiceInstance
 	err := util.BytesToObjectNoLabels(req.Body, &reqServiceInstance)
 
@@ -154,4 +113,41 @@ func (sf *sharingInstanceFilter) handleServiceUpdate(req *web.Request, next web.
 
 	log.C(ctx).Infof("Reference Instance Update passed successfully. InstanceID: \"%s\"", instanceID)
 	return next.Handle(req)
+}
+
+func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
+		{
+			Matchers: []web.Matcher{
+				web.Path(web.ServiceInstancesURL + "/**"),
+				web.Methods(http.MethodPatch),
+			},
+		},
+	}
+}
+
+func validateRequestContainsSingleProperty(reqInstanceBytes []byte, instanceID string) error {
+	var reqAsMap map[string]interface{}
+	err := json.Unmarshal(reqInstanceBytes, &reqAsMap)
+
+	if err != nil {
+		return err
+	}
+
+	if len(reqAsMap) > 1 {
+		return util.HandleInstanceSharingError(util.ErrInvalidShareRequest, instanceID)
+	}
+
+	return nil
+}
+
+func (sf *sharingInstanceFilter) getInstanceReferencesByID(ctx context.Context, instanceID string) (types.ObjectList, error) {
+	references, err := sf.storageRepository.List(
+		ctx,
+		types.ServiceInstanceType,
+		query.ByField(query.EqualsOperator, instance_sharing.ReferencedInstanceIDKey, instanceID))
+	if err != nil {
+		return nil, err
+	}
+	return references, nil
 }

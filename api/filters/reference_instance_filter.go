@@ -165,25 +165,11 @@ func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next w
 		return next.Handle(req)
 	}
 
-	_, err = rif.isValidReferencePatchRequest(req, instance)
+	err = storage.IsValidReferenceInstancePatchRequest(req, instance, planIDProperty)
 	if err != nil {
 		return nil, err
 	}
 
 	log.C(ctx).Infof("Reference Instance Update passed successfully, instanceID: \"%s\"", resourceID)
 	return next.Handle(req)
-}
-
-func (rif *referenceInstanceFilter) isValidReferencePatchRequest(req *web.Request, instance *types.ServiceInstance) (bool, error) {
-	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
-	if instance.ServicePlanID != newPlanID {
-		return false, util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, instance.ID)
-	}
-
-	parametersRaw := gjson.GetBytes(req.Body, "parameters").Raw
-	if parametersRaw != "" {
-		return false, util.HandleInstanceSharingError(util.ErrChangingParametersOfReferenceInstance, instance.ID)
-	}
-
-	return true, nil
 }

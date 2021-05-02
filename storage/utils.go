@@ -97,3 +97,18 @@ func ValidateOwnership(repository Repository, tenantIdentifier string, req *web.
 	}
 	return nil
 }
+
+func IsValidReferenceInstancePatchRequest(req *web.Request, instance *types.ServiceInstance, planIDProperty string) error {
+	// epsilontal todo: How can we update labels and do we want to allow the change?
+	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
+	if instance.ServicePlanID != newPlanID {
+		return util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, instance.ID)
+	}
+
+	parametersRaw := gjson.GetBytes(req.Body, "parameters").Raw
+	if parametersRaw != "" {
+		return util.HandleInstanceSharingError(util.ErrChangingParametersOfReferenceInstance, instance.ID)
+	}
+
+	return nil
+}
