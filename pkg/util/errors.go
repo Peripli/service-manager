@@ -107,6 +107,9 @@ var (
 	// ErrSharedInstanceHasReferences error returned when shared instance has references
 	ErrSharedInstanceHasReferences = errors.New("shared instance has references")
 
+	// ErrUnsharingInstanceWithReferences error returned when un-sharing an instance with references
+	ErrUnsharingInstanceWithReferences = errors.New("failed un-sharing instance with references")
+
 	// ErrAlreadyExistsInStorage error returned from storage when entity has conflicting fields
 	ErrAlreadyExistsInStorage = errors.New("unique constraint violation")
 
@@ -202,6 +205,13 @@ func HandleReferencesError(err error, guidsArray []string) error {
 	switch err {
 	case ErrSharedInstanceHasReferences:
 		errorMessage := fmt.Sprintf("Couldn't delete the service instance. Before you can delete it, you first need to delete these %d references: %s", len(guidsArray), guidsArray)
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: errorMessage,
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrUnsharingInstanceWithReferences:
+		errorMessage := fmt.Sprintf("Couldn't un-share the service instance. Before you can un-share it, you first need to delete these %d references: %s", len(guidsArray), guidsArray)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,

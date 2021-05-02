@@ -8,6 +8,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gavv/httpexpect"
+	"github.com/gofrs/uuid"
 	"net/http"
 )
 
@@ -97,10 +98,10 @@ func GetPlanByKey(ctx *TestContext, byKeyName, planCatalogID string) *types.Serv
 	return planObject.(*types.ServicePlan)
 }
 
-func CreateReferenceInstance(ctx *TestContext, async bool, expectedStatusCode int, referencedInstanceID, referencePlanID, tenantIdentifier, tenantIDValue string) *httpexpect.Response {
-	// epsilontal todo: extract the context from the body request and pass it using a new test-filter, in order to test the ownership.
+func CreateReferenceInstance(ctx *TestContext, async bool, expectedStatusCode int, referencedInstanceID, referencePlanID string) *httpexpect.Response {
+	ID, _ := uuid.NewV4()
 	requestBody := Object{
-		"name":             "reference-instance",
+		"name":             "reference-instance-" + ID.String(),
 		"service_plan_id":  referencePlanID,
 		"maintenance_info": "{}",
 		"parameters": map[string]string{
@@ -118,9 +119,6 @@ func CreateReferenceInstance(ctx *TestContext, async bool, expectedStatusCode in
 
 		obj.ContainsKey("id").
 			ValueEqual("platform_id", types.SMPlatform)
-
-		// todo: consider returning the instanceID in order to update the test object
-		//instanceID = obj.Value("id").String().Raw()
 	}
 
 	return resp

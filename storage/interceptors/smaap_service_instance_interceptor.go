@@ -255,7 +255,7 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 		}
 
 		if updatedInstance.ReferencedInstanceID != "" {
-			log.C(ctx).Infof("Service Instance Interceptor updates the reference instance \"%s\", which points to instance-id: \"%s\"", updatedInstance.ID, updatedInstance.ReferencedInstanceID)
+			log.C(ctx).Infof("Service Instance Interceptor is updating the reference instance %s, which points to the instance: %s", updatedInstance.ID, updatedInstance.ReferencedInstanceID)
 			UpdatedObject, err := f(ctx, updatedObj)
 			return UpdatedObject, err
 		}

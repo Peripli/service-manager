@@ -54,23 +54,21 @@ func (sf *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.R
 		return nil, err
 	}
 
-	if reqServiceInstance.Shared == nil {
-		return next.Handle(req)
-	}
-
 	ctx := req.Context()
 	instanceID := req.PathParams["resource_id"]
 
 	// Get instance from database
 	dbPersistedInstanceObject, err := storage.GetObjectByField(ctx, sf.storageRepository, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
-		return nil, err
+		return next.Handle(req)
 	}
 	persistedInstance := dbPersistedInstanceObject.(*types.ServiceInstance)
-
-	// we don't allow changing plan of shared instance
 	if persistedInstance.IsShared() && persistedInstance.ServicePlanID != reqServiceInstance.ServicePlanID && reqServiceInstance.Shared == nil {
+		// we don't allow changing plan of shared instance
 		return nil, util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, persistedInstance.ID)
+	}
+	if reqServiceInstance.Shared == nil {
+		return next.Handle(req)
 	}
 
 	isAsync := req.URL.Query().Get(web.QueryParamAsync)
@@ -104,7 +102,7 @@ func (sf *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.R
 	}
 
 	// When un-sharing a service instance with references
-	if !persistedInstance.IsShared() {
+	if persistedInstance.IsShared() && !*reqServiceInstance.Shared {
 		referencesList, err := sf.getInstanceReferencesByID(ctx, persistedInstance.ID)
 
 		if err != nil {
@@ -112,7 +110,7 @@ func (sf *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.R
 		}
 
 		if referencesList.Len() > 0 {
-			return nil, util.HandleReferencesError(util.ErrSharedInstanceHasReferences, types.ObjectListIDsToStringArray(referencesList))
+			return nil, util.HandleReferencesError(util.ErrUnsharingInstanceWithReferences, types.ObjectListIDsToStringArray(referencesList))
 		}
 	}
 
