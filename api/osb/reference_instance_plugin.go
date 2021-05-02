@@ -139,6 +139,9 @@ func (referencePlugin *referenceInstancePlugin) UpdateService(req *web.Request, 
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
 
+	if instance.Shared != nil && *instance.Shared {
+		return updateSharedInstance(ctx, referencePlugin.repository, req, instance, next)
+	}
 	isReferencePlan, err := storage.IsReferencePlan(ctx, referencePlugin.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
 	if err != nil {
 		return nil, err
@@ -147,12 +150,20 @@ func (referencePlugin *referenceInstancePlugin) UpdateService(req *web.Request, 
 		return next.Handle(req)
 	}
 
-	_, err = referencePlugin.isValidPatchRequest(req, instance)
+	err = isValidReferenceInstancePatchRequest(req, instance)
 	if err != nil {
 		return nil, err
 	}
 
 	return referencePlugin.generateOSBResponse(ctx, UpdateService, nil)
+}
+
+func updateSharedInstance(ctx context.Context, repository storage.Repository, req *web.Request, instance *types.ServiceInstance, next web.Handler) (*web.Response, error) {
+	err := isValidSharedInstancePatchRequest(ctx, repository, req, instance)
+	if err != nil {
+		return nil, err
+	}
+	return next.Handle(req)
 }
 
 // Bind intercepts bind requests and check if the instance is in the platform from where the request comes
@@ -285,19 +296,32 @@ func (referencePlugin *referenceInstancePlugin) isReferencedShared(ctx context.C
 	return true, nil
 }
 
-func (referencePlugin *referenceInstancePlugin) isValidPatchRequest(req *web.Request, instance *types.ServiceInstance) (bool, error) {
+func isValidReferenceInstancePatchRequest(req *web.Request, instance *types.ServiceInstance) error {
 	// epsilontal todo: How can we update labels and do we want to allow the change?
 	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	if instance.ServicePlanID != newPlanID {
-		return false, util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, instance.ID)
+		return util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, instance.ID)
 	}
 
 	parametersRaw := gjson.GetBytes(req.Body, "parameters").Raw
 	if parametersRaw != "" {
-		return false, util.HandleInstanceSharingError(util.ErrChangingParametersOfReferenceInstance, instance.ID)
+		return util.HandleInstanceSharingError(util.ErrChangingParametersOfReferenceInstance, instance.ID)
 	}
 
-	return true, nil
+	return nil
+}
+func isValidSharedInstancePatchRequest(ctx context.Context, repository storage.Repository, req *web.Request, instance *types.ServiceInstance) error {
+	// epsilontal todo: How can we update labels and do we want to allow the change?
+	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
+	dbPlanObject, err := storage.GetObjectByField(ctx, repository, types.ServicePlanType, "id", instance.ServicePlanID)
+	if err != nil {
+		return err
+	}
+	plan := dbPlanObject.(*types.ServicePlan)
+	if plan.CatalogID != newPlanID {
+		return util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, instance.ID)
+	}
+	return nil
 }
 
 func (referencePlugin *referenceInstancePlugin) handleBinding(req *web.Request, next web.Handler) (*web.Response, error) {

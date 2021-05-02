@@ -217,6 +217,7 @@ var (
 	ErrPlanMustBeBindable                    = errors.New("plan must be bindable")
 	ErrReferencedInstanceNotShared           = errors.New("referenced-instance should be shared first")
 	ErrChangingPlanOfReferenceInstance       = errors.New("changing plan of reference instance")
+	ErrChangingPlanOfSharedInstance          = errors.New("changing plan of shared instance")
 	ErrChangingParametersOfReferenceInstance = errors.New("changing parameters of reference instance")
 	ErrMissingReferenceParameter             = errors.New("missing referenced_instance_id parameter")
 	ErrParsingNewCatalogWithReference        = errors.New("failed generating reference-plan")
@@ -258,6 +259,12 @@ func HandleInstanceSharingError(err error, entityName string) error {
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: fmt.Sprintf("Failed to update the instance %s. This is a reference instance, therefore its plan can't be changed.", entityName),
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrChangingPlanOfSharedInstance:
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("Couldn't update the instance's plan. The instance %s is shared, therefore you must un-share it first.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrChangingParametersOfReferenceInstance:
