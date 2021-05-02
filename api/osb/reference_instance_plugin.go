@@ -332,13 +332,3 @@ func (referencePlugin *referenceInstancePlugin) getServiceOfferingAndPlanByPlanI
 
 	return serviceOffering, plan, nil
 }
-
-func (referencePlugin *referenceInstancePlugin) getServiceOfferingByID(ctx context.Context, serviceOfferingID string) (*types.ServiceOffering, error) {
-	byID := query.ByField(query.EqualsOperator, "id", serviceOfferingID)
-	dbServiceOfferingObject, err := referencePlugin.repository.Get(ctx, types.ServiceOfferingType, byID)
-	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServiceOfferingType.String())
-	}
-	serviceOffering := dbServiceOfferingObject.(*types.ServiceOffering)
-	return serviceOffering, nil
-}
