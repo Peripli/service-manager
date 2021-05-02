@@ -140,9 +140,12 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		}
 
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
+
 		if err != nil {
 			return nil, err
 		}
+
+		instance.Shareable = plan.IsShareablePlan()
 
 		if operation.Reschedule {
 			if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
@@ -261,6 +264,8 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 		if err != nil {
 			return nil, err
 		}
+
+		updatedInstance.Shareable = plan.IsShareablePlan()
 
 		if operation.Reschedule {
 			if err := i.pollServiceInstance(ctx, osbClient, updatedInstance, plan, operation, service.CatalogID, plan.CatalogID, false); err != nil {

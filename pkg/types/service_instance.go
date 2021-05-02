@@ -42,6 +42,7 @@ type ServiceInstance struct {
 
 	Parameters map[string]interface{} `json:"parameters,omitempty"`
 	Usable     bool                   `json:"usable"`
+	Shareable  bool                   `json:"shareable"`
 	Shared     *bool                  `json:"shared,omitempty"`
 }
 
@@ -64,6 +65,7 @@ func (e *ServiceInstance) Equals(obj Object) bool {
 		e.DashboardURL != instance.DashboardURL ||
 		e.Ready != instance.Ready ||
 		e.Shared != instance.Shared ||
+		e.Shareable != instance.Shareable ||
 		!reflect.DeepEqual(e.UpdateValues, instance.UpdateValues) ||
 		!reflect.DeepEqual(e.Context, instance.Context) ||
 		!reflect.DeepEqual(e.MaintenanceInfo, instance.MaintenanceInfo) {

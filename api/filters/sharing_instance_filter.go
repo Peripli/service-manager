@@ -73,6 +73,11 @@ func (sf *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.R
 		return next.Handle(req)
 	}
 
+	isAsync := req.URL.Query().Get(web.QueryParamAsync)
+	if isAsync == "true" {
+		return nil, util.HandleInstanceSharingError(util.ErrAsyncNotSupportedForSharing, instanceID)
+	}
+
 	//we cannot use reqServiceInstance in this validation because the struct has default values (like "" for string type properties)
 	err = validateRequestContainsSingleProperty(req.Body, instanceID)
 	if err != nil {

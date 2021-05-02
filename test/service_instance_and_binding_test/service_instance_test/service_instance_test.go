@@ -2210,6 +2210,15 @@ var _ = DescribeTestsFor(TestCase{
 						})
 					})
 					When("updating a shared service instance", func() {
+						FIt("async unsharing", func() {
+							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
+								WithQuery("async", "true").
+								WithJSON(Object{
+									"shared": false,
+								}).
+								Expect().
+								Status(http.StatusBadRequest)
+						})
 						It("fails re-unsharing a non shared instance", func() {
 							resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
 								WithQuery("async", "false").
@@ -2259,7 +2268,7 @@ var _ = DescribeTestsFor(TestCase{
 						})
 					})
 				})
-				Context("Instance is shared", func() {
+				Context("instance is shared", func() {
 					BeforeEach(func() {
 						postInstanceRequestTLS["name"] = "shareable-instance-name"
 
@@ -2351,7 +2360,6 @@ var _ = DescribeTestsFor(TestCase{
 
 						})
 					})
-					When("platform is not service-manager", func() {})
 				})
 				for _, testCase := range testCases {
 					testCase := testCase

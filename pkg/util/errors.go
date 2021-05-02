@@ -215,6 +215,7 @@ func HandleReferencesError(err error, guidsArray []string) error {
 var (
 	ErrCatalogUsesReservedPlanName           = errors.New("catalog contains a reserved plan name")
 	ErrPlanMustBeBindable                    = errors.New("plan must be bindable")
+	ErrAsyncNotSupportedForSharing           = errors.New("can't use async for sharing instances")
 	ErrReferencedInstanceNotShared           = errors.New("referenced-instance should be shared first")
 	ErrChangingPlanOfReferenceInstance       = errors.New("changing plan of reference instance")
 	ErrChangingPlanOfSharedInstance          = errors.New("changing plan of shared instance")
@@ -299,14 +300,21 @@ func HandleInstanceSharingError(err error, entityName string) error {
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrInvalidShareRequest:
-		errorMessage := fmt.Sprintf("could not set the 'shared' property of the instance %s with other changes at the same time.", entityName)
+		errorMessage := fmt.Sprintf("Couldn't set the 'shared' property of the instance %s with other changes at the same time.", entityName)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrInstanceIsAlreadyAtDesiredSharedState:
-		errorMessage := fmt.Sprintf("the service instance %s, is already at the desried \"shared\" state", entityName)
+		errorMessage := fmt.Sprintf("The service instance %s, is already at the desried \"shared\" state", entityName)
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: errorMessage,
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrAsyncNotSupportedForSharing:
+		errorMessage := fmt.Sprintf("Async requests are not supported, when changing the 'shared' property of the instance %s.", entityName)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
