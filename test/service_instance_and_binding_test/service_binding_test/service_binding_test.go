@@ -397,10 +397,6 @@ var _ = DescribeTestsFor(TestCase{
 								DeletionScheduled: false,
 							})
 						})
-						AfterEach(func() {
-							err := DeleteBinding(ctx, referenceBindingID, referenceInstanceID)
-							Expect(err).NotTo(HaveOccurred())
-						})
 						It("returns the binding object without communicating the service broker", func() {
 							object := ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + referenceBindingID).Expect().
 								Status(http.StatusOK).
@@ -435,11 +431,7 @@ var _ = DescribeTestsFor(TestCase{
 							DeletionScheduled: false,
 						})
 					})
-					AfterEach(func() {
-						err := DeleteBinding(ctx, referenceBindingID, referenceInstanceID)
-						Expect(err).NotTo(HaveOccurred())
-					})
-					It("deletes the reference binding successfully", func() {
+					It("unbinds the reference-instance successfully", func() {
 						err := DeleteBinding(ctx, referenceBindingID, referenceInstanceID)
 						Expect(err).NotTo(HaveOccurred())
 						VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
@@ -447,7 +439,7 @@ var _ = DescribeTestsFor(TestCase{
 							Type: types.ServiceBindingType,
 						})
 					})
-					It("deletes the shared instance binding successfully", func() {
+					It("unbinds the shared-instance successfully", func() {
 						err := DeleteBinding(ctx, sharedBindingID, sharedInstanceID)
 						Expect(err).NotTo(HaveOccurred())
 						VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
