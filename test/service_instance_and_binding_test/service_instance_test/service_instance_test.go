@@ -2327,6 +2327,22 @@ var _ = DescribeTestsFor(TestCase{
 							ValueEqual("shared", true).
 							ValueEqual("name", "renamed")
 					})
+					When("changing the shareable property of instance", func() {
+						It("should remain unchanged", func() {
+							delete(postInstanceRequestTLS, "shared")
+							postInstanceRequestTLS["name"] = "renamed"
+							postInstanceRequestTLS["shareable"] = false
+							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
+								WithQuery("async", "false").
+								WithJSON(postInstanceRequestTLS).
+								Expect().
+								Status(http.StatusOK).
+								JSON().Object().
+								ValueEqual("shareable", true).
+								ValueEqual("name", "renamed")
+
+						})
+					})
 				})
 				Context("Unshare instance", func() {
 					When("platform is service-manager", func() {
