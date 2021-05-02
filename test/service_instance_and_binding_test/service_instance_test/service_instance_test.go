@@ -2210,14 +2210,15 @@ var _ = DescribeTestsFor(TestCase{
 						})
 					})
 					When("updating a shared service instance", func() {
-						FIt("async unsharing", func() {
-							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
+						It("async unsharing should fail", func() {
+							resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
 								WithQuery("async", "true").
 								WithJSON(Object{
 									"shared": false,
 								}).
 								Expect().
 								Status(http.StatusBadRequest)
+							resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrAsyncNotSupportedForSharing, sharedInstanceID))
 						})
 						It("fails re-unsharing a non shared instance", func() {
 							resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).

@@ -2,7 +2,6 @@ package osb
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
@@ -19,20 +18,6 @@ const ReferenceInstancePluginName = "ReferenceInstancePlugin"
 const planIDProperty = "plan_id"
 
 type OperationCategory string
-
-const (
-	// Provision represents an operation type for creating a resource
-	Provision OperationCategory = "provision"
-
-	// Deprovision represents an operation type for deleting a resource
-	Deprovision OperationCategory = "deprovision"
-
-	// UpdateService represents an operation type for updating a resource
-	UpdateService OperationCategory = "updateservice"
-
-	// FetchService represents an operation type for updating a resource
-	FetchService OperationCategory = "fetchservice"
-)
 
 type referenceInstancePlugin struct {
 	repository       storage.TransactionalRepository
@@ -87,7 +72,7 @@ func (referencePlugin *referenceInstancePlugin) Provision(req *web.Request, next
 	if err != nil {
 		return nil, err
 	}
-	return referencePlugin.generateOSBResponse(ctx, Provision, nil)
+	return util.NewJSONResponse(http.StatusCreated, nil)
 }
 
 // Deprovision intercepts deprovision requests and check if the instance is in the platform from where the request comes
@@ -112,7 +97,7 @@ func (referencePlugin *referenceInstancePlugin) Deprovision(req *web.Request, ne
 		return next.Handle(req)
 	}
 
-	return referencePlugin.generateOSBResponse(ctx, Deprovision, nil)
+	return util.NewJSONResponse(http.StatusOK, nil)
 }
 
 func deprovisionSharedInstance(ctx context.Context, repository storage.TransactionalRepository, req *web.Request, instance *types.ServiceInstance, next web.Handler) (*web.Response, error) {
@@ -157,7 +142,7 @@ func (referencePlugin *referenceInstancePlugin) UpdateService(req *web.Request, 
 		return nil, err
 	}
 
-	return referencePlugin.generateOSBResponse(ctx, UpdateService, nil)
+	return util.NewJSONResponse(http.StatusOK, nil)
 }
 
 func updateSharedInstance(ctx context.Context, repository storage.Repository, req *web.Request, instance *types.ServiceInstance, next web.Handler) (*web.Response, error) {
@@ -201,41 +186,11 @@ func (referencePlugin *referenceInstancePlugin) FetchService(req *web.Request, n
 		return next.Handle(req)
 	}
 
-	return referencePlugin.generateOSBResponse(ctx, FetchService, instance)
-}
-
-func (referencePlugin *referenceInstancePlugin) generateOSBResponse(ctx context.Context, method OperationCategory, instance *types.ServiceInstance) (*web.Response, error) {
-	var marshal []byte
-	headers := http.Header{}
-	headers.Add("Content-Type", "application/json")
-	switch method {
-	case Provision:
-		return &web.Response{
-			Body:       []byte(`{}`),
-			StatusCode: http.StatusCreated,
-			Header:     headers,
-		}, nil
-	case FetchService:
-		osbResponse, err := referencePlugin.buildOSBFetchServiceResponse(ctx, instance)
-		if err != nil {
-			return nil, err
-		}
-		marshal, err = json.Marshal(osbResponse)
-		if err != nil {
-			return nil, err
-		}
-		return &web.Response{
-			Body:       marshal,
-			StatusCode: http.StatusOK,
-			Header:     headers,
-		}, nil
-	default:
-		return &web.Response{
-			Body:       []byte(`{}`),
-			StatusCode: http.StatusOK,
-			Header:     headers,
-		}, nil
+	body, err := referencePlugin.buildOSBFetchServiceResponse(ctx, instance)
+	if err != nil {
+		return nil, err
 	}
+	return util.NewJSONResponse(http.StatusOK, body)
 }
 
 func (referencePlugin *referenceInstancePlugin) buildOSBFetchServiceResponse(ctx context.Context, instance *types.ServiceInstance) (osbObject, error) {
