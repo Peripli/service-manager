@@ -98,6 +98,9 @@ func (referencePlugin *referenceInstancePlugin) Deprovision(req *web.Request, ne
 		return next.Handle(req)
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
+	if instance.Shared != nil && *instance.Shared {
+		return deprovisionSharedInstance(ctx, referencePlugin.repository, req, instance, next)
+	}
 	isReferencePlan, err := storage.IsReferencePlan(ctx, referencePlugin.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
 
 	if err != nil {
@@ -108,6 +111,17 @@ func (referencePlugin *referenceInstancePlugin) Deprovision(req *web.Request, ne
 	}
 
 	return referencePlugin.generateOSBResponse(ctx, Deprovision, nil)
+}
+
+func deprovisionSharedInstance(ctx context.Context, repository storage.TransactionalRepository, req *web.Request, instance *types.ServiceInstance, next web.Handler) (*web.Response, error) {
+	referencesList, err := storage.GetInstanceReferencesByID(ctx, repository, instance.ID)
+	if err != nil {
+		log.C(ctx).Errorf("Could not retrieve references of the service instance (%s)s: %v", instance.ID, err)
+	}
+	if referencesList != nil && referencesList.Len() > 0 {
+		return nil, util.HandleReferencesError(util.ErrSharedInstanceHasReferences, types.ObjectListIDsToStringArray(referencesList))
+	}
+	return next.Handle(req)
 }
 
 // UpdateService intercepts update service instance requests and check if the instance is in the platform from where the request comes

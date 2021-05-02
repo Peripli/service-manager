@@ -46,3 +46,14 @@ func IsReferencePlan(ctx context.Context, repository TransactionalRepository, ob
 	plan := dbPlanObject.(*types.ServicePlan)
 	return plan.Name == instance_sharing.ReferencePlanName, nil
 }
+
+func GetInstanceReferencesByID(ctx context.Context, repository Repository, instanceID string) (types.ObjectList, error) {
+	references, err := repository.List(
+		ctx,
+		types.ServiceInstanceType,
+		query.ByField(query.EqualsOperator, instance_sharing.ReferencedInstanceIDKey, instanceID))
+	if err != nil {
+		return nil, err
+	}
+	return references, nil
+}

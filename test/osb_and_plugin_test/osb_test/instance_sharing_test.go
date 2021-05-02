@@ -39,8 +39,6 @@ var _ = Describe("Instance Sharing", func() {
 	var platformJSON common.Object
 
 	JustBeforeEach(func() {
-		instanceSharingBrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
-		instanceSharingUtils.BrokerWithTLS.BrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
 		platform = common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
 
 		instanceSharingUtils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(utils.SelectBroker(&utils.BrokerWithTLS).GetPlanCatalogId(0, 0), platform.ID, organizationGUID)
@@ -69,6 +67,8 @@ var _ = Describe("Instance Sharing", func() {
 		When("provisioning a reference instance in cf platform", func() {
 			BeforeEach(func() {
 				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
+				instanceSharingBrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
+				instanceSharingUtils.BrokerWithTLS.BrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
 			})
 			It("creates reference instance successfully", func() {
 				createSharedInstanceAndReference(platform, false)
@@ -97,7 +97,7 @@ var _ = Describe("Instance Sharing", func() {
 	})
 
 	Describe("DEPROVISION", func() {
-		When("deprovisioning a reference instance in cf platform", func() {
+		When("deleting a reference instance in cf platform", func() {
 			var referenceInstanceID string
 			BeforeEach(func() {
 				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
@@ -112,6 +112,69 @@ var _ = Describe("Instance Sharing", func() {
 			It("deletes reference instance successfully", func() {
 				_, referenceInstanceID = createSharedInstanceAndReference(platform, false)
 				deleteInstance(referenceInstanceID, http.StatusOK)
+			})
+		})
+		When("a shared instance has existing references", func() {
+			var referenceInstanceID string
+			var sharedInstanceID string
+			BeforeEach(func() {
+				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
+			})
+			JustBeforeEach(func() {
+				_, sharedInstanceID = createAndShareInstance(false)
+				VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:    sharedInstanceID,
+					Type:  types.ServiceInstanceType,
+					Ready: true,
+				})
+			})
+			AfterEach(func() {
+				deleteInstance(referenceInstanceID, http.StatusOK)
+				VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:   referenceInstanceID,
+					Type: types.ServiceInstanceType,
+				})
+				deleteInstance(sharedInstanceID, http.StatusOK)
+				VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:   sharedInstanceID,
+					Type: types.ServiceInstanceType,
+				})
+			})
+			It("fails to delete the shared instance due to existing references", func() {
+				_, referenceInstanceID = createReferenceInstance(platform.ID, sharedInstanceID, false)
+				VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:    referenceInstanceID,
+					Type:  types.ServiceInstanceType,
+					Ready: true,
+				})
+				deleteInstance(sharedInstanceID, http.StatusBadRequest)
+				VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:    referenceInstanceID,
+					Type:  types.ServiceInstanceType,
+					Ready: true,
+				})
+				VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:    sharedInstanceID,
+					Type:  types.ServiceInstanceType,
+					Ready: true,
+				})
+			})
+		})
+		When("a shared instance does not have references", func() {
+			var sharedInstanceID string
+			BeforeEach(func() {
+				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
+			})
+			JustBeforeEach(func() {
+				_, sharedInstanceID = createAndShareInstance(false)
+				VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:    sharedInstanceID,
+					Type:  types.ServiceInstanceType,
+					Ready: true,
+				})
+			})
+			It("deletes the shared instance successfully", func() {
+				deleteInstance(sharedInstanceID, http.StatusOK)
 			})
 		})
 		When("deprovisioning a reference instance in K8S platform", func() {
@@ -134,7 +197,6 @@ var _ = Describe("Instance Sharing", func() {
 			BeforeEach(func() {
 				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 				instanceSharingBrokerServer.ShouldRecordRequests(true)
-				instanceSharingBrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 			})
 			It("should fail updating the reference instance plan", func() {
 				_, referenceInstanceID = createSharedInstanceAndReference(platform, false)
@@ -360,7 +422,6 @@ var _ = Describe("Instance Sharing", func() {
 				sharedInstanceID, referenceInstanceID = createSharedInstanceAndReference(platform, false)
 			})
 			It("fetches reference instance successfully", func() {
-				instanceSharingBrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 				resp := ctx.SMWithBasic.GET(instanceSharingBrokerPath+"/v2/service_instances/"+referenceInstanceID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().

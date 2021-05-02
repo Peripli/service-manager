@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/tidwall/gjson"
 	"math"
 	"net"
@@ -435,7 +434,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 	}
 
 	if instance.Shared != nil && *instance.Shared {
-		referencesList, err := i.getInstanceReferencesByID(ctx, instance.ID)
+		referencesList, err := storage.GetInstanceReferencesByID(ctx, i.repository, instance.ID)
 		if err != nil {
 			log.C(ctx).Errorf("Could not retrieve references of the service instance (%s)s: %v", instance.ID, err)
 		}
@@ -848,17 +847,6 @@ func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(instance *type
 		},
 		OriginatingIdentity: getOriginIdentity(userInfo, instance),
 	}, nil
-}
-
-func (i *ServiceInstanceInterceptor) getInstanceReferencesByID(ctx context.Context, instanceID string) (types.ObjectList, error) {
-	references, err := i.repository.List(
-		ctx,
-		types.ServiceInstanceType,
-		query.ByField(query.EqualsOperator, instance_sharing.ReferencedInstanceIDKey, instanceID))
-	if err != nil {
-		return nil, err
-	}
-	return references, nil
 }
 
 func prepareDeprovisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string, userInfo *types.UserInfo) *osbc.DeprovisionRequest {
