@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/test"
 	"github.com/Peripli/service-manager/test/common"
 	"github.com/gofrs/uuid"
@@ -114,6 +115,18 @@ var _ = Describe("Instance Sharing", func() {
 				deleteInstance(referenceInstanceID, http.StatusOK)
 			})
 		})
+		When("deleting a reference instance in K8S platform", func() {
+			BeforeEach(func() {
+				platformJSON = common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+			})
+			It("deletes reference instance successfully", func() {
+				_, referenceInstanceID := createSharedInstanceAndReference(platform, false)
+				ctx.SMWithBasic.DELETE(instanceSharingBrokerURL+"/v2/service_instances/"+referenceInstanceID).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithQuery(acceptsIncompleteKey, "false").
+					Expect().Status(http.StatusOK)
+			})
+		})
 		When("a shared instance has existing references", func() {
 			var referenceInstanceID string
 			var sharedInstanceID string
@@ -177,18 +190,6 @@ var _ = Describe("Instance Sharing", func() {
 				deleteInstance(sharedInstanceID, http.StatusOK)
 			})
 		})
-		When("deprovisioning a reference instance in K8S platform", func() {
-			BeforeEach(func() {
-				platformJSON = common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
-			})
-			It("deletes reference instance successfully", func() {
-				_, referenceInstanceID := createSharedInstanceAndReference(platform, false)
-				ctx.SMWithBasic.DELETE(instanceSharingBrokerURL+"/v2/service_instances/"+referenceInstanceID).
-					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					WithQuery(acceptsIncompleteKey, "false").
-					Expect().Status(http.StatusOK)
-			})
-		})
 	})
 
 	Describe("PATCH", func() {
@@ -203,10 +204,8 @@ var _ = Describe("Instance Sharing", func() {
 				referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareablePlanCatalogID)
 
 				body := generateUpdateRequestBody(service2CatalogID, referencePlan.CatalogID, shareablePlanCatalogID, "new-reference-name")()
-				expectedErrorDescription := fmt.Sprintf("Failed to update the instance %s. This is a reference instance, therefore its plan can't be changed.", referenceInstanceID)
 				resp := updateInstance(referenceInstanceID, body, http.StatusBadRequest)
-				resp.JSON().Object().ContainsKey("description").
-					ValueEqual("description", expectedErrorDescription)
+				resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, referenceInstanceID))
 			})
 			It("should fail updating the reference instance parameters", func() {
 				_, referenceInstanceID = createSharedInstanceAndReference(platform, false)
@@ -216,16 +215,42 @@ var _ = Describe("Instance Sharing", func() {
 				body["parameters"] = map[string]string{
 					instance_sharing.ReferencedInstanceIDKey: "fake-guid",
 				}
-				expectedErrorDescription := fmt.Sprintf("Failed to update the instance %s. This is a reference instance, therefore its parameters can't be changed.", referenceInstanceID)
 				resp := updateInstance(referenceInstanceID, body, http.StatusBadRequest)
-				resp.JSON().Object().ContainsKey("description").
-					ValueEqual("description", expectedErrorDescription)
+				resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrChangingParametersOfReferenceInstance, referenceInstanceID))
 			})
 			It("should succeed updating the reference instance name", func() {
 				_, referenceInstanceID = createSharedInstanceAndReference(platform, false)
 				referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareablePlanCatalogID)
 				body := generateUpdateRequestBody(service2CatalogID, referencePlan.CatalogID, referencePlan.CatalogID, "new-reference-name")()
 				updateInstance(referenceInstanceID, body, http.StatusOK)
+			})
+		})
+		When("updating a shared instance in cf platform", func() {
+			platformID := "cf-platform"
+			var sharedInstanceID string
+			BeforeEach(func() {
+				platformJSON = common.MakePlatform(platformID, platformID, "cloudfoundry", "test-platform-cf")
+				instanceSharingBrokerServer.ShouldRecordRequests(true)
+			})
+			JustBeforeEach(func() {
+				_, sharedInstanceID = createAndShareInstance(false)
+				VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:    sharedInstanceID,
+					Type:  types.ServiceInstanceType,
+					Ready: true,
+				})
+			})
+			It("should succeed updating the shared instance name", func() {
+				body := generateUpdateRequestBody(service2CatalogID, shareablePlanCatalogID, shareablePlanCatalogID, "new-shared-instance-name")()
+				updateInstance(sharedInstanceID, body, http.StatusOK)
+			})
+			It("should fail updating the shared instance plan", func() {
+				referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareablePlanCatalogID)
+				utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(referencePlan.CatalogID, platformID, organizationGUID)
+
+				body := generateUpdateRequestBody(service2CatalogID, shareablePlanCatalogID, referencePlan.CatalogID, "renamed-shared-instance")()
+				resp := updateInstance(sharedInstanceID, body, http.StatusBadRequest)
+				resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, sharedInstanceID))
 			})
 		})
 	})
