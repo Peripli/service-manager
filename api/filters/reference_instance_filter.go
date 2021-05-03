@@ -146,7 +146,7 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 	}
 
 	if !targetInstance.IsShared() {
-		log.C(ctx).Debugf("The target instance %s is not shared.", targetInstance)
+		log.C(ctx).Debugf("The target instance %s is not shared.", targetInstance.ID)
 		return nil, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, targetInstance.ID)
 	}
 

@@ -80,7 +80,7 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 	}
 
 	if !targetInstance.IsShared() {
-		log.C(ctx).Debugf("The target instance %s is not shared.", targetInstance)
+		log.C(ctx).Debugf("The target instance %s is not shared.", targetInstance.ID)
 		return nil, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, targetInstance.ID)
 	}
 
