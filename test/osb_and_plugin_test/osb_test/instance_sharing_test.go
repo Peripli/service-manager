@@ -514,7 +514,7 @@ var _ = Describe("Instance Sharing", func() {
 			object.Value("service_id").String().Contains(service2CatalogID)
 			object.Value("parameters").Object().Value("referenced_instance_id").String().Contains(sharedInstanceID)
 		})
-		FIt("fetches shared instance successfully", func() {
+		It("fetches shared instance successfully", func() {
 			instanceSharingBrokerServer.ShouldRecordRequests(true)
 			resp := ctx.SMWithBasic.GET(instanceSharingBrokerPath+"/v2/service_instances/"+sharedInstanceID).
 				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
