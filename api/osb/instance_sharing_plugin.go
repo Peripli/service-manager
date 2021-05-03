@@ -58,7 +58,7 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 		return nil, util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
 	}
 
-	// retrieve instance
+	// retrieve the target instance by referencedInstanceID
 	dbTargetInstance, err := storage.GetObjectByField(ctx, is.repository, types.ServiceInstanceType, "id", referencedInstanceID.String())
 	if err != nil {
 		log.C(ctx).Errorf("Failed retrieving the reference-instance by the ID: %s", referencedInstanceID)

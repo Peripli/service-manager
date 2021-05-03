@@ -120,11 +120,11 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 
 	req.Body, err = sjson.SetBytes(req.Body, instance_sharing.ReferencedInstanceIDKey, referencedInstanceID.String())
 	if err != nil {
-		log.C(ctx).Errorf("Unable to set the instance_sharing.ReferencedInstanceIDKey: \"%s\",error details: %s", referencedInstanceID, err)
+		log.C(ctx).Errorf("Unable to set the instance_sharing.ReferencedInstanceIDKey: \"%s\",error details: %s", referencedInstanceID.String(), err)
 		return nil, err
 	}
 
-	// retrieve instance
+	// retrieve the target instance by referencedInstanceID
 	dbTargetInstanceObject, err := storage.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", referencedInstanceID.String())
 	if err != nil {
 		log.C(ctx).Errorf("Failed retrieving the reference-instance by the ID: %s", referencedInstanceID)
