@@ -361,7 +361,7 @@ var _ = Describe("Instance Sharing", func() {
 			})
 		})
 	})
-	FDescribe("BIND", func() {
+	Describe("BIND", func() {
 
 		When("binding a shared instance", func() {
 			var sharedInstanceID string
