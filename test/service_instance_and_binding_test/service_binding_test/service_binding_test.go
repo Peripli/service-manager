@@ -326,23 +326,24 @@ var _ = DescribeTestsFor(TestCase{
 						})
 					})
 					When("binding a reference instance", func() {
-						It("returns 201", func() {
-							createBindingAndValidateSourceAndTarget(referenceInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
-						})
-						It("returns 202", func() {
-							createBindingAndValidateSourceAndTarget(referenceInstanceID, sharedInstanceID, "true", http.StatusAccepted, types.SUCCEEDED)
-						})
-						It("returns 202 when broker responds with async flow", func() {
-							brokerServer.BindingHandlerFunc("PUT", "async-response", func(req *http.Request) (int, map[string]interface{}) {
-								return http.StatusCreated, Object{
-									"async": true,
-									"credentials": Object{
-										"user":     "user",
-										"password": "password",
-									},
-								}
+						When("broker returns sync response", func() {
+							BeforeEach(func() {
+								brokerServer.BindingHandlerFunc("PUT", "async-response", func(req *http.Request) (int, map[string]interface{}) {
+									return http.StatusCreated, Object{
+										"async": true,
+										"credentials": Object{
+											"user":     "user",
+											"password": "password",
+										},
+									}
+								})
 							})
-							createBindingAndValidateSourceAndTarget(referenceInstanceID, sharedInstanceID, "true", http.StatusAccepted, types.SUCCEEDED)
+							It("returns 201", func() {
+								createBindingAndValidateSourceAndTarget(referenceInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
+							})
+							It("returns 202", func() {
+								createBindingAndValidateSourceAndTarget(referenceInstanceID, sharedInstanceID, "true", http.StatusAccepted, types.SUCCEEDED)
+							})
 						})
 					})
 				})

@@ -315,14 +315,80 @@ var _ = Describe("Instance Sharing", func() {
 		})
 	})
 
-	Describe("BIND", func() {
+	Describe("POLL BINDING", func() {
+		When("broker returns async response", func() {
+			var sharedInstanceID, referenceInstanceID, referenceBindingID string
+			BeforeEach(func() {
+				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
+				instanceSharingBrokerServer.BindingHandlerFunc("PUT", "async-put-response", func(req *http.Request) (int, map[string]interface{}) {
+					Expect(req.RequestURI)
+					return http.StatusAccepted, Object{
+						"async": true,
+					}
+				})
+				instanceSharingBrokerServer.BindingHandlerFunc("GET", "async-get-response", func(req *http.Request) (int, map[string]interface{}) {
+					Expect(req.RequestURI)
+					return http.StatusOK, Object{
+						"async": true,
+						"credentials": Object{
+							"user":     "user",
+							"password": "password",
+						},
+					}
+				})
+			})
+			JustBeforeEach(func() {
+				sharedInstanceID, referenceInstanceID = createSharedInstanceAndReference(platform, false)
+				referenceBindingID = createBinding(referenceInstanceID, http.StatusAccepted, "true")
+			})
+			It("returns the credentials of the binding", func() {
+				path := fmt.Sprintf("%s/v2/service_instances/%s/service_bindings/%s/last_operation", instanceSharingBrokerPath, referenceInstanceID, referenceBindingID)
+				ctx.SMWithBasic.GET(path).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusOK)
+
+				path = fmt.Sprintf("/v2/service_instances/%s/service_bindings/%s/last_operation", sharedInstanceID, referenceBindingID)
+				Expect(instanceSharingBrokerServer.LastRequest.RequestURI).To(Equal(path))
+
+				path = fmt.Sprintf("%s/v2/service_instances/%s/service_bindings/%s", instanceSharingBrokerPath, referenceInstanceID, referenceBindingID)
+				object := ctx.SMWithBasic.GET(path).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusOK).JSON().Object()
+				object.ContainsKey("credentials")
+
+				path = fmt.Sprintf("/v2/service_instances/%s/service_bindings/%s", sharedInstanceID, referenceBindingID)
+				Expect(instanceSharingBrokerServer.LastRequest.RequestURI).To(Equal(path))
+			})
+		})
+	})
+	FDescribe("BIND", func() {
+
 		When("binding a shared instance", func() {
+			var sharedInstanceID string
 			BeforeEach(func() {
 				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 				instanceSharingBrokerServer.ShouldRecordRequests(true)
 			})
+			JustBeforeEach(func() {
+				sharedInstanceID, _ = createSharedInstanceAndReference(platform, false)
+			})
+			When("broker returns async response", func() {
+				BeforeEach(func() {
+					instanceSharingBrokerServer.BindingHandlerFunc("PUT", "async-response", func(req *http.Request) (int, map[string]interface{}) {
+						return http.StatusCreated, Object{
+							"async": true,
+							"credentials": Object{
+								"user":     "user",
+								"password": "password",
+							},
+						}
+					})
+				})
+				FIt("returns 202", func() {
+					createBinding(sharedInstanceID, http.StatusAccepted, "true")
+				})
+			})
 			It("creates bindings successfully async=true", func() {
-				sharedInstanceID, _ := createSharedInstanceAndReference(platform, false)
 				bindingID := createBinding(sharedInstanceID, http.StatusCreated, "true")
 
 				lastRequest := instanceSharingBrokerServer.LastRequest
@@ -343,7 +409,6 @@ var _ = Describe("Instance Sharing", func() {
 				Expect(lastRequest.Method).To(ContainSubstring("PUT"))
 			})
 			It("creates bindings successfully async=false", func() {
-				sharedInstanceID, _ := createSharedInstanceAndReference(platform, false)
 				bindingID := createBinding(sharedInstanceID, http.StatusCreated, "false")
 
 				lastRequest := instanceSharingBrokerServer.LastRequest
@@ -533,12 +598,13 @@ func createBinding(instanceID string, expectedStatus int, acceptsIncomplete stri
 	bindingID := UUID.String()
 
 	body := provisionRequestBodyMap()()
-	ctx.SMWithBasic.PUT(instanceSharingBrokerURL+"/v2/service_instances/"+instanceID+"/service_bindings/"+bindingID).
+	resp := ctx.SMWithBasic.PUT(instanceSharingBrokerURL+"/v2/service_instances/"+instanceID+"/service_bindings/"+bindingID).
 		WithQuery(acceptsIncompleteKey, acceptsIncomplete).
 		WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 		WithJSON(body).
-		Expect().
-		Status(expectedStatus)
+		Expect()
+
+	fmt.Print(resp)
 
 	return bindingID
 }
