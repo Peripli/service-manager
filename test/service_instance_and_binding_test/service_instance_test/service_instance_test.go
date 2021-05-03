@@ -4259,9 +4259,6 @@ var _ = DescribeTestsFor(TestCase{
 				})
 				Describe("POST", func() {
 					When("creating a reference instance", func() {
-						var referenceInstanceID = ""
-						var sharedInstanceID = ""
-						var referencePlan *types.ServicePlan
 						BeforeEach(func() {
 							// Create instance and share it
 							resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
