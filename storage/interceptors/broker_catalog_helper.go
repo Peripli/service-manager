@@ -47,7 +47,6 @@ func isBindablePlan(service *types.ServiceOffering, plan *types.ServicePlan) boo
 	if plan.Bindable != nil {
 		return *plan.Bindable
 	}
-
 	return service.Bindable
 }
 
