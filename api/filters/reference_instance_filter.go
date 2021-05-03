@@ -124,10 +124,18 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 		return nil, err
 	}
 
+	// retrieve instance
+	dbTargetInstanceObject, err := storage.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", referencedInstanceID.String())
+	if err != nil {
+		log.C(ctx).Errorf("Failed retrieving the reference-instance by the ID: %s", referencedInstanceID)
+		return nil, util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
+	}
+	targetInstance := dbTargetInstanceObject.(*types.ServiceInstance)
+
 	// Ownership validation
 	if rif.tenantIdentifier != "" {
 		callerTenantID := query.RetrieveFromCriteria(rif.tenantIdentifier, query.CriteriaForContext(req.Context())...)
-		err = storage.ValidateOwnership(rif.repository, rif.tenantIdentifier, req, callerTenantID)
+		err = storage.ValidateOwnership(targetInstance, rif.tenantIdentifier, req, callerTenantID)
 		if err != nil {
 			if err == util.ErrNotFoundInStorage {
 				return nil, util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
@@ -137,11 +145,9 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 		}
 	}
 
-	_, err = storage.IsReferencedShared(ctx, rif.repository, referencedInstanceID.String())
-	if err != nil {
-		log.C(ctx).Errorf("Failed to check if the referenced InstanceID is shared: \"%s\",error details: %s", referencedInstanceID, err)
-		// handled by the IsReferencedShared function
-		return nil, err
+	if !targetInstance.IsShared() {
+		log.C(ctx).Debugf("The target instance %s is not shared.", targetInstance)
+		return nil, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, targetInstance.ID)
 	}
 
 	log.C(ctx).Infof("Reference Instance Provision passed successfully, instanceID: \"%s\"", referencedInstanceID)

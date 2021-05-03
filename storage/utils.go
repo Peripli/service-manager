@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -67,32 +66,9 @@ func GetInstanceReferencesByID(ctx context.Context, repository Repository, insta
 	return references, nil
 }
 
-func IsReferencedShared(ctx context.Context, repository Repository, referencedInstanceID string) (bool, error) {
-	dbReferencedObject, err := GetObjectByField(ctx, repository, types.ServiceInstanceType, "id", referencedInstanceID)
-	if err != nil {
-		return false, util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
-	}
-	referencedInstance := dbReferencedObject.(*types.ServiceInstance)
-
-	if !referencedInstance.IsShared() {
-		log.C(ctx).Debugf("IsReferencedShared failed. The target instance %s is not shared", referencedInstanceID)
-		return false, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, referencedInstanceID)
-	}
-	return true, nil
-}
-
-func ValidateOwnership(repository Repository, tenantIdentifier string, req *web.Request, callerTenantID string) error {
+func ValidateOwnership(referenceInstance *types.ServiceInstance, tenantIdentifier string, req *web.Request, callerTenantID string) error {
 	ctx := req.Context()
-	path := fmt.Sprintf("parameters.%s", instance_sharing.ReferencedInstanceIDKey)
-	referencedInstanceID := gjson.GetBytes(req.Body, path).String()
-	dbReferencedObject, err := GetObjectByField(ctx, repository, types.ServiceInstanceType, "id", referencedInstanceID)
-	if err != nil {
-		log.C(ctx).Errorf("Failed retrieving the reference-instance by the ID: %s", referencedInstanceID)
-		return util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
-	}
-	instance := dbReferencedObject.(*types.ServiceInstance)
-	sharedInstanceTenantID := instance.Labels[tenantIdentifier][0]
-
+	sharedInstanceTenantID := referenceInstance.Labels[tenantIdentifier][0]
 	if sharedInstanceTenantID != callerTenantID {
 		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", sharedInstanceTenantID, callerTenantID)
 		return util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
