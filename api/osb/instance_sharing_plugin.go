@@ -51,20 +51,26 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 		return nil, err
 	}
 
+	parameters := gjson.GetBytes(req.Body, "parameters").Map()
+	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
+
+	if !exists {
+		return nil, util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
+	}
+
 	// Ownership validation
 	if is.tenantIdentifier != "" {
 		tenantPath := fmt.Sprintf("context.%s", is.tenantIdentifier)
 		callerTenantID := gjson.GetBytes(req.Body, tenantPath).String()
 		err = storage.ValidateOwnership(is.repository, is.tenantIdentifier, req, callerTenantID)
 		if err != nil {
+			if err == util.ErrNotFoundInStorage {
+				return nil, util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
+			}
 			return nil, err
 		}
 	}
-	parameters := gjson.GetBytes(req.Body, "parameters").Map()
-	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
-	if !exists {
-		return nil, util.HandleInstanceSharingError(util.ErrMissingReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
-	}
+
 	_, err = storage.IsReferencedShared(ctx, is.repository, referencedInstanceID.String())
 	if err != nil {
 		return nil, err

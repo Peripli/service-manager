@@ -122,30 +122,38 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 		return next.Handle(req)
 	}
 
+	parameters := gjson.GetBytes(req.Body, "parameters").Map()
+
+	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
+	if !exists {
+		return nil, util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
+	}
+
+	req.Body, err = sjson.SetBytes(req.Body, instance_sharing.ReferencedInstanceIDKey, referencedInstanceID.String())
+	if err != nil {
+		log.C(ctx).Errorf("Unable to set the instance_sharing.ReferencedInstanceIDKey: \"%s\",error details: %s", referencedInstanceID, err)
+		return nil, err
+	}
+
 	// Ownership validation
 	if rif.tenantIdentifier != "" {
 		callerTenantID := query.RetrieveFromCriteria(rif.tenantIdentifier, query.CriteriaForContext(req.Context())...)
 		err = storage.ValidateOwnership(rif.repository, rif.tenantIdentifier, req, callerTenantID)
 		if err != nil {
+			if err == util.ErrNotFoundInStorage {
+				return nil, util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
+			}
+			log.C(ctx).Errorf("Unable to Validate Ownership: \"%s\",error details: %s", rif.tenantIdentifier, err)
 			return nil, err
 		}
 	}
 
-	parameters := gjson.GetBytes(req.Body, "parameters").Map()
-
-	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
-	// epsilontal todo: should we validate that the input is string? can be any object for example...
-	if !exists {
-		return nil, util.HandleInstanceSharingError(util.ErrMissingReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
-	}
-	req.Body, err = sjson.SetBytes(req.Body, instance_sharing.ReferencedInstanceIDKey, referencedInstanceID.String())
-	if err != nil {
-		return nil, err
-	}
 	_, err = storage.IsReferencedShared(ctx, rif.repository, referencedInstanceID.String())
 	if err != nil {
+		log.C(ctx).Errorf("Unable to confirm if the referencedInstanceID is a refernce to a shared instance: \"%s\",error details: %s", referencedInstanceID, err)
 		return nil, err
 	}
+
 	log.C(ctx).Infof("Reference Instance Provision passed successfully, instanceID: \"%s\"", referencedInstanceID)
 	return next.Handle(req)
 }
