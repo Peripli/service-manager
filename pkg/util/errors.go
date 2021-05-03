@@ -324,7 +324,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrAsyncNotSupportedForSharing:
-		errorMessage := fmt.Sprintf("Async requests are not supported, when changing the 'shared' property of the instance %s.", entityName)
+		errorMessage := fmt.Sprintf("Async requests are not supported when modifying the 'shared' property of the instance %s.", entityName)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,

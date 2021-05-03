@@ -517,7 +517,10 @@ var _ = Describe("Instance Sharing", func() {
 			})
 			It("fetches shared instance successfully", func() {
 				instanceSharingBrokerServer.ShouldRecordRequests(true)
-				resp := getInstance(sharedInstanceID, http.StatusOK)
+				resp := ctx.SMWithBasic.GET(instanceSharingBrokerPath+"/v2/service_instances/"+sharedInstanceID).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().
+					Status(http.StatusOK)
 				object := resp.JSON().Object()
 				object.Value("shared").Boolean().Equal(true)
 				Expect(instanceSharingBrokerServer.LastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
