@@ -384,7 +384,7 @@ var _ = Describe("Instance Sharing", func() {
 						}
 					})
 				})
-				FIt("returns 202", func() {
+				It("returns 202", func() {
 					createBinding(sharedInstanceID, http.StatusAccepted, "true")
 				})
 			})
