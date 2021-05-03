@@ -139,7 +139,7 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 
 	_, err = storage.IsReferencedShared(ctx, rif.repository, referencedInstanceID.String())
 	if err != nil {
-		log.C(ctx).Errorf("Unable to confirm if the referencedInstanceID is a refernce to a shared instance: \"%s\",error details: %s", referencedInstanceID, err)
+		log.C(ctx).Errorf("Failed to check if the referenced InstanceID is shared: \"%s\",error details: %s", referencedInstanceID, err)
 		// handled by the IsReferencedShared function
 		return nil, err
 	}
