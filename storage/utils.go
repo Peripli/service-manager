@@ -49,7 +49,7 @@ func GetObjectByField(ctx context.Context, repository Repository, objectType typ
 func IsReferencePlan(ctx context.Context, repository Repository, objectType, byKey, servicePlanID string) (bool, error) {
 	dbPlanObject, err := GetObjectByField(ctx, repository, types.ObjectType(objectType), byKey, servicePlanID)
 	if err != nil {
-		return false, err // err retrieved from GetObjectByField is "not found" type.
+		return false, util.HandleStorageError(util.ErrNotFoundInStorage, objectType)
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
 	return plan.Name == instance_sharing.ReferencePlanName, nil
