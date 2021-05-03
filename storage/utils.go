@@ -68,9 +68,9 @@ func GetInstanceReferencesByID(ctx context.Context, repository Repository, insta
 
 func ValidateOwnership(referenceInstance *types.ServiceInstance, tenantIdentifier string, req *web.Request, callerTenantID string) error {
 	ctx := req.Context()
-	sharedInstanceTenantID := referenceInstance.Labels[tenantIdentifier][0]
-	if sharedInstanceTenantID != callerTenantID {
-		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", sharedInstanceTenantID, callerTenantID)
+	targetInstanceTenantID := referenceInstance.Labels[tenantIdentifier][0]
+	if targetInstanceTenantID != callerTenantID {
+		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", targetInstanceTenantID, callerTenantID)
 		return util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
 	}
 	return nil
