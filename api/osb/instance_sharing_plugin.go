@@ -116,10 +116,10 @@ func (is *instanceSharingPlugin) UpdateService(req *web.Request, next web.Handle
 	ctx := req.Context()
 
 	dbInstanceObject, err := storage.GetObjectByField(ctx, is.repository, types.ServiceInstanceType, "id", instanceID)
+	if err == util.ErrNotFoundInStorage {
+		return next.Handle(req)
+	}
 	if err != nil {
-		if err == util.ErrNotFoundInStorage {
-			return next.Handle(req)
-		}
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)

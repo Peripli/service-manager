@@ -84,7 +84,7 @@ func (sf *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.R
 	// Get plan object from database, on service_instance patch flow
 	dbPlanObject, err := storage.GetObjectByField(ctx, sf.storageRepository, types.ServicePlanType, "id", persistedInstance.ServicePlanID)
 	if err != nil {
-		return nil, err // handled by GetObjectByField
+		return nil, err
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
 

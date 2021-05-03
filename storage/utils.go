@@ -41,7 +41,7 @@ func GetObjectByField(ctx context.Context, repository Repository, objectType typ
 	dbObject, err := repository.Get(ctx, objectType, byID)
 	if err != nil {
 		log.C(ctx).Errorf("GetObjectByField failed retrieving the %s by %s: %s", objectType.String(), byKey, byValue)
-		return nil, util.HandleStorageError(util.ErrNotFoundInStorage, objectType.String())
+		return nil, err
 	}
 	return dbObject, nil
 }
