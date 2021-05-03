@@ -272,81 +272,78 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					When("catalog contains a shareable plan", func() {
 						Context("positive", func() {
 							var brokerID string
-							//var brokerJSON common.Object
-							//var BrokerServer *common.BrokerServer
 							var shareableCatalogID string
 							BeforeEach(func() {
 								_, shareableCatalogID, brokerID, _, _ = sharingInstanceBlueprint(ctx, ctx.SMWithOAuth, false)
 								referencePlan := common.GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareableCatalogID)
 								referencePlanID = referencePlan.ID
-
-							})
-							It("should create a new reference plan", func() {
-								assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusNotFound)
-								assertPlansForPlatform(k8sAgent, nil...)
-
-								common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, referencePlanID, k8sPlatform.ID)
-								assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusOK)
-								assertPlansForPlatform(k8sAgent, referencePlanID)
-							})
-							It("should not generate new reference plan, when updating service broker and reference plan already exist", func() {
 								assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusNotFound)
 								assertPlansForPlatform(k8sAgent, nil...)
 								common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, referencePlanID, k8sPlatform.ID)
-
-								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
-									WithJSON(common.Object{}).Expect()
-
-								assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusOK)
-								Expect(getServicePlanByID(ctx.SMRepository, context.TODO(), referencePlanID)).ToNot(Equal(nil))
-								//catalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
-								//marshalCatalog, _ := json.Marshal(catalog)
-								//Expect(strings.Contains(string(marshalCatalog), referencePlanID)).To(Equal(true))
 							})
-							It("catalog should contain reference plan, when has shareable plan", func() {
-								common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, referencePlanID, k8sPlatform.ID)
-								assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusOK)
-								catalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
-								marshalCatalog, _ := json.Marshal(catalog)
-								Expect(strings.Contains(string(marshalCatalog), referencePlanID)).To(Equal(true))
+							When("creating a new catalog with shareable plan", func() {
+								It("creates a new reference plan", func() {
+									assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusOK)
+									assertPlansForPlatform(k8sAgent, referencePlanID)
+									catalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
+									marshalCatalog, _ := json.Marshal(catalog)
+									Expect(strings.Contains(string(marshalCatalog), referencePlanID)).To(Equal(true))
+								})
 							})
-							It("should have only single reference plan when two plan support instance sharing", func() {
-								cPaidPlan1, _ := common.GenerateShareablePaidTestPlan()
-								cPaidPlan1, err := sjson.Set(cPaidPlan1, "maximum_polling_duration", 2)
-								cPaidPlan1, err = sjson.Set(cPaidPlan1, "bindable", true)
-								if err != nil {
-									panic(err)
-								}
-								cPaidPlan2, _ := common.GenerateShareablePaidTestPlan()
-								cPaidPlan2, err = sjson.Set(cPaidPlan2, "bindable", true)
-								if err != nil {
-									panic(err)
-								}
-								cService := common.GenerateTestServiceWithPlansNonBindable(cPaidPlan1, cPaidPlan2)
-								catalog := common.NewEmptySBCatalog()
-								catalog.AddService(cService)
-								ctx.TryRegisterBrokerWithCatalogAndLabels(catalog, common.Object{}, ctx.SMWithOAuth, http.StatusCreated)
-								newCatalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
-								s := string(newCatalog)
-								count := strings.Count(s, instance_sharing.ReferencePlanName)
-								Expect(count).To(Equal(1))
+							When("updating a broker with existing reference plan", func() {
+								It("should not generate new reference plan", func() {
+									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
+										WithJSON(common.Object{}).Expect()
+
+									assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusOK)
+									Expect(getServicePlanByID(ctx.SMRepository, context.TODO(), referencePlanID)).ToNot(Equal(nil))
+								})
+							})
+							When("two plans support instance sharing", func() {
+								BeforeEach(func() {
+									cPaidPlan1, _ := common.GenerateShareablePaidTestPlan()
+									cPaidPlan1, err := sjson.Set(cPaidPlan1, "maximum_polling_duration", 2)
+									cPaidPlan1, err = sjson.Set(cPaidPlan1, "bindable", true)
+									if err != nil {
+										panic(err)
+									}
+									cPaidPlan2, _ := common.GenerateShareablePaidTestPlan()
+									cPaidPlan2, err = sjson.Set(cPaidPlan2, "bindable", true)
+									if err != nil {
+										panic(err)
+									}
+									cService := common.GenerateTestServiceWithPlansNonBindable(cPaidPlan1, cPaidPlan2)
+									catalog := common.NewEmptySBCatalog()
+									catalog.AddService(cService)
+									ctx.TryRegisterBrokerWithCatalogAndLabels(catalog, common.Object{}, ctx.SMWithOAuth, http.StatusCreated)
+								})
+								It("should have only single reference plan", func() {
+									newCatalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
+									s := string(newCatalog)
+									count := strings.Count(s, instance_sharing.ReferencePlanName)
+									Expect(count).To(Equal(1))
+								})
 							})
 						})
 						Context("negative", func() {
-							It("should fail creating a new reference plan when service and plan are not bindable", func() {
-								cShareablePlan := common.GenerateShareableNonBindablePlan()
-								cService := common.GenerateTestServiceWithPlansNonBindable(cShareablePlan)
-								catalog := common.NewEmptySBCatalog()
-								catalog.AddService(cService)
-								ctx.TryRegisterBrokerWithCatalogAndLabels(catalog, common.Object{}, ctx.SMWithOAuth, http.StatusBadRequest)
+							When("service and plan are not bindable", func() {
+								It("should fail creating a new reference", func() {
+									cShareablePlan := common.GenerateShareableNonBindablePlan()
+									cService := common.GenerateTestServiceWithPlansNonBindable(cShareablePlan)
+									catalog := common.NewEmptySBCatalog()
+									catalog.AddService(cService)
+									ctx.TryRegisterBrokerWithCatalogAndLabels(catalog, common.Object{}, ctx.SMWithOAuth, http.StatusBadRequest)
+								})
 							})
-							It("should fail creating a new reference plan when first plan is valid, but second is not", func() {
-								cShareableNonBindablePlan := common.GenerateShareableNonBindablePlan()
-								cShareablePlan, _ := common.GenerateShareablePaidTestPlan()
-								cService := common.GenerateTestServiceWithPlansNonBindable(cShareablePlan, cShareableNonBindablePlan)
-								catalog := common.NewEmptySBCatalog()
-								catalog.AddService(cService)
-								ctx.TryRegisterBrokerWithCatalogAndLabels(catalog, common.Object{}, ctx.SMWithOAuth, http.StatusBadRequest)
+							When("first plan is valid for instance sharing, but the second is invalid", func() {
+								It("should fail creating a new reference and return a bad request error", func() {
+									cShareableNonBindablePlan := common.GenerateShareableNonBindablePlan()
+									cShareablePlan, _ := common.GenerateShareablePaidTestPlan()
+									cService := common.GenerateTestServiceWithPlansNonBindable(cShareablePlan, cShareableNonBindablePlan)
+									catalog := common.NewEmptySBCatalog()
+									catalog.AddService(cService)
+									ctx.TryRegisterBrokerWithCatalogAndLabels(catalog, common.Object{}, ctx.SMWithOAuth, http.StatusBadRequest)
+								})
 							})
 						})
 					})
