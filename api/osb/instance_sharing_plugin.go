@@ -14,51 +14,48 @@ import (
 	"net/http"
 )
 
-const ReferenceInstancePluginName = "ReferenceInstancePlugin"
+const InstanceSharingPluginName = "ReferenceInstancePlugin"
 const planIDProperty = "plan_id"
 
 type OperationCategory string
 
-type referenceInstancePlugin struct {
+type instanceSharingPlugin struct {
 	repository       storage.TransactionalRepository
 	tenantIdentifier string
 }
 
 type osbObject = map[string]interface{}
 
-// NewCheckPlatformIDPlugin creates new plugin that checks the platform_id of the instance
-func NewReferenceInstancePlugin(repository storage.TransactionalRepository, tenantIdentifier string) *referenceInstancePlugin {
-	return &referenceInstancePlugin{
+// NewInstanceSharingPlugin creates new plugin that handles the instance sharing flows on osb
+func NewInstanceSharingPlugin(repository storage.TransactionalRepository, tenantIdentifier string) *instanceSharingPlugin {
+	return &instanceSharingPlugin{
 		repository:       repository,
 		tenantIdentifier: tenantIdentifier,
 	}
 }
 
 // Name returns the name of the plugin
-func (referencePlugin *referenceInstancePlugin) Name() string {
-	return ReferenceInstancePluginName
+func (is *instanceSharingPlugin) Name() string {
+	return InstanceSharingPluginName
 }
 
-func (referencePlugin *referenceInstancePlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
+func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).String()
-	isReferencePlan, err := storage.IsReferencePlan(ctx, referencePlugin.repository, types.ServicePlanType.String(), "catalog_id", servicePlanID)
-	// If plan not found on provisioning, allow sm to handle the issue
-	if err == util.ErrNotFoundInStorage {
+	isReferencePlan, err := storage.IsReferencePlan(ctx, is.repository, types.ServicePlanType.String(), "catalog_id", servicePlanID)
+	// If plan not found on provisioning or not reference plan, allow sm to handle the process
+	if err == util.ErrNotFoundInStorage || !isReferencePlan {
 		return next.Handle(req)
 	}
 	if err != nil {
 		return nil, err
 	}
-	if !isReferencePlan {
-		return next.Handle(req)
-	}
 
 	// Ownership validation
-	if referencePlugin.tenantIdentifier != "" {
-		tenantPath := fmt.Sprintf("context.%s", referencePlugin.tenantIdentifier)
+	if is.tenantIdentifier != "" {
+		tenantPath := fmt.Sprintf("context.%s", is.tenantIdentifier)
 		callerTenantID := gjson.GetBytes(req.Body, tenantPath).String()
-		err = storage.ValidateOwnership(referencePlugin.repository, referencePlugin.tenantIdentifier, req, callerTenantID)
+		err = storage.ValidateOwnership(is.repository, is.tenantIdentifier, req, callerTenantID)
 		if err != nil {
 			return nil, err
 		}
@@ -68,7 +65,7 @@ func (referencePlugin *referenceInstancePlugin) Provision(req *web.Request, next
 	if !exists {
 		return nil, util.HandleInstanceSharingError(util.ErrMissingReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
 	}
-	_, err = storage.IsReferencedShared(ctx, referencePlugin.repository, referencedInstanceID.String())
+	_, err = storage.IsReferencedShared(ctx, is.repository, referencedInstanceID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -76,19 +73,19 @@ func (referencePlugin *referenceInstancePlugin) Provision(req *web.Request, next
 }
 
 // Deprovision intercepts deprovision requests and check if the instance is in the platform from where the request comes
-func (referencePlugin *referenceInstancePlugin) Deprovision(req *web.Request, next web.Handler) (*web.Response, error) {
+func (is *instanceSharingPlugin) Deprovision(req *web.Request, next web.Handler) (*web.Response, error) {
 	instanceID := req.PathParams["instance_id"]
 	ctx := req.Context()
 
-	dbInstanceObject, err := storage.GetObjectByField(ctx, referencePlugin.repository, types.ServiceInstanceType, "id", instanceID)
+	dbInstanceObject, err := storage.GetObjectByField(ctx, is.repository, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
 		return next.Handle(req)
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
 	if instance.IsShared() {
-		return deprovisionSharedInstance(ctx, referencePlugin.repository, req, instance, next)
+		return deprovisionSharedInstance(ctx, is.repository, req, instance, next)
 	}
-	isReferencePlan, err := storage.IsReferencePlan(ctx, referencePlugin.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
+	isReferencePlan, err := storage.IsReferencePlan(ctx, is.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
 
 	if err != nil {
 		return nil, err
@@ -100,6 +97,7 @@ func (referencePlugin *referenceInstancePlugin) Deprovision(req *web.Request, ne
 	return util.NewJSONResponse(http.StatusOK, nil)
 }
 
+// when deprovisioning a shared instance, validate the instance does not have any references.
 func deprovisionSharedInstance(ctx context.Context, repository storage.TransactionalRepository, req *web.Request, instance *types.ServiceInstance, next web.Handler) (*web.Response, error) {
 	referencesList, err := storage.GetInstanceReferencesByID(ctx, repository, instance.ID)
 	if err != nil {
@@ -112,12 +110,12 @@ func deprovisionSharedInstance(ctx context.Context, repository storage.Transacti
 }
 
 // UpdateService intercepts update service instance requests and check if the instance is in the platform from where the request comes
-func (referencePlugin *referenceInstancePlugin) UpdateService(req *web.Request, next web.Handler) (*web.Response, error) {
+func (is *instanceSharingPlugin) UpdateService(req *web.Request, next web.Handler) (*web.Response, error) {
 	// we don't want to allow plan_id and/or parameters changes on a reference service instance
 	instanceID := req.PathParams["instance_id"]
 	ctx := req.Context()
 
-	dbInstanceObject, err := storage.GetObjectByField(ctx, referencePlugin.repository, types.ServiceInstanceType, "id", instanceID)
+	dbInstanceObject, err := storage.GetObjectByField(ctx, is.repository, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
 		if err == util.ErrNotFoundInStorage {
 			return next.Handle(req)
@@ -127,9 +125,9 @@ func (referencePlugin *referenceInstancePlugin) UpdateService(req *web.Request, 
 	instance := dbInstanceObject.(*types.ServiceInstance)
 
 	if instance.IsShared() {
-		return updateSharedInstance(ctx, referencePlugin.repository, req, instance, next)
+		return updateSharedInstance(ctx, is.repository, req, instance, next)
 	}
-	isReferencePlan, err := storage.IsReferencePlan(ctx, referencePlugin.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
+	isReferencePlan, err := storage.IsReferencePlan(ctx, is.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
 	if err != nil {
 		return nil, err
 	}
@@ -154,30 +152,35 @@ func updateSharedInstance(ctx context.Context, repository storage.Repository, re
 }
 
 // Bind intercepts bind requests and check if the instance is in the platform from where the request comes
-func (referencePlugin *referenceInstancePlugin) Bind(req *web.Request, next web.Handler) (*web.Response, error) {
-	return referencePlugin.handleBinding(req, next)
+func (is *instanceSharingPlugin) Bind(req *web.Request, next web.Handler) (*web.Response, error) {
+	return is.handleBinding(req, next)
 }
 
 // Unbind intercepts unbind requests and check if the instance is in the platform from where the request comes
-func (referencePlugin *referenceInstancePlugin) Unbind(req *web.Request, next web.Handler) (*web.Response, error) {
-	return referencePlugin.handleBinding(req, next)
+func (is *instanceSharingPlugin) Unbind(req *web.Request, next web.Handler) (*web.Response, error) {
+	return is.handleBinding(req, next)
 }
 
 // FetchBinding intercepts get service binding requests and check if the instance owner is the same as the one requesting the operation
-func (referencePlugin *referenceInstancePlugin) FetchBinding(req *web.Request, next web.Handler) (*web.Response, error) {
-	return referencePlugin.handleBinding(req, next)
+func (is *instanceSharingPlugin) FetchBinding(req *web.Request, next web.Handler) (*web.Response, error) {
+	return is.handleBinding(req, next)
 }
 
-func (referencePlugin *referenceInstancePlugin) FetchService(req *web.Request, next web.Handler) (*web.Response, error) {
+// PollBinding intercepts poll binding operation requests and check if the instance is in the platform from where the request comes
+func (is *instanceSharingPlugin) PollBinding(req *web.Request, next web.Handler) (*web.Response, error) {
+	return is.handleBinding(req, next)
+}
+
+func (is *instanceSharingPlugin) FetchService(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	instanceID := req.PathParams["instance_id"]
-	dbInstanceObject, err := storage.GetObjectByField(ctx, referencePlugin.repository, types.ServiceInstanceType, "id", instanceID)
+	dbInstanceObject, err := storage.GetObjectByField(ctx, is.repository, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
 		return next.Handle(req)
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
 
-	isReferencePlan, err := storage.IsReferencePlan(ctx, referencePlugin.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
+	isReferencePlan, err := storage.IsReferencePlan(ctx, is.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
 
 	if err != nil {
 		return nil, err
@@ -186,15 +189,15 @@ func (referencePlugin *referenceInstancePlugin) FetchService(req *web.Request, n
 		return next.Handle(req)
 	}
 
-	body, err := referencePlugin.buildOSBFetchServiceResponse(ctx, instance)
+	body, err := is.buildOSBFetchServiceResponse(ctx, instance)
 	if err != nil {
 		return nil, err
 	}
 	return util.NewJSONResponse(http.StatusOK, body)
 }
 
-func (referencePlugin *referenceInstancePlugin) buildOSBFetchServiceResponse(ctx context.Context, instance *types.ServiceInstance) (osbObject, error) {
-	serviceOffering, plan, err := referencePlugin.getServiceOfferingAndPlanByPlanID(ctx, instance.ServicePlanID)
+func (is *instanceSharingPlugin) buildOSBFetchServiceResponse(ctx context.Context, instance *types.ServiceInstance) (osbObject, error) {
+	serviceOffering, plan, err := is.getServiceOfferingAndPlanByPlanID(ctx, instance.ServicePlanID)
 	if err != nil {
 		return nil, util.HandleInstanceSharingError(util.ErrNotFoundInStorage, types.ServiceOfferingType.String())
 	}
@@ -207,11 +210,6 @@ func (referencePlugin *referenceInstancePlugin) buildOSBFetchServiceResponse(ctx
 		},
 	}
 	return osbResponse, nil
-}
-
-// PollBinding intercepts poll binding operation requests and check if the instance is in the platform from where the request comes
-func (referencePlugin *referenceInstancePlugin) PollBinding(req *web.Request, next web.Handler) (*web.Response, error) {
-	return referencePlugin.handleBinding(req, next)
 }
 
 func isValidSharedInstancePatchRequest(ctx context.Context, repository storage.Repository, req *web.Request, instance *types.ServiceInstance) error {
@@ -227,11 +225,11 @@ func isValidSharedInstancePatchRequest(ctx context.Context, repository storage.R
 	return nil
 }
 
-func (referencePlugin *referenceInstancePlugin) handleBinding(req *web.Request, next web.Handler) (*web.Response, error) {
+func (is *instanceSharingPlugin) handleBinding(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	instanceID := req.PathParams["instance_id"]
 	byID := query.ByField(query.EqualsOperator, "id", instanceID)
-	object, err := referencePlugin.repository.Get(ctx, types.ServiceInstanceType, byID)
+	object, err := is.repository.Get(ctx, types.ServiceInstanceType, byID)
 	if err != nil {
 		if err == util.ErrNotFoundInStorage {
 			return next.Handle(req)
@@ -243,7 +241,7 @@ func (referencePlugin *referenceInstancePlugin) handleBinding(req *web.Request, 
 
 	if instance.ReferencedInstanceID != "" {
 		byID = query.ByField(query.EqualsOperator, "id", instance.ReferencedInstanceID)
-		sharedInstanceObject, err := referencePlugin.repository.Get(ctx, types.ServiceInstanceType, byID)
+		sharedInstanceObject, err := is.repository.Get(ctx, types.ServiceInstanceType, byID)
 		if err != nil {
 			if err == util.ErrNotFoundInStorage {
 				return next.Handle(req)
@@ -257,14 +255,14 @@ func (referencePlugin *referenceInstancePlugin) handleBinding(req *web.Request, 
 	return next.Handle(req)
 }
 
-func (referencePlugin *referenceInstancePlugin) getServiceOfferingAndPlanByPlanID(ctx context.Context, planID string) (*types.ServiceOffering, *types.ServicePlan, error) {
-	dbPlanObject, err := storage.GetObjectByField(ctx, referencePlugin.repository, types.ServicePlanType, "id", planID)
+func (is *instanceSharingPlugin) getServiceOfferingAndPlanByPlanID(ctx context.Context, planID string) (*types.ServiceOffering, *types.ServicePlan, error) {
+	dbPlanObject, err := storage.GetObjectByField(ctx, is.repository, types.ServicePlanType, "id", planID)
 	if err != nil {
 		return nil, nil, err
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
 
-	dbServiceOfferingObject, err := storage.GetObjectByField(ctx, referencePlugin.repository, types.ServiceOfferingType, "id", plan.ServiceOfferingID)
+	dbServiceOfferingObject, err := storage.GetObjectByField(ctx, is.repository, types.ServiceOfferingType, "id", plan.ServiceOfferingID)
 	if err != nil {
 		return nil, nil, err
 	}
