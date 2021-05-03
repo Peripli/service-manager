@@ -116,7 +116,7 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 		return next.Handle(req)
 	}
 	if err != nil {
-		return nil, err
+		return nil, err // handled by the IsReference function
 	}
 	if !isReferencePlan {
 		return next.Handle(req)
@@ -127,7 +127,7 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 		callerTenantID := query.RetrieveFromCriteria(rif.tenantIdentifier, query.CriteriaForContext(req.Context())...)
 		err = storage.ValidateOwnership(rif.repository, rif.tenantIdentifier, req, callerTenantID)
 		if err != nil {
-			return nil, err
+			return nil, err // handled by the ValidateOwnership func
 		}
 	}
 
@@ -144,7 +144,7 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 	}
 	_, err = storage.IsReferencedShared(ctx, rif.repository, referencedInstanceID.String())
 	if err != nil {
-		return nil, err
+		return nil, err // handled by the IsReferencedShared function
 	}
 	log.C(ctx).Infof("Reference Instance Provision passed successfully, instanceID: \"%s\"", referencedInstanceID)
 	return next.Handle(req)
@@ -167,7 +167,8 @@ func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next w
 
 	err = storage.IsValidReferenceInstancePatchRequest(req, instance, planIDProperty)
 	if err != nil {
-		return nil, err
+		log.C(ctx).Errorf("Failed updating the reference instance %s due to invalid patch request:\n%s", instance.ID, req.Body)
+		return nil, err // handled by IsValidReferenceInstancePatchRequest
 	}
 
 	log.C(ctx).Infof("Reference Instance Update passed successfully, instanceID: \"%s\"", resourceID)

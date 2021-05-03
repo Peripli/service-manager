@@ -23,6 +23,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -46,7 +47,6 @@ func (*sharingInstanceFilter) Name() string {
 func (sf *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	var reqServiceInstance types.ServiceInstance
 	err := util.BytesToObjectNoLabels(req.Body, &reqServiceInstance)
-
 	if err != nil {
 		return nil, err
 	}
@@ -73,18 +73,18 @@ func (sf *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.R
 		return nil, util.HandleInstanceSharingError(util.ErrAsyncNotSupportedForSharing, instanceID)
 	}
 
+	logger := log.C(ctx)
+
 	//we cannot use reqServiceInstance in this validation because the struct has default values (like "" for string type properties)
-	err = validateRequestContainsSingleProperty(req.Body, instanceID)
+	err = validateRequestContainsSingleProperty(logger, req.Body, instanceID)
 	if err != nil {
 		return nil, err
 	}
 
-	logger := log.C(ctx)
-
 	// Get plan object from database, on service_instance patch flow
 	dbPlanObject, err := storage.GetObjectByField(ctx, sf.storageRepository, types.ServicePlanType, "id", persistedInstance.ServicePlanID)
 	if err != nil {
-		return nil, err
+		return nil, err // handled by GetObjectByField
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
 
@@ -126,11 +126,11 @@ func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
 	}
 }
 
-func validateRequestContainsSingleProperty(reqInstanceBytes []byte, instanceID string) error {
+func validateRequestContainsSingleProperty(logger *logrus.Entry, reqInstanceBytes []byte, instanceID string) error {
 	var reqAsMap map[string]interface{}
 	err := json.Unmarshal(reqInstanceBytes, &reqAsMap)
-
 	if err != nil {
+		logger.Errorf("Failed to unmarshal request for the instance %s on 'validateRequestContainsSingleProperty':\n%s", instanceID, reqInstanceBytes)
 		return err
 	}
 
