@@ -231,20 +231,25 @@ func (is *instanceSharingPlugin) handleBinding(req *web.Request, next web.Handle
 	byID := query.ByField(query.EqualsOperator, "id", instanceID)
 	object, err := is.repository.Get(ctx, types.ServiceInstanceType, byID)
 	if err == util.ErrNotFoundInStorage {
+		return next.Handle(req)
+	}
+	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 
 	instance := object.(*types.ServiceInstance)
 
-	// if instance is referecnce, switch the context of the request with the original instance context.
 	if instance.ReferencedInstanceID != "" {
 		byID = query.ByField(query.EqualsOperator, "id", instance.ReferencedInstanceID)
 		sharedInstanceObject, err := is.repository.Get(ctx, types.ServiceInstanceType, byID)
+		if err == util.ErrNotFoundInStorage {
+			return next.Handle(req)
+		}
 		if err != nil {
 			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 		}
+
 		sharedInstance := sharedInstanceObject.(*types.ServiceInstance)
-		// switch context:
 		req.Request = req.WithContext(types.ContextWithSharedInstance(req.Context(), sharedInstance))
 	}
 	return next.Handle(req)
