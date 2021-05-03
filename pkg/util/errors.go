@@ -230,7 +230,7 @@ var (
 	ErrChangingPlanOfReferenceInstance       = errors.New("changing plan of reference instance")
 	ErrChangingPlanOfSharedInstance          = errors.New("changing plan of shared instance")
 	ErrChangingParametersOfReferenceInstance = errors.New("changing parameters of reference instance")
-	ErrMissingReferenceParameter             = errors.New("missing referenced_instance_id parameter")
+	ErrMissingOrInvalidReferenceParameter    = errors.New("missing or invalid referenced_instance_id parameter")
 	ErrParsingNewCatalogWithReference        = errors.New("failed generating reference-plan")
 	ErrUnknownOSBMethod                      = errors.New("osb method is unknown")
 	ErrSharedPlanHasReferences               = errors.New("shared plan has references")
@@ -284,10 +284,10 @@ func HandleInstanceSharingError(err error, entityName string) error {
 			Description: fmt.Sprintf("Failed to update the instance %s. This is a reference instance, therefore its parameters can't be changed.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
-	case ErrMissingReferenceParameter:
+	case ErrMissingOrInvalidReferenceParameter:
 		return &HTTPError{
 			ErrorType:   "InvalidRequest",
-			Description: fmt.Sprintf("Failed to create the instance. Missing parameter \"%s\".", entityName),
+			Description: fmt.Sprintf("Failed to create the instance. Missing or invalid parameter \"%s\".", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrParsingNewCatalogWithReference:
