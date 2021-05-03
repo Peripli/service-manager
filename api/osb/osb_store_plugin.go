@@ -875,7 +875,7 @@ func (sp *storePlugin) updateInstance(ctx context.Context, storage storage.Repos
 			return err
 		}
 		serviceInstance.ServicePlanID = plan.GetID()
-		serviceInstance.Shareable = plan.IsShareablePlan()
+		serviceInstance.Shareable = plan.IsShareablePlan() // we always override the instance.shareable value via the plan's property
 	}
 	if len(resp.DashboardURL) != 0 {
 		serviceInstance.DashboardURL = resp.DashboardURL

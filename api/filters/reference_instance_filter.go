@@ -17,7 +17,6 @@
 package filters
 
 import (
-	"encoding/json"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -79,21 +78,11 @@ func (rif *referenceInstanceFilter) handleGetParameters(req *web.Request, next w
 		return next.Handle(req)
 	}
 
-	var marshal []byte
-	headers := http.Header{}
-	headers.Add("Content-Type", "application/json")
 	body := map[string]string{
 		instance_sharing.ReferencedInstanceIDKey: instance.ReferencedInstanceID,
 	}
-	marshal, err = json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	return &web.Response{
-		Body:       marshal,
-		StatusCode: http.StatusOK,
-		Header:     headers,
-	}, nil
+
+	return util.NewJSONResponse(http.StatusOK, body)
 }
 
 func (*referenceInstanceFilter) FilterMatchers() []web.FilterMatcher {
@@ -116,7 +105,7 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 		return next.Handle(req)
 	}
 	if err != nil {
-		return nil, err
+		return nil, err // handled by the IsReference function
 	}
 	if !isReferencePlan {
 		return next.Handle(req)
@@ -151,6 +140,7 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 	_, err = storage.IsReferencedShared(ctx, rif.repository, referencedInstanceID.String())
 	if err != nil {
 		log.C(ctx).Errorf("Unable to confirm if the referencedInstanceID is a refernce to a shared instance: \"%s\",error details: %s", referencedInstanceID, err)
+		// handled by the IsReferencedShared function
 		return nil, err
 	}
 
@@ -175,7 +165,8 @@ func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next w
 
 	err = storage.IsValidReferenceInstancePatchRequest(req, instance, planIDProperty)
 	if err != nil {
-		return nil, err
+		log.C(ctx).Errorf("Failed updating the reference instance %s due to invalid patch request:\n%s", instance.ID, req.Body)
+		return nil, err // handled by IsValidReferenceInstancePatchRequest
 	}
 
 	log.C(ctx).Infof("Reference Instance Update passed successfully, instanceID: \"%s\"", resourceID)

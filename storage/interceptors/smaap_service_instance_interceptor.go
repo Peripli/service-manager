@@ -145,7 +145,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			return nil, err
 		}
 
-		instance.Shareable = plan.IsShareablePlan()
+		instance.Shareable = plan.IsShareablePlan() // we always override the instance.shareable value via the plan's property
 
 		if operation.Reschedule {
 			if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
@@ -265,7 +265,7 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			return nil, err
 		}
 
-		updatedInstance.Shareable = plan.IsShareablePlan()
+		updatedInstance.Shareable = plan.IsShareablePlan() // we always override the instance.shareable value via the plan's property
 
 		if operation.Reschedule {
 			if err := i.pollServiceInstance(ctx, osbClient, updatedInstance, plan, operation, service.CatalogID, plan.CatalogID, false); err != nil {

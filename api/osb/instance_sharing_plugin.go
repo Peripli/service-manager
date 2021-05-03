@@ -75,7 +75,8 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 	if err != nil {
 		return nil, err
 	}
-	return util.NewJSONResponse(http.StatusCreated, nil)
+	//OSB spec does not require any fields to be returned
+	return util.NewJSONResponse(http.StatusCreated, map[string]string{})
 }
 
 // Deprovision intercepts deprovision requests and check if the instance is in the platform from where the request comes
@@ -100,7 +101,7 @@ func (is *instanceSharingPlugin) Deprovision(req *web.Request, next web.Handler)
 		return next.Handle(req)
 	}
 
-	return util.NewJSONResponse(http.StatusOK, nil)
+	return util.NewJSONResponse(http.StatusOK, map[string]string{})
 }
 
 // when deprovisioning a shared instance, validate the instance does not have any references.
@@ -143,15 +144,17 @@ func (is *instanceSharingPlugin) UpdateService(req *web.Request, next web.Handle
 
 	err = storage.IsValidReferenceInstancePatchRequest(req, instance, planIDProperty)
 	if err != nil {
+		// error handled via the HandleInstanceSharingError util.
 		return nil, err
 	}
 
-	return util.NewJSONResponse(http.StatusOK, nil)
+	return util.NewJSONResponse(http.StatusOK, map[string]string{})
 }
 
 func updateSharedInstance(ctx context.Context, repository storage.Repository, req *web.Request, instance *types.ServiceInstance, next web.Handler) (*web.Response, error) {
 	err := isValidSharedInstancePatchRequest(ctx, repository, req, instance)
 	if err != nil {
+		// error handled via the HandleInstanceSharingError util.
 		return nil, err
 	}
 	return next.Handle(req)
@@ -245,6 +248,7 @@ func (is *instanceSharingPlugin) handleBinding(req *web.Request, next web.Handle
 
 	instance := object.(*types.ServiceInstance)
 
+	// if instance is referecnce, switch the context of the request with the original instance context.
 	if instance.ReferencedInstanceID != "" {
 		byID = query.ByField(query.EqualsOperator, "id", instance.ReferencedInstanceID)
 		sharedInstanceObject, err := is.repository.Get(ctx, types.ServiceInstanceType, byID)
@@ -254,7 +258,7 @@ func (is *instanceSharingPlugin) handleBinding(req *web.Request, next web.Handle
 			}
 			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 		}
-
+		// switch context:
 		sharedInstance := sharedInstanceObject.(*types.ServiceInstance)
 		req.Request = req.WithContext(types.ContextWithSharedInstance(req.Context(), sharedInstance))
 	}

@@ -361,7 +361,7 @@ var _ = Describe("Instance Sharing", func() {
 			})
 		})
 	})
-	FDescribe("BIND", func() {
+	Describe("BIND", func() {
 
 		When("binding a shared instance", func() {
 			var sharedInstanceID string
@@ -657,6 +657,7 @@ func createReferenceInstance(platformID, sharedInstanceID string, accepts_incomp
 		WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 		WithJSON(referenceProvisionBody).
 		Expect().Status(http.StatusCreated)
+	resp.Body().Contains("{}")
 	return resp, instanceID
 }
 
@@ -674,6 +675,7 @@ func createAndShareInstance(accepts_incomplete bool) (*httpexpect.Response, stri
 		WithQuery(acceptsIncompleteKey, accepts_incomplete).
 		WithJSON(json).
 		Expect().Status(http.StatusCreated)
+	resp.Body().Contains("{}")
 	err = ShareInstanceOnDB(ctx, sharedInstanceID)
 	Expect(err).NotTo(HaveOccurred())
 	return resp, sharedInstanceID
