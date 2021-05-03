@@ -17,7 +17,6 @@
 package filters
 
 import (
-	"encoding/json"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -79,21 +78,11 @@ func (rif *referenceInstanceFilter) handleGetParameters(req *web.Request, next w
 		return next.Handle(req)
 	}
 
-	var marshal []byte
-	headers := http.Header{}
-	headers.Add("Content-Type", "application/json")
 	body := map[string]string{
 		instance_sharing.ReferencedInstanceIDKey: instance.ReferencedInstanceID,
 	}
-	marshal, err = json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	return &web.Response{
-		Body:       marshal,
-		StatusCode: http.StatusOK,
-		Header:     headers,
-	}, nil
+
+	return util.NewJSONResponse(http.StatusOK, body)
 }
 
 func (*referenceInstanceFilter) FilterMatchers() []web.FilterMatcher {
