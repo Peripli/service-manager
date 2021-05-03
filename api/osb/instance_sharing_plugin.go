@@ -51,24 +51,31 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 		return nil, err
 	}
 
+	parameters := gjson.GetBytes(req.Body, "parameters").Map()
+	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
+
+	if !exists {
+		return nil, util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
+	}
+
 	// Ownership validation
 	if is.tenantIdentifier != "" {
 		tenantPath := fmt.Sprintf("context.%s", is.tenantIdentifier)
 		callerTenantID := gjson.GetBytes(req.Body, tenantPath).String()
 		err = storage.ValidateOwnership(is.repository, is.tenantIdentifier, req, callerTenantID)
 		if err != nil {
-			return nil, err // err returned from validate ownership is "not found" type
+			if err == util.ErrNotFoundInStorage {
+				return nil, util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
+			}
+			return nil, err
 		}
 	}
-	parameters := gjson.GetBytes(req.Body, "parameters").Map()
-	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
-	if !exists {
-		return nil, util.HandleInstanceSharingError(util.ErrMissingReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
-	}
+
 	_, err = storage.IsReferencedShared(ctx, is.repository, referencedInstanceID.String())
 	if err != nil {
 		return nil, err
 	}
+	//OSB spec does not require any fields to be returned
 	return util.NewJSONResponse(http.StatusCreated, map[string]string{})
 }
 
@@ -116,10 +123,10 @@ func (is *instanceSharingPlugin) UpdateService(req *web.Request, next web.Handle
 	ctx := req.Context()
 
 	dbInstanceObject, err := storage.GetObjectByField(ctx, is.repository, types.ServiceInstanceType, "id", instanceID)
-	if err == util.ErrNotFoundInStorage {
-		return next.Handle(req)
-	}
 	if err != nil {
+		if err == util.ErrNotFoundInStorage {
+			return next.Handle(req)
+		}
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
@@ -137,7 +144,8 @@ func (is *instanceSharingPlugin) UpdateService(req *web.Request, next web.Handle
 
 	err = storage.IsValidReferenceInstancePatchRequest(req, instance, planIDProperty)
 	if err != nil {
-		return nil, err // error handled via the HandleInstanceSharingError util.
+		// error handled via the HandleInstanceSharingError util.
+		return nil, err
 	}
 
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -146,7 +154,8 @@ func (is *instanceSharingPlugin) UpdateService(req *web.Request, next web.Handle
 func updateSharedInstance(ctx context.Context, repository storage.Repository, req *web.Request, instance *types.ServiceInstance, next web.Handler) (*web.Response, error) {
 	err := isValidSharedInstancePatchRequest(ctx, repository, req, instance)
 	if err != nil {
-		return nil, err // error handled via the HandleInstanceSharingError util.
+		// error handled via the HandleInstanceSharingError util.
+		return nil, err
 	}
 	return next.Handle(req)
 }
@@ -230,10 +239,10 @@ func (is *instanceSharingPlugin) handleBinding(req *web.Request, next web.Handle
 	instanceID := req.PathParams["instance_id"]
 	byID := query.ByField(query.EqualsOperator, "id", instanceID)
 	object, err := is.repository.Get(ctx, types.ServiceInstanceType, byID)
-	if err == util.ErrNotFoundInStorage {
-		return next.Handle(req)
-	}
 	if err != nil {
+		if err == util.ErrNotFoundInStorage {
+			return next.Handle(req)
+		}
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 
@@ -243,10 +252,10 @@ func (is *instanceSharingPlugin) handleBinding(req *web.Request, next web.Handle
 	if instance.ReferencedInstanceID != "" {
 		byID = query.ByField(query.EqualsOperator, "id", instance.ReferencedInstanceID)
 		sharedInstanceObject, err := is.repository.Get(ctx, types.ServiceInstanceType, byID)
-		if err == util.ErrNotFoundInStorage {
-			return next.Handle(req)
-		}
 		if err != nil {
+			if err == util.ErrNotFoundInStorage {
+				return next.Handle(req)
+			}
 			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 		}
 		// switch context:
