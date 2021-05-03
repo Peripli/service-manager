@@ -202,10 +202,10 @@ var _ = DescribeTestsFor(TestCase{
 					Status(expectedStatusCode)
 			}
 
-			createBindingForInstanceSharing := func(bindInstanceID, pointsToInstanceID, async string, expectedReqStatus int, expectedState types.OperationState) string {
+			createBindingForReferenceInstance := func(refInstanceID, sharedInstanceID, async string, expectedReqStatus int, expectedState types.OperationState) string {
 				UUID, _ := uuid.NewV4()
 				name := fmt.Sprintf("binding-name-%s", UUID.String())
-				resp := CreateBindingByInstanceID(ctx.SMWithOAuthForTenant, async, expectedReqStatus, bindInstanceID, name)
+				resp := CreateBindingByInstanceID(ctx.SMWithOAuthForTenant, async, expectedReqStatus, refInstanceID, name)
 				bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 					Category:          types.CREATE,
 					State:             expectedState,
@@ -214,14 +214,14 @@ var _ = DescribeTestsFor(TestCase{
 					DeletionScheduled: false,
 				})
 				// communicate with the shared instance's broker
-				Expect(brokerServer.LastRequest.RequestURI).To(ContainSubstring(pointsToInstanceID))
+				Expect(brokerServer.LastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
 				objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 					ID:    bindingID,
 					Type:  types.ServiceBindingType,
 					Ready: true,
 				})
 				By("verify binding points to the shared instance id")
-				objAfterOp.Value("service_instance_id").Equal(bindInstanceID)
+				objAfterOp.Value("service_instance_id").Equal(refInstanceID)
 				return bindingID
 			}
 			deleteBindingsWithValidations := func(bindingID, instanceID, pointsToInstanceID, async string, expectedReqStatus int) {
@@ -319,18 +319,30 @@ var _ = DescribeTestsFor(TestCase{
 				Describe("POST", func() {
 					When("binding a shared instance", func() {
 						It("returns 202", func() {
-							createBindingForInstanceSharing(sharedInstanceID, sharedInstanceID, "true", http.StatusAccepted, types.SUCCEEDED)
+							createBindingForReferenceInstance(sharedInstanceID, sharedInstanceID, "true", http.StatusAccepted, types.SUCCEEDED)
 						})
 						It("returns 201", func() {
-							createBindingForInstanceSharing(sharedInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
+							createBindingForReferenceInstance(sharedInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
 						})
 					})
 					When("binding a reference instance", func() {
 						It("returns 201", func() {
-							createBindingForInstanceSharing(referenceInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
+							createBindingForReferenceInstance(referenceInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
 						})
 						It("returns 202", func() {
-							createBindingForInstanceSharing(referenceInstanceID, sharedInstanceID, "true", http.StatusAccepted, types.SUCCEEDED)
+							createBindingForReferenceInstance(referenceInstanceID, sharedInstanceID, "true", http.StatusAccepted, types.SUCCEEDED)
+						})
+						It("returns 202 when broker responds with async flow", func() {
+							brokerServer.BindingHandlerFunc("PUT", "async-response", func(req *http.Request) (int, map[string]interface{}) {
+								return http.StatusCreated, Object{
+									"async": true,
+									"credentials": Object{
+										"user":     "user",
+										"password": "password",
+									},
+								}
+							})
+							createBindingForReferenceInstance(referenceInstanceID, sharedInstanceID, "true", http.StatusAccepted, types.SUCCEEDED)
 						})
 					})
 				})
@@ -338,7 +350,7 @@ var _ = DescribeTestsFor(TestCase{
 					When("unbinding a shared instance", func() {
 						var sharedBindingID string
 						BeforeEach(func() {
-							sharedBindingID = createBindingForInstanceSharing(sharedInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
+							sharedBindingID = createBindingForReferenceInstance(sharedInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
 						})
 						It("returns 200", func() {
 							deleteBindingsWithValidations(sharedBindingID, sharedInstanceID, sharedInstanceID, "false", http.StatusOK)
@@ -350,7 +362,7 @@ var _ = DescribeTestsFor(TestCase{
 					When("unbinding a reference instance", func() {
 						var referenceBindingID string
 						BeforeEach(func() {
-							referenceBindingID = createBindingForInstanceSharing(sharedInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
+							referenceBindingID = createBindingForReferenceInstance(sharedInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
 						})
 						It("returns 200", func() {
 							deleteBindingsWithValidations(referenceBindingID, referenceInstanceID, sharedInstanceID, "false", http.StatusOK)
@@ -364,7 +376,7 @@ var _ = DescribeTestsFor(TestCase{
 					When("getting parameters of shared instance binding", func() {
 						var sharedBindingID string
 						BeforeEach(func() {
-							sharedBindingID = createBindingForInstanceSharing(sharedInstanceID, sharedInstanceID, "true", http.StatusAccepted, types.SUCCEEDED)
+							sharedBindingID = createBindingForReferenceInstance(sharedInstanceID, sharedInstanceID, "true", http.StatusAccepted, types.SUCCEEDED)
 							brokerServer.BindingHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
 								"parameters": map[string]string{
 									"cat": "Freddy",
@@ -386,7 +398,7 @@ var _ = DescribeTestsFor(TestCase{
 					When("getting parameters of reference instance binding", func() {
 						var referenceBindingID string
 						BeforeEach(func() {
-							referenceBindingID = createBindingForInstanceSharing(referenceInstanceID, sharedInstanceID, "true", http.StatusAccepted, types.SUCCEEDED)
+							referenceBindingID = createBindingForReferenceInstance(referenceInstanceID, sharedInstanceID, "true", http.StatusAccepted, types.SUCCEEDED)
 							brokerServer.BindingHandlerFunc(http.MethodGet, http.MethodGet+"1", ParameterizedHandler(http.StatusOK, Object{
 								"parameters": map[string]string{
 									"cat": "Freddy",
@@ -412,7 +424,7 @@ var _ = DescribeTestsFor(TestCase{
 					When("instance is shared", func() {
 						var sharedBindingID string
 						BeforeEach(func() {
-							sharedBindingID = createBindingForInstanceSharing(sharedInstanceID, sharedInstanceID, "true", http.StatusAccepted, types.SUCCEEDED)
+							sharedBindingID = createBindingForReferenceInstance(sharedInstanceID, sharedInstanceID, "true", http.StatusAccepted, types.SUCCEEDED)
 						})
 						It("returns the object of the shared instance binding", func() {
 							object := ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + sharedBindingID).Expect().
@@ -431,7 +443,7 @@ var _ = DescribeTestsFor(TestCase{
 					When("instance is reference", func() {
 						var referenceBindingID string
 						BeforeEach(func() {
-							referenceBindingID = createBindingForInstanceSharing(referenceInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
+							referenceBindingID = createBindingForReferenceInstance(referenceInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
 						})
 						It("returns the credentials of the shared instance binding", func() {
 							object := ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + referenceBindingID).Expect().

@@ -594,7 +594,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 
 				// for async creation of bindings, an extra fetching of the binding is required to get the credentials
 				if operation.Type == types.CREATE {
-					bindingDetails, err := i.getBindingDetailsFromBroker(ctx, binding, operation, brokerID, osbClient)
+					bindingDetails, err := i.getBindingDetailsFromBroker(ctx, binding, operation, brokerID, osbClient, instance)
 					if err != nil {
 						return err
 					}
@@ -651,9 +651,9 @@ func (i *ServiceBindingInterceptor) processMaxPollingDurationElapsed(ctx context
 	}
 }
 
-func (i *ServiceBindingInterceptor) getBindingDetailsFromBroker(ctx context.Context, binding *types.ServiceBinding, operation *types.Operation, brokerID string, osbClient osbc.Client) (*bindResponseDetails, error) {
+func (i *ServiceBindingInterceptor) getBindingDetailsFromBroker(ctx context.Context, binding *types.ServiceBinding, operation *types.Operation, brokerID string, osbClient osbc.Client, instance *types.ServiceInstance) (*bindResponseDetails, error) {
 	getBindingRequest := &osbc.GetBindingRequest{
-		InstanceID: binding.ServiceInstanceID,
+		InstanceID: instance.GetID(),
 		BindingID:  binding.ID,
 	}
 	log.C(ctx).Infof("Sending get binding request %s to broker with id %s", logGetBindingRequest(getBindingRequest), brokerID)
