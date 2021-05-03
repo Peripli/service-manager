@@ -116,7 +116,7 @@ func (sf *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.R
 }
 
 func changingPlanOfSharedInstance(persistedInstance *types.ServiceInstance, reqServiceInstance types.ServiceInstance) bool {
-	return persistedInstance.IsShared() && persistedInstance.ServicePlanID != reqServiceInstance.ServicePlanID && reqServiceInstance.Shared == nil
+	return persistedInstance.IsShared() && reqServiceInstance.ServicePlanID != "" && persistedInstance.ServicePlanID != reqServiceInstance.ServicePlanID
 }
 
 func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {

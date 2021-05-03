@@ -229,6 +229,7 @@ func isValidSharedInstancePatchRequest(ctx context.Context, repository storage.R
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
 	if plan.CatalogID != newCatalogID {
+		// we don't allow changing the plan of the shared instance, it might have references
 		return util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, instance.ID)
 	}
 	return nil
