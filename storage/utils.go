@@ -106,11 +106,9 @@ func IsValidReferenceInstancePatchRequest(req *web.Request, instance *types.Serv
 	if instance.ServicePlanID != newPlanID {
 		return util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, instance.ID)
 	}
-
 	parametersRaw := gjson.GetBytes(req.Body, "parameters").Raw
 	if parametersRaw != "" {
 		return util.HandleInstanceSharingError(util.ErrChangingParametersOfReferenceInstance, instance.ID)
 	}
-
 	return nil
 }
