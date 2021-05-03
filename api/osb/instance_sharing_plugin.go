@@ -57,7 +57,7 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 		callerTenantID := gjson.GetBytes(req.Body, tenantPath).String()
 		err = storage.ValidateOwnership(is.repository, is.tenantIdentifier, req, callerTenantID)
 		if err != nil {
-			return nil, err
+			return nil, err // err returned from validate ownership is "not found" type
 		}
 	}
 	parameters := gjson.GetBytes(req.Body, "parameters").Map()
