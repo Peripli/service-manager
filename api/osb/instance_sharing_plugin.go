@@ -137,7 +137,7 @@ func (is *instanceSharingPlugin) UpdateService(req *web.Request, next web.Handle
 
 	err = storage.IsValidReferenceInstancePatchRequest(req, instance, planIDProperty)
 	if err != nil {
-		return nil, err
+		return nil, err // error handled via the HandleInstanceSharingError util.
 	}
 
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -146,7 +146,7 @@ func (is *instanceSharingPlugin) UpdateService(req *web.Request, next web.Handle
 func updateSharedInstance(ctx context.Context, repository storage.Repository, req *web.Request, instance *types.ServiceInstance, next web.Handler) (*web.Response, error) {
 	err := isValidSharedInstancePatchRequest(ctx, repository, req, instance)
 	if err != nil {
-		return nil, err
+		return nil, err // error handled via the HandleInstanceSharingError util.
 	}
 	return next.Handle(req)
 }

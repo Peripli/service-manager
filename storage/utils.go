@@ -75,6 +75,7 @@ func IsReferencedShared(ctx context.Context, repository Repository, referencedIn
 	referencedInstance := dbReferencedObject.(*types.ServiceInstance)
 
 	if !referencedInstance.IsShared() {
+		log.C(ctx).Debugf("IsReferencedShared failed. The target instance %s is not shared", referencedInstanceID)
 		return false, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, referencedInstanceID)
 	}
 	return true, nil
