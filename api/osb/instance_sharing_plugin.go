@@ -3,6 +3,7 @@ package osb
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/api/common/sharing"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -58,31 +59,15 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 		return nil, util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
 	}
 
-	// retrieve the target instance by referencedInstanceID
-	dbTargetInstance, err := storage.GetObjectByField(ctx, is.repository, types.ServiceInstanceType, "id", referencedInstanceID.String())
+	err = sharing.ValidateReferencedInstance(referencedInstanceID.String(), is.tenantIdentifier, is.repository, req.Context(),
+		func() string {
+			return gjson.GetBytes(req.Body, fmt.Sprintf("context.%s", is.tenantIdentifier)).String()
+		})
 	if err != nil {
-		log.C(ctx).Errorf("Failed retrieving the reference-instance by the ID: %s", referencedInstanceID)
-		return nil, util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
-	}
-	targetInstance := dbTargetInstance.(*types.ServiceInstance)
-
-	// Ownership validation
-	if is.tenantIdentifier != "" {
-		tenantPath := fmt.Sprintf("context.%s", is.tenantIdentifier)
-		callerTenantID := gjson.GetBytes(req.Body, tenantPath).String()
-		err = storage.ValidateOwnership(targetInstance, is.tenantIdentifier, req, callerTenantID)
-		if err != nil {
-			if err == util.ErrNotFoundInStorage {
-				return nil, util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
-			}
-			return nil, err
-		}
+		return nil, err
 	}
 
-	if !targetInstance.IsShared() {
-		log.C(ctx).Debugf("The target instance %s is not shared.", targetInstance.ID)
-		return nil, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, targetInstance.ID)
-	}
+	log.C(ctx).Infof("Reference Instance validation has passed successfully, instanceID: \"%s\"", referencedInstanceID)
 
 	//OSB spec does not require any fields to be returned
 	return util.NewJSONResponse(http.StatusCreated, map[string]string{})
@@ -151,7 +136,7 @@ func (is *instanceSharingPlugin) UpdateService(req *web.Request, next web.Handle
 		return next.Handle(req)
 	}
 
-	err = storage.IsValidReferenceInstancePatchRequest(req, instance, planIDProperty)
+	err = sharing.IsValidReferenceInstancePatchRequest(req, instance, planIDProperty)
 	if err != nil {
 		// error handled via the HandleInstanceSharingError util.
 		return nil, err

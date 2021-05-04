@@ -17,6 +17,7 @@
 package filters
 
 import (
+	"github.com/Peripli/service-manager/api/common/sharing"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -112,7 +113,6 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 	}
 
 	parameters := gjson.GetBytes(req.Body, "parameters").Map()
-
 	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
 	if !exists {
 		return nil, util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
@@ -120,37 +120,20 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 
 	req.Body, err = sjson.SetBytes(req.Body, instance_sharing.ReferencedInstanceIDKey, referencedInstanceID.String())
 	if err != nil {
-		log.C(ctx).Errorf("Unable to set the instance_sharing.ReferencedInstanceIDKey: \"%s\",error details: %s", referencedInstanceID.String(), err)
+		log.C(ctx).Errorf("Unable to set the ReferencedInstanceIDKey: \"%s\",error details: %s", referencedInstanceID.String(), err)
 		return nil, err
 	}
 
-	// retrieve the target instance by referencedInstanceID
-	dbTargetInstanceObject, err := storage.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", referencedInstanceID.String())
+	err = sharing.ValidateReferencedInstance(referencedInstanceID.String(), rif.tenantIdentifier, rif.repository, req.Context(),
+		func() string {
+			return query.RetrieveFromCriteria(rif.tenantIdentifier, query.CriteriaForContext(req.Context())...)
+		})
+
 	if err != nil {
-		log.C(ctx).Errorf("Failed retrieving the reference-instance by the ID: %s", referencedInstanceID)
-		return nil, util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
-	}
-	targetInstance := dbTargetInstanceObject.(*types.ServiceInstance)
-
-	// Ownership validation
-	if rif.tenantIdentifier != "" {
-		callerTenantID := query.RetrieveFromCriteria(rif.tenantIdentifier, query.CriteriaForContext(req.Context())...)
-		err = storage.ValidateOwnership(targetInstance, rif.tenantIdentifier, req, callerTenantID)
-		if err != nil {
-			if err == util.ErrNotFoundInStorage {
-				return nil, util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
-			}
-			log.C(ctx).Errorf("Unable to Validate Ownership: \"%s\",error details: %s", rif.tenantIdentifier, err)
-			return nil, err
-		}
+		return nil, err
 	}
 
-	if !targetInstance.IsShared() {
-		log.C(ctx).Debugf("The target instance %s is not shared.", targetInstance.ID)
-		return nil, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, targetInstance.ID)
-	}
-
-	log.C(ctx).Infof("Reference Instance Provision passed successfully, instanceID: \"%s\"", referencedInstanceID)
+	log.C(ctx).Infof("Reference instance validation has passed successfully, instanceID: \"%s\"", referencedInstanceID)
 	return next.Handle(req)
 }
 
@@ -169,7 +152,7 @@ func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next w
 		return next.Handle(req)
 	}
 
-	err = storage.IsValidReferenceInstancePatchRequest(req, instance, planIDProperty)
+	err = sharing.IsValidReferenceInstancePatchRequest(req, instance, planIDProperty)
 	if err != nil {
 		log.C(ctx).Errorf("Failed updating the reference instance %s due to invalid patch request:\n%s", instance.ID, req.Body)
 		return nil, err // handled by IsValidReferenceInstancePatchRequest

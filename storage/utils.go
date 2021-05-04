@@ -7,8 +7,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/tidwall/gjson"
 )
 
 func GetServiceOfferingByServiceInstanceId(repository Repository, ctx context.Context, serviceInstanceId string) (*types.ServiceOffering, error) {
@@ -64,27 +62,4 @@ func GetInstanceReferencesByID(ctx context.Context, repository Repository, insta
 		return nil, util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
 	}
 	return references, nil
-}
-
-func ValidateOwnership(referenceInstance *types.ServiceInstance, tenantIdentifier string, req *web.Request, callerTenantID string) error {
-	ctx := req.Context()
-	targetInstanceTenantID := referenceInstance.Labels[tenantIdentifier][0]
-	if targetInstanceTenantID != callerTenantID {
-		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", targetInstanceTenantID, callerTenantID)
-		return util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
-	}
-	return nil
-}
-
-func IsValidReferenceInstancePatchRequest(req *web.Request, instance *types.ServiceInstance, planIDProperty string) error {
-	// epsilontal todo: How can we update labels and do we want to allow the change?
-	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
-	if instance.ServicePlanID != newPlanID {
-		return util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, instance.ID)
-	}
-	parametersRaw := gjson.GetBytes(req.Body, "parameters").Raw
-	if parametersRaw != "" {
-		return util.HandleInstanceSharingError(util.ErrChangingParametersOfReferenceInstance, instance.ID)
-	}
-	return nil
 }
