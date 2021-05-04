@@ -35,7 +35,8 @@ func GetServiceOfferingByServiceInstanceId(repository Repository, ctx context.Co
 
 func GetObjectByField(ctx context.Context, repository Repository, objectType types.ObjectType, byKey, byValue string) (types.Object, error) {
 	byID := query.ByField(query.EqualsOperator, byKey, byValue)
-	dbObject, err := repository.Get(ctx, objectType, byID)
+	criteria := query.CriteriaForContext(ctx)
+	dbObject, err := repository.Get(ctx, objectType, append(criteria, byID)...)
 	if err != nil {
 		log.C(ctx).Errorf("GetObjectByField failed retrieving the %s by %s: %s", objectType.String(), byKey, byValue)
 		return nil, err
