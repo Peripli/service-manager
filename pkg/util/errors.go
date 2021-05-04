@@ -310,7 +310,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrInvalidShareRequest:
-		errorMessage := fmt.Sprintf("Couldn't set the shared property of the instance %s with other changes at the same time.", entityName)
+		errorMessage := "Couldn't set the property of the instance to \"shared\". When modifying the \"shared\" property, you can't add other properties to modify in that same request. Split your request into one that contains only the \"shared\" property and the other one that contains all the rest."
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
@@ -324,7 +324,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrAsyncNotSupportedForSharing:
-		errorMessage := fmt.Sprintf("Async requests are not supported when modifying the 'shared' property of the instance %s.", entityName)
+		errorMessage := "Async requests are not supported when modifying the 'shared' property. Try again with \"async\" = \"false\"."
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
