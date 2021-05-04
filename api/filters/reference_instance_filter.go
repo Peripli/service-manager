@@ -112,19 +112,7 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 		return next.Handle(req)
 	}
 
-	parameters := gjson.GetBytes(req.Body, "parameters").Map()
-	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
-	if !exists {
-		return nil, util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
-	}
-
-	req.Body, err = sjson.SetBytes(req.Body, instance_sharing.ReferencedInstanceIDKey, referencedInstanceID.String())
-	if err != nil {
-		log.C(ctx).Errorf("Unable to set the ReferencedInstanceIDKey: \"%s\",error details: %s", referencedInstanceID.String(), err)
-		return nil, err
-	}
-
-	err = sharing.ValidateReferencedInstance(referencedInstanceID.String(), rif.tenantIdentifier, rif.repository, req.Context(),
+	refInstanceID, err := sharing.ValidateReferencedInstance(req.Body, rif.tenantIdentifier, rif.repository, req.Context(),
 		func() string {
 			return query.RetrieveFromCriteria(rif.tenantIdentifier, query.CriteriaForContext(req.Context())...)
 		})
@@ -133,7 +121,13 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 		return nil, err
 	}
 
-	log.C(ctx).Infof("Reference instance validation has passed successfully, instanceID: \"%s\"", referencedInstanceID)
+	req.Body, err = sjson.SetBytes(req.Body, instance_sharing.ReferencedInstanceIDKey, refInstanceID)
+	if err != nil {
+		log.C(ctx).Errorf("Unable to set the ReferencedInstanceIDKey: \"%s\",error details: %s", refInstanceID, err)
+		return nil, err
+	}
+
+	log.C(ctx).Infof("Reference instance validation has passed successfully, instanceID: \"%s\"", refInstanceID)
 	return next.Handle(req)
 }
 
