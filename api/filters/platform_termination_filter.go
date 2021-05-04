@@ -100,11 +100,6 @@ func formatSharingReferences(references types.ObjectList) string {
 	return strings.Join(msg, ", ")
 }
 
-type SharingReferences struct {
-	sharedInstanceID string
-	referenceIDs     []string
-}
-
 func findReferencesOfSharedInstancesInOtherPlatforms(ctx context.Context, platform *types.Platform, repository storage.Repository) (types.ObjectList, error) {
 	sharedInstanceIDs, err := findSharedInstancesInPlatform(ctx, platform, repository)
 	if err != nil {
