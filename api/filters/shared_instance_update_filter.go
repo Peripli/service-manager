@@ -27,7 +27,7 @@ import (
 	"net/http"
 )
 
-const SharingInstanceUpdateFilterName = "SharedInstanceUpdateFilter"
+const SharedInstanceUpdateFilterName = "SharedInstanceUpdateFilter"
 
 // SharingInstanceFilter validate the un/share request on an existing service instance
 type sharedInstanceUpdateFilter struct {
@@ -41,7 +41,7 @@ func NewSharedInstanceUpdateFilter(storageRepository storage.Repository) *shared
 }
 
 func (*sharedInstanceUpdateFilter) Name() string {
-	return SharingInstanceUpdateFilterName
+	return SharedInstanceUpdateFilterName
 }
 
 func (sf *sharedInstanceUpdateFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
