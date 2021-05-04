@@ -317,7 +317,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrInstanceIsAlreadyAtDesiredSharedState:
-		errorMessage := fmt.Sprintf("The service instance %s, is already at the desried \"shared\" state", entityName)
+		errorMessage := fmt.Sprintf("The service instance %s, is already at the desried \"shared\" state.", entityName)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,

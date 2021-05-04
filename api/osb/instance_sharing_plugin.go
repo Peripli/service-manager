@@ -58,11 +58,19 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 		return nil, util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
 	}
 
+	// retrieve the target instance by referencedInstanceID
+	dbTargetInstance, err := storage.GetObjectByField(ctx, is.repository, types.ServiceInstanceType, "id", referencedInstanceID.String())
+	if err != nil {
+		log.C(ctx).Errorf("Failed retrieving the reference-instance by the ID: %s", referencedInstanceID)
+		return nil, util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
+	}
+	targetInstance := dbTargetInstance.(*types.ServiceInstance)
+
 	// Ownership validation
 	if is.tenantIdentifier != "" {
 		tenantPath := fmt.Sprintf("context.%s", is.tenantIdentifier)
 		callerTenantID := gjson.GetBytes(req.Body, tenantPath).String()
-		err = storage.ValidateOwnership(is.repository, is.tenantIdentifier, req, callerTenantID)
+		err = storage.ValidateOwnership(targetInstance, is.tenantIdentifier, req, callerTenantID)
 		if err != nil {
 			if err == util.ErrNotFoundInStorage {
 				return nil, util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
@@ -71,10 +79,11 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 		}
 	}
 
-	_, err = storage.IsReferencedShared(ctx, is.repository, referencedInstanceID.String())
-	if err != nil {
-		return nil, err
+	if !targetInstance.IsShared() {
+		log.C(ctx).Debugf("The target instance %s is not shared.", targetInstance.ID)
+		return nil, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, targetInstance.ID)
 	}
+
 	//OSB spec does not require any fields to be returned
 	return util.NewJSONResponse(http.StatusCreated, map[string]string{})
 }
@@ -229,6 +238,7 @@ func isValidSharedInstancePatchRequest(ctx context.Context, repository storage.R
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
 	if plan.CatalogID != newCatalogID {
+		// we don't allow changing the plan of the shared instance, it might have references
 		return util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, instance.ID)
 	}
 	return nil
