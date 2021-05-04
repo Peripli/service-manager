@@ -23,13 +23,12 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"net/http"
 	"strings"
-
-	"github.com/Peripli/service-manager/pkg/web"
 )
 
 const ReferenceInstanceFilterName = "ReferenceInstanceFilter"
@@ -54,14 +53,14 @@ func (*referenceInstanceFilter) Name() string {
 
 func (rif *referenceInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	switch req.Request.Method {
-	case http.MethodGet:
-		if strings.Contains(req.RequestURI, "/parameters") {
-			return rif.handleGetParameters(req, next)
-		}
 	case http.MethodPost:
 		return rif.handleProvision(req, next)
 	case http.MethodPatch:
 		return rif.handleServiceUpdate(req, next)
+	case http.MethodGet:
+		if strings.Contains(req.RequestURI, "/parameters") {
+			return rif.handleGetParameters(req, next)
+		}
 	}
 	return next.Handle(req)
 }

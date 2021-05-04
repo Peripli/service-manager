@@ -60,8 +60,8 @@ func (sf *sharedInstanceUpdateFilter) Run(req *web.Request, next web.Handler) (*
 		return next.Handle(req)
 	}
 	persistedInstance := dbPersistedInstanceObject.(*types.ServiceInstance)
-	if changingPlanOfSharedInstance(persistedInstance, reqServiceInstance) {
-		// we don't allow changing plan of shared instance
+	if isChangingPlanOfSharedInstance(persistedInstance, reqServiceInstance) {
+		// we don't allow changing plan of shared instance, may have existing references
 		return nil, util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, persistedInstance.ID)
 	}
 	if reqServiceInstance.Shared == nil {
@@ -115,7 +115,7 @@ func (sf *sharedInstanceUpdateFilter) Run(req *web.Request, next web.Handler) (*
 	return next.Handle(req)
 }
 
-func changingPlanOfSharedInstance(persistedInstance *types.ServiceInstance, reqServiceInstance types.ServiceInstance) bool {
+func isChangingPlanOfSharedInstance(persistedInstance *types.ServiceInstance, reqServiceInstance types.ServiceInstance) bool {
 	return persistedInstance.IsShared() && reqServiceInstance.ServicePlanID != "" && persistedInstance.ServicePlanID != reqServiceInstance.ServicePlanID
 }
 

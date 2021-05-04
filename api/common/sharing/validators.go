@@ -24,7 +24,6 @@ func ValidateReferencedInstance(body []byte, tenantIdentifier string, repository
 		log.C(ctx).Errorf("Failed retrieving the reference-instance by the ID: %s", referencedInstanceObj)
 		return "", util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
 	}
-
 	referencedInstance := referencedInstanceObj.(*types.ServiceInstance)
 
 	//validate Ownership in case of a multi tenant flow
