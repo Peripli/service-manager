@@ -65,12 +65,12 @@ func (f *platformTerminationFilter) Run(req *web.Request, next web.Handler) (*we
 				StatusCode:  http.StatusUnprocessableEntity,
 			}
 		}
-		instanceInOtherPlatforms, err := findReferencesOfSharedInstancesInOtherPlatforms(ctx, platform, f.repository)
+		instancesInOtherPlatforms, err := findReferencesOfSharedInstancesInOtherPlatforms(ctx, platform, f.repository)
 		if err != nil {
 			return nil, err
 		}
 
-		if instanceInOtherPlatforms.Len() > 0 {
+		if instancesInOtherPlatforms != nil && instancesInOtherPlatforms.Len() > 0 {
 			sharedInstancesReferences, err := findReferencesOfSharedInstancesInOtherPlatforms(ctx, platform, f.repository)
 			if err != nil {
 				return nil, err
