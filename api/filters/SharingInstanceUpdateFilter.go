@@ -27,24 +27,24 @@ import (
 	"net/http"
 )
 
-const SharingInstanceFilterName = "SharingInstanceFilter"
+const SharingInstanceUpdateFilterName = "SharingInstanceUpdateFilter"
 
 // SharingInstanceFilter validate the un/share request on an existing service instance
-type sharingInstanceFilter struct {
+type sharingInstanceUpdateFilter struct {
 	storageRepository storage.Repository
 }
 
-func NewSharingInstanceFilter(storageRepository storage.Repository) *sharingInstanceFilter {
-	return &sharingInstanceFilter{
+func NewSharingInstanceUpdateFilter(storageRepository storage.Repository) *sharingInstanceUpdateFilter {
+	return &sharingInstanceUpdateFilter{
 		storageRepository: storageRepository,
 	}
 }
 
-func (*sharingInstanceFilter) Name() string {
-	return SharingInstanceFilterName
+func (*sharingInstanceUpdateFilter) Name() string {
+	return SharingInstanceUpdateFilterName
 }
 
-func (sf *sharingInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+func (sf *sharingInstanceUpdateFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	var reqServiceInstance types.ServiceInstance
 	err := util.BytesToObjectNoLabels(req.Body, &reqServiceInstance)
 	if err != nil {
@@ -119,7 +119,7 @@ func changingPlanOfSharedInstance(persistedInstance *types.ServiceInstance, reqS
 	return persistedInstance.IsShared() && reqServiceInstance.ServicePlanID != "" && persistedInstance.ServicePlanID != reqServiceInstance.ServicePlanID
 }
 
-func (*sharingInstanceFilter) FilterMatchers() []web.FilterMatcher {
+func (*sharingInstanceUpdateFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
