@@ -50,12 +50,9 @@ func (sf *sharedInstanceUpdateFilter) Run(req *web.Request, next web.Handler) (*
 	if err != nil {
 		return nil, err
 	}
-	if reqServiceInstance.Shared == nil {
-		return next.Handle(req)
-	}
 
-	ctx := req.Context()
 	instanceID := req.PathParams["resource_id"]
+	ctx := req.Context()
 
 	// Get instance from database
 	dbPersistedInstanceObject, err := storage.GetObjectByField(ctx, sf.storageRepository, types.ServiceInstanceType, "id", instanceID)
@@ -63,6 +60,15 @@ func (sf *sharedInstanceUpdateFilter) Run(req *web.Request, next web.Handler) (*
 		return next.Handle(req)
 	}
 	persistedInstance := dbPersistedInstanceObject.(*types.ServiceInstance)
+
+	// Validate plan has not changed - we don't allow changing plan of shared instance, may have existing references
+	if isPlanChanged(persistedInstance, reqServiceInstance) {
+		return nil, util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, persistedInstance.ID)
+	}
+
+	if reqServiceInstance.Shared == nil {
+		return next.Handle(req)
+	}
 
 	isAsync := req.URL.Query().Get(web.QueryParamAsync)
 	if isAsync == "true" {
@@ -133,4 +139,8 @@ func validateRequestContainsSingleProperty(logger *logrus.Entry, reqInstanceByte
 	}
 
 	return nil
+}
+
+func isPlanChanged(persistedInstance *types.ServiceInstance, reqServiceInstance types.ServiceInstance) bool {
+	return persistedInstance.IsShared() && reqServiceInstance.ServicePlanID != "" && persistedInstance.ServicePlanID != reqServiceInstance.ServicePlanID
 }
