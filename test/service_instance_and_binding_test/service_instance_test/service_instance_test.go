@@ -4304,9 +4304,6 @@ var _ = DescribeTestsFor(TestCase{
 					})
 				})
 				Describe("DELETE", func() {
-					var sharedInstanceID = ""
-					var referenceInstanceID = ""
-					//var referencePlan *types.ServicePlan
 					BeforeEach(func() {
 						sharedInstanceID, referenceInstanceID, _ = prepareInstanceSharingPrerequisites()
 					})
