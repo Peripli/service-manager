@@ -4189,8 +4189,9 @@ var _ = DescribeTestsFor(TestCase{
 
 							})
 							It("fails changing the instance plan", func() {
+								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, anotherServicePlanID, TenantIDValue)
 								delete(postInstanceRequestTLS, "shared")
-								postInstanceRequestTLS["service_plan_id"] = "new-plan"
+								postInstanceRequestTLS["service_plan_id"] = anotherServicePlanID
 								resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
 									WithQuery("async", "false").
 									WithJSON(postInstanceRequestTLS).
