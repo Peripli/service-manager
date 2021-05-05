@@ -231,7 +231,6 @@ var (
 	ErrChangingPlanOfSharedInstance          = errors.New("changing plan of shared instance")
 	ErrChangingParametersOfReferenceInstance = errors.New("changing parameters of reference instance")
 	ErrMissingOrInvalidReferenceParameter    = errors.New("missing or invalid referenced_instance_id parameter")
-	ErrParsingNewCatalogWithReference        = errors.New("failed generating reference-plan")
 	ErrUnknownOSBMethod                      = errors.New("osb method is unknown")
 	ErrSharedPlanHasReferences               = errors.New("shared plan has references")
 	ErrInstanceIsAlreadyAtDesiredSharedState = errors.New("instance already at the desired shared state")
@@ -288,12 +287,6 @@ func HandleInstanceSharingError(err error, entityName string) error {
 		return &HTTPError{
 			ErrorType:   "InvalidRequest",
 			Description: fmt.Sprintf("Failed to create the instance. Missing or invalid parameter \"%s\".", entityName),
-			StatusCode:  http.StatusBadRequest,
-		}
-	case ErrParsingNewCatalogWithReference:
-		return &HTTPError{
-			ErrorType:   "InvalidRequest",
-			Description: fmt.Sprintf("Parsing failed. Couldn't generate the new catalog with the plan \"%s\".", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrUnknownOSBMethod:
