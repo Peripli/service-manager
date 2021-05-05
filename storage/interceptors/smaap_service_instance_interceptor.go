@@ -293,6 +293,10 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			}
 			instance = instanceObjBeforeUpdate.(*types.ServiceInstance)
 
+			// Validate plan has not changed - we don't allow changing plan of shared instance, may have existing references
+			if isPlanChanged(instance, updatedInstance) {
+				return nil, util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, instance.ID)
+			}
 			oldServicePlanObj, err := i.repository.Get(ctx, types.ServicePlanType, query.Criterion{
 				LeftOp:   "id",
 				Operator: query.EqualsOperator,
@@ -382,6 +386,10 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 		// successfully updated instance and an UPDATE operation that is marked as failed!
 		return f(ctx, instance.UpdateValues.ServiceInstance, instance.UpdateValues.LabelChanges...)
 	}
+}
+
+func isPlanChanged(persistedInstance *types.ServiceInstance, reqServiceInstance *types.ServiceInstance) bool {
+	return persistedInstance.IsShared() && reqServiceInstance.ServicePlanID != "" && persistedInstance.ServicePlanID != reqServiceInstance.ServicePlanID
 }
 
 func (i *ServiceInstanceInterceptor) AroundTxDelete(f storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
