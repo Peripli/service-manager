@@ -268,7 +268,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrChangingPlanOfReferenceInstance:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("Failed to update the instance \"%s\". It isn't allowed to change the plan of reference instances.", entityName),
+			Description: fmt.Sprintf("Failed to update the instance %s. It isn't allowed to change the plan of reference instances.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrChangingPlanOfSharedInstance:
@@ -280,7 +280,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrChangingParametersOfReferenceInstance:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("Failed to update the instance %s. This is a reference instance, therefore its parameters can't be changed.", entityName),
+			Description: fmt.Sprintf("Failed to update the instance %s. It isn't allowed to change a reference instance.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrMissingOrInvalidReferenceParameter:
