@@ -106,7 +106,7 @@ func (sf *sharedInstanceUpdateFilter) Run(req *web.Request, next web.Handler) (*
 		if err != nil {
 			logger.Errorf("Could not retrieve references of the service instance (%s): %v", instanceID, err)
 		}
-		if referencesList.Len() > 0 {
+		if referencesList!=nil && referencesList.Len() > 0 {
 			return nil, util.HandleReferencesError(util.ErrUnsharingInstanceWithReferences, types.ObjectListIDsToStringArray(referencesList))
 		}
 	}
