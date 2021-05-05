@@ -72,7 +72,7 @@ func (sf *sharedInstanceUpdateFilter) Run(req *web.Request, next web.Handler) (*
 
 	logger := log.C(ctx)
 
-	//we cannot use reqServiceInstance in this validation because the struct has default values (like "" for string type properties)
+	// we cannot use reqServiceInstance in this validation because the struct has default values (like "" for string type properties)
 	err = validateRequestContainsSingleProperty(logger, req.Body, instanceID)
 	if err != nil {
 		return nil, err

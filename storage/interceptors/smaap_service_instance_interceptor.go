@@ -294,9 +294,11 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			instance = instanceObjBeforeUpdate.(*types.ServiceInstance)
 
 			// Validate plan has not changed - we don't allow changing plan of shared instance, may have existing references
+			// we block the async flow for sharing instances, so we do the validation on !reschedule only.
 			if isPlanChanged(instance, updatedInstance) {
 				return nil, util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, instance.ID)
 			}
+
 			oldServicePlanObj, err := i.repository.Get(ctx, types.ServicePlanType, query.Criterion{
 				LeftOp:   "id",
 				Operator: query.EqualsOperator,
