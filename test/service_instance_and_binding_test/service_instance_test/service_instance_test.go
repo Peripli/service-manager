@@ -82,6 +82,10 @@ func checkInstance(req *http.Request) (int, map[string]interface{}) {
 	return http.StatusCreated, Object{}
 }
 
+type testConfigStruct struct {
+	async  string
+	status int
+}
 type testCase struct {
 	async                           string
 	expectedCreateSuccessStatusCode int
@@ -3934,90 +3938,31 @@ var _ = DescribeTestsFor(TestCase{
 						AfterEach(func() {
 							cleanupInstances(referenceInstanceID, sharedInstanceID)
 						})
-						When("updating a reference service instance", func() {
-							It("returns 201 when renaming the reference-instance", func() {
-								ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
-									WithQuery("async", "false").
-									WithJSON(Object{
-										"name":             "renamed",
-										"service_plan_id":  referencePlan.ID,
-										"maintenance_info": "{}",
-									}).
-									Expect().
-									Status(http.StatusOK).
-									JSON().Object().
-									ValueEqual("name", "renamed")
-							})
-							It("returns 202 when renaming the reference-instance", func() {
-								newName := "renamed"
-								resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
-									WithQuery("async", "true").
-									WithJSON(Object{
-										"name":             newName,
-										"service_plan_id":  referencePlan.ID,
-										"maintenance_info": "{}",
-									}).
-									Expect().
-									Status(http.StatusAccepted)
-								VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-									Category:          types.UPDATE,
-									State:             types.SUCCEEDED,
-									ResourceType:      types.ServiceInstanceType,
-									Reschedulable:     false,
-									DeletionScheduled: false,
+						When("renaming a reference service instance", func() {
+							for _, testConfig := range []testConfigStruct{
+								{async: "true", status: http.StatusAccepted},
+								{async: "false", status: http.StatusOK},
+							} {
+								It(fmt.Sprintf("returns %d when async=%s", testConfig.status, testConfig.async), func() {
+									resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
+										WithQuery("async", testConfig.async).
+										WithJSON(Object{
+											"name":             "renamed",
+											"service_plan_id":  referencePlan.ID,
+											"maintenance_info": "{}",
+										}).
+										Expect().
+										Status(testConfig.status)
+									resp.JSON().Object().ValueEqual("name", "renamed")
+									VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.UPDATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
 								})
-								objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-									ID:    referenceInstanceID,
-									Type:  types.ServiceInstanceType,
-									Ready: true,
-								})
-
-								By("verify reference-instance is renamed")
-								objAfterOp.Value("name").Equal(newName)
-
-							})
-							It("returns 400 when updating the service_plan_id when async=false", func() {
-								newName := "renamed"
-								ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
-									WithQuery("async", "false").
-									WithJSON(Object{
-										"name":             newName,
-										"service_plan_id":  servicePlanID,
-										"maintenance_info": "{}",
-									}).
-									Expect().
-									Status(http.StatusBadRequest)
-								objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-									ID:    referenceInstanceID,
-									Type:  types.ServiceInstanceType,
-									Ready: true,
-								})
-
-								By("verify reference-instance plan has not changed")
-								objAfterOp.Value("service_plan_id").Equal(referencePlan.ID)
-
-							})
-							It("returns 400 when updating the service_plan_id when async=true", func() {
-								newName := "renamed"
-								ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
-									WithQuery("async", "true").
-									WithJSON(Object{
-										"name":             newName,
-										"service_plan_id":  servicePlanID,
-										"maintenance_info": "{}",
-									}).
-									Expect().
-									Status(http.StatusBadRequest)
-								objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-									ID:    referenceInstanceID,
-									Type:  types.ServiceInstanceType,
-									Ready: true,
-								})
-
-								By("verify reference-instance plan has not changed")
-								objAfterOp.Value("service_plan_id").Equal(referencePlan.ID)
-
-							})
+							}
 							It("returns 400 when updating the referenced_instance_id parameter", func() {
 								newName := "renamed"
 								ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
@@ -4042,6 +3987,29 @@ var _ = DescribeTestsFor(TestCase{
 								objAfterOp.Value("service_plan_id").Equal(referencePlan.ID)
 
 							})
+							for _, async := range []string{"true", "false"} {
+								It(fmt.Sprintf("returns 400 when updating the service_plan_id when async=%s", async), func() {
+									newName := "renamed"
+									ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
+										WithQuery("async", async).
+										WithJSON(Object{
+											"name":             newName,
+											"service_plan_id":  servicePlanID,
+											"maintenance_info": "{}",
+										}).
+										Expect().
+										Status(http.StatusBadRequest)
+									objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    referenceInstanceID,
+										Type:  types.ServiceInstanceType,
+										Ready: true,
+									})
+
+									By("verify reference-instance plan has not changed")
+									objAfterOp.Value("service_plan_id").Equal(referencePlan.ID)
+
+								})
+							}
 						})
 						When("updating a shared service instance", func() {
 							BeforeEach(func() {
@@ -4101,6 +4069,36 @@ var _ = DescribeTestsFor(TestCase{
 									ValueEqual("shared", true).
 									ValueEqual("name", "renamed")
 							})
+							for _, testConfig := range []testConfigStruct{
+								{async: "true", status: http.StatusBadRequest},
+								{async: "false", status: http.StatusBadRequest},
+							} {
+								It(fmt.Sprintf("returns %d when updating the service_plan_id when async=%s", testConfig.status, testConfig.async), func() {
+									newName := "renamed"
+									resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
+										WithQuery("async", testConfig.async).
+										WithJSON(Object{
+											"name":             newName,
+											"service_plan_id":  referencePlan.ID,
+											"maintenance_info": "{}",
+										}).
+										Expect().
+										Status(testConfig.status)
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    sharedInstanceID,
+										Type:  types.ServiceInstanceType,
+										Ready: true,
+									})
+									VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.UPDATE,
+										State:             types.FAILED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, sharedInstanceID))
+								})
+							}
 						})
 					})
 					Context("shared instance without references", func() {

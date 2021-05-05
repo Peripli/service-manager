@@ -50,6 +50,9 @@ func (sf *sharedInstanceUpdateFilter) Run(req *web.Request, next web.Handler) (*
 	if err != nil {
 		return nil, err
 	}
+	if reqServiceInstance.Shared == nil {
+		return next.Handle(req)
+	}
 
 	ctx := req.Context()
 	instanceID := req.PathParams["resource_id"]
@@ -60,10 +63,6 @@ func (sf *sharedInstanceUpdateFilter) Run(req *web.Request, next web.Handler) (*
 		return next.Handle(req)
 	}
 	persistedInstance := dbPersistedInstanceObject.(*types.ServiceInstance)
-
-	if reqServiceInstance.Shared == nil {
-		return next.Handle(req)
-	}
 
 	isAsync := req.URL.Query().Get(web.QueryParamAsync)
 	if isAsync == "true" {
@@ -98,11 +97,9 @@ func (sf *sharedInstanceUpdateFilter) Run(req *web.Request, next web.Handler) (*
 	// When un-sharing a service instance with references
 	if persistedInstance.IsShared() && !*reqServiceInstance.Shared {
 		referencesList, err := storage.GetInstanceReferencesByID(ctx, sf.storageRepository, persistedInstance.ID)
-
 		if err != nil {
 			logger.Errorf("Could not retrieve references of the service instance (%s): %v", instanceID, err)
 		}
-
 		if referencesList.Len() > 0 {
 			return nil, util.HandleReferencesError(util.ErrUnsharingInstanceWithReferences, types.ObjectListIDsToStringArray(referencesList))
 		}
