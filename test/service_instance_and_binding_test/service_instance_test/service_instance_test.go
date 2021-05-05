@@ -4089,13 +4089,6 @@ var _ = DescribeTestsFor(TestCase{
 										Type:  types.ServiceInstanceType,
 										Ready: true,
 									})
-									VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-										Category:          types.UPDATE,
-										State:             types.FAILED,
-										ResourceType:      types.ServiceInstanceType,
-										Reschedulable:     false,
-										DeletionScheduled: false,
-									})
 									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, sharedInstanceID))
 								})
 							}
