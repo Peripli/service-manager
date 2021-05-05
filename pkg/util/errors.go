@@ -250,7 +250,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrCatalogUsesReservedPlanName:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("The plan name you used for registration \"%s\" is reserved for the Service Manager; you must choose a different name.", entityName),
+			Description: fmt.Sprintf("The plan name you used for registration \"%s\" is a reserved name; you must choose a different name.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrPlanMustBeBindable:
@@ -268,7 +268,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrChangingPlanOfReferenceInstance:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("Failed to update the instance %s. This is a reference instance, therefore its plan can't be changed.", entityName),
+			Description: fmt.Sprintf("Failed to update the instance \"%s\". It isn't allowed to change the plan of reference instances.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrChangingPlanOfSharedInstance:
