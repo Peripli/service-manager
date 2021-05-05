@@ -274,7 +274,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrChangingPlanOfSharedInstance:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("Couldn't update the instance's plan. The instance %s is shared, therefore you must unshare it first.", entityName),
+			Description: "Couldn't update the instance's plan. It is not possible to change a plan of a shared instance.",
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrChangingParametersOfReferenceInstance:
