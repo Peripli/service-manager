@@ -3906,9 +3906,6 @@ var _ = DescribeTestsFor(TestCase{
 							// should contain shared property
 							object.ContainsKey("shared").
 								ValueEqual("shared", true)
-							// should contain shareable property
-							object.ContainsKey("shareable").
-								ValueEqual("shareable", true)
 						})
 					})
 					When("service instance is a reference type", func() {
@@ -3919,9 +3916,6 @@ var _ = DescribeTestsFor(TestCase{
 								Object()
 							object.ContainsKey(instance_sharing.ReferencedInstanceIDKey).
 								ValueEqual(instance_sharing.ReferencedInstanceIDKey, sharedInstanceID)
-							// should contain shareable property
-							object.ContainsKey("shareable").
-								ValueEqual("shareable", false)
 							// should not return context of reference binding:
 							object.NotContainsKey("context")
 							// Expect to retrieve the data from the broker of the shared instance and not of the reference instance
@@ -4191,20 +4185,6 @@ var _ = DescribeTestsFor(TestCase{
 
 								resp.JSON().Object().
 									Equal(util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, sharedInstanceID))
-							})
-							It("should keep the shareable property unchanged", func() {
-								delete(postInstanceRequestTLS, "shared")
-								postInstanceRequestTLS["name"] = "renamed"
-								postInstanceRequestTLS["shareable"] = false
-								ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
-									WithQuery("async", "false").
-									WithJSON(postInstanceRequestTLS).
-									Expect().
-									Status(http.StatusOK).
-									JSON().Object().
-									ValueEqual("shareable", true).
-									ValueEqual("name", "renamed")
-
 							})
 						})
 					})

@@ -802,7 +802,6 @@ func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 		MaintenanceInfo:      req.RawMaintenanceInfo,
 		Context:              req.RawContext,
 		Usable:               true,
-		Shareable:            plan.IsShareablePlan(),
 		ReferencedInstanceID: referencedInstanceID,
 	}
 	if _, err := storage.Create(ctx, instance); err != nil {
@@ -875,7 +874,6 @@ func (sp *storePlugin) updateInstance(ctx context.Context, storage storage.Repos
 			return err
 		}
 		serviceInstance.ServicePlanID = plan.GetID()
-		serviceInstance.Shareable = plan.IsShareablePlan() // we always override the instance.shareable value via the plan's property
 	}
 	if len(resp.DashboardURL) != 0 {
 		serviceInstance.DashboardURL = resp.DashboardURL
