@@ -3916,8 +3916,14 @@ var _ = DescribeTestsFor(TestCase{
 								Object()
 							object.ContainsKey(instance_sharing.ReferencedInstanceIDKey).
 								ValueEqual(instance_sharing.ReferencedInstanceIDKey, sharedInstanceID)
-							// should not return context of reference binding:
-							object.NotContainsKey("context")
+							// should return context of reference binding:
+							referenceInstance, _ := GetInstanceObjectByID(ctx, referenceInstanceID)
+							object.ContainsKey("context").
+								ValueEqual("context", Object{
+									"instance_name":  referenceInstance.Name,
+									"platform":       referenceInstance.PlatformID,
+									TenantIdentifier: TenantIDValue,
+								})
 							// Expect to retrieve the data from the broker of the shared instance and not of the reference instance
 							uri := brokerServer.LastRequest.RequestURI
 							Expect(uri).To(ContainSubstring(sharedInstanceID))
