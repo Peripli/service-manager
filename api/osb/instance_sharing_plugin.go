@@ -66,7 +66,7 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 	return util.NewJSONResponse(http.StatusCreated, map[string]string{})
 }
 
-// Deprovision intercepts deprovision requests and check if the instance is in the platform from where the request comes
+// Deprovision validates whether we delete a reference or a shared instance and validates the request before deleting the instance.
 func (is *instanceSharingPlugin) Deprovision(req *web.Request, next web.Handler) (*web.Response, error) {
 	instanceID := req.PathParams["instance_id"]
 	ctx := req.Context()
@@ -103,7 +103,7 @@ func deprovisionSharedInstance(ctx context.Context, repository storage.Transacti
 	return next.Handle(req)
 }
 
-// UpdateService intercepts update service instance requests and check if the instance is in the platform from where the request comes
+// UpdateService validates whether we update a reference or a shared instance and validates the request before updating the instance.
 func (is *instanceSharingPlugin) UpdateService(req *web.Request, next web.Handler) (*web.Response, error) {
 	// we don't want to allow plan_id and/or parameters changes on a reference service instance
 	instanceID := req.PathParams["instance_id"]
@@ -147,22 +147,22 @@ func updateSharedInstance(ctx context.Context, repository storage.Repository, re
 	return next.Handle(req)
 }
 
-// Bind intercepts bind requests and check if the instance is in the platform from where the request comes
+// Bind via the handleBinding function, it switches the instance's context between the reference instance and the shared instance.
 func (is *instanceSharingPlugin) Bind(req *web.Request, next web.Handler) (*web.Response, error) {
 	return is.handleBinding(req, next)
 }
 
-// Unbind intercepts unbind requests and check if the instance is in the platform from where the request comes
+// Unbind via the handleBinding function, it switches the instance's context between the reference instance and the shared instance.
 func (is *instanceSharingPlugin) Unbind(req *web.Request, next web.Handler) (*web.Response, error) {
 	return is.handleBinding(req, next)
 }
 
-// FetchBinding intercepts get service binding requests and check if the instance owner is the same as the one requesting the operation
+// FetchBinding via the handleBinding function, it switches the instance's context between the reference instance and the shared instance.
 func (is *instanceSharingPlugin) FetchBinding(req *web.Request, next web.Handler) (*web.Response, error) {
 	return is.handleBinding(req, next)
 }
 
-// PollBinding intercepts poll binding operation requests and check if the instance is in the platform from where the request comes
+// PollBinding via the handleBinding function, it switches the instance's context between the reference instance and the shared instance.
 func (is *instanceSharingPlugin) PollBinding(req *web.Request, next web.Handler) (*web.Response, error) {
 	return is.handleBinding(req, next)
 }
