@@ -18,6 +18,7 @@ package osb_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -482,29 +483,63 @@ var _ = Describe("Instance Sharing", func() {
 
 				})
 			})
-			When("a reference instance exists in k8s platform", func() {
-				BeforeEach(func() {
-					UUID, _ := uuid.NewV4()
-					platformJSON = common.MakePlatform(UUID.String(), UUID.String(), "kubernetes", "test-platform-k8s")
-				})
-				FIt("binds reference instance successfully", func() {
-					sharedInstanceID, referenceInstanceID := createSharedInstanceAndReference(platform, false)
-					provisionRequestBody = buildRequestBody(service1CatalogID, plan1CatalogID, "my-db-new-instance")
-					bindingID := createBinding(referenceInstanceID, sharedInstanceID, http.StatusCreated, "false")
+		})
+		When("a reference instance exists in k8s platform", func() {
+			BeforeEach(func() {
+				UUID, _ := uuid.NewV4()
+				platformJSON = common.MakePlatform(UUID.String(), UUID.String(), "kubernetes", "test-platform-k8s")
+			})
+			It("binds reference instance successfully", func() {
+				instanceSharingBrokerServer.ShouldRecordRequests(true)
 
-					// The last broker request should be the "PUT" binding request:
-					lastRequest := instanceSharingBrokerServer.LastRequest
-					Expect(lastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
-					Expect(lastRequest.Method).To(Equal("PUT"))
+				provisionRequestBody = buildRequestBody(shareablePlanCatalogID, service2CatalogID, platform.ID, "shared-instance")
+				sharedInstanceID, referenceInstanceID := createSharedInstanceAndReference(platform, false)
+				provisionRequestBody = buildRequestBody(service1CatalogID, plan1CatalogID, platform.ID, "reference-instance")
+				bindingID := createBinding(referenceInstanceID, sharedInstanceID, http.StatusCreated, "false")
 
-					// The new binding should be registered in sm under the reference instance.
-					ctx.SMWithOAuth.GET(web.ServiceBindingsURL+"/"+bindingID).
-						Expect().
-						Status(http.StatusOK).
-						JSON().
-						Object().ContainsKey("service_instance_id").
-						ValueEqual("service_instance_id", referenceInstanceID)
-				})
+				// The last broker request should be the "PUT" binding request:
+				lastRequest := instanceSharingBrokerServer.LastRequest
+				Expect(lastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
+				Expect(lastRequest.Method).To(Equal("PUT"))
+
+				// validate request body.context when creating the binding
+				jsonBody := Object{}
+				json.Unmarshal(instanceSharingBrokerServer.LastRequestBody, &jsonBody)
+				sharedInstance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
+				expectedContextToBroker := Object{
+					"space_name":        "development",
+					TenantIdentifier:    TenantValue,
+					"instance_name":     sharedInstance.Name,
+					"organization_guid": organizationGUID,
+					"organization_name": "system",
+					"platform":          sharedInstance.PlatformID,
+					"space_guid":        instanceSharingSpaceGUID,
+				}
+				Expect(jsonBody["context"]).To(Equal(expectedContextToBroker))
+
+				// The new binding should be registered in sm under the reference instance.
+				object := ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + bindingID).
+					Expect().
+					Status(http.StatusOK).
+					JSON().
+					Object()
+				object.ContainsKey("service_instance_id").
+					ValueEqual("service_instance_id", referenceInstanceID)
+
+				// validate the context of the binding is saved in the db with the reference data
+				referenceInstance, _ := GetInstanceObjectByID(ctx, referenceInstanceID)
+				expectedContextFromDB := Object{
+					"space_name":        "development",
+					TenantIdentifier:    TenantValue,
+					"instance_name":     referenceInstance.Name,
+					"organization_guid": organizationGUID,
+					"organization_name": "system",
+					"platform":          referenceInstance.PlatformID,
+					"space_guid":        instanceSharingSpaceGUID,
+				}
+				object.ContainsKey("context").
+					ValueEqual("context", expectedContextFromDB)
+
 			})
 		})
 	})
@@ -637,7 +672,7 @@ func createReferenceInstance(platformID, sharedInstanceID string, accepts_incomp
 	instanceID := UUID.String()
 
 	referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareablePlanCatalogID)
-	referenceProvisionBody := buildReferenceProvisionBody(referencePlan.CatalogID, sharedInstanceID)
+	referenceProvisionBody := buildReferenceProvisionBody(referencePlan.CatalogID, platformID, sharedInstanceID)
 	utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(referencePlan.CatalogID, platformID, organizationGUID)
 	resp := ctx.SMWithBasic.PUT(instanceSharingBrokerPath+"/v2/service_instances/"+instanceID).
 		WithQuery(acceptsIncompleteKey, accepts_incomplete).
@@ -670,7 +705,7 @@ func createAndShareInstance(accepts_incomplete bool) (*httpexpect.Response, stri
 	return resp, sharedInstanceID
 }
 
-func buildReferenceProvisionBody(planID, sharedInstanceID string) Object {
+func buildReferenceProvisionBody(planID, platformID, sharedInstanceID string) Object {
 	return Object{
 		"service_id":        service2CatalogID,
 		"plan_id":           planID,
@@ -680,7 +715,7 @@ func buildReferenceProvisionBody(planID, sharedInstanceID string) Object {
 			instance_sharing.ReferencedInstanceIDKey: sharedInstanceID,
 		},
 		"context": Object{
-			"platform":          "cloudfoundry",
+			"platform":          platformID,
 			"organization_guid": organizationGUID,
 			"organization_name": "system",
 			"space_guid":        instanceSharingSpaceGUID,

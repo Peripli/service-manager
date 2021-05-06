@@ -235,7 +235,7 @@ var _ = BeforeSuite(func() {
 var _ = BeforeEach(func() {
 	resetBrokersHandlers()
 	resetBrokersCallHistory()
-	provisionRequestBody = buildRequestBody(service1CatalogID, plan1CatalogID, "my-db")
+	provisionRequestBody = buildRequestBody(service1CatalogID, plan1CatalogID, "cloudfoundry", "my-db")
 
 	credentials := brokerPlatformCredentialsIDMap[brokerID]
 	ctx.SMWithBasic.SetBasicCredentials(ctx, credentials.username, credentials.password)
@@ -378,7 +378,7 @@ func resetBrokersCallHistory() {
 	instanceSharingBrokerServer.ResetCallHistory()
 }
 
-func buildRequestBody(serviceID, planID, instanceName string) string {
+func buildRequestBody(serviceID, planID, platform, instanceName string) string {
 	result := fmt.Sprintf(`{
 		"service_id":        "%s",
 		"plan_id":           "%s",
@@ -389,7 +389,7 @@ func buildRequestBody(serviceID, planID, instanceName string) string {
 			"param2": "value2"
 		},
 		"context": {
-			"platform": "cloudfoundry",
+			"platform": "%s",
 			"organization_guid": "%s",
 			"organization_name": "system",
 			"space_guid": "aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
@@ -400,7 +400,7 @@ func buildRequestBody(serviceID, planID, instanceName string) string {
 		"maintenance_info": {
 			"version": "old"
 		}
-}`, serviceID, planID, organizationGUID, instanceName, TenantIdentifier, TenantValue)
+}`, serviceID, planID, platform, organizationGUID, instanceName, TenantIdentifier, TenantValue)
 	return result
 }
 func provisionRequestBodyMapWith(key, value string, idsToRemove ...string) func() map[string]interface{} {
