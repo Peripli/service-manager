@@ -4195,19 +4195,6 @@ var _ = DescribeTestsFor(TestCase{
 								resp.JSON().Object().Equal(expectedError)
 
 							})
-							It("fails changing the instance plan", func() {
-								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, anotherServicePlanID, TenantIDValue)
-								delete(postInstanceRequestTLS, "shared")
-								postInstanceRequestTLS["service_plan_id"] = anotherServicePlanID
-								resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
-									WithQuery("async", "false").
-									WithJSON(postInstanceRequestTLS).
-									Expect().
-									Status(http.StatusBadRequest)
-
-								resp.JSON().Object().
-									Equal(util.HandleInstanceSharingError(util.ErrNewPlanDoesNotSupportInstanceSharing, sharedInstanceID))
-							})
 						})
 					})
 					Context("reference instance", func() {
