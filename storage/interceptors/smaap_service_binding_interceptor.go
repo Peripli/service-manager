@@ -101,6 +101,10 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		if err != nil {
 			return nil, err
 		}
+		// we use isReferenceInstance bool, since we override the instance object on the instance sharing flow, so we dont have instance.ReferencedInstanceID
+		isReferenceInstance := false
+		// instanceContext will be used for reverting the binding.context on the instance sharing flow.
+		instanceContext := instance.Context
 		smaapOperated := isOperatedBySmaaP(instance)
 
 		if instance.PlatformID != types.SMPlatform && !smaapOperated {
@@ -113,11 +117,13 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		}
 
 		if instance.ReferencedInstanceID != "" {
+			isReferenceInstance = true
 			log.C(ctx).Infof("Creating a reference-binding. Switching the reference-instance context of \"%s\", with the shared instance: \"%s\"", instance.ID, instance.ReferencedInstanceID)
-			instance, _ = getInstanceByID(ctx, instance.ReferencedInstanceID, i.repository)
+			instance, err = getInstanceByID(ctx, instance.ReferencedInstanceID, i.repository)
+			if err != nil {
+				return nil, err
+			}
 			binding.Context = instance.Context
-			// used to identify bindings of a reference instance, won't be sent to the service broker
-			binding.Context, err = sjson.SetBytes(binding.Context, "is_reference", true)
 			if err != nil {
 				return nil, err
 			}
@@ -195,6 +201,10 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 					}
 				}
 
+				if isReferenceInstance {
+					// we revert the binding context using the original instance context before saving in the database
+					binding.Context = instanceContext
+				}
 				if operation.IsAsyncResponse() {
 					_, err := f(ctx, obj)
 					if err != nil {
@@ -235,6 +245,10 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 					logBindRequest(bindRequest), broker.Name, logBindResponse(bindResponse))
 			}
 
+			if isReferenceInstance {
+				// we revert the binding context using the original instance context before saving in the database
+				binding.Context = instanceContext
+			}
 			object, err := f(ctx, obj)
 			if err != nil {
 				return nil, err

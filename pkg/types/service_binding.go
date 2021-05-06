@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/tidwall/gjson"
 	"reflect"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -116,11 +115,4 @@ func (e *ServiceBinding) Validate() error {
 	}
 
 	return nil
-}
-
-func (e *ServiceBinding) Sanitize(context.Context) {
-	isReference := gjson.GetBytes(e.Context, "is_reference").Bool()
-	if isReference {
-		e.Context = nil
-	}
 }

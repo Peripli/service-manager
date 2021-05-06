@@ -135,6 +135,15 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 
 		if instance.ReferencedInstanceID != "" {
 			log.C(ctx).Infof("Service Instance Interceptor creates a reference instance \"%s\", which points to instance-id: \"%s\"", instance.ID, instance.ReferencedInstanceID)
+			instanceContext, err := i.generateInstanceContext(instance)
+			if err != nil {
+				return nil, err
+			}
+			marshal, err := json.Marshal(instanceContext)
+			if err != nil {
+				return nil, err
+			}
+			instance.Context = marshal
 			object, err := f(ctx, obj)
 			return object, err
 		}
@@ -146,7 +155,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		}
 
 		if operation.Reschedule {
-			if err := i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
+			if err = i.pollServiceInstance(ctx, osbClient, instance, plan, operation, service.CatalogID, plan.CatalogID, true); err != nil {
 				return nil, err
 			}
 
@@ -541,7 +550,6 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 		key = &opKey
 	}
 
-	// epsilontal todo: review if in the right place:
 	if instance.ReferencedInstanceID != "" {
 		log.C(ctx).Infof("Returning out of Service Instance Interceptor - polling the reference instance \"%s\", which points to shared-instance: \"%s\"", instance.ID, instance.ReferencedInstanceID)
 		return nil
@@ -745,9 +753,30 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 }
 
 func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string, userInfo *types.UserInfo) (*osbc.ProvisionRequest, error) {
+	instanceContext, err := i.generateInstanceContext(instance)
+	if err != nil {
+		return nil, err
+	}
+
+	provisionRequest := &osbc.ProvisionRequest{
+		InstanceID:          instance.GetID(),
+		AcceptsIncomplete:   true,
+		ServiceID:           serviceCatalogID,
+		PlanID:              planCatalogID,
+		OrganizationGUID:    "-",
+		SpaceGUID:           "-",
+		Parameters:          instance.Parameters,
+		Context:             instanceContext,
+		OriginatingIdentity: getOriginIdentity(userInfo, instance),
+	}
+
+	return provisionRequest, nil
+}
+
+func (i *ServiceInstanceInterceptor) generateInstanceContext(instance *types.ServiceInstance) (map[string]interface{}, error) {
 	instanceContext := make(map[string]interface{})
+	var err error
 	if len(instance.Context) != 0 {
-		var err error
 		instance.Context, err = sjson.SetBytes(instance.Context, "instance_name", instance.Name)
 		if err != nil {
 			return nil, err
@@ -774,20 +803,7 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.Ser
 		}
 		instance.Context = contextBytes
 	}
-
-	provisionRequest := &osbc.ProvisionRequest{
-		InstanceID:          instance.GetID(),
-		AcceptsIncomplete:   true,
-		ServiceID:           serviceCatalogID,
-		PlanID:              planCatalogID,
-		OrganizationGUID:    "-",
-		SpaceGUID:           "-",
-		Parameters:          instance.Parameters,
-		Context:             instanceContext,
-		OriginatingIdentity: getOriginIdentity(userInfo, instance),
-	}
-
-	return provisionRequest, nil
+	return instanceContext, nil
 }
 
 func getOriginIdentity(userInfo *types.UserInfo, instance *types.ServiceInstance) *osbc.OriginatingIdentity {

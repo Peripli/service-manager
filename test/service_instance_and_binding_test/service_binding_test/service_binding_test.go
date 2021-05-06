@@ -18,6 +18,7 @@ package service_binding_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -444,21 +445,40 @@ var _ = DescribeTestsFor(TestCase{
 					When("instance is reference", func() {
 						var referenceBindingID string
 						BeforeEach(func() {
+							brokerServer.ShouldRecordRequests(true)
 							referenceBindingID = createBindingAndValidateSourceAndTarget(referenceInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
 						})
 						It("returns the credentials of the shared instance binding", func() {
+							sharedInstance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
+							// validate request is being sent with the shared instance id context when creating the binding:
+							lastRequest := brokerServer.LastRequest
+							Expect(lastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
+							// validate request body.context:
+							jsonBody := Object{}
+							json.Unmarshal(brokerServer.LastRequestBody, &jsonBody)
+							Expect(jsonBody["context"]).To(Equal(Object{
+								"instance_name":  sharedInstance.Name,
+								"platform":       sharedInstance.PlatformID,
+								TenantIdentifier: TenantIDValue,
+							}))
+
+							Expect(lastRequest.Method).To(Equal("PUT"))
+
+							// validate binding after creation, is saved with correct data
 							object := ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + referenceBindingID).Expect().
 								Status(http.StatusOK).
 								JSON().
 								Object()
-							// should not return context of reference binding:
-							object.NotContainsKey("context")
 							object.ContainsKey("service_instance_id").
 								ValueEqual("service_instance_id", referenceInstanceID)
+							// validate the binding is being saved with the reference instance id context:
+							referenceInstance, _ := GetInstanceObjectByID(ctx, referenceInstanceID)
+							object.ContainsKey("context").ValueEqual("context", Object{
+								"instance_name":  referenceInstance.Name,
+								"platform":       referenceInstance.PlatformID,
+								TenantIdentifier: TenantIDValue,
+							})
 							// The last broker request should be the "PUT" binding request:
-							lastRequest := brokerServer.LastRequest
-							Expect(lastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
-							Expect(lastRequest.Method).To(Equal("PUT"))
 						})
 					})
 				})
