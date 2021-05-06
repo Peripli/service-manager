@@ -33,8 +33,7 @@ import (
 
 const ReferenceInstanceFilterName = "ReferenceInstanceFilter"
 
-// serviceInstanceVisibilityFilter ensures that the tenant making the provisioning/update request
-// has the necessary visibilities - i.e. that he has the right to consume the requested plan.
+// referenceInstanceFilter handles the validations and responses of the provisioning, updating and get parameters of reference instances
 type referenceInstanceFilter struct {
 	repository       storage.TransactionalRepository
 	tenantIdentifier string
