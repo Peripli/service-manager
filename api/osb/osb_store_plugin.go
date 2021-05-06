@@ -775,7 +775,7 @@ func (sp *storePlugin) storeOperation(ctx context.Context, storage storage.Repos
 }
 
 func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Repository, req *provisionRequest, resp *provisionResponse, ready bool) error {
-	plan, err := findServicePlanIDByCatalogIDs(ctx, storage, req.BrokerID, req.ServiceID, req.PlanID)
+	plan, err := findServicePlanByCatalogIDs(ctx, storage, req.BrokerID, req.ServiceID, req.PlanID)
 	if err != nil {
 		return err
 	}
@@ -870,7 +870,7 @@ func (sp *storePlugin) updateInstance(ctx context.Context, storage storage.Repos
 	}
 	if len(req.PlanID) != 0 && req.PreviousValues.PlanID != req.PlanID {
 		var err error
-		plan, err := findServicePlanIDByCatalogIDs(ctx, storage, req.BrokerID, req.ServiceID, req.PlanID)
+		plan, err := findServicePlanByCatalogIDs(ctx, storage, req.BrokerID, req.ServiceID, req.PlanID)
 		if err != nil {
 			return err
 		}
@@ -954,7 +954,7 @@ func (sp *storePlugin) updateEntityReady(ctx context.Context, storage storage.Re
 	return nil
 }
 
-func findServicePlanIDByCatalogIDs(ctx context.Context, storage storage.Repository, brokerID, catalogServiceID, catalogPlanID string) (*types.ServicePlan, error) {
+func findServicePlanByCatalogIDs(ctx context.Context, storage storage.Repository, brokerID, catalogServiceID, catalogPlanID string) (*types.ServicePlan, error) {
 	byCatalogServiceID := query.ByField(query.EqualsOperator, "catalog_id", catalogServiceID)
 	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", brokerID)
 	serviceOffering, err := storage.Get(ctx, types.ServiceOfferingType, byBrokerID, byCatalogServiceID)

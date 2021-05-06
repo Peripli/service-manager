@@ -43,7 +43,7 @@ func (p *checkVisibilityPlugin) Provision(req *web.Request, next web.Handler) (*
 	if err := decodeRequestBody(req, requestPayload); err != nil {
 		return nil, err
 	}
-	plan, err := findServicePlanIDByCatalogIDs(ctx, p.repository, requestPayload.BrokerID, requestPayload.ServiceID, requestPayload.PlanID)
+	plan, err := findServicePlanByCatalogIDs(ctx, p.repository, requestPayload.BrokerID, requestPayload.ServiceID, requestPayload.PlanID)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (p *checkVisibilityPlugin) UpdateService(req *web.Request, next web.Handler
 	if len(requestPayload.PlanID) == 0 { // plan is not being updated
 		return next.Handle(req)
 	}
-	plan, err := findServicePlanIDByCatalogIDs(ctx, p.repository, requestPayload.BrokerID, requestPayload.ServiceID, requestPayload.PlanID)
+	plan, err := findServicePlanByCatalogIDs(ctx, p.repository, requestPayload.BrokerID, requestPayload.ServiceID, requestPayload.PlanID)
 	if err != nil {
 		return nil, err
 	}
