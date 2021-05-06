@@ -274,7 +274,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrNewPlanDoesNotSupportInstanceSharing:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: "Could not update the instance's plan. The instance is shared, therefore the new plan: %s, should support instance sharing as well.",
+			Description: "Failed to update the instance’s plan. The new plan must support instance sharing.",
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrChangingParametersOfReferenceInstance:
