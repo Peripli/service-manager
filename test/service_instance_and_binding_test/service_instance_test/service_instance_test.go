@@ -4065,7 +4065,7 @@ var _ = DescribeTestsFor(TestCase{
 								{async: "true", status: http.StatusBadRequest},
 								{async: "false", status: http.StatusBadRequest},
 							} {
-								It(fmt.Sprintf("returns %d when updating the service_plan_id when async=%s", testConfig.status, testConfig.async), func() {
+								It(fmt.Sprintf("returns %d when updating the service_plan_id to a non shareable plan when async=%s", testConfig.status, testConfig.async), func() {
 									newName := "renamed"
 									resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
 										WithQuery("async", testConfig.async).
@@ -4081,9 +4081,31 @@ var _ = DescribeTestsFor(TestCase{
 										Type:  types.ServiceInstanceType,
 										Ready: true,
 									})
-									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, sharedInstanceID))
+									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNewPlanDoesNotSupportInstanceSharing, sharedInstanceID))
 								})
 							}
+							It("succeeds updating the shared instance plan to a new shareable plan", func() {
+								newName := "renamed"
+								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, anotherServicePlanID, TenantIDValue)
+								resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
+									WithQuery("async", "false").
+									WithJSON(Object{
+										"name":             newName,
+										"service_plan_id":  anotherServicePlanID,
+										"maintenance_info": "{}",
+									}).
+									Expect().
+									Status(http.StatusOK)
+								VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									ID:    sharedInstanceID,
+									Type:  types.ServiceInstanceType,
+									Ready: true,
+								})
+								resp.JSON().Object().
+									ContainsKey("service_plan_id").
+									ValueEqual("service_plan_id", anotherServicePlanID)
+							})
+
 						})
 					})
 					Context("shared instance without references", func() {
@@ -4184,7 +4206,7 @@ var _ = DescribeTestsFor(TestCase{
 									Status(http.StatusBadRequest)
 
 								resp.JSON().Object().
-									Equal(util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, sharedInstanceID))
+									Equal(util.HandleInstanceSharingError(util.ErrNewPlanDoesNotSupportInstanceSharing, sharedInstanceID))
 							})
 						})
 					})

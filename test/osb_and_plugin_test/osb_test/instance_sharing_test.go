@@ -22,6 +22,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/test"
 	"github.com/Peripli/service-manager/test/common"
 	"github.com/gofrs/uuid"
@@ -281,13 +282,24 @@ var _ = Describe("Instance Sharing", func() {
 				body := generateUpdateRequestBody(service2CatalogID, shareablePlanCatalogID, shareablePlanCatalogID, "new-shared-instance-name")()
 				updateInstance(sharedInstanceID, body, http.StatusOK)
 			})
-			It("should fail updating the shared instance plan", func() {
+			It("should fail updating the shared instance plan to a non shareable plan", func() {
 				referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareablePlanCatalogID)
 				utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(referencePlan.CatalogID, platformID, organizationGUID)
 
 				body := generateUpdateRequestBody(service2CatalogID, shareablePlanCatalogID, referencePlan.CatalogID, "renamed-shared-instance")()
 				resp := updateInstance(sharedInstanceID, body, http.StatusBadRequest)
-				resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrChangingPlanOfSharedInstance, sharedInstanceID))
+				resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNewPlanDoesNotSupportInstanceSharing, sharedInstanceID))
+			})
+			It("should succeed updating the shared instance plan to a new shareable plan", func() {
+				utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(shareablePlan2CatalogID, platformID, organizationGUID)
+
+				body := generateUpdateRequestBody(service2CatalogID, shareablePlanCatalogID, shareablePlan2CatalogID, "renamed-shared-instance")()
+				updateInstance(sharedInstanceID, body, http.StatusOK)
+				dbNewPlanObject, _ := storage.GetObjectByField(context.TODO(), ctx.SMRepository, types.ServicePlanType, "catalog_id", shareablePlan2CatalogID)
+				newPlanObject := dbNewPlanObject.(*types.ServicePlan)
+				instance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
+				Expect(newPlanObject.ID).To(Equal(instance.ServicePlanID))
+				Expect(newPlanObject.CatalogID).To(Equal(shareablePlan2CatalogID))
 			})
 		})
 	})

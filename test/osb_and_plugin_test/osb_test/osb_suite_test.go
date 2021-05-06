@@ -61,6 +61,7 @@ const (
 	plan2CatalogID              = "plan2CatalogID"
 	plan3CatalogID              = "plan3CatalogID"
 	shareablePlanCatalogID      = "shareablePlanCatalogID"
+	shareablePlan2CatalogID     = "shareablePlan2CatalogID"
 	service0CatalogID           = "service0CatalogID"
 	service1CatalogID           = "service1CatalogID"
 	service2CatalogID           = "service2CatalogID"
@@ -183,7 +184,8 @@ var _ = BeforeSuite(func() {
 	catalog.AddService(service1)
 
 	shareablePlan := common.GenerateShareableTestPlanWithID(shareablePlanCatalogID)
-	service2 := common.GenerateTestServiceWithPlansWithID(service2CatalogID, shareablePlan)
+	anotherShareablePlan := common.GenerateShareableTestPlanWithID(shareablePlan2CatalogID)
+	service2 := common.GenerateTestServiceWithPlansWithID(service2CatalogID, shareablePlan, anotherShareablePlan)
 	instanceSharingCatalog := common.NewEmptySBCatalog()
 	instanceSharingCatalog.AddService(service2)
 	instanceSharingUtils = ctx.RegisterBrokerWithCatalog(instanceSharingCatalog)

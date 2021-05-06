@@ -228,7 +228,7 @@ var (
 	ErrAsyncNotSupportedForSharing           = errors.New("can't use async for sharing instances")
 	ErrReferencedInstanceNotShared           = errors.New("referenced-instance should be shared first")
 	ErrChangingPlanOfReferenceInstance       = errors.New("changing plan of reference instance")
-	ErrChangingPlanOfSharedInstance          = errors.New("changing plan of shared instance")
+	ErrNewPlanDoesNotSupportInstanceSharing  = errors.New("changing shared instance plan to a non-shareable plan")
 	ErrChangingParametersOfReferenceInstance = errors.New("changing parameters of reference instance")
 	ErrMissingOrInvalidReferenceParameter    = errors.New("missing or invalid referenced_instance_id parameter")
 	ErrUnknownOSBMethod                      = errors.New("osb method is unknown")
@@ -271,10 +271,10 @@ func HandleInstanceSharingError(err error, entityName string) error {
 			Description: fmt.Sprintf("Failed to update the instance %s. It isn't allowed to change the plan of reference instances.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
-	case ErrChangingPlanOfSharedInstance:
+	case ErrNewPlanDoesNotSupportInstanceSharing:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: "Couldn't update the instance's plan. It is not possible to change a plan of a shared instance.",
+			Description: "Could not update the instance's plan. The instance is shared, therefore the new plan: %s, should support instance sharing as well.",
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrChangingParametersOfReferenceInstance:
