@@ -71,13 +71,9 @@ func (f *platformTerminationFilter) Run(req *web.Request, next web.Handler) (*we
 		}
 
 		if instancesInOtherPlatforms != nil && instancesInOtherPlatforms.Len() > 0 {
-			sharedInstancesReferences, err := findReferencesOfSharedInstancesInOtherPlatforms(ctx, platform, f.repository)
-			if err != nil {
-				return nil, err
-			}
 			return nil, &util.HTTPError{
 				ErrorType:   "UnprocessableEntity",
-				Description: "Platform cannot be deleted because other platform(s) has reference instance(s) to the shared instances in given platform. Details: " + formatSharingReferences(sharedInstancesReferences),
+				Description: "Platform cannot be deleted because other platform(s) has reference instance(s) to the shared instances in given platform. Details: " + formatSharingReferences(instancesInOtherPlatforms),
 				StatusCode:  http.StatusUnprocessableEntity,
 			}
 		}
