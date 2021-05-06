@@ -137,8 +137,6 @@ func CreateBindingByInstanceID(SM *SMExpect, async string, expectedStatusCode in
 
 	if expectedStatusCode == http.StatusCreated {
 		obj.ContainsKey("id")
-		// todo: consider returning the bindingID in order to update the test object
-		//bindingID = obj.Value("id").String().Raw()
 	}
 
 	return resp
