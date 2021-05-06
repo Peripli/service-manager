@@ -98,7 +98,7 @@ func GetPlanByKey(ctx *TestContext, byKeyName, planCatalogID string) *types.Serv
 	return planObject.(*types.ServicePlan)
 }
 
-func CreateReferenceInstance(ctx *TestContext, async bool, expectedStatusCode int, referencedInstanceID, referencePlanID string) *httpexpect.Response {
+func CreateReferenceInstance(ctx *TestContext, async string, expectedStatusCode int, referencedInstanceID, referencePlanID string) *httpexpect.Response {
 	ID, _ := uuid.NewV4()
 	requestBody := Object{
 		"name":             "reference-instance-" + ID.String(),
