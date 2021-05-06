@@ -107,8 +107,8 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 
 	targetBrokerURL, _ := url.Parse(broker.BrokerURL)
 
-	m := osbPathPattern.FindStringSubmatch(r.URL.Path)
-	if m == nil || len(m) < 2 {
+	osbPath := osbPathPattern.FindStringSubmatch(r.URL.Path)
+	if osbPath == nil || len(osbPath) < 2 {
 		return nil, fmt.Errorf("could not get OSB path from URL %s", r.URL)
 	}
 
@@ -117,7 +117,13 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 		modifiedRequest.SetBasicAuth(broker.Credentials.Basic.Username, broker.Credentials.Basic.Password)
 	}
 
-	modifyRequestURLPath(ctx, m, modifiedRequest)
+	referencedInstance := getReferencedInstance(ctx)
+	if referencedInstance != nil {
+		modifiedRequest.URL.Path = getPathForReferencedInstance(referencedInstance, osbPath[1])
+	} else {
+		modifiedRequest.URL.Path = osbPath[1]
+	}
+
 	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(r.Body))
 	modifiedRequest.ContentLength = int64(len(r.Body))
 
@@ -137,24 +143,15 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 	return validateBrokerResponse(recorder, broker)
 }
 
-func modifyRequestURLPath(ctx context.Context, m []string, modifiedRequest *http.Request) {
-	if isReferenceBinding(ctx) {
-		modifiedRequest.URL.Path = getPathForInstanceSharing(ctx, m[1])
-	} else {
-		modifiedRequest.URL.Path = m[1]
-	}
-}
-
-func isReferenceBinding(ctx context.Context) bool {
-	instanceFromContext, exists := types.SharedInstanceFromContext(ctx)
-	return exists && instanceFromContext.IsShared()
-}
-
-func getPathForInstanceSharing(ctx context.Context, currentPath string) string {
+func getReferencedInstance(ctx context.Context) *types.ServiceInstance {
 	instanceFromContext, _ := types.SharedInstanceFromContext(ctx)
+	return instanceFromContext
+}
+
+func getPathForReferencedInstance(referencedInstance *types.ServiceInstance, currentPath string) string {
 	splitted := strings.Split(currentPath, "/")
 	if splitted[3] != "" {
-		splitted[3] = instanceFromContext.ID
+		splitted[3] = referencedInstance.ID
 		return strings.Join(splitted, "/")
 	}
 	return currentPath

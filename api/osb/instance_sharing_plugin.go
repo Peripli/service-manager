@@ -6,12 +6,12 @@ import (
 	"github.com/Peripli/service-manager/api/common/sharing"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"net/http"
 )
 
@@ -232,8 +232,8 @@ func isValidSharedInstancePatchRequest(ctx context.Context, repository storage.R
 func (is *instanceSharingPlugin) handleBinding(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	instanceID := req.PathParams["instance_id"]
-	byID := query.ByField(query.EqualsOperator, "id", instanceID)
-	object, err := is.repository.Get(ctx, types.ServiceInstanceType, byID)
+	serviceInstanceObj, err := storage.GetObjectByField(ctx, is.repository, types.ServiceInstanceType, "id", instanceID)
+
 	if err != nil {
 		if err == util.ErrNotFoundInStorage {
 			return next.Handle(req)
@@ -241,21 +241,28 @@ func (is *instanceSharingPlugin) handleBinding(req *web.Request, next web.Handle
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 
-	instance := object.(*types.ServiceInstance)
+	instance := serviceInstanceObj.(*types.ServiceInstance)
 
 	// if instance is referecnce, switch the context of the request with the original instance context.
 	if instance.ReferencedInstanceID != "" {
-		byID = query.ByField(query.EqualsOperator, "id", instance.ReferencedInstanceID)
-		sharedInstanceObject, err := is.repository.Get(ctx, types.ServiceInstanceType, byID)
+		referencedInstanceObject, err := storage.GetObjectByField(ctx, is.repository, types.ServiceInstanceType, "id", instance.ReferencedInstanceID)
 		if err != nil {
-			if err == util.ErrNotFoundInStorage {
-				return next.Handle(req)
-			}
 			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 		}
-		// switch context:
-		sharedInstance := sharedInstanceObject.(*types.ServiceInstance)
-		req.Request = req.WithContext(types.ContextWithSharedInstance(req.Context(), sharedInstance))
+		referencedInstance := referencedInstanceObject.(*types.ServiceInstance)
+		servicePlanObj, err := storage.GetObjectByField(ctx, is.repository, types.ServicePlanType, "id", referencedInstance.ServicePlanID)
+		if err != nil {
+			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+		}
+		servicePlan := servicePlanObj.(*types.ServicePlan)
+		//switch context
+		req.Request = req.WithContext(types.ContextWithSharedInstance(req.Context(), referencedInstance))
+		req.Body, err = sjson.SetBytes(req.Body, "plan_id", servicePlan.CatalogID)
+		req.Body, err = sjson.SetBytes(req.Body, "context", referencedInstance.Context)
+
+		if err != nil {
+			return nil, err
+		}
 	}
 	return next.Handle(req)
 }

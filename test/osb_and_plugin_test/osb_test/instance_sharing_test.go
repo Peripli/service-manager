@@ -487,8 +487,9 @@ var _ = Describe("Instance Sharing", func() {
 					UUID, _ := uuid.NewV4()
 					platformJSON = common.MakePlatform(UUID.String(), UUID.String(), "kubernetes", "test-platform-k8s")
 				})
-				It("binds reference instance successfully", func() {
+				FIt("binds reference instance successfully", func() {
 					sharedInstanceID, referenceInstanceID := createSharedInstanceAndReference(platform, false)
+					provisionRequestBody = buildRequestBody(service1CatalogID, plan1CatalogID, "my-db-new-instance")
 					bindingID := createBinding(referenceInstanceID, sharedInstanceID, http.StatusCreated, "false")
 
 					// The last broker request should be the "PUT" binding request:
@@ -503,7 +504,6 @@ var _ = Describe("Instance Sharing", func() {
 						JSON().
 						Object().ContainsKey("service_instance_id").
 						ValueEqual("service_instance_id", referenceInstanceID)
-
 				})
 			})
 		})

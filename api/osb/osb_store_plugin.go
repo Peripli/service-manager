@@ -810,7 +810,7 @@ func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 	return nil
 }
 
-func (sp *storePlugin) storeBinding(ctx context.Context, storage storage.Repository, req *bindRequest, resp *bindResponse, ready bool) error {
+func (sp *storePlugin) storeBinding(ctx context.Context, repository storage.Repository, req *bindRequest, resp *bindResponse, ready bool) error {
 	bindingName := gjson.GetBytes(req.RawContext, "binding_name").String()
 	if len(bindingName) == 0 {
 		log.C(ctx).Debugf("Binding name missing. Defaulting to id %s", req.BindingID)
@@ -836,7 +836,18 @@ func (sp *storePlugin) storeBinding(ctx context.Context, storage storage.Reposit
 		Credentials:       nil,
 	}
 
-	if _, err := storage.Create(ctx, binding); err != nil {
+	serviceInstanceObj, err := storage.GetObjectByField(ctx, repository, types.ServiceInstanceType, "id", req.InstanceID)
+	if err != nil {
+		return err
+	}
+
+	serviceInstance := serviceInstanceObj.(*types.ServiceInstance)
+
+	if serviceInstance.ReferencedInstanceID != "" {
+		binding.Context = serviceInstance.Context
+	}
+
+	if _, err := repository.Create(ctx, binding); err != nil {
 		return util.HandleStorageError(err, string(binding.GetType()))
 	}
 	return nil
