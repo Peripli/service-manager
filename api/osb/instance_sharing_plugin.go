@@ -258,8 +258,10 @@ func (is *instanceSharingPlugin) handleBinding(req *web.Request, next web.Handle
 		//switch context
 		req.Request = req.WithContext(types.ContextWithSharedInstance(req.Context(), referencedInstance))
 		req.Body, err = sjson.SetBytes(req.Body, "plan_id", servicePlan.CatalogID)
+		if err != nil {
+			return nil, err
+		}
 		req.Body, err = sjson.SetBytes(req.Body, "context", referencedInstance.Context)
-
 		if err != nil {
 			return nil, err
 		}

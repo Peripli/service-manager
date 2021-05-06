@@ -473,12 +473,18 @@ var _ = DescribeTestsFor(TestCase{
 								ValueEqual("service_instance_id", referenceInstanceID)
 							// validate the binding is being saved with the reference instance id context:
 							referenceInstance, _ := GetInstanceObjectByID(ctx, referenceInstanceID)
+
 							object.ContainsKey("context").ValueEqual("context", Object{
 								"instance_name":  referenceInstance.Name,
 								"platform":       referenceInstance.PlatformID,
 								TenantIdentifier: TenantIDValue,
 							})
-							// The last broker request should be the "PUT" binding request:
+
+							object.ContainsKey("credentials").ValueEqual("credentials", Object{
+								"user":     "user",
+								"password": "password",
+							})
+
 						})
 					})
 				})
