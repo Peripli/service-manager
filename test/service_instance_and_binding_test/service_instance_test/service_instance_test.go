@@ -4337,6 +4337,18 @@ var _ = DescribeTestsFor(TestCase{
 							})
 						}
 					})
+					When("creating an instance with shared property", func() {
+						BeforeEach(func() {
+							postInstanceRequest["shared"] = true
+						})
+						AfterEach(func() {
+							delete(postInstanceRequest, "shared")
+						})
+						It("should failed provision the instance", func() {
+							resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusBadRequest)
+							resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrInvalidProvisionRequestWithSharedProperty, ""))
+						})
+					})
 				})
 				Describe("DELETE", func() {
 					BeforeEach(func() {

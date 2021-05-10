@@ -51,6 +51,28 @@ func (sf *sharedInstanceUpdateFilter) Run(req *web.Request, next web.Handler) (*
 		return nil, err
 	}
 
+	switch req.Request.Method {
+	case http.MethodPost:
+		return sf.handleProvision(req, reqServiceInstance, next)
+	case http.MethodPatch:
+		return sf.handleServiceUpdate(req, reqServiceInstance, next)
+	}
+	return next.Handle(req)
+
+}
+
+func (*sharedInstanceUpdateFilter) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
+		{
+			Matchers: []web.Matcher{
+				web.Path(web.ServiceInstancesURL + "/**"),
+				web.Methods(http.MethodPatch, http.MethodPost),
+			},
+		},
+	}
+}
+
+func (sf *sharedInstanceUpdateFilter) handleServiceUpdate(req *web.Request, reqServiceInstance types.ServiceInstance, next web.Handler) (*web.Response, error) {
 	instanceID := req.PathParams["resource_id"]
 	ctx := req.Context()
 
@@ -122,15 +144,11 @@ func (sf *sharedInstanceUpdateFilter) Run(req *web.Request, next web.Handler) (*
 	return next.Handle(req)
 }
 
-func (*sharedInstanceUpdateFilter) FilterMatchers() []web.FilterMatcher {
-	return []web.FilterMatcher{
-		{
-			Matchers: []web.Matcher{
-				web.Path(web.ServiceInstancesURL + "/**"),
-				web.Methods(http.MethodPatch),
-			},
-		},
+func (sf *sharedInstanceUpdateFilter) handleProvision(req *web.Request, reqServiceInstance types.ServiceInstance, next web.Handler) (*web.Response, error) {
+	if reqServiceInstance.Shared != nil {
+		return nil, util.HandleInstanceSharingError(util.ErrInvalidProvisionRequestWithSharedProperty, "")
 	}
+	return next.Handle(req)
 }
 
 func validateRequestContainsSingleProperty(logger *logrus.Entry, reqInstanceBytes []byte, instanceID string) error {
