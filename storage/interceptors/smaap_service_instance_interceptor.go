@@ -133,7 +133,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			return nil, fmt.Errorf("operation missing from context")
 		}
 
-		if instance.ReferencedInstanceID != "" {
+		if len(instance.ReferencedInstanceID) > 0 {
 			log.C(ctx).Infof("Service Instance Interceptor creates a reference instance \"%s\", which points to instance-id: \"%s\"", instance.ID, instance.ReferencedInstanceID)
 			instanceContext, err := i.generateInstanceContext(instance)
 			if err != nil {
@@ -261,7 +261,7 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			return nil, fmt.Errorf("operation missing from context")
 		}
 
-		if updatedInstance.ReferencedInstanceID != "" {
+		if len(updatedInstance.ReferencedInstanceID) > 0 {
 			log.C(ctx).Infof("Service Instance Interceptor is updating the reference instance %s, which points to the instance: %s", updatedInstance.ID, updatedInstance.ReferencedInstanceID)
 			UpdatedObject, err := f(ctx, updatedObj)
 			return UpdatedObject, err
@@ -460,7 +460,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
-	if instance.ReferencedInstanceID != "" {
+	if len(instance.ReferencedInstanceID) > 0 {
 		log.C(ctx).Infof("Returning out of Service Instance Interceptor - deleting the reference instance \"%s\", which points to shared-instance: \"%s\"", instance.ID, instance.ReferencedInstanceID)
 		return nil
 	}

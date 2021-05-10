@@ -116,7 +116,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			return nil, fmt.Errorf("operation missing from context")
 		}
 
-		if instance.ReferencedInstanceID != "" {
+		if len(instance.ReferencedInstanceID) > 0 {
 			isReferenceInstance = true
 			log.C(ctx).Infof("Creating a reference-binding. Switching the reference-instance context of \"%s\", with the shared instance: \"%s\"", instance.ID, instance.ReferencedInstanceID)
 			instance, err = getInstanceByID(ctx, instance.ReferencedInstanceID, i.repository)
@@ -331,7 +331,7 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 		return err
 	}
 
-	if instance.ReferencedInstanceID != "" {
+	if len(instance.ReferencedInstanceID) > 0 {
 		log.C(ctx).Infof("Deleting a reference-binding. Switching the reference-instance context of \"%s\", with the shared instance: \"%s\"", instance.ID, instance.ReferencedInstanceID)
 		instance, _ = getInstanceByID(ctx, instance.ReferencedInstanceID, i.repository)
 		binding.Context = instance.Context
