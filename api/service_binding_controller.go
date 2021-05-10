@@ -117,7 +117,7 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 		return nil, err
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
-	if instance.ReferencedInstanceID != "" {
+	if len(instance.ReferencedInstanceID) > 0 {
 		serviceBinding.ServiceInstanceID = instance.ReferencedInstanceID
 	}
 

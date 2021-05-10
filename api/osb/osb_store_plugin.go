@@ -843,7 +843,7 @@ func (sp *storePlugin) storeBinding(ctx context.Context, repository storage.Repo
 
 	serviceInstance := serviceInstanceObj.(*types.ServiceInstance)
 
-	if serviceInstance.ReferencedInstanceID != "" {
+	if len(serviceInstance.ReferencedInstanceID) > 0 {
 		binding.Context = serviceInstance.Context
 	}
 
