@@ -229,6 +229,7 @@ var (
 	ErrReferencedInstanceNotShared               = errors.New("referenced-instance should be shared first")
 	ErrChangingPlanOfReferenceInstance           = errors.New("changing plan of reference instance")
 	ErrNewPlanDoesNotSupportInstanceSharing      = errors.New("changing shared instance plan to a non-shareable plan")
+	ErrPlanDoesNotSupportInstanceSharing         = errors.New("plan does not support instance sharing")
 	ErrChangingParametersOfReferenceInstance     = errors.New("changing parameters of reference instance")
 	ErrMissingOrInvalidReferenceParameter        = errors.New("missing or invalid referenced_instance_id parameter")
 	ErrUnknownOSBMethod                          = errors.New("osb method is unknown")
@@ -276,6 +277,12 @@ func HandleInstanceSharingError(err error, entityName string) error {
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: "Failed to update the instance’s plan. The new plan must support instance sharing.",
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrPlanDoesNotSupportInstanceSharing:
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("Failed to share the instance. The plan %s does not support instance sharing.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrChangingParametersOfReferenceInstance:

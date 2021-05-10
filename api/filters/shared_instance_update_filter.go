@@ -120,9 +120,7 @@ func (sf *sharedInstanceUpdateFilter) handleServiceUpdate(req *web.Request, reqS
 	plan := dbPlanObject.(*types.ServicePlan)
 
 	if !plan.IsShareablePlan() {
-		return nil, &util.UnsupportedQueryError{
-			Message: "Plan is non-shared",
-		}
+		return nil, util.HandleInstanceSharingError(util.ErrPlanDoesNotSupportInstanceSharing, plan.ID)
 	}
 
 	if persistedInstance.IsShared() == *reqServiceInstance.Shared {
