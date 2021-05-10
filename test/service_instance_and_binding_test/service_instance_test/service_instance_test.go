@@ -4251,6 +4251,19 @@ var _ = DescribeTestsFor(TestCase{
 							object.ValueEqual("labels", expectedLabels)
 
 						})
+						It("should succeed renaming instance name", func() {
+							newName := "renamed-reference-instance"
+							postInstanceRequestTLS["name"] = newName
+							postInstanceRequestTLS["service_plan_id"] = referencePlan.ID
+
+							resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
+								WithQuery("async", "false").
+								WithJSON(postInstanceRequestTLS).
+								Expect().
+								Status(http.StatusOK)
+							object := resp.JSON().Object()
+							object.ValueEqual("name", newName)
+						})
 					})
 				})
 				Describe("PARAMETERS", func() {
