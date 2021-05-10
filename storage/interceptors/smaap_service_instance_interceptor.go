@@ -550,11 +550,6 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 		key = &opKey
 	}
 
-	if instance.ReferencedInstanceID != "" {
-		log.C(ctx).Infof("Returning out of Service Instance Interceptor - polling the reference instance \"%s\", which points to shared-instance: \"%s\"", instance.ID, instance.ReferencedInstanceID)
-		return nil
-	}
-
 	pollingRequest := &osbc.LastOperationRequest{
 		InstanceID:          instance.ID,
 		ServiceID:           &serviceCatalogID,

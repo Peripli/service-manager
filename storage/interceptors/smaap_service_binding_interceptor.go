@@ -124,9 +124,6 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				return nil, err
 			}
 			binding.Context = instance.Context
-			if err != nil {
-				return nil, err
-			}
 		}
 
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
