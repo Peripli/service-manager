@@ -92,8 +92,8 @@ func GetReferencePlanOfExistingPlan(ctx *TestContext, byOperator, servicePlanID 
 	return referencePlanObject.(*types.ServicePlan)
 }
 
-func GetPlanByKey(ctx *TestContext, byKeyName, planCatalogID string) *types.ServicePlan {
-	byKey := query.ByField(query.EqualsOperator, byKeyName, planCatalogID)
+func GetPlanByKey(ctx *TestContext, key, value string) *types.ServicePlan {
+	byKey := query.ByField(query.EqualsOperator, key, value)
 	planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, byKey)
 	return planObject.(*types.ServicePlan)
 }

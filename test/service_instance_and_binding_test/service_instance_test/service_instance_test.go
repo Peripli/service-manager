@@ -4265,6 +4265,49 @@ var _ = DescribeTestsFor(TestCase{
 							object.ValueEqual("name", newName)
 						})
 					})
+					When("plan is non shareable", func() {
+						var instanceGUID string
+						var plan *types.ServicePlan
+						BeforeEach(func() {
+							plan = GetPlanByKey(ctx, "id", anotherServicePlanID)
+							plan.Metadata = nil
+							ctx.SMRepository.Update(context.TODO(), plan, types.LabelChanges{})
+							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, anotherServicePlanID, TenantIDValue)
+							provisionBody := Object{
+								"service_plan_id": anotherServicePlanID,
+								"name":            "instance-name-non-shareable",
+							}
+							resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+								WithQuery("async", false).
+								WithJSON(provisionBody).
+								Expect().Status(http.StatusCreated)
+							instanceGUID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+								Category:          types.CREATE,
+								State:             types.SUCCEEDED,
+								ResourceType:      types.ServiceInstanceType,
+								Reschedulable:     false,
+								DeletionScheduled: false,
+							})
+						})
+						AfterEach(func() {
+							plan = GetPlanByKey(ctx, "id", anotherServicePlanID)
+							plan.Metadata = []byte("{\"supportInstanceSharing\": true}")
+							ctx.SMRepository.Update(context.TODO(), plan, types.LabelChanges{})
+						})
+						It("should fail to share the instance", func() {
+							shareInstanceBody := Object{
+								"shared": true,
+							}
+
+							resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceGUID).
+								WithQuery("async", false).
+								WithJSON(shareInstanceBody).
+								Expect().
+								Status(http.StatusBadRequest)
+
+							resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrPlanDoesNotSupportInstanceSharing, plan.ID))
+						})
+					})
 				})
 				Describe("PARAMETERS", func() {
 					BeforeEach(func() {
