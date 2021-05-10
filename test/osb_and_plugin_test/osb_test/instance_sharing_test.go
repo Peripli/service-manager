@@ -139,6 +139,46 @@ var _ = Describe("Instance Sharing", func() {
 					ValueEqual("shared", true)
 			})
 		})
+		When("provision request contains shared property", func() {
+			BeforeEach(func() {
+				platformJSON = common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+			})
+			It("should fail provisioning an instance with shared property in the request", func() {
+				UUID, err := uuid.NewV4()
+				if err != nil {
+					panic(err)
+				}
+				instanceGuid := UUID.String()
+
+				resp := ctx.SMWithBasic.PUT(instanceSharingBrokerPath+"/v2/service_instances/"+instanceGuid).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithQuery(acceptsIncompleteKey, false).
+					WithJSON(Object{
+						"shared":     true,
+						"service_id": service2CatalogID,
+						"plan_id":    shareablePlanCatalogID,
+						"context": map[string]string{
+							"platform": platform.ID,
+						},
+						"organization_guid": organizationGUID,
+						"space_guid":        instanceSharingSpaceGUID,
+						"maintenance_info": map[string]string{
+							"version": "old",
+						},
+					}).
+					Expect().Status(http.StatusBadRequest)
+
+				VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:    instanceGuid,
+					Type:  types.ServiceInstanceType,
+					Ready: true,
+				})
+				resp.JSON().Object().
+					ContainsKey("description").
+					ValueEqual("description", util.HandleInstanceSharingError(util.ErrInvalidProvisionRequestWithSharedProperty, "").Error())
+
+			})
+		})
 	})
 
 	Describe("DEPROVISION", func() {

@@ -223,18 +223,19 @@ func HandleReferencesError(err error, guidsArray []string) error {
 }
 
 var (
-	ErrCatalogUsesReservedPlanName           = errors.New("catalog contains a reserved plan name")
-	ErrPlanMustBeBindable                    = errors.New("plan must be bindable")
-	ErrAsyncNotSupportedForSharing           = errors.New("can't use async for sharing instances")
-	ErrReferencedInstanceNotShared           = errors.New("referenced-instance should be shared first")
-	ErrChangingPlanOfReferenceInstance       = errors.New("changing plan of reference instance")
-	ErrNewPlanDoesNotSupportInstanceSharing  = errors.New("changing shared instance plan to a non-shareable plan")
-	ErrChangingParametersOfReferenceInstance = errors.New("changing parameters of reference instance")
-	ErrMissingOrInvalidReferenceParameter    = errors.New("missing or invalid referenced_instance_id parameter")
-	ErrUnknownOSBMethod                      = errors.New("osb method is unknown")
-	ErrSharedPlanHasReferences               = errors.New("shared plan has references")
-	ErrInstanceIsAlreadyAtDesiredSharedState = errors.New("instance already at the desired shared state")
-	ErrInvalidShareRequest                   = errors.New("invalid share request")
+	ErrCatalogUsesReservedPlanName               = errors.New("catalog contains a reserved plan name")
+	ErrPlanMustBeBindable                        = errors.New("plan must be bindable")
+	ErrAsyncNotSupportedForSharing               = errors.New("can't use async for sharing instances")
+	ErrReferencedInstanceNotShared               = errors.New("referenced-instance should be shared first")
+	ErrChangingPlanOfReferenceInstance           = errors.New("changing plan of reference instance")
+	ErrNewPlanDoesNotSupportInstanceSharing      = errors.New("changing shared instance plan to a non-shareable plan")
+	ErrChangingParametersOfReferenceInstance     = errors.New("changing parameters of reference instance")
+	ErrMissingOrInvalidReferenceParameter        = errors.New("missing or invalid referenced_instance_id parameter")
+	ErrUnknownOSBMethod                          = errors.New("osb method is unknown")
+	ErrSharedPlanHasReferences                   = errors.New("shared plan has references")
+	ErrInstanceIsAlreadyAtDesiredSharedState     = errors.New("instance already at the desired shared state")
+	ErrInvalidShareRequest                       = errors.New("invalid share request")
+	ErrInvalidProvisionRequestWithSharedProperty = errors.New("invalid provision request")
 )
 
 func HandleInstanceSharingError(err error, entityName string) error {
@@ -303,7 +304,14 @@ func HandleInstanceSharingError(err error, entityName string) error {
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrInvalidShareRequest:
-		errorMessage := fmt.Sprintf("Couldn't update the instance %s. Modifying the \"shared\" property should be in a dedicated request that doesn't contain any other properties.", entityName)
+		errorMessage := fmt.Sprintf("Could not update the instance %s. Modifying the \"shared\" property should be in a dedicated request that doesn't contain any other properties.", entityName)
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: errorMessage,
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrInvalidProvisionRequestWithSharedProperty:
+		errorMessage := "Failed provisioning the instance. The \"shared\" property should be in a dedicated request that doesn't contain any other properties."
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,

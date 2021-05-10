@@ -41,6 +41,11 @@ func (is *instanceSharingPlugin) Name() string {
 }
 
 func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
+	shared := gjson.GetBytes(req.Body, "shared").String()
+	if shared != "" {
+		return nil, util.HandleInstanceSharingError(util.ErrInvalidProvisionRequestWithSharedProperty, "")
+	}
+
 	ctx := req.Context()
 	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).String()
 	isReferencePlan, err := storage.IsReferencePlan(ctx, is.repository, types.ServicePlanType.String(), "catalog_id", servicePlanID)
