@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -11,7 +12,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-func ValidateReferencedInstance(body []byte, tenantIdentifier string, repository storage.Repository, ctx context.Context, getTenantId func() string) (string, error) {
+func ValidateReferenceProvisionRequest(ctx context.Context, repository storage.Repository, body []byte, tenantIdentifier string, getTenantId func() string) (string, error) {
 	parameters := gjson.GetBytes(body, "parameters").Map()
 	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
 
@@ -19,20 +20,17 @@ func ValidateReferencedInstance(body []byte, tenantIdentifier string, repository
 		return "", util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
 	}
 
-	referencedInstanceObj, err := storage.GetObjectByField(ctx, repository, types.ServiceInstanceType, "id", referencedInstanceID.String())
+	byLabel := query.ByLabel(query.EqualsOperator, tenantIdentifier, getTenantId())
+	referencedInstanceObj, err := storage.GetObjectByField(ctx, repository, types.ServiceInstanceType, "id", referencedInstanceID.String(), byLabel)
 	if err != nil {
 		log.C(ctx).Errorf("Failed retrieving the reference-instance by the ID: %s", referencedInstanceObj)
 		return "", util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
 	}
 	referencedInstance := referencedInstanceObj.(*types.ServiceInstance)
 
-	//validate Ownership in case of a multi tenant flow
-	if tenantIdentifier != "" {
-		targetInstanceTenantID := referencedInstance.Labels[tenantIdentifier][0]
-		if targetInstanceTenantID != getTenantId() {
-			log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", targetInstanceTenantID, getTenantId())
-			return "", util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
-		}
+	if referencedInstance == nil {
+		log.C(ctx).Errorf("Failed to retrieve the instance %s by the caller %s", referencedInstanceID, getTenantId())
+		return "", util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
 	}
 
 	if !referencedInstance.IsShared() {

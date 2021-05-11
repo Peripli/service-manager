@@ -110,22 +110,21 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 		return next.Handle(req)
 	}
 
-	refInstanceID, err := sharing.ValidateReferencedInstance(req.Body, rif.tenantIdentifier, rif.repository, req.Context(),
-		func() string {
-			return query.RetrieveFromCriteria(rif.tenantIdentifier, query.CriteriaForContext(req.Context())...)
-		})
+	referenceInstanceID, err := sharing.ValidateReferenceProvisionRequest(req.Context(), rif.repository, req.Body, rif.tenantIdentifier, func() string {
+		return query.RetrieveFromCriteria(rif.tenantIdentifier, query.CriteriaForContext(req.Context())...)
+	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	req.Body, err = sjson.SetBytes(req.Body, instance_sharing.ReferencedInstanceIDKey, refInstanceID)
+	req.Body, err = sjson.SetBytes(req.Body, instance_sharing.ReferencedInstanceIDKey, referenceInstanceID)
 	if err != nil {
-		log.C(ctx).Errorf("Unable to set the ReferencedInstanceIDKey: \"%s\",error details: %s", refInstanceID, err)
+		log.C(ctx).Errorf("Unable to set the ReferencedInstanceIDKey: \"%s\",error details: %s", referenceInstanceID, err)
 		return nil, err
 	}
 
-	log.C(ctx).Infof("Reference instance validation has passed successfully, instanceID: \"%s\"", refInstanceID)
+	log.C(ctx).Infof("Reference instance validation has passed successfully, instanceID: \"%s\"", referenceInstanceID)
 	return next.Handle(req)
 }
 

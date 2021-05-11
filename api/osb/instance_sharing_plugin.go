@@ -57,15 +57,14 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 		return nil, err
 	}
 
-	refInstanceID, err := sharing.ValidateReferencedInstance(req.Body, is.tenantIdentifier, is.repository, req.Context(),
-		func() string {
-			return gjson.GetBytes(req.Body, fmt.Sprintf("context.%s", is.tenantIdentifier)).String()
-		})
+	referenceInstanceID, err := sharing.ValidateReferenceProvisionRequest(req.Context(), is.repository, req.Body, is.tenantIdentifier, func() string {
+		return gjson.GetBytes(req.Body, fmt.Sprintf("context.%s", is.tenantIdentifier)).String()
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	log.C(ctx).Infof("Reference Instance validation has passed successfully, instanceID: \"%s\"", refInstanceID)
+	log.C(ctx).Infof("Reference Instance validation has passed successfully, instanceID: \"%s\"", referenceInstanceID)
 
 	//OSB spec does not require any fields to be returned
 	return util.NewJSONResponse(http.StatusCreated, map[string]string{})

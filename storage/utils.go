@@ -33,12 +33,17 @@ func GetServiceOfferingByServiceInstanceId(repository Repository, ctx context.Co
 	return service, nil
 }
 
-func GetObjectByField(ctx context.Context, repository Repository, objectType types.ObjectType, byKey, byValue string) (types.Object, error) {
+func GetObjectByField(ctx context.Context, repository Repository, objectType types.ObjectType, byKey, byValue string, additionalQueries ...query.Criterion) (types.Object, error) {
 	var criteria []query.Criterion
-	byID := query.ByField(query.EqualsOperator, byKey, byValue)
-	criteria = append(criteria, byID)
+	byField := query.ByField(query.EqualsOperator, byKey, byValue)
+	criteria = append(criteria, byField)
 	if objectType == types.ServiceInstanceType {
 		criteria = append(criteria, query.CriteriaForContext(ctx)...)
+	}
+	if len(additionalQueries) > 0 {
+		for _, additionalQuery := range additionalQueries {
+			criteria = append(criteria, additionalQuery)
+		}
 	}
 	dbObject, err := repository.Get(ctx, objectType, criteria...)
 	if err != nil {
