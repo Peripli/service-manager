@@ -212,7 +212,7 @@ func createOSBInstance(ctx *TestContext, sm *SMExpect, brokerID string, instance
 	subaccountResources[types.ServiceInstanceType]++
 	smBrokerURL := ctx.Servers[SMServer].URL() + "/v1/osb/" + brokerID
 	sm.PUT(smBrokerURL+"/v2/service_instances/"+instanceID).
-		WithHeader("X-Broker-API-Version", "2.13").
+		WithHeader("X-Broker-API-Version", "2.14").
 		WithJSON(osbContext).
 		WithQuery("accepts_incomplete", false).
 		Expect().
@@ -243,7 +243,7 @@ func createOSBBinding(ctx *TestContext, sm *SMExpect, brokerID string, instanceI
 	subaccountResources[types.ServiceBindingType]++
 	smBrokerURL := ctx.Servers[SMServer].URL() + "/v1/osb/" + brokerID
 	sm.PUT(smBrokerURL+"/v2/service_instances/"+instanceID+"/service_bindings/"+bindingID).
-		WithHeader("X-Broker-API-Version", "2.13").
+		WithHeader("X-Broker-API-Version", "2.14").
 		WithJSON(osbContext).
 		WithQuery("accepts_incomplete", false).
 		Expect().

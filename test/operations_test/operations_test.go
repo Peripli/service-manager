@@ -348,7 +348,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("operation platform is platform registered in service manager", func() {
 						const (
 							brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
-							brokerAPIVersionHeaderValue = "2.13"
+							brokerAPIVersionHeaderValue = "2.14"
 
 							serviceID = "test-service-1"
 							planID    = "test-service-plan-1"

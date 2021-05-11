@@ -44,7 +44,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-const osbVersion = "2.13"
+const osbVersion = "2.14"
 
 // Settings type to be loaded from the environment
 type Settings struct {
