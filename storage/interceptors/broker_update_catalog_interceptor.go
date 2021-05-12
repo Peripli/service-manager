@@ -22,6 +22,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/tidwall/sjson"
 	"net/http"
+	"strconv"
 
 	"github.com/gofrs/uuid"
 
@@ -322,4 +323,17 @@ func getBrokerCatalogServicesAndPlans(serviceOfferings []*types.ServiceOffering)
 		plans[serviceOfferings[serviceIndex].CatalogID] = plansForService
 	}
 	return services, plans, nil
+}
+
+func planHasSharedInstances(storage storage.Repository, ctx context.Context, planID string) (bool, error) {
+	byServicePlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
+	bySharedValue := query.ByField(query.EqualsOperator, "shared", strconv.FormatBool(true))
+	sharedInstancesCount, err := storage.Count(ctx, types.ServiceInstanceType, byServicePlanID, bySharedValue)
+	if err != nil {
+		return false, err
+	}
+	if sharedInstancesCount > 0 {
+		return true, nil
+	}
+	return false, nil
 }

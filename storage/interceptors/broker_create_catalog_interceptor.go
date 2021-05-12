@@ -26,6 +26,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/tidwall/sjson"
 	"net/http"
+	"time"
 )
 
 const BrokerCreateCatalogInterceptorName = "BrokerCreateCatalogInterceptor"
@@ -163,4 +164,51 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 	broker.Services = catalogResponse.Services
 
 	return nil
+}
+
+func convertReferencePlanObjectToOSBPlan(plan *types.ServicePlan) interface{} {
+	return map[string]interface{}{
+		"id":          plan.ID,
+		"name":        plan.Name,
+		"description": plan.Description,
+		"bindable":    plan.Bindable,
+	}
+}
+
+func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
+	referencePlan := new(types.ServicePlan)
+
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Errorf("could not generate GUID for ServicePlan: %s", err))
+	}
+
+	referencePlan.ID = UUID.String()
+	referencePlan.CatalogID = UUID.String()
+	referencePlan.CatalogName = instance_sharing.ReferencePlanName
+	referencePlan.Name = instance_sharing.ReferencePlanName
+	referencePlan.Description = instance_sharing.ReferencePlanDescription
+	referencePlan.ServiceOfferingID = serviceOfferingId
+	referencePlan.Bindable = newTrue()
+	referencePlan.Ready = true
+	referencePlan.CreatedAt = time.Now()
+	referencePlan.UpdatedAt = time.Now()
+
+	return referencePlan
+}
+
+func isBindablePlan(service *types.ServiceOffering, plan *types.ServicePlan) bool {
+	if plan.Bindable != nil {
+		return *plan.Bindable
+	}
+	return service.Bindable
+}
+
+func servicePlanUsesReservedNameForReferencePlan(servicePlan *types.ServicePlan) bool {
+	return servicePlan.Name == instance_sharing.ReferencePlanName || servicePlan.CatalogName == instance_sharing.ReferencePlanName
+}
+
+func newTrue() *bool {
+	b := true
+	return &b
 }
