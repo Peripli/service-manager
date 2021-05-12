@@ -41,9 +41,7 @@ func GetObjectByField(ctx context.Context, repository Repository, objectType typ
 		criteria = append(criteria, query.CriteriaForContext(ctx)...)
 	}
 	if len(additionalQueries) > 0 {
-		for _, additionalQuery := range additionalQueries {
-			criteria = append(criteria, additionalQuery)
-		}
+		criteria = append(criteria, additionalQueries...)
 	}
 	dbObject, err := repository.Get(ctx, objectType, criteria...)
 	if err != nil {
