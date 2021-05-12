@@ -234,7 +234,6 @@ var (
 	ErrMissingOrInvalidReferenceParameter        = errors.New("missing or invalid referenced_instance_id parameter")
 	ErrUnknownOSBMethod                          = errors.New("osb method is unknown")
 	ErrSharedPlanHasReferences                   = errors.New("shared plan has references")
-	ErrInstanceIsAlreadyAtDesiredSharedState     = errors.New("instance already at the desired shared state")
 	ErrInvalidShareRequest                       = errors.New("invalid share request")
 	ErrInvalidProvisionRequestWithSharedProperty = errors.New("invalid provision request")
 	ErrRequestBodyContainsReferencedInstanceID   = errors.New("invalid provision request body with reference key")
@@ -320,13 +319,6 @@ func HandleInstanceSharingError(err error, entityName string) error {
 		}
 	case ErrInvalidProvisionRequestWithSharedProperty:
 		errorMessage := "Failed provisioning the instance. The \"shared\" property should be in a dedicated request that doesn't contain any other properties."
-		return &HTTPError{
-			ErrorType:   "BadRequest",
-			Description: errorMessage,
-			StatusCode:  http.StatusBadRequest,
-		}
-	case ErrInstanceIsAlreadyAtDesiredSharedState:
-		errorMessage := fmt.Sprintf("The service instance %s, is already at the desried \"shared\" state.", entityName)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,

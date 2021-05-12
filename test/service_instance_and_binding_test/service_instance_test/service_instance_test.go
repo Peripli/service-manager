@@ -4036,15 +4036,17 @@ var _ = DescribeTestsFor(TestCase{
 								guidsArray = append(guidsArray, referenceInstanceID)
 								resp.JSON().Object().Equal(util.HandleReferencesError(util.ErrUnsharingInstanceWithReferences, guidsArray))
 							})
-							It("fails re-sharing a shared instance", func() {
+							It("returns 200 setting shared=true on a shared instance", func() {
+								instance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
 								resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
 									WithQuery("async", "false").
 									WithJSON(Object{
 										"shared": true,
 									}).
 									Expect().
-									Status(http.StatusBadRequest)
-								resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrInstanceIsAlreadyAtDesiredSharedState, sharedInstanceID))
+									Status(http.StatusOK)
+
+								resp.JSON().Object().Equal(instance)
 							})
 							It("fails sharing an instance with invalid share request", func() {
 								resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
@@ -4174,7 +4176,7 @@ var _ = DescribeTestsFor(TestCase{
 									Status(http.StatusBadRequest)
 								resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrAsyncNotSupportedForSharing, sharedInstanceID))
 							})
-							It("fails re-unsharing a non shared instance", func() {
+							It("returns 200 setting shared=false on a non shared instance", func() {
 								resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
 									WithQuery("async", "false").
 									WithJSON(Object{
@@ -4182,15 +4184,16 @@ var _ = DescribeTestsFor(TestCase{
 									}).
 									Expect().
 									Status(http.StatusOK)
+								// retrieve at start to verify no change
+								instance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
 								resp = ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
 									WithQuery("async", "false").
 									WithJSON(Object{
 										"shared": false,
 									}).
 									Expect().
-									Status(http.StatusBadRequest)
-
-								resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrInstanceIsAlreadyAtDesiredSharedState, sharedInstanceID))
+									Status(http.StatusOK)
+								resp.JSON().Object().Equal(instance)
 							})
 							It("fails sharing an instance with invalid share request", func() {
 								resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).

@@ -124,7 +124,7 @@ func (sf *sharedInstanceUpdateFilter) handleServiceUpdate(req *web.Request, reqS
 	}
 
 	if persistedInstance.IsShared() == *reqServiceInstance.Shared {
-		return nil, util.HandleInstanceSharingError(util.ErrInstanceIsAlreadyAtDesiredSharedState, persistedInstance.ID)
+		return util.NewJSONResponse(http.StatusOK, persistedInstance)
 	}
 
 	// When un-sharing a service instance with references
