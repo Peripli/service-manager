@@ -57,11 +57,11 @@ func servicePlanUsesReservedNameForReferencePlan(servicePlan *types.ServicePlan)
 func planHasSharedInstances(storage storage.Repository, ctx context.Context, planID string) (bool, error) {
 	byServicePlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
 	bySharedValue := query.ByField(query.EqualsOperator, "shared", strconv.FormatBool(true))
-	listOfSharedInstances, err := storage.List(ctx, types.ServiceInstanceType, byServicePlanID, bySharedValue)
+	sharedInstancesCount, err := storage.Count(ctx, types.ServiceInstanceType, byServicePlanID, bySharedValue)
 	if err != nil {
 		return false, err
 	}
-	if listOfSharedInstances.Len() > 0 {
+	if sharedInstancesCount > 0 {
 		return true, nil
 	}
 	return false, nil
