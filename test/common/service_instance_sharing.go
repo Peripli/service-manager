@@ -12,28 +12,6 @@ import (
 	"net/http"
 )
 
-func CreateInstance(smClient *SMExpect, async bool, expectedStatusCode int, name, planID string) (*httpexpect.Response, string) {
-	var instanceID string
-	resp := smClient.POST(web.ServiceInstancesURL).
-		WithQuery("async", async).
-		WithJSON(Object{
-			"name":             name,
-			"service_plan_id":  planID,
-			"maintenance_info": Object{},
-		}).Expect().Status(expectedStatusCode)
-
-	if resp.Raw().StatusCode == http.StatusCreated {
-		obj := resp.JSON().Object()
-
-		obj.ContainsKey("id").
-			ValueEqual("platform_id", types.SMPlatform)
-
-		instanceID = obj.Value("id").String().Raw()
-	}
-
-	return resp, instanceID
-}
-
 func GetInstanceObjectByID(ctx *TestContext, instanceID string) (*types.ServiceInstance, error) {
 	byID := query.ByField(query.EqualsOperator, "id", instanceID)
 	var err error
