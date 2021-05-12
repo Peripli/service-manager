@@ -332,7 +332,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrRequestBodyContainsReferencedInstanceID:
-		errorMessage := fmt.Sprintf("Request body should not contain the \"%s\" key. Should be passed as a parameter instead.", entityName)
+		errorMessage := fmt.Sprintf("Invalid request. Place the \"%s\" key in the \"parameters\" section of the request.", entityName)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
