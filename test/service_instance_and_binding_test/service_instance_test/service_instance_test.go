@@ -4353,72 +4353,54 @@ var _ = DescribeTestsFor(TestCase{
 					})
 				})
 				Describe("POST", func() {
-					When("creating a reference instance", func() {
-						BeforeEach(func() {
-							// Create instance and share it
-							sharedInstanceID, referenceInstanceID, referencePlan = prepareInstanceSharingPrerequisites(ctx.SMWithOAuthForTenant, true, true)
-
-							resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
-							sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-								Category:          types.CREATE,
-								State:             types.SUCCEEDED,
-								ResourceType:      types.ServiceInstanceType,
-								Reschedulable:     false,
-								DeletionScheduled: false,
-							})
-							VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-								ID:    sharedInstanceID,
-								Type:  types.ServiceInstanceType,
-								Ready: true,
-							})
-							ShareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID)
-							// Create reference service instance
-							referencePlan = GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
-							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
-						})
-						AfterEach(func() {
-							VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-								ID:    referenceInstanceID,
-								Type:  types.ServiceInstanceType,
-								Ready: true,
-							})
-							cleanupInstances(referenceInstanceID, sharedInstanceID)
-						})
-						for _, testConfig := range []testConfigStruct{
-							{async: "true", status: http.StatusAccepted},
-							{async: "false", status: http.StatusCreated},
-						} {
-							It(fmt.Sprintf("returns %d", testConfig.status), func() {
-								resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, testConfig.async, testConfig.status, sharedInstanceID, referencePlan.ID)
-								referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-									Category:          types.CREATE,
-									State:             types.SUCCEEDED,
-									ResourceType:      types.ServiceInstanceType,
-									Reschedulable:     false,
-									DeletionScheduled: false,
-								})
-							})
-						}
-					})
-					Context("invalid reference request", func() {
+					Context("reference instance", func() {
 						BeforeEach(func() {
 							sharedInstanceID, _, referencePlan = prepareInstanceSharingPrerequisites(ctx.SMWithOAuthForTenant, true, false)
-							postInstanceRequest[instance_sharing.ReferencedInstanceIDKey] = sharedInstanceID
-							ID, _ := uuid.NewV4()
-							postInstanceRequest["name"] = fmt.Sprintf("instance-%s", ID.String())
 						})
-						AfterEach(func() {
-							delete(postInstanceRequest, instance_sharing.ReferencedInstanceIDKey)
+						When("reference request is valid", func() {
+							AfterEach(func() {
+								cleanupInstances(referenceInstanceID, sharedInstanceID)
+							})
+							for _, testConfig := range []testConfigStruct{
+								{async: "true", status: http.StatusAccepted},
+								{async: "false", status: http.StatusCreated},
+							} {
+								It(fmt.Sprintf("returns %d", testConfig.status), func() {
+									resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, testConfig.async, testConfig.status, sharedInstanceID, referencePlan.ID)
+									referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    referenceInstanceID,
+										Type:  types.ServiceInstanceType,
+										Ready: true,
+									})
+								})
+							}
 						})
-						It(fmt.Sprintf("should fail creating a reference type instance with %s on the body request", instance_sharing.ReferencedInstanceIDKey), func() {
-							postInstanceRequest["service_plan_id"] = referencePlan.ID
-							resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusBadRequest)
-							resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrRequestBodyContainsReferencedInstanceID, instance_sharing.ReferencedInstanceIDKey))
-						})
-						It(fmt.Sprintf("should fail creating an  instance with %s on the body request", instance_sharing.ReferencedInstanceIDKey), func() {
-							postInstanceRequest["service_plan_id"] = servicePlanID
-							resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusBadRequest)
-							resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrRequestBodyContainsReferencedInstanceID, instance_sharing.ReferencedInstanceIDKey))
+						When("reference request is invalid", func() {
+							BeforeEach(func() {
+								postInstanceRequest[instance_sharing.ReferencedInstanceIDKey] = sharedInstanceID
+								ID, _ := uuid.NewV4()
+								postInstanceRequest["name"] = fmt.Sprintf("instance-%s", ID.String())
+							})
+							AfterEach(func() {
+								delete(postInstanceRequest, instance_sharing.ReferencedInstanceIDKey)
+							})
+							It(fmt.Sprintf("should fail creating a reference type instance with %s on the body request", instance_sharing.ReferencedInstanceIDKey), func() {
+								postInstanceRequest["service_plan_id"] = referencePlan.ID
+								resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusBadRequest)
+								resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrRequestBodyContainsReferencedInstanceID, instance_sharing.ReferencedInstanceIDKey))
+							})
+							It(fmt.Sprintf("should fail creating an  instance with %s on the body request", instance_sharing.ReferencedInstanceIDKey), func() {
+								postInstanceRequest["service_plan_id"] = servicePlanID
+								resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusBadRequest)
+								resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrRequestBodyContainsReferencedInstanceID, instance_sharing.ReferencedInstanceIDKey))
+							})
 						})
 					})
 					When("creating an instance with shared property", func() {
