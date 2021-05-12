@@ -2406,7 +2406,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 					})
 					When("changing the supportInstanceSharing property of an existing plan", func() {
-						var _, _, plan1, plan2, plan3 string
+						var plan1, plan2, plan3 string
 						var shareableValue bool
 						var testContext *BrokerUtils
 						BeforeEach(func() {
@@ -2560,6 +2560,39 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									ResourceType: types.ServiceBrokerType,
 								})
 							})
+						})
+					})
+					When("the new catalog contains shareable plan", func() {
+						var testContext *BrokerUtils
+						BeforeEach(func() {
+							catalog = common.NewRandomSBCatalog()
+							testContext = ctx.RegisterBrokerWithCatalog(catalog)
+							brokerServer = testContext.Broker.BrokerServer
+							brokerID = testContext.Broker.ID
+							// set catalog as support instance sharing true
+							metadataPathPlan1 := fmt.Sprintf("services.0.plans.0.metadata.%s", instance_sharing.SupportInstanceSharingKey)
+							newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), metadataPathPlan1, true)
+							brokerServer.Catalog = SBCatalog(newCatalogBytes)
+						})
+						It("should generate a reference instance", func() {
+							// update broker
+							resp := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+testContext.Broker.ID).
+								WithQuery(web.QueryParamAsync, "true").
+								WithJSON(common.Object{}).
+								Expect().Status(http.StatusAccepted)
+							common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
+								State:        types.SUCCEEDED,
+								Category:     types.UPDATE,
+								ResourceType: types.ServiceBrokerType,
+							})
+
+							byID := query.ByField(query.EqualsOperator, "id", brokerID)
+							brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, byID)
+							Expect(err).ToNot(HaveOccurred())
+							catalogJSON := string(brokerFromDB.(*types.ServiceBroker).Catalog)
+							referencePlan := gjson.Get(catalogJSON, "services.0.plans.4").String()
+							Expect(referencePlan).To(ContainSubstring(instance_sharing.ReferencePlanName))
+							Expect(referencePlan).To(ContainSubstring(instance_sharing.ReferencePlanDescription))
 						})
 					})
 				})
