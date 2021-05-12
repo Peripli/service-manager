@@ -179,6 +179,65 @@ var _ = Describe("Instance Sharing", func() {
 
 			})
 		})
+		When(fmt.Sprintf("provision request contains %s property", instance_sharing.ReferencedInstanceIDKey), func() {
+			var sharedInstanceID string
+			var referencePlan *types.ServicePlan
+			BeforeEach(func() {
+				platformJSON = common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+			})
+			JustBeforeEach(func() {
+				_, sharedInstanceID = createAndShareInstance(false)
+				VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:    sharedInstanceID,
+					Type:  types.ServiceInstanceType,
+					Ready: true,
+				})
+				verifyOperationExists(operationExpectations{
+					Type:         types.CREATE,
+					State:        types.SUCCEEDED,
+					ResourceID:   sharedInstanceID,
+					ResourceType: "/v1/service_instances",
+					ExternalID:   "",
+				})
+				referencePlan = GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareablePlanCatalogID)
+				utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(referencePlan.CatalogID, platform.ID, organizationGUID)
+			})
+			It("should fail", func() {
+				UUID, err := uuid.NewV4()
+				if err != nil {
+					panic(err)
+				}
+				instanceGuid := UUID.String()
+
+				resp := ctx.SMWithBasic.PUT(instanceSharingBrokerPath+"/v2/service_instances/"+instanceGuid).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithQuery(acceptsIncompleteKey, false).
+					WithJSON(Object{
+						instance_sharing.ReferencedInstanceIDKey: sharedInstanceID,
+						"service_id":                             service2CatalogID,
+						"plan_id":                                referencePlan.CatalogID,
+						"context": map[string]string{
+							"platform": platform.ID,
+						},
+						"organization_guid": organizationGUID,
+						"space_guid":        instanceSharingSpaceGUID,
+						"maintenance_info": map[string]string{
+							"version": "old",
+						},
+					}).
+					Expect().Status(http.StatusBadRequest)
+
+				VerifyResourceDoesNotExist(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:    instanceGuid,
+					Type:  types.ServiceInstanceType,
+					Ready: true,
+				})
+				resp.JSON().Object().
+					ContainsKey("description").
+					ValueEqual("description", util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey).Error())
+
+			})
+		})
 	})
 
 	Describe("DEPROVISION", func() {
