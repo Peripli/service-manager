@@ -2562,7 +2562,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							})
 						})
 					})
-					When("the new catalog contains shareable plan", func() {
+					When("a catalog without a shareable plan is being updated with a new shareable plan", func() {
 						var testContext *BrokerUtils
 						BeforeEach(func() {
 							catalog = common.NewRandomSBCatalog()
