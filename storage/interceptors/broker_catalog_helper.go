@@ -2,16 +2,21 @@ package interceptors
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	schemas2 "github.com/Peripli/service-manager/schemas"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
+
 	"strconv"
 	"time"
+
 )
 
+const referencePlanPath = "schemas/reference_plan.json"
 func convertReferencePlanObjectToOSBPlan(plan *types.ServicePlan) interface{} {
 	return map[string]interface{}{
 		"id":          plan.ID,
@@ -20,6 +25,7 @@ func convertReferencePlanObjectToOSBPlan(plan *types.ServicePlan) interface{} {
 		"bindable":    plan.Bindable,
 	}
 }
+
 
 func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
 	referencePlan := new(types.ServicePlan)
@@ -39,9 +45,18 @@ func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
 	referencePlan.Ready = true
 	referencePlan.CreatedAt = time.Now()
 	referencePlan.UpdatedAt = time.Now()
-
+	schemas, err := schemas2.SchemasLoader("reference_plan.json")
+	if err == nil {
+		var planSchema map[string]json.RawMessage
+		err = json.Unmarshal(schemas, &planSchema)
+		if err == nil {
+			referencePlan.Schemas = planSchema["schemas"]
+			referencePlan.Metadata = planSchema["metadata"]
+		}
+	}
 	return referencePlan
 }
+
 
 func isBindablePlan(service *types.ServiceOffering, plan *types.ServicePlan) bool {
 	if plan.Bindable != nil {
