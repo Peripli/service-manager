@@ -2574,7 +2574,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), metadataPathPlan1, true)
 							brokerServer.Catalog = SBCatalog(newCatalogBytes)
 						})
-						It("should generate a reference instance", func() {
+						It("should generate a reference plan", func() {
 							// update broker
 							resp := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+testContext.Broker.ID).
 								WithQuery(web.QueryParamAsync, "true").
