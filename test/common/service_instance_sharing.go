@@ -98,7 +98,7 @@ func GetPlanByKey(ctx *TestContext, key, value string) *types.ServicePlan {
 	return planObject.(*types.ServicePlan)
 }
 
-func CreateReferenceInstance(ctx *TestContext, async string, expectedStatusCode int, referencedInstanceID, referencePlanID string) *httpexpect.Response {
+func CreateReferenceInstance(smExpect *SMExpect, async string, expectedStatusCode int, referencedInstanceID, referencePlanID string) *httpexpect.Response {
 	ID, _ := uuid.NewV4()
 	requestBody := Object{
 		"name":             "reference-instance-" + ID.String(),
@@ -108,7 +108,7 @@ func CreateReferenceInstance(ctx *TestContext, async string, expectedStatusCode 
 			instance_sharing.ReferencedInstanceIDKey: referencedInstanceID,
 		},
 	}
-	resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+	resp := smExpect.POST(web.ServiceInstancesURL).
 		WithQuery("async", async).
 		WithJSON(requestBody).
 		Expect().

@@ -51,6 +51,10 @@ func (*referenceInstanceFilter) Name() string {
 }
 
 func (rif *referenceInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+	err := isValidRequestBody(req)
+	if err != nil {
+		return nil, err
+	}
 	switch req.Request.Method {
 	case http.MethodPost:
 		return rif.handleProvision(req, next)
@@ -151,4 +155,12 @@ func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next w
 
 	log.C(ctx).Infof("Reference Instance Update passed successfully, instanceID: \"%s\"", resourceID)
 	return next.Handle(req)
+}
+
+func isValidRequestBody(req *web.Request) error {
+	refKeyOnBody := gjson.GetBytes(req.Body, instance_sharing.ReferencedInstanceIDKey).String()
+	if len(refKeyOnBody) > 0 {
+		return util.HandleInstanceSharingError(util.ErrRequestBodyContainsReferencedInstanceID, instance_sharing.ReferencedInstanceIDKey)
+	}
+	return nil
 }

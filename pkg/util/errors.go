@@ -237,6 +237,7 @@ var (
 	ErrInstanceIsAlreadyAtDesiredSharedState     = errors.New("instance already at the desired shared state")
 	ErrInvalidShareRequest                       = errors.New("invalid share request")
 	ErrInvalidProvisionRequestWithSharedProperty = errors.New("invalid provision request")
+	ErrRequestBodyContainsReferencedInstanceID   = errors.New("invalid provision request body with reference key")
 )
 
 func HandleInstanceSharingError(err error, entityName string) error {
@@ -333,6 +334,13 @@ func HandleInstanceSharingError(err error, entityName string) error {
 		}
 	case ErrAsyncNotSupportedForSharing:
 		errorMessage := "Async requests are not supported when modifying the 'shared' property. Try again with \"async\" = \"false\"."
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: errorMessage,
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrRequestBodyContainsReferencedInstanceID:
+		errorMessage := fmt.Sprintf("Request body should not contain the \"%s\" key. Should be passed as a parameter instead.", entityName)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
