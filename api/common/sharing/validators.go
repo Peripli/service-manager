@@ -12,7 +12,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-func ValidateReferenceProvisionRequest(ctx context.Context, repository storage.Repository, body []byte, tenantIdentifier string, getTenantId func() string) (string, error) {
+func ExtractReferenceInstanceID(ctx context.Context, repository storage.Repository, body []byte, tenantIdentifier string, getTenantId func() string) (string, error) {
 	parameters := gjson.GetBytes(body, "parameters").Map()
 	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
 

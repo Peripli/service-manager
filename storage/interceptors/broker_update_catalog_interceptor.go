@@ -243,6 +243,9 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 	}
 }
 
+// reuseReferenceInstancePlans checks whether you have a reference plan already or not.
+// if the catalog has a reference plan already, it does not re-generate it, but uses the existing one.
+// so we don't have multiple reference plans or changes of IDs on the existing reference plans that might be in use by other instances.
 func reuseReferenceInstancePlans(oldBroker *types.ServiceBroker, newBroker *types.ServiceBroker) error {
 	var newServicesByCatalogID = make(map[string]*types.ServiceOffering)
 	var newServicesIdxByCatalogID = make(map[string]int)
