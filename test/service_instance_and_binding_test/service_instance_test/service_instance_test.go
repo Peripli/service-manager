@@ -4305,7 +4305,7 @@ var _ = DescribeTestsFor(TestCase{
 						})
 					})
 					Context("instance ownership", func() {
-						When("tenant without ownership of instance is sharing instance", func() {
+						When("tenant without ownership of instance is trying to share the instance", func() {
 							var otherTenantExpect *SMExpect
 							BeforeEach(func() {
 								// create instance by other tenant
@@ -4317,7 +4317,7 @@ var _ = DescribeTestsFor(TestCase{
 								otherTenantExpect.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).WithQuery("async", false).
 									Expect().StatusRange(httpexpect.Status2xx)
 							})
-							It("should fail sharing the instance", func() {
+							It("should fail to share the instance", func() {
 								ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
 									WithQuery("async", "false").
 									WithJSON(Object{
@@ -4327,14 +4327,14 @@ var _ = DescribeTestsFor(TestCase{
 									Status(http.StatusNotFound)
 							})
 						})
-						When("tenant with ownership of instance is sharing instance", func() {
+						When("tenant with ownership of instance is trying to share the instance", func() {
 							BeforeEach(func() {
 								sharedInstanceID, _, _ = prepareInstanceSharingPrerequisites(ctx.SMWithOAuthForTenant, true, false)
 							})
 							AfterEach(func() {
 								cleanupInstances(sharedInstanceID)
 							})
-							It("should succeed sharing the instance", func() {
+							It("should succeed to share the instance", func() {
 								ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
 									WithQuery("async", "false").
 									WithJSON(Object{
@@ -4397,7 +4397,7 @@ var _ = DescribeTestsFor(TestCase{
 							otherTenantExpect.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).WithQuery("async", false).
 								Expect().StatusRange(httpexpect.Status2xx)
 						})
-						It("should fail provisioning the reference instance on ownership validation", func() {
+						It("should fail to provision the reference instance on ownership validation", func() {
 							resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusNotFound, sharedInstanceID, referencePlan.ID)
 							resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, sharedInstanceID))
 						})
