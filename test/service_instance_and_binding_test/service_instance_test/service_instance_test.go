@@ -4385,6 +4385,24 @@ var _ = DescribeTestsFor(TestCase{
 					})
 				})
 				Describe("POST", func() {
+					When("shared instance owned by different tenant", func() {
+						var otherTenantExpect *SMExpect
+						BeforeEach(func() {
+							// create instance by other tenant
+							EnsurePublicPlanVisibility(ctx.SMRepository, servicePlanID)
+							otherTenantExpect = ctx.NewTenantExpect("tenancyClient", "other-tenant")
+							sharedInstanceID, _, referencePlan = prepareInstanceSharingPrerequisites(otherTenantExpect, true, false)
+						})
+						AfterEach(func() {
+							otherTenantExpect.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).WithQuery("async", false).
+								Expect().StatusRange(httpexpect.Status2xx)
+						})
+						It("should fail provisioning the reference instance on ownership validation", func() {
+							resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusNotFound, sharedInstanceID, referencePlan.ID)
+							resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, sharedInstanceID))
+						})
+					})
+
 					Context("reference instance", func() {
 						BeforeEach(func() {
 							sharedInstanceID, _, referencePlan = prepareInstanceSharingPrerequisites(ctx.SMWithOAuthForTenant, true, false)
