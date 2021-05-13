@@ -4306,11 +4306,16 @@ var _ = DescribeTestsFor(TestCase{
 					})
 					Context("instance ownership", func() {
 						When("tenant without ownership of instance is sharing instance", func() {
+							var otherTenantExpect *SMExpect
 							BeforeEach(func() {
 								// create instance by other tenant
 								EnsurePublicPlanVisibility(ctx.SMRepository, servicePlanID)
-								otherTenantExpect := ctx.NewTenantExpect("tenancyClient", "other-tenant")
+								otherTenantExpect = ctx.NewTenantExpect("tenancyClient", "other-tenant")
 								sharedInstanceID, _, _ = prepareInstanceSharingPrerequisites(otherTenantExpect, true, false)
+							})
+							AfterEach(func() {
+								otherTenantExpect.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).WithQuery("async", false).
+									Expect().StatusRange(httpexpect.Status2xx)
 							})
 							It("should fail sharing the instance", func() {
 								ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
@@ -4325,6 +4330,9 @@ var _ = DescribeTestsFor(TestCase{
 						When("tenant with ownership of instance is sharing instance", func() {
 							BeforeEach(func() {
 								sharedInstanceID, _, _ = prepareInstanceSharingPrerequisites(ctx.SMWithOAuthForTenant, true, false)
+							})
+							AfterEach(func() {
+								cleanupInstances(sharedInstanceID)
 							})
 							It("should succeed sharing the instance", func() {
 								ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).

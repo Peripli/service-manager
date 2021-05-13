@@ -227,6 +227,7 @@ var (
 	ErrPlanMustBeBindable                        = errors.New("plan must be bindable")
 	ErrAsyncNotSupportedForSharing               = errors.New("can't use async for sharing instances")
 	ErrReferencedInstanceNotShared               = errors.New("referenced-instance should be shared first")
+	ErrReferencedInstanceNotFound                = errors.New("referenced-instance not found")
 	ErrChangingPlanOfReferenceInstance           = errors.New("changing plan of reference instance")
 	ErrNewPlanDoesNotSupportInstanceSharing      = errors.New("changing shared instance plan to a non-shareable plan")
 	ErrPlanDoesNotSupportInstanceSharing         = errors.New("plan does not support instance sharing")
@@ -266,6 +267,12 @@ func HandleInstanceSharingError(err error, entityName string) error {
 			ErrorType:   "BadRequest",
 			Description: fmt.Sprintf("Failed to create the reference. The instance %s, for which you want to create the reference, must be shared first.", entityName),
 			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrReferencedInstanceNotFound:
+		return &HTTPError{
+			ErrorType:   "NotFound",
+			Description: fmt.Sprintf("Failed to create the reference. The instance %s, for which you want to create the reference, not found.", entityName),
+			StatusCode:  http.StatusNotFound,
 		}
 	case ErrChangingPlanOfReferenceInstance:
 		return &HTTPError{
