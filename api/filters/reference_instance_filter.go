@@ -108,7 +108,7 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 		return nil, err
 	}
 
-	log.C(ctx).Infof("Reference instance validation has passed successfully, instanceID: \"%s\"", referenceInstanceID)
+	log.C(ctx).Infof("Reference instance validation has passed successfully, %s: %s", instance_sharing.ReferencedInstanceIDKey, referenceInstanceID)
 	return next.Handle(req)
 }
 
@@ -133,7 +133,7 @@ func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next w
 		return nil, err // handled by IsValidReferenceInstancePatchRequest
 	}
 
-	log.C(ctx).Infof("Reference Instance Update passed successfully, instanceID: \"%s\"", resourceID)
+	log.C(ctx).Infof("Reference instance update passed successfully, instanceID: \"%s\"", resourceID)
 	return next.Handle(req)
 }
 
