@@ -61,6 +61,7 @@ func IsReferencePlan(ctx context.Context, repository Repository, objectType, byK
 }
 
 func GetInstanceReferencesByID(ctx context.Context, repository Repository, instanceID string) (types.ObjectList, error) {
+	// if has references - the list of references will be returned to the client in the error description
 	references, err := repository.List(
 		ctx,
 		types.ServiceInstanceType,

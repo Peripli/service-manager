@@ -58,7 +58,6 @@ func (sf *sharedInstanceUpdateFilter) Run(req *web.Request, next web.Handler) (*
 		return sf.handleServiceUpdate(req, reqServiceInstance, next)
 	}
 	return next.Handle(req)
-
 }
 
 func (*sharedInstanceUpdateFilter) FilterMatchers() []web.FilterMatcher {
@@ -72,11 +71,19 @@ func (*sharedInstanceUpdateFilter) FilterMatchers() []web.FilterMatcher {
 	}
 }
 
+func (sf *sharedInstanceUpdateFilter) handleProvision(req *web.Request, reqServiceInstance types.ServiceInstance, next web.Handler) (*web.Response, error) {
+	// we don't allow setting the shared property while provisioning the instance - supported by the patch instance only.
+	if reqServiceInstance.Shared != nil {
+		return nil, util.HandleInstanceSharingError(util.ErrInvalidProvisionRequestWithSharedProperty, "")
+	}
+	return next.Handle(req)
+}
+
 func (sf *sharedInstanceUpdateFilter) handleServiceUpdate(req *web.Request, reqServiceInstance types.ServiceInstance, next web.Handler) (*web.Response, error) {
 	instanceID := req.PathParams["resource_id"]
 	ctx := req.Context()
 
-	// Get instance from database
+	// get instance from database
 	dbPersistedInstanceObject, err := storage.GetObjectByField(ctx, sf.storageRepository, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
 		return next.Handle(req)
@@ -99,6 +106,7 @@ func (sf *sharedInstanceUpdateFilter) handleServiceUpdate(req *web.Request, reqS
 		return next.Handle(req)
 	}
 
+	// async flow is not supported when sharing instances:
 	isAsync := req.URL.Query().Get(web.QueryParamAsync)
 	if isAsync == "true" {
 		return nil, util.HandleInstanceSharingError(util.ErrAsyncNotSupportedForSharing, instanceID)
@@ -127,7 +135,7 @@ func (sf *sharedInstanceUpdateFilter) handleServiceUpdate(req *web.Request, reqS
 		return util.NewJSONResponse(http.StatusOK, persistedInstance)
 	}
 
-	// When un-sharing a service instance with references
+	// When un-sharing a service instance with references (validate has no references)
 	if persistedInstance.IsShared() && !*reqServiceInstance.Shared {
 		referencesList, err := storage.GetInstanceReferencesByID(ctx, sf.storageRepository, persistedInstance.ID)
 		if err != nil {
@@ -139,13 +147,6 @@ func (sf *sharedInstanceUpdateFilter) handleServiceUpdate(req *web.Request, reqS
 	}
 
 	log.C(ctx).Infof("Reference Instance Update passed successfully. InstanceID: \"%s\"", instanceID)
-	return next.Handle(req)
-}
-
-func (sf *sharedInstanceUpdateFilter) handleProvision(req *web.Request, reqServiceInstance types.ServiceInstance, next web.Handler) (*web.Response, error) {
-	if reqServiceInstance.Shared != nil {
-		return nil, util.HandleInstanceSharingError(util.ErrInvalidProvisionRequestWithSharedProperty, "")
-	}
 	return next.Handle(req)
 }
 

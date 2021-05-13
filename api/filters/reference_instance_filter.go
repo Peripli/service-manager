@@ -68,26 +68,6 @@ func (rif *referenceInstanceFilter) Run(req *web.Request, next web.Handler) (*we
 	return next.Handle(req)
 }
 
-func (rif *referenceInstanceFilter) handleGetParameters(req *web.Request, next web.Handler) (*web.Response, error) {
-	ctx := req.Context()
-	instanceID := req.PathParams[web.PathParamResourceID]
-
-	dbInstanceObject, err := storage.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", instanceID)
-	if err != nil {
-		return next.Handle(req)
-	}
-	instance := dbInstanceObject.(*types.ServiceInstance)
-	if instance.ReferencedInstanceID == "" {
-		return next.Handle(req)
-	}
-
-	body := map[string]string{
-		instance_sharing.ReferencedInstanceIDKey: instance.ReferencedInstanceID,
-	}
-
-	return util.NewJSONResponse(http.StatusOK, body)
-}
-
 func (*referenceInstanceFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
@@ -143,7 +123,7 @@ func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next w
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
 
-	if instance.ReferencedInstanceID == "" {
+	if len(instance.ReferencedInstanceID) == 0 {
 		return next.Handle(req)
 	}
 
@@ -155,6 +135,26 @@ func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next w
 
 	log.C(ctx).Infof("Reference Instance Update passed successfully, instanceID: \"%s\"", resourceID)
 	return next.Handle(req)
+}
+
+func (rif *referenceInstanceFilter) handleGetParameters(req *web.Request, next web.Handler) (*web.Response, error) {
+	ctx := req.Context()
+	instanceID := req.PathParams[web.PathParamResourceID]
+
+	dbInstanceObject, err := storage.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", instanceID)
+	if err != nil {
+		return next.Handle(req)
+	}
+	instance := dbInstanceObject.(*types.ServiceInstance)
+	if len(instance.ReferencedInstanceID) == 0 {
+		return next.Handle(req)
+	}
+
+	body := map[string]string{
+		instance_sharing.ReferencedInstanceIDKey: instance.ReferencedInstanceID,
+	}
+
+	return util.NewJSONResponse(http.StatusOK, body)
 }
 
 func isValidRequestBody(req *web.Request) error {
