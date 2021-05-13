@@ -283,7 +283,7 @@ var _ = DescribeTestsFor(TestCase{
 				var referenceInstanceID = ""
 				var referencePlan *types.ServicePlan
 				var resp *httpexpect.Response
-				// shared instance and get reference plan:
+				// share instance and retrieve the new reference plan:
 				if createAndShareInstance {
 					resp = createInstance(smExpect, "false", http.StatusCreated)
 					sharedInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
