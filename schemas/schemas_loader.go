@@ -6,8 +6,6 @@ import (
 	"os"
 )
 
-
-
 func SchemasLoader(schemaName string) (json.RawMessage, error) {
 	path, _ := os.Getwd()
 	schemasPath := path + "/" + schemaName

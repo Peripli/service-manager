@@ -117,7 +117,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						Status(status)
 				}
 
-
 				assertPlansForPlatformWithQuery := func(agent *common.SMExpect, query map[string]interface{}, plansIDs ...interface{}) {
 					q := url.Values{}
 					for k, v := range query {
@@ -284,7 +283,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								assertPlansForPlatform(k8sAgent, nil...)
 								common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, referencePlanID, k8sPlatform.ID)
 								var err error
-								planJson, err=schemas.SchemasLoader("reference_plan.json")
+								planJson, err = schemas.SchemasLoader("reference_plan.json")
 								Expect(err).To(BeNil())
 							})
 							When("creating a new catalog with shareable plan", func() {
@@ -294,13 +293,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									catalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
 									marshalCatalog, _ := json.Marshal(catalog)
 									Expect(strings.Contains(string(marshalCatalog), referencePlanID)).To(Equal(true))
-									planSchema:=gjson.GetBytes(planJson, "schemas")
-									planMetadata:=gjson.GetBytes(planJson, "metadata")
+									planSchema := gjson.GetBytes(planJson, "schemas")
+									planMetadata := gjson.GetBytes(planJson, "metadata")
 									Expect(gjson.GetBytes(catalog, "services.0.plans.1.metadata").Value()).Should(Equal(
 										planMetadata.Value()))
 									Expect(gjson.GetBytes(catalog, "services.0.plans.1.schemas").Value()).Should(Equal(
 										planSchema.Value()))
-									servicePlan,_:=getServicePlanByID(ctx.SMRepository, context.TODO(), referencePlanID)
+									servicePlan, _ := getServicePlanByID(ctx.SMRepository, context.TODO(), referencePlanID)
 									Expect(servicePlan.Schemas).To(MatchJSON(planSchema))
 
 									Expect(servicePlan.Metadata).To(MatchJSON(planMetadata))
