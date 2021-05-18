@@ -63,7 +63,7 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 		url      = "url"
 		username = "username"
 		password = "password"
-		version  = "2.13"
+		version  = "2.14"
 	)
 
 	var (
