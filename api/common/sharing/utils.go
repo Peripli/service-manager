@@ -12,28 +12,58 @@ import (
 	"github.com/tidwall/gjson"
 )
 
+const (
+	planSelector = "plan_selector"
+	nameSelector = "name_selector"
+)
+
 func ExtractReferenceInstanceID(ctx context.Context, repository storage.Repository, body []byte, tenantIdentifier string, getTenantId func() string) (string, error) {
 	parameters := gjson.GetBytes(body, "parameters").Map()
-	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
 
-	if !exists {
+	referencedInstanceID := parameters[instance_sharing.ReferencedInstanceIDKey].String()
+	planID := parameters[planSelector].String()
+	instanceName := parameters[nameSelector].String()
+
+	var criteria []query.Criterion
+	criteria = append(criteria, query.ByLabel(query.EqualsOperator, tenantIdentifier, getTenantId()))
+	criteria = append(criteria, query.CriteriaForContext(ctx)...)
+
+	if len(referencedInstanceID) > 0 {
+		criteria = append(criteria, query.ByField(query.EqualsOperator, "id", referencedInstanceID))
+	} else if len(planID) > 0 {
+		//criteria = append(criteria, query.ByField(query.EqualsOperator, "shared", "true"))
+		criteria = append(criteria, query.ByField(query.EqualsOperator, "service_plan_id", planID))
+	} else if len(instanceName) > 0 {
+		//criteria = append(criteria, query.ByField(query.EqualsOperator, "shared", "true"))
+		criteria = append(criteria, query.ByField(query.EqualsOperator, "name", instanceName))
+	} else {
 		return "", util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
 	}
 
-	byLabel := query.ByLabel(query.EqualsOperator, tenantIdentifier, getTenantId())
-	referencedInstanceObj, err := storage.GetObjectByField(ctx, repository, types.ServiceInstanceType, "id", referencedInstanceID.String(), byLabel)
+	referencedInstanceObj, err := repository.List(ctx, types.ServiceInstanceType, criteria...)
 	if err != nil {
-		log.C(ctx).Errorf("Failed to retrieve the instance %s by the caller %s", referencedInstanceID, getTenantId())
-		return "", util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, referencedInstanceID.String())
+		return "", err
 	}
-	referencedInstance := referencedInstanceObj.(*types.ServiceInstance)
+	if referencedInstanceObj.Len() != 0 {
+		return "", util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, "")
+	}
+	if referencedInstanceObj.Len() != 1 {
+		return "", util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
+	}
+	referencedInstance := referencedInstanceObj.ItemAt(0).(*types.ServiceInstance)
+	//referencedInstanceObj, err := storage.GetObjectByField(ctx, repository, types.ServiceInstanceType, "id", referencedInstanceID.String(), byLabel)
+	//if err != nil {
+	//	log.C(ctx).Errorf("Failed to retrieve the instance %s by the caller %s", referencedInstanceID, getTenantId())
+	//	return "", util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, referencedInstanceID.String())
+	//}
+	//referencedInstance := referencedInstanceObj.(*types.ServiceInstance)
 
 	if !referencedInstance.IsShared() {
 		log.C(ctx).Debugf("The target instance %s is not shared.", referencedInstance.ID)
 		return "", util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, referencedInstance.ID)
 	}
 
-	return referencedInstanceID.String(), nil
+	return referencedInstance.ID, nil
 }
 
 func IsValidReferenceInstancePatchRequest(req *web.Request, instance *types.ServiceInstance, planIDProperty string) error {

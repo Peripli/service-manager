@@ -3911,7 +3911,7 @@ var _ = DescribeTestsFor(TestCase{
 							})
 						})
 					})
-					Context("reference instance", func() {
+					FContext("reference instance", func() {
 						BeforeEach(func() {
 							sharedInstanceID, _, referencePlan = prepareInstanceSharingPrerequisites(ctx.SMWithOAuthForTenant, true, false)
 						})
@@ -3958,6 +3958,102 @@ var _ = DescribeTestsFor(TestCase{
 								postInstanceRequest["service_plan_id"] = servicePlanID
 								resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusBadRequest)
 								resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrRequestBodyContainsReferencedInstanceID, instance_sharing.ReferencedInstanceIDKey))
+							})
+						})
+						FContext("selectors", func() {
+							var sharedInstance *types.ServiceInstance
+							BeforeEach(func() {
+								sharedInstance, _ = GetInstanceObjectByID(ctx, sharedInstanceID)
+							})
+							When("provisioning reference by selectors", func() {
+								var resp *httpexpect.Response
+								AfterEach(func() {
+									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    referenceInstanceID,
+										Type:  types.ServiceInstanceType,
+										Ready: true,
+									})
+									cleanupInstances(instanceID)
+								})
+								It("creates reference instance by plan_selector", func() {
+									ID, _ := uuid.NewV4()
+									requestBody := Object{
+										"name":             "reference-instance-" + ID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
+										"parameters": map[string]string{
+											"plan_selector": sharedInstance.ServicePlanID,
+										},
+									}
+									resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusCreated)
+								})
+								It("creates reference instance by name_selector", func() {
+									ID, _ := uuid.NewV4()
+									requestBody := Object{
+										"name":             "reference-instance-" + ID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
+										"parameters": map[string]string{
+											"name_selector": sharedInstance.Name,
+										},
+									}
+									ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusCreated)
+								})
+							})
+							FWhen("selectors have more than one result", func() {
+								var anotherSharedInstance *types.ServiceInstance
+								BeforeEach(func() {
+									resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(Object{
+											"name":             "anotherSharedInstance",
+											"service_plan_id":  servicePlanID,
+											"maintenance_info": "{}",
+										}).Expect().Status(http.StatusCreated)
+									anotherSharedInstanceID, _ := VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+									ShareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, anotherSharedInstanceID)
+									anotherSharedInstance, _ = GetInstanceObjectByID(ctx, anotherSharedInstanceID)
+								})
+								AfterEach(func() {
+									cleanupInstances(anotherSharedInstance.ID)
+								})
+								It("fails provisioning due to multiple plan_selector results", func() {
+									ID, _ := uuid.NewV4()
+									requestBody := Object{
+										"name":             "reference-instance-" + ID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
+										"parameters": map[string]string{
+											"plan_selector": anotherSharedInstance.ServicePlanID,
+										},
+									}
+									ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusBadRequest)
+								})
 							})
 						})
 					})
