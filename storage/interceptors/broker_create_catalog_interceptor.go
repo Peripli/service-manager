@@ -18,10 +18,12 @@ package interceptors
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
+	schemas2 "github.com/Peripli/service-manager/schemas"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
 	"github.com/tidwall/sjson"
@@ -172,6 +174,8 @@ func convertReferencePlanObjectToOSBPlan(plan *types.ServicePlan) interface{} {
 		"name":        plan.Name,
 		"description": plan.Description,
 		"bindable":    plan.Bindable,
+		"metadata":    plan.Metadata,
+		"schemas":     plan.Schemas,
 	}
 }
 
@@ -193,6 +197,15 @@ func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
 	referencePlan.Ready = true
 	referencePlan.CreatedAt = time.Now()
 	referencePlan.UpdatedAt = time.Now()
+	schemas, err := schemas2.SchemasLoader("reference_plan.json")
+	if err == nil {
+		var planSchema map[string]json.RawMessage
+		err = json.Unmarshal(schemas, &planSchema)
+		if err == nil {
+			referencePlan.Schemas = planSchema["schemas"]
+			referencePlan.Metadata = planSchema["metadata"]
+		}
+	}
 
 	return referencePlan
 }
