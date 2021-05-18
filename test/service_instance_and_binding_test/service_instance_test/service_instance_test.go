@@ -1758,7 +1758,7 @@ var _ = DescribeTestsFor(TestCase{
 						When("instance exists in a platform different from service manager", func() {
 							const (
 								brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
-								brokerAPIVersionHeaderValue = "2.13"
+								brokerAPIVersionHeaderValue = "2.14"
 								SID                         = "abc1234"
 							)
 
@@ -2918,7 +2918,7 @@ var _ = DescribeTestsFor(TestCase{
 						When("instance exists in a platform different from service manager", func() {
 							const (
 								brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
-								brokerAPIVersionHeaderValue = "2.13"
+								brokerAPIVersionHeaderValue = "2.14"
 								SID                         = "abc1234"
 							)
 
