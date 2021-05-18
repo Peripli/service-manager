@@ -302,6 +302,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 										planSchema.Value()))
 									servicePlan,_:=getServicePlanByID(ctx.SMRepository, context.TODO(), referencePlanID)
 									Expect(servicePlan.Schemas).To(MatchJSON(planSchema))
+
 									Expect(servicePlan.Metadata).To(MatchJSON(planMetadata))
 
 								})
