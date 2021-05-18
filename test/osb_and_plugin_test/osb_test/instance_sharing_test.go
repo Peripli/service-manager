@@ -123,21 +123,6 @@ var _ = Describe("Instance Sharing", func() {
 			It("creates reference instance successfully", func() {
 				createSharedInstanceAndReference(platform, false)
 			})
-			It("smaap api returns the shared instance object with shared property", func() {
-				_, sharedInstanceID := createAndShareInstance(false)
-				VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-					ID:    sharedInstanceID,
-					Type:  types.ServiceInstanceType,
-					Ready: true,
-				})
-				// shared instance
-				object := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + sharedInstanceID).
-					Expect().Status(http.StatusOK).
-					JSON().Object()
-				// should contain shared property
-				object.ContainsKey("shared").
-					ValueEqual("shared", true)
-			})
 		})
 		When("provision request contains shared property", func() {
 			BeforeEach(func() {
@@ -583,7 +568,7 @@ var _ = Describe("Instance Sharing", func() {
 				})
 			})
 		})
-		When("a reference instance exists in k8s platform", func() {
+		When("binding a reference instance in k8s platform", func() {
 			BeforeEach(func() {
 				UUID, _ := uuid.NewV4()
 				platformJSON = common.MakePlatform(UUID.String(), UUID.String(), "kubernetes", "test-platform-k8s")
@@ -686,6 +671,21 @@ var _ = Describe("Instance Sharing", func() {
 		})
 		JustBeforeEach(func() {
 			sharedInstanceID, referenceInstanceID = createSharedInstanceAndReference(platform, false)
+		})
+		It("smaap api returns the shared instance object with shared property", func() {
+			_, sharedInstanceID := createAndShareInstance(false)
+			VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+				ID:    sharedInstanceID,
+				Type:  types.ServiceInstanceType,
+				Ready: true,
+			})
+			// shared instance
+			object := ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + sharedInstanceID).
+				Expect().Status(http.StatusOK).
+				JSON().Object()
+			// should contain shared property
+			object.ContainsKey("shared").
+				ValueEqual("shared", true)
 		})
 		It("fetches reference instance successfully", func() {
 			resp := ctx.SMWithBasic.GET(instanceSharingBrokerPath+"/v2/service_instances/"+referenceInstanceID).
