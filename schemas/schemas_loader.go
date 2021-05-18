@@ -3,14 +3,15 @@ package schemas
 import (
 	"encoding/json"
 	"io/ioutil"
+	"os"
 )
 
-const schemasPath string = "./schemas"
+
 
 func SchemasLoader(schemaName string) (json.RawMessage, error) {
-
-	path := schemasPath + "/" + schemaName
-	schema, err := ioutil.ReadFile(path)
+	path, _ := os.Getwd()
+	schemasPath := path + "/" + schemaName
+	schema, err := ioutil.ReadFile(schemasPath)
 	if err != nil {
 		return nil, err
 	}

@@ -23,6 +23,9 @@ func convertReferencePlanObjectToOSBPlan(plan *types.ServicePlan) interface{} {
 		"name":        plan.Name,
 		"description": plan.Description,
 		"bindable":    plan.Bindable,
+		"metadata":    plan.Metadata,
+		"schemas":     plan.Schemas,
+
 	}
 }
 

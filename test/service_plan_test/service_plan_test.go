@@ -22,7 +22,9 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/schemas"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"net/http"
 	"net/url"
@@ -114,6 +116,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						Expect().
 						Status(status)
 				}
+
 
 				assertPlansForPlatformWithQuery := func(agent *common.SMExpect, query map[string]interface{}, plansIDs ...interface{}) {
 					q := url.Values{}
@@ -268,11 +271,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("Instance Sharing", func() {
 					var referencePlanID string
-
 					When("catalog contains a shareable plan", func() {
 						Context("positive", func() {
 							var brokerID string
 							var shareableCatalogID string
+							var planJson json.RawMessage
 							BeforeEach(func() {
 								_, shareableCatalogID, brokerID, _, _ = sharingInstanceBlueprint(ctx, ctx.SMWithOAuth, false)
 								referencePlan := common.GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareableCatalogID)
@@ -280,6 +283,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusNotFound)
 								assertPlansForPlatform(k8sAgent, nil...)
 								common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, referencePlanID, k8sPlatform.ID)
+								var err error
+								planJson, err=schemas.SchemasLoader("reference_plan.json")
+								Expect(err).To(BeNil())
 							})
 							When("creating a new catalog with shareable plan", func() {
 								It("creates a new reference plan", func() {
@@ -288,6 +294,16 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									catalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
 									marshalCatalog, _ := json.Marshal(catalog)
 									Expect(strings.Contains(string(marshalCatalog), referencePlanID)).To(Equal(true))
+									planSchema:=gjson.GetBytes(planJson, "schemas")
+									planMetadata:=gjson.GetBytes(planJson, "metadata")
+									Expect(gjson.GetBytes(catalog, "services.0.plans.1.metadata").Value()).Should(Equal(
+										planMetadata.Value()))
+									Expect(gjson.GetBytes(catalog, "services.0.plans.1.schemas").Value()).Should(Equal(
+										planSchema.Value()))
+									servicePlan,_:=getServicePlanByID(ctx.SMRepository, context.TODO(), referencePlanID)
+									Expect(servicePlan.Schemas).To(MatchJSON(planSchema))
+									Expect(servicePlan.Metadata).To(MatchJSON(planMetadata))
+
 								})
 							})
 							When("updating a broker with existing reference plan", func() {
@@ -296,6 +312,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 										WithJSON(common.Object{}).Expect()
 
 									assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusOK)
+
 									Expect(getServicePlanByID(ctx.SMRepository, context.TODO(), referencePlanID)).ToNot(Equal(nil))
 								})
 							})
