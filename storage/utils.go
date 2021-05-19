@@ -7,6 +7,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 func GetServiceOfferingByServiceInstanceId(repository Repository, ctx context.Context, serviceInstanceId string) (*types.ServiceOffering, error) {
@@ -51,12 +52,14 @@ func GetObjectByField(ctx context.Context, repository Repository, objectType typ
 	return dbObject, nil
 }
 
-func IsReferencePlan(ctx context.Context, repository Repository, objectType, byKey, servicePlanID string) (bool, error) {
+func IsReferencePlan(req *web.Request, repository Repository, objectType, byKey, servicePlanID string) (bool, error) {
+	ctx := req.Context()
 	dbPlanObject, err := GetObjectByField(ctx, repository, types.ObjectType(objectType), byKey, servicePlanID)
 	if err != nil {
 		return false, util.HandleStorageError(util.ErrNotFoundInStorage, objectType)
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
+	req.Request = req.WithContext(types.ContextWithPlan(req.Context(), plan))
 	return plan.Name == instance_sharing.ReferencePlanName, nil
 }
 
