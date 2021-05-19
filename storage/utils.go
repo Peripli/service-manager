@@ -59,7 +59,7 @@ func IsReferencePlan(req *web.Request, repository Repository, objectType, byKey,
 		return false, util.HandleStorageError(util.ErrNotFoundInStorage, objectType)
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
-	req.WithContext(types.ContextWithPlan(req.Context(), plan))
+	req.Request = req.WithContext(types.ContextWithPlan(req.Context(), plan))
 	return plan.Name == instance_sharing.ReferencePlanName, nil
 }
 

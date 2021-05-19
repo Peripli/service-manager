@@ -71,6 +71,20 @@ func ExtractReferenceInstanceID(req *web.Request, repository storage.Repository,
 	}
 	referencedInstance := referencedInstanceObj.ItemAt(0).(*types.ServiceInstance)
 
+	referencePlan, ok := types.PlanFromContext(ctx)
+	if !ok || referencePlan == nil {
+		return "", util.HandleStorageError(util.ErrNotFoundInStorage, types.ServicePlanType.String())
+	}
+	// verify the reference plan and the target instance are of the same service offering:
+	sameOffering, err := isSameServiceOffering(ctx, repository, referencePlan.ServiceOfferingID, referencedInstance.ServicePlanID)
+	if err != nil {
+		return "", err
+	}
+	if !sameOffering {
+		log.C(ctx).Debugf("The target instance %s is not of the same service offering.", referencedInstance.ID)
+		return "", util.HandleInstanceSharingError(util.ErrReferenceWithWrongServiceOffering, referencedInstance.ID)
+	}
+
 	// If the selector is instanceID, we would like to inform the user if the target instance was not shared:
 	if !referencedInstance.IsShared() {
 		log.C(ctx).Debugf("The target instance %s is not shared.", referencedInstance.ID)
@@ -102,6 +116,16 @@ func retrievePlanBySelector(ctx context.Context, repository storage.Repository, 
 		return nil, util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
 	}
 	return plansObj.ItemAt(0).(*types.ServicePlan), nil
+}
+
+func isSameServiceOffering(ctx context.Context, repository storage.Repository, offeringID string, planID string) (bool, error) {
+	byID := query.ByField(query.EqualsOperator, "id", planID)
+	servicePlanObj, err := repository.Get(ctx, types.ServicePlanType, byID)
+	if err != nil {
+		return false, util.HandleStorageError(err, types.ServicePlanType.String())
+	}
+	servicePlan := servicePlanObj.(*types.ServicePlan)
+	return offeringID == servicePlan.ServiceOfferingID, nil
 }
 
 func IsValidReferenceInstancePatchRequest(req *web.Request, instance *types.ServiceInstance, planIDProperty string) error {
