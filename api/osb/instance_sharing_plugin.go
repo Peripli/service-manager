@@ -48,7 +48,7 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 
 	ctx := req.Context()
 	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).String()
-	isReferencePlan, err := storage.IsReferencePlan(ctx, is.repository, types.ServicePlanType.String(), "catalog_id", servicePlanID)
+	isReferencePlan, err := storage.IsReferencePlan(req, is.repository, types.ServicePlanType.String(), "catalog_id", servicePlanID)
 	// If plan not found on provisioning or not reference plan, allow sm to handle the process
 	if err == util.ErrNotFoundInStorage || !isReferencePlan {
 		return next.Handle(req)
@@ -57,9 +57,9 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 		return nil, err
 	}
 
-	referenceInstanceID, err := sharing.ExtractReferenceInstanceID(req.Context(), is.repository, req.Body, is.tenantIdentifier, func() string {
+	referenceInstanceID, err := sharing.ExtractReferenceInstanceID(req, is.repository, req.Body, is.tenantIdentifier, func() string {
 		return gjson.GetBytes(req.Body, fmt.Sprintf("context.%s", is.tenantIdentifier)).String()
-	})
+	}, false)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (is *instanceSharingPlugin) Deprovision(req *web.Request, next web.Handler)
 	if instance.IsShared() {
 		return deprovisionSharedInstance(ctx, is.repository, req, instance, next)
 	}
-	isReferencePlan, err := storage.IsReferencePlan(ctx, is.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
+	isReferencePlan, err := storage.IsReferencePlan(req, is.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
 
 	if err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func (is *instanceSharingPlugin) UpdateService(req *web.Request, next web.Handle
 	if instance.IsShared() {
 		return updateSharedInstance(ctx, is.repository, req, instance, next)
 	}
-	isReferencePlan, err := storage.IsReferencePlan(ctx, is.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
+	isReferencePlan, err := storage.IsReferencePlan(req, is.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +180,7 @@ func (is *instanceSharingPlugin) FetchService(req *web.Request, next web.Handler
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
 
-	isReferencePlan, err := storage.IsReferencePlan(ctx, is.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
+	isReferencePlan, err := storage.IsReferencePlan(req, is.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
 
 	if err != nil {
 		return nil, err

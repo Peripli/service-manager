@@ -82,7 +82,7 @@ func (*referenceInstanceFilter) FilterMatchers() []web.FilterMatcher {
 func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).String()
-	isReferencePlan, err := storage.IsReferencePlan(ctx, rif.repository, types.ServicePlanType.String(), "id", servicePlanID)
+	isReferencePlan, err := storage.IsReferencePlan(req, rif.repository, types.ServicePlanType.String(), "id", servicePlanID)
 	// If plan not found on provisioning, allow sm to handle the issue
 	if err == util.ErrNotFoundInStorage {
 		return next.Handle(req)
@@ -94,9 +94,9 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 		return next.Handle(req)
 	}
 
-	referenceInstanceID, err := sharing.ExtractReferenceInstanceID(req.Context(), rif.repository, req.Body, rif.tenantIdentifier, func() string {
+	referenceInstanceID, err := sharing.ExtractReferenceInstanceID(req, rif.repository, req.Body, rif.tenantIdentifier, func() string {
 		return query.RetrieveFromCriteria(rif.tenantIdentifier, query.CriteriaForContext(req.Context())...)
-	})
+	}, true)
 
 	if err != nil {
 		return nil, err
