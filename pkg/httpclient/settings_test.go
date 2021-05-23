@@ -50,8 +50,8 @@ var _ = Describe("HTTPClient settings", func() {
 		})
 		Context("valid server certificate", func() {
 			It("should have certficate", func() {
-				settings.ServerCertificate = tls_settings.ServerCertificate
-				settings.ServerCertificateKey = tls_settings.ServerKey
+				settings.ServerCertificate = tls_settings.ServerManagerCertificate
+				settings.ServerCertificateKey = tls_settings.ServerManagerCertificateKey
 				Expect(settings.Validate()).ToNot(HaveOccurred())
 				Expect(len(settings.TLSCertificates)).To(Equal(1))
 			})

@@ -23,7 +23,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/test/tls_settings"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -67,7 +66,7 @@ type BrokerServer struct {
 }
 
 func (b *BrokerServer) URL() string {
-	return  b.Server.URL
+	return b.Server.URL
 }
 
 func JSONToMap(j string) map[string]interface{} {
@@ -82,10 +81,10 @@ func NewBrokerServer() *BrokerServer {
 	return NewBrokerServerWithCatalog(NewRandomSBCatalog())
 }
 
-func NewBrokerServerTLS(certificates ...[]byte) *BrokerServer {
-	return NewBrokerServerWithTLSAndCatalog(NewRandomSBCatalog(), certificates...)
-}
 
+func NewBrokerServerMTLS(serverCertificate []byte, serverCertificateKey []byte, certificates ...[]byte) *BrokerServer {
+	return NewBrokerServerWithTLSAndCatalog(NewRandomSBCatalog(), serverCertificate, serverCertificateKey, certificates...)
+}
 func NewBrokerServerWithCatalog(catalog SBCatalog) *BrokerServer {
 	brokerServer := &BrokerServer{}
 	brokerServer.mutex = &sync.RWMutex{}
@@ -97,7 +96,7 @@ func NewBrokerServerWithCatalog(catalog SBCatalog) *BrokerServer {
 	return brokerServer
 }
 
-func NewBrokerServerWithTLSAndCatalog(catalog SBCatalog, certificates ...[]byte) *BrokerServer {
+func NewBrokerServerWithTLSAndCatalog(catalog SBCatalog, serverCertificate []byte, serverCertificateKey []byte, clientCertificates ...[]byte, ) *BrokerServer {
 
 	brokerServer := &BrokerServer{}
 	brokerServer.mutex = &sync.RWMutex{}
@@ -108,14 +107,20 @@ func NewBrokerServerWithTLSAndCatalog(catalog SBCatalog, certificates ...[]byte)
 	uServer := httptest.NewUnstartedServer(brokerServer.router)
 	uServer.TLS = &tls.Config{}
 	caCertPool := x509.NewCertPool()
-	for _, certificate := range certificates {
+	for _, certificate := range clientCertificates {
 		caCertPool.AppendCertsFromPEM(certificate)
 	}
-	if len(certificates) == 0 {
-		caCertPool.AppendCertsFromPEM([]byte(tls_settings.ClientCertificate))
-	}
+
 	uServer.TLS.ClientCAs = caCertPool
 	uServer.TLS.ClientAuth = tls.RequireAndVerifyClientCert
+	if serverCertificate != nil && len(serverCertificate) > 0 && serverCertificateKey != nil && len(serverCertificateKey) > 0 {
+		cert, err := tls.X509KeyPair(serverCertificate, serverCertificateKey)
+		if err != nil {
+			panic(err)
+		}
+		uServer.TLS.Certificates = []tls.Certificate{cert}
+	}
+	uServer.TLS.ServerName = "localhost"
 
 	brokerServer.Server = uServer
 	brokerServer.StartTLS()

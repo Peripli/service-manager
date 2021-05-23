@@ -265,6 +265,7 @@ func (expect *SMExpect) ListWithQuery(path string, query string) *httpexpect.Arr
 
 func (expect *SMExpect) SetBasicCredentials(ctx *TestContext, username, password string) {
 	expect.Expect = ctx.SM.Builder(func(req *httpexpect.Request) {
+
 		req.WithBasicAuth(username, password).WithClient(ctx.HttpClient)
 	})
 }
@@ -641,7 +642,7 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, br
 
 func (ctx *TestContext) RegisterBrokerWithRandomCatalogAndTLS(expect *SMExpect) *BrokerUtils {
 	generatedCatalog := NewRandomSBCatalog()
-	brokerServerWithTLS := NewBrokerServerWithTLSAndCatalog(generatedCatalog)
+	brokerServerWithTLS := NewBrokerServerWithTLSAndCatalog(generatedCatalog,nil,nil)
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
@@ -702,7 +703,7 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatal
 func (ctx *TestContext) TryRegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object, expect *SMExpect, expectedStatus int) (*BrokerServer, *BrokerServer, Object, Object) {
 	brokerServer := NewBrokerServerWithCatalog(catalog)
 	generatedCatalog := NewRandomSBCatalog()
-	brokerServerWithTLS := NewBrokerServerWithTLSAndCatalog(generatedCatalog)
+	brokerServerWithTLS := NewBrokerServerWithTLSAndCatalog(generatedCatalog,nil,nil)
 
 	UUID, err := uuid.NewV4()
 	if err != nil {

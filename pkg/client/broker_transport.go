@@ -16,21 +16,27 @@
 package client
 
 import (
-	"crypto/tls"
 	"github.com/Peripli/service-manager/pkg/httpclient"
+	"github.com/Peripli/service-manager/pkg/types"
 	"net/http"
 )
 
-func GetTransportWithTLS(tlsConfig *tls.Config) *http.Transport {
-	defaultTransport := http.DefaultTransport.(*http.Transport)
+func GetTransportWithTLS(broker *types.ServiceBroker) (*http.Transport,error) {
 	transport := http.Transport{}
 	httpclient.ConfigureTransport(&transport)
-	transport.TLSClientConfig.Certificates = tlsConfig.Certificates
-	if defaultTransport != nil && defaultTransport.TLSClientConfig != nil {
-		transport.TLSClientConfig.Certificates = append(transport.TLSClientConfig.Certificates,
-			defaultTransport.TLSClientConfig.Certificates...)
+	tlsConfig,err:=broker.GetTLSConfig()
+	if err!=nil{
+		return nil,err
 	}
+	if tlsConfig!=nil {
+		if len(transport.TLSClientConfig.Certificates) > 0 {
+			transport.TLSClientConfig.Certificates = append(transport.TLSClientConfig.Certificates, tlsConfig.Certificates...)
+		}else{
+			transport.TLSClientConfig.Certificates = tlsConfig.Certificates
+		}
+	}
+
 	//prevents keeping idle connections when accessing to different broker hosts
 	transport.DisableKeepAlives = true
-	return &transport
+	return &transport,nil
 }

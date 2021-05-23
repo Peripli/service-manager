@@ -18,6 +18,7 @@ package httpclient
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"net/http"
@@ -33,7 +34,9 @@ type Settings struct {
 	ResponseHeaderTimeout time.Duration `mapstructure:"response_header_timeout"`
 	DialTimeout           time.Duration `mapstructure:"dial_timeout"`
 	SkipSSLValidation     bool          `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when making calls to external services"`
-	TLSCertificates       []tls.Certificate
+	RootCACertificates    []string      `mapstructure:"root_certificates"`
+
+	TLSCertificates []tls.Certificate
 }
 
 var globalSettings Settings
@@ -101,6 +104,18 @@ func ConfigureTransport(transport *http.Transport) {
 	if len(settings.TLSCertificates) > 0 {
 		transport.TLSClientConfig.Certificates = settings.TLSCertificates
 	}
+
+	if len(settings.RootCACertificates) > 0 {
+		caCertPool, err := x509.SystemCertPool()
+		if err != nil {
+			caCertPool = x509.NewCertPool()
+		}
+		for _, certificate := range settings.RootCACertificates {
+			caCertPool.AppendCertsFromPEM([]byte(certificate))
+		}
+		transport.TLSClientConfig.RootCAs = caCertPool
+	}
+
 	transport.ResponseHeaderTimeout = settings.ResponseHeaderTimeout
 	transport.TLSHandshakeTimeout = settings.TLSHandshakeTimeout
 	transport.IdleConnTimeout = settings.IdleConnTimeout

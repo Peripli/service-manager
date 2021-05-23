@@ -20,14 +20,13 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
+	"github.com/Peripli/service-manager/test/tls_settings"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/Peripli/service-manager/test/tls_settings"
 
 	"github.com/Peripli/service-manager/pkg/httpclient"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -53,7 +52,6 @@ import (
 
 func TestBrokers(t *testing.T) {
 	RegisterFailHandler(Fail)
-
 	RunSpecs(t, "ServiceBroker API Tests Suite")
 }
 
@@ -61,7 +59,6 @@ const TenantLabelKey = "tenant"
 
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.ServiceBrokersURL,
-
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
 	},
@@ -84,18 +81,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	AdditionalTests: func(ctx *TestContext, t *test.TestCase) {
 		Context("additional non-generic tests", func() {
 			var (
-				brokerServer           *BrokerServer
-				brokerWithLabelsServer *BrokerServer
-				brokerServerWithTLS    *BrokerServer
-
-				postBrokerRequestWithNoLabels    Object
-				expectedBrokerResponse           Object
-				postBrokerRequestWithTLS         Object
-				postBrokerRequestWithTLSandBasic Object
-				expectedBrokerResponseTLS        Object
-				postBrokerRequestWithTLSNoCert   Object
-				labels                           Object
-				postBrokerRequestWithLabels      labeledBroker
+				brokerServer                                           *BrokerServer
+				brokerWithLabelsServer                                 *BrokerServer
+				brokerServerWithBrokerCertificate                      *BrokerServer
+				brokerServerWithSMCertficate                           *BrokerServer
+				postBrokerRequestWithNoLabels                          Object
+				expectedBrokerResponse                                 Object
+				postBrokerRequestWithTLS                               Object
+				postBrokerRequestWithTLSandBasic                       Object
+				expectedBrokerResponseTLS                              Object
+				expectedBrokerServerWithServiceManagerMtlsAndBasicAuth Object
+				postBrokerRequestWithTLSNoCert                         Object
+				labels                                                 Object
+				postBrokerServerMtls                                   Object
+				postBrokerRequestWithLabels                            labeledBroker
 
 				repository storage.Repository
 			)
@@ -113,16 +112,24 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					brokerWithLabelsServer.Close()
 				}
 
-				if brokerServerWithTLS != nil {
-					brokerServerWithTLS.Close()
+				if brokerServerWithBrokerCertificate != nil {
+					brokerServerWithBrokerCertificate.Close()
+				}
+
+				if brokerServerWithSMCertficate != nil {
+					brokerServerWithSMCertficate.Close()
 				}
 			})
 
 			BeforeEach(func() {
 				brokerServer = NewBrokerServer()
 				brokerWithLabelsServer = NewBrokerServer()
-				brokerServerWithTLS = NewBrokerServerTLS([]byte(tls_settings.ClientCertificate), []byte(tls_settings.ServerCertificate))
-				brokerServerWithTLS.Reset()
+				brokerServerWithBrokerCertificate = NewBrokerServerMTLS([]byte(tls_settings.BrokerCertificate), []byte(tls_settings.BrokerCertificateKey),
+					[]byte(tls_settings.ClientCaCertificate))
+				brokerServerWithSMCertficate = NewBrokerServerMTLS([]byte(tls_settings.BrokerCertificate), []byte(tls_settings.BrokerCertificateKey),
+					[]byte(tls_settings.SMRootCaCertificate))
+				brokerServerWithSMCertficate.Reset()
+				brokerServerWithBrokerCertificate.Reset()
 				brokerServer.Reset()
 				brokerWithLabelsServer.Reset()
 				brokerName := "brokerName"
@@ -131,6 +138,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				brokerDescription := "description"
 				brokerWithLabelsDescription := "descriptionWithLabels"
 
+				brokerServerWithServiceManagerMtlsName := "brokerServerWithServiceManagerMtlsName"
 				postBrokerRequestWithNoLabels = Object{
 					"name":        brokerName,
 					"broker_url":  brokerServer.URL(),
@@ -166,9 +174,34 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					"labels": labels,
 				}
 
+				postBrokerServerMtls = Object{
+					"name":        brokerServerWithServiceManagerMtlsName,
+					"broker_url":  brokerServerWithSMCertficate.URL(),
+					"description": brokerDescription,
+					"credentials": Object{
+						"basic": Object{
+							"username": brokerServerWithSMCertficate.Username,
+							"password": brokerServerWithSMCertficate.Password,
+						},
+					},
+					"labels": labels,
+				}
+
+				expectedBrokerServerWithServiceManagerMtlsAndBasicAuth = Object{
+					"name":        brokerServerWithServiceManagerMtlsName,
+					"broker_url":  brokerServerWithSMCertficate.URL(),
+					"description": brokerDescription,
+					"credentials": Object{
+						"basic": Object{
+							"username": brokerServerWithSMCertficate.Username,
+							"password": brokerServerWithSMCertficate.Password,
+						},
+					},
+				}
+
 				postBrokerRequestWithTLS = Object{
 					"name":        brokerNameWithTLS,
-					"broker_url":  brokerServerWithTLS.URL(),
+					"broker_url":  brokerServerWithBrokerCertificate.URL(),
 					"description": brokerDescription,
 					"credentials": Object{
 						"tls": Object{
@@ -180,7 +213,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				postBrokerRequestWithTLSNoCert = Object{
 					"name":        brokerNameWithTLS,
-					"broker_url":  brokerServerWithTLS.URL(),
+					"broker_url":  brokerServerWithBrokerCertificate.URL(),
 					"description": brokerDescription,
 					"credentials": Object{
 						"basic": Object{
@@ -192,7 +225,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				postBrokerRequestWithTLSandBasic = Object{
 					"name":        brokerNameWithTLS,
-					"broker_url":  brokerServerWithTLS.URL(),
+					"broker_url":  brokerServerWithBrokerCertificate.URL(),
 					"description": brokerDescription,
 					"credentials": Object{
 						"basic": Object{
@@ -208,7 +241,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				expectedBrokerResponseTLS = Object{
 					"name":        brokerNameWithTLS,
-					"broker_url":  brokerServerWithTLS.URL(),
+					"broker_url":  brokerServerWithBrokerCertificate.URL(),
 					"description": brokerDescription,
 					"credentials": Object{
 						"basic": Object{
@@ -548,56 +581,128 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				Context("when broker is behind tls", func() {
-					var serverCertificate bool = false
-					JustBeforeEach(func() {
-						settings := ctx.Config.HTTPClient
-						settings.SkipSSLValidation = true
-						if serverCertificate {
-							cert, err := tls.X509KeyPair([]byte(tls_settings.ServerCertificate), []byte(tls_settings.ServerKey))
-							Expect(err).ShouldNot(HaveOccurred())
-							settings.TLSCertificates = []tls.Certificate{cert}
-						}
-						httpclient.SetHTTPClientGlobalSettings(settings)
-						httpclient.Configure()
-					})
-					for _, isOn := range [2]bool{false, true} {
-						Context(fmt.Sprintf("server certificate is avialable %v", isOn), func() {
+				Context("tls", func() {
+					var certificates []tls.Certificate
+					Context("mutual tls", func() {
+
+						JustBeforeEach(func() {
+							settings := ctx.Config.HTTPClient
+							settings.TLSCertificates = certificates
+							settings.SkipSSLValidation = false
+							settings.RootCACertificates = []string{tls_settings.BrokerRootCertificate}
+							httpclient.SetHTTPClientGlobalSettings(settings)
+							httpclient.Configure()
+							http.DefaultTransport.(*http.Transport).TLSClientConfig.ServerName = "localhost"
+
+						})
+						JustAfterEach(func() {
+							http.DefaultTransport.(*http.Transport).TLSClientConfig = nil
+							certificates = []tls.Certificate{}
+
+						})
+
+						Context("server manager certificate is valid", func() {
 							BeforeEach(func() {
-								serverCertificate = isOn
+								cert, err := tls.X509KeyPair([]byte(tls_settings.ServerManagerCertificate), []byte(tls_settings.ServerManagerCertificateKey))
+								//cert2, err := tls.X509KeyPair([]byte(tls_settings.ClientCertificate), []byte(tls_settings.ClientKey))
+								Expect(err).ShouldNot(HaveOccurred())
+								//certificates = append(certificates, cert2)
+								certificates = append(certificates, cert)
+
 							})
-							Context("when broker basic and user auth are both configured", func() {
-								It("returns StatusCreated", func() {
+							When("basic auth is configured", func() {
+								It("ok", func() {
+									res := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerServerMtls).
+										Expect().
+										Status(http.StatusCreated).JSON().Object()
+									res.ContainsMap(expectedBrokerServerWithServiceManagerMtlsAndBasicAuth)
+									res.NotContainsKey("tls")
+									assertInvocationCount(brokerServerWithSMCertficate.CatalogEndpointRequests, 1)
+								})
+							})
+
+							When("basic auth is not configured", func() {
+								It("should fail", func() {
+									req := CopyObject(postBrokerServerMtls)
+									delete(req, "credentials")
+									ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(req).
+										Expect().
+										Status(http.StatusBadRequest).JSON().Object()
+
+								})
+
+							})
+							Context("broker client certificate and basic auth are configured", func() {
+								It("should succeed", func() {
 									reply := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLSandBasic).
 										Expect().
 										Status(http.StatusCreated).
 										JSON().Object()
 									reply.ContainsMap(expectedBrokerResponseTLS)
-									assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 1)
+									assertInvocationCount(brokerServerWithBrokerCertificate.CatalogEndpointRequests, 1)
 								})
-							})
 
-							Context("when broker is behind tls but not valid certs are configured", func() {
-								It("returns StatusBadGateway", func() {
-									ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLSNoCert).
-										Expect().Status(http.StatusBadGateway).
-										JSON().Object()
-									assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 0)
-								})
-							})
-
-							//actually the broker return invalid credentials, however the response is converted by the catalog fetch into badRequest
-							Context("when broker tls settings are valid but basic auth credentials are missing", func() {
-								It("returns StatusCreated", func() {
-									ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLS).
-										Expect().
-										Status(http.StatusCreated)
-									assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 1)
-								})
 							})
 
 						})
-					}
+
+						Context("server manager certificate is expired", func() {
+							BeforeEach(func() {
+								cert, err := tls.X509KeyPair([]byte(tls_settings.ExpiredServerManagerCertficate), []byte(tls_settings.ExpiredServerManagerCertificateKey))
+								Expect(err).ShouldNot(HaveOccurred())
+								certificates = append(certificates, cert)
+							})
+
+							It("returns error", func() {
+								ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerServerMtls).
+									Expect().
+									Status(http.StatusBadGateway)
+
+							})
+
+						})
+
+					})
+
+					Context("broker client certificate", func() {
+						BeforeEach(func() {
+							settings := ctx.Config.HTTPClient
+							settings.SkipSSLValidation = true
+							httpclient.SetHTTPClientGlobalSettings(settings)
+							httpclient.Configure()
+						})
+
+						Context("when broker basic and user auth are both configured", func() {
+							It("returns StatusCreated", func() {
+								reply := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLSandBasic).
+									Expect().
+									Status(http.StatusCreated).
+									JSON().Object()
+								reply.ContainsMap(expectedBrokerResponseTLS)
+								assertInvocationCount(brokerServerWithBrokerCertificate.CatalogEndpointRequests, 1)
+							})
+						})
+
+						Context("when broker is behind tls but not valid certs are configured", func() {
+							It("returns StatusBadGateway", func() {
+								ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLSNoCert).
+									Expect().
+									Status(http.StatusBadGateway).
+									JSON().Object()
+								assertInvocationCount(brokerServerWithBrokerCertificate.CatalogEndpointRequests, 0)
+							})
+						})
+
+						//actually the broker return invalid credentials, however the response is converted by the catalog fetch into badRequest
+						Context("when broker tls settings are valid but basic auth credentials are missing", func() {
+							It("returns StatusCreated", func() {
+								ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLS).
+									Expect().
+									Status(http.StatusCreated)
+								assertInvocationCount(brokerServerWithBrokerCertificate.CatalogEndpointRequests, 1)
+							})
+						})
+					})
 
 				})
 
@@ -947,7 +1052,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 					brokerServer.ResetCallHistory()
-					brokerServerWithTLS.ResetCallHistory()
+					brokerServerWithBrokerCertificate.ResetCallHistory()
 				})
 
 				Context("when content type is not JSON", func() {
@@ -1054,54 +1159,36 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when credentials are updated", func() {
 
 					Context("when broker is behind tls", func() {
-						var serverCertificate = false
-						JustBeforeEach(func() {
-							settings := ctx.Config.HTTPClient
-							settings.SkipSSLValidation = true
-							if serverCertificate {
-								cert, err := tls.X509KeyPair([]byte(tls_settings.ServerCertificate), []byte(tls_settings.ServerKey))
-								Expect(err).ShouldNot(HaveOccurred())
-								settings.TLSCertificates = []tls.Certificate{cert}
+
+						It("when credentials contain an invalid certificate", func() {
+							updatedCredentials := Object{
+								"credentials": Object{
+									"tls": Object{
+										"client_certificate": tls_settings.InvalidClientCertificate,
+										"client_key":         tls_settings.InvalidClientKey,
+									},
+								},
 							}
-							httpclient.SetHTTPClientGlobalSettings(settings)
-							httpclient.Configure()
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).
+								Expect().
+								Status(http.StatusBadGateway).Body().Contains("could not reach service broker")
+							assertInvocationCount(brokerServerWithBrokerCertificate.CatalogEndpointRequests, 0)
 						})
 
-						for _, isOn := range [2]bool{false, true} {
-							Context(fmt.Sprintf("server certificate is avialable %v", isOn), func() {
-								BeforeEach(func() {
-									serverCertificate = isOn
-								})
-								It("when credentials contain an invalid certificate", func() {
-									updatedCredentials := Object{
-										"credentials": Object{
-											"tls": Object{
-												"client_certificate": tls_settings.InvalidClientCertificate,
-												"client_key":         tls_settings.InvalidClientKey,
-											},
-										},
-									}
-									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).Expect().
-										Status(http.StatusBadGateway).Body().Contains("could not reach service broker")
-									assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 0)
-								})
-
-								It("when credentials contain valid certificate", func() {
-									updatedCredentials := Object{
-										"credentials": Object{
-											"tls": Object{
-												"client_certificate": tls_settings.ClientCertificate,
-												"client_key":         tls_settings.ClientKey,
-											},
-										},
-									}
-									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).
-										Expect().
-										Status(http.StatusOK)
-									assertInvocationCount(brokerServerWithTLS.CatalogEndpointRequests, 1)
-								})
-							})
-						}
+						It("when credentials contain valid certificate", func() {
+							updatedCredentials := Object{
+								"credentials": Object{
+									"tls": Object{
+										"client_certificate": tls_settings.ClientCertificate,
+										"client_key":         tls_settings.ClientKey,
+									},
+								},
+							}
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).
+								Expect().
+								Status(http.StatusOK)
+							assertInvocationCount(brokerServerWithBrokerCertificate.CatalogEndpointRequests, 1)
+						})
 					})
 
 					It("returns 200", func() {
@@ -1253,8 +1340,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								},
 							}
 
-							updatedBrokerServer.Username = brokerServerWithTLS.Username
-							updatedBrokerServer.Password = brokerServerWithTLS.Password
+							updatedBrokerServer.Username = brokerServerWithBrokerCertificate.Username
+							updatedBrokerServer.Password = brokerServerWithBrokerCertificate.Password
 
 							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerIDWithTLS).
 								WithJSON(updatedBrokerJSON).
