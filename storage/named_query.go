@@ -10,6 +10,11 @@ const (
 	QueryForLabelLessPlanVisibilities
 	QueryForVisibilityWithPlatformAndPlan
 	QueryForPlanByNameAndOfferingsWithVisibility
+	QueryForOSBReferenceByPlanSelector
+	QueryForSMAAPReferenceByPlanSelector
+	QueryForReferenceBySharedInstanceSelector
+	QueryForReferenceByNameSelector
+	QueryForReferenceByInstanceID
 )
 
 var namedQueries = map[NamedQuery]string{
@@ -83,6 +88,44 @@ var namedQueries = map[NamedQuery]string{
 	OR ((v.platform_id = :platform_id OR v.platform_id IS NULL) 
 		AND NOT EXISTS(SELECT vl.visibility_id FROM visibility_labels vl WHERE vl.visibility_id = v.id) 
 		AND sp.catalog_name = :service_plan_name AND so.catalog_name = :service_offering_name)`,
+	QueryForOSBReferenceByPlanSelector: `
+	SELECT service_instances.* FROM service_instances
+	INNER JOIN service_plans ON service_plans.ID = service_instances.service_plan_id
+	INNER JOIN service_instance_labels ON service_instances.id = service_instance_labels.service_instance_id
+	WHERE service_instances.shared=TRUE AND
+		  service_plans.CATALOG_NAME = :selector_value AND
+		  service_plans.service_offering_id = :offering_id AND
+		  service_instance_labels.key = :tenant_identifier AND service_instance_labels.val = :tenant_id`,
+	QueryForSMAAPReferenceByPlanSelector: `
+	SELECT service_instances.* FROM service_instances
+	INNER JOIN service_plans ON service_plans.id = service_instances.service_plan_id
+	INNER JOIN service_instance_labels ON service_instances.id = service_instance_labels.service_instance_id
+	WHERE service_instances.shared=true AND
+		  service_plans.NAME = :selector_value AND
+		  service_plans.service_offering_id = :offering_id AND
+		  service_instance_labels.key = :tenant_identifier AND service_instance_labels.val = :tenant_id`,
+	QueryForReferenceBySharedInstanceSelector: `
+	SELECT service_instances.* FROM service_instances
+	INNER JOIN service_plans ON service_plans.ID = service_instances.service_plan_id
+	INNER JOIN service_instance_labels ON service_instances.ID = service_instance_labels.service_instance_id
+	WHERE service_instances.shared=true AND
+		  service_plans.service_offering_id = :offering_id AND
+		  service_instance_labels.key = :tenant_identifier AND service_instance_labels.val = :tenant_id`,
+	QueryForReferenceByNameSelector: `
+	SELECT service_instances.* FROM service_instances
+	INNER JOIN service_plans ON service_plans.id = service_instances.service_plan_id
+	INNER JOIN service_instance_labels ON service_instances.id = service_instance_labels.service_instance_id
+	WHERE service_instances.shared=true AND
+		  service_instances.name = :selector_value AND
+		  service_plans.service_offering_id = :offering_id AND
+		  service_instance_labels.key = :tenant_identifier AND service_instance_labels.val = :tenant_id`,
+	QueryForReferenceByInstanceID: `
+	select service_instances.* from service_instances
+	inner join service_plans on service_plans.id = service_instances.service_plan_id
+	inner join service_instance_labels on service_instances.id = service_instance_labels.service_instance_id
+	where service_instances.id = :selector_value and
+		  service_plans.service_offering_id = :offering_id and
+		  service_instance_labels.key = :tenant_identifier and service_instance_labels.val = :tenant_id`,
 }
 
 func GetNamedQuery(query NamedQuery) string {
