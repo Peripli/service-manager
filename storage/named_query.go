@@ -15,6 +15,7 @@ const (
 	QueryForReferenceBySharedInstanceSelector
 	QueryForReferenceByNameSelector
 	QueryForReferenceByInstanceID
+	QueryForReferenceByLabels
 )
 
 var namedQueries = map[NamedQuery]string{
@@ -126,6 +127,14 @@ var namedQueries = map[NamedQuery]string{
 	where service_instances.id = :selector_value and
 		  service_plans.service_offering_id = :offering_id and
 		  service_instance_labels.key = :tenant_identifier and service_instance_labels.val = :tenant_id`,
+	QueryForReferenceByLabels: `
+	select service_instances.* from service_instances
+	inner join service_plans on service_plans.id = service_instances.service_plan_id
+	inner join service_instance_labels on service_instances.id = service_instance_labels.service_instance_id
+	where service_instances.shared=true and
+		  service_plans.service_offering_id = :offering_id and
+		  service_instance_labels.key = :tenant_identifier and service_instance_labels.val = :tenant_id and
+		  service_instance_labels.key = :label_selector_key and service_instance_labels.val = :label_selector_value`,
 }
 
 func GetNamedQuery(query NamedQuery) string {

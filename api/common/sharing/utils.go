@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -12,15 +11,14 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-const ()
-
 func ExtractReferenceInstanceID(req *web.Request, repository storage.Repository, body []byte, tenantIdentifier string, getTenantId func() string, isSMAAP bool) (string, error) {
 	var err error
+	var selectorResult types.ObjectList
 	ctx := req.Context()
 	referencePlan, _ := types.PlanFromContext(ctx)
 	parameters := gjson.GetBytes(body, "parameters").Map()
 
-	selectorResult, err := getInstanceBySelector(ctx, repository, parameters, isSMAAP, tenantIdentifier, getTenantId(), referencePlan.ServiceOfferingID)
+	selectorResult, err = getInstanceBySelector(ctx, repository, parameters, tenantIdentifier, getTenantId(), referencePlan.ServiceOfferingID, isSMAAP)
 
 	if err != nil {
 		return "", err
@@ -44,7 +42,7 @@ func ExtractReferenceInstanceID(req *web.Request, repository storage.Repository,
 	return referencedInstance.ID, nil
 }
 
-func getInstanceBySelector(ctx context.Context, repository storage.Repository, parameters map[string]gjson.Result, isSMAAP bool, tenantIdentifier, tenantID, offeringID string) (types.ObjectList, error) {
+func getInstanceBySelector(ctx context.Context, repository storage.Repository, parameters map[string]gjson.Result, tenantIdentifier, tenantID, offeringID string, isSMAAP bool) (types.ObjectList, error) {
 	var objectList types.ObjectList
 	var err error
 	params := map[string]interface{}{
@@ -54,32 +52,32 @@ func getInstanceBySelector(ctx context.Context, repository storage.Repository, p
 	}
 	var namedQuery storage.NamedQuery
 
-	labelsSelector := parameters[instance_sharing.ReferenceLabelSelector]
-
 	referencedInstanceID := parameters[instance_sharing.ReferencedInstanceIDKey].String()
 	planNameSelector := parameters[instance_sharing.ReferencePlanNameSelector].String()
 	instanceNameSelector := parameters[instance_sharing.ReferenceInstanceNameSelector].String()
+	labelsSelector := parameters[instance_sharing.ReferenceLabelSelector]
 
 	if referencedInstanceID == "*" {
 		namedQuery = storage.QueryForReferenceBySharedInstanceSelector
 	} else if len(referencedInstanceID) > 1 {
-		params["selector_value"] = referencedInstanceID
 		namedQuery = storage.QueryForReferenceByInstanceID
+		params["selector_value"] = referencedInstanceID
 	} else if len(planNameSelector) > 0 {
-		params["selector_value"] = planNameSelector
 		if isSMAAP {
 			namedQuery = storage.QueryForSMAAPReferenceByPlanSelector
 		} else {
 			namedQuery = storage.QueryForOSBReferenceByPlanSelector
 		}
+		params["selector_value"] = planNameSelector
 	} else if len(instanceNameSelector) > 0 {
-		params["selector_value"] = instanceNameSelector
 		namedQuery = storage.QueryForReferenceByNameSelector
+		params["selector_value"] = instanceNameSelector
 	} else if len(labelsSelector.Raw) > 0 {
-		var criteria []query.Criterion
+		namedQuery = storage.QueryForReferenceByLabels
 		for labelKey, labelObject := range labelsSelector.Map() {
 			for _, labelValue := range labelObject.Array() {
-				criteria = append(criteria, query.ByLabel(query.EqualsOperator, labelKey, labelValue.String()))
+				params["label_selector_key"] = labelKey
+				params["label_selector_value"] = labelValue.String()
 			}
 		}
 	}
