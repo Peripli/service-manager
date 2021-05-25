@@ -21,22 +21,19 @@ import (
 	"net/http"
 )
 
-func GetTransportWithTLS(broker *types.ServiceBroker) (*http.Transport,error) {
+func GetTransportWithTLS(broker *types.ServiceBroker) (*http.Transport, error) {
 	transport := http.Transport{}
 	httpclient.ConfigureTransport(&transport)
-	tlsConfig,err:=broker.GetTLSConfig()
-	if err!=nil{
-		return nil,err
+	tlsConfig, err := broker.GetTLSConfig()
+	if err != nil {
+		return nil, err
 	}
-	if tlsConfig!=nil {
-		if len(transport.TLSClientConfig.Certificates) > 0 {
-			transport.TLSClientConfig.Certificates = append(transport.TLSClientConfig.Certificates, tlsConfig.Certificates...)
-		}else{
-			transport.TLSClientConfig.Certificates = tlsConfig.Certificates
-		}
+	if tlsConfig != nil && len(tlsConfig.Certificates) > 0 {
+		transport.TLSClientConfig.Certificates = append(transport.TLSClientConfig.Certificates, tlsConfig.Certificates...)
+
 	}
 
 	//prevents keeping idle connections when accessing to different broker hosts
 	transport.DisableKeepAlives = true
-	return &transport,nil
+	return &transport, nil
 }

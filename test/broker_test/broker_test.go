@@ -127,7 +127,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				brokerServerWithBrokerCertificate = NewBrokerServerMTLS([]byte(tls_settings.BrokerCertificate), []byte(tls_settings.BrokerCertificateKey),
 					[]byte(tls_settings.ClientCaCertificate))
 				brokerServerWithSMCertficate = NewBrokerServerMTLS([]byte(tls_settings.BrokerCertificate), []byte(tls_settings.BrokerCertificateKey),
-					[]byte(tls_settings.SMRootCaCertificate))
+		     	[]byte(tls_settings.SMRootCaCertificate))
 				brokerServerWithSMCertficate.Reset()
 				brokerServerWithBrokerCertificate.Reset()
 				brokerServer.Reset()
@@ -603,11 +603,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						Context("server manager certificate is valid", func() {
 							BeforeEach(func() {
-								cert, err := tls.X509KeyPair([]byte(tls_settings.ServerManagerCertificate), []byte(tls_settings.ServerManagerCertificateKey))
-								//cert2, err := tls.X509KeyPair([]byte(tls_settings.ClientCertificate), []byte(tls_settings.ClientKey))
-								Expect(err).ShouldNot(HaveOccurred())
+								//cert, err := tls.X509KeyPair([]byte(tls_settings.ServerManagerCertificate), []byte(tls_settings.ServerManagerCertificateKey))
+							 //   cert2, err := tls.X509KeyPair([]byte(tls_settings.ClientCertificate), []byte(tls_settings.ClientKey))
+								//Expect(err).ShouldNot(HaveOccurred())
+								//certificates = append(certificates, cert)
 								//certificates = append(certificates, cert2)
-								certificates = append(certificates, cert)
 
 							})
 							When("basic auth is configured", func() {
