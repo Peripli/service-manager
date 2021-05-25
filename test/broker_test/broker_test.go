@@ -601,9 +601,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							settings.TLSCertificates = []tls.Certificate{}
 							settings.ServerCertificate = ""
 							settings.ServerCertificateKey = ""
-							settings.SkipSSLValidation = false
+							settings.SkipSSLValidation = true
 							settings.RootCACertificates = []string{}
-
+							httpclient.SetHTTPClientGlobalSettings(settings)
+							httpclient.Configure()
 						})
 
 						Context("server manager certificate is valid", func() {
