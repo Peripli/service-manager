@@ -597,6 +597,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						JustAfterEach(func() {
 							http.DefaultTransport.(*http.Transport).TLSClientConfig = nil
 							certificates = []tls.Certificate{}
+							/*
 							settings := ctx.Config.HTTPClient
 							settings.TLSCertificates = []tls.Certificate{}
 							settings.ServerCertificate = ""
@@ -604,7 +605,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							settings.SkipSSLValidation = true
 							settings.RootCACertificates = []string{}
 							httpclient.SetHTTPClientGlobalSettings(settings)
-							httpclient.Configure()
+							httpclient.Configure()*/
 						})
 
 						Context("server manager certificate is valid", func() {
@@ -1016,7 +1017,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("when broker is responding slow", func() {
-					FIt("should timeout", func() {
+					It("should timeout", func() {
 						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
 							rw.WriteHeader(http.StatusOK)
 							if fl, ok := rw.(http.Flusher); ok {
