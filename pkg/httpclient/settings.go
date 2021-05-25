@@ -73,7 +73,7 @@ func (s *Settings) Validate() error {
 	if s.ServerCertificate != "" && s.ServerCertificateKey != "" {
 		cert, err := tls.X509KeyPair([]byte(s.ServerCertificate), []byte(s.ServerCertificateKey))
 		if err != nil {
-			return fmt.Errorf("malformed certificate: %s", err)
+			return fmt.Errorf("bad certificate: %s", err)
 		}
 		s.TLSCertificates = []tls.Certificate{cert}
 

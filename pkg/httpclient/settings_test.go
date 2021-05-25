@@ -57,14 +57,7 @@ var _ = Describe("HTTPClient settings", func() {
 			})
 		})
 
-		Context("certificate is malformed", func() {
-			It("should return an error", func() {
-				settings.ServerCertificate = tls_settings.MalformedServerCertificate
-				settings.ServerCertificateKey = tls_settings.MalformedServerKey
-				assertValidateError("malformed certificate")
-			})
 
-		})
 
 		Context("on invalid tls_handshake_timeout", func() {
 			It("should return error", func() {
