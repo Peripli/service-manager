@@ -205,8 +205,10 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 	if err != nil {
 		logger.Errorf("Failed to set ssl connection with the %s broker : %v", broker.Name, err)
 
+	}else{
+		proxy.Transport = transport
 	}
-	proxy.Transport = transport
+
 	proxy.ModifyResponse = func(response *http.Response) error {
 		logger.Infof("Service broker %s replied with status %d", broker.Name, response.StatusCode)
 		return nil

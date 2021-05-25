@@ -30,10 +30,10 @@ func GetTransportWithTLS(broker *types.ServiceBroker) (*http.Transport, error) {
 	}
 	if tlsConfig != nil && len(tlsConfig.Certificates) > 0 {
 		transport.TLSClientConfig.Certificates = append(transport.TLSClientConfig.Certificates, tlsConfig.Certificates...)
+		//prevents keeping idle connections when accessing to different broker hosts
+		transport.DisableKeepAlives = true
 
 	}
 
-	//prevents keeping idle connections when accessing to different broker hosts
-	transport.DisableKeepAlives = true
 	return &transport, nil
 }
