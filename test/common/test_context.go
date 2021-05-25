@@ -642,7 +642,7 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, br
 
 func (ctx *TestContext) RegisterBrokerWithRandomCatalogAndTLS(expect *SMExpect) *BrokerUtils {
 	generatedCatalog := NewRandomSBCatalog()
-	brokerServerWithTLS := NewBrokerServerWithTLSAndCatalog(generatedCatalog,nil,nil)
+	brokerServerWithTLS := NewBrokerServerWithTLSAndCatalog(generatedCatalog, nil, nil)
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
@@ -703,7 +703,7 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatal
 func (ctx *TestContext) TryRegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object, expect *SMExpect, expectedStatus int) (*BrokerServer, *BrokerServer, Object, Object) {
 	brokerServer := NewBrokerServerWithCatalog(catalog)
 	generatedCatalog := NewRandomSBCatalog()
-	brokerServerWithTLS := NewBrokerServerWithTLSAndCatalog(generatedCatalog,nil,nil)
+	brokerServerWithTLS := NewBrokerServerWithTLSAndCatalog(generatedCatalog, nil, nil)
 
 	UUID, err := uuid.NewV4()
 	if err != nil {

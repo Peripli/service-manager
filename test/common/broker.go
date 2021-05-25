@@ -81,7 +81,6 @@ func NewBrokerServer() *BrokerServer {
 	return NewBrokerServerWithCatalog(NewRandomSBCatalog())
 }
 
-
 func NewBrokerServerMTLS(serverCertificate []byte, serverCertificateKey []byte, certificates ...[]byte) *BrokerServer {
 	return NewBrokerServerWithTLSAndCatalog(NewRandomSBCatalog(), serverCertificate, serverCertificateKey, certificates...)
 }
@@ -96,7 +95,7 @@ func NewBrokerServerWithCatalog(catalog SBCatalog) *BrokerServer {
 	return brokerServer
 }
 
-func NewBrokerServerWithTLSAndCatalog(catalog SBCatalog, serverCertificate []byte, serverCertificateKey []byte, clientCertificates ...[]byte, ) *BrokerServer {
+func NewBrokerServerWithTLSAndCatalog(catalog SBCatalog, serverCertificate []byte, serverCertificateKey []byte, clientCertificates ...[]byte) *BrokerServer {
 
 	brokerServer := &BrokerServer{}
 	brokerServer.mutex = &sync.RWMutex{}
