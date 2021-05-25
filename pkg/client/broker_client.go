@@ -60,9 +60,12 @@ func (bc *BrokerClient) authAndTlsDecorator(requestHandler util.DoRequestWithCli
 			bc.addBasicAuth(req)
 		}
 
-		client = &http.Client{}
-		transport, _ := GetTransportWithTLS(bc.broker)
-		client.Transport = transport
+		transport, err := GetTransportWithTLS(bc.broker)
+		if err == nil {
+			client = &http.Client{}
+			client.Transport = transport
+		}
+
 		return requestHandler(req, client)
 
 	}
