@@ -353,9 +353,7 @@ md5hkq+MI7YWgikAqgA6e4CSyMQv85kftwcgpFUKhmp9zxKx/WygC5eV1NsgjyEh
 Bf4Vqc9AVbdmGASwS2+FdQ==
 -----END PRIVATE KEY-----`
 
-
-
-InvalidServerManagerCertificate = `-----BEGIN CERTIFICATE-----
+	InvalidServerManagerCertificate = `-----BEGIN CERTIFICATE-----
 MIIEVjCCAz6gAwIBAgIJANMUyKdlWCqrMA0GCSqGSIb3DQEBCwUAMH4xCzAJBgNV
 BAYTAklMMQswCQYDVQQIDAJUQTELMAkGA1UEBwwCVEExDDAKBgNVBAoMA1NBUDEM
 MAoGA1UECwwDU0FQMSUwIwYJKoZIhvcNAQkBFhZtYXlhLnNpZ2FsQGV4YW1wbGUu
@@ -382,7 +380,7 @@ KO+3DBfi+zoV+0UUpIynEBemqChZtXcoJkDUQBvT6nKXS1syOzDWab864tQvreTj
 UsX3bJrwVCo+aw==
 -----END CERTIFICATE-----`
 
-InvalidServerManagerCertificateKey = `-----BEGIN PRIVATE KEY-----
+	InvalidServerManagerCertificateKey = `-----BEGIN PRIVATE KEY-----
 MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDNr2+ULxGXR/GA
 Oo1amCkjaau+UB3vV685VOFggGNN7Hu9K0sjcgKi9KJQm4ptLtzRcgh4TKguYdQD
 OHZShX+4uUoT/fSC02WXuxdEo87nRYNVdkO6ozdzM2K70nVwMkgSTuupEAAmGzM1

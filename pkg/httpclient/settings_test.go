@@ -66,7 +66,6 @@ var _ = Describe("HTTPClient settings", func() {
 			})
 		})
 
-
 		Context("on invalid tls_handshake_timeout", func() {
 			It("should return error", func() {
 				settings.TLSHandshakeTimeout = -1
