@@ -49,13 +49,23 @@ var _ = Describe("HTTPClient settings", func() {
 			})
 		})
 		Context("valid server certificate", func() {
-			It("should have certficate", func() {
+			It("should have certificate", func() {
 				settings.ServerCertificate = tls_settings.ServerManagerCertificate
 				settings.ServerCertificateKey = tls_settings.ServerManagerCertificateKey
 				Expect(settings.Validate()).ToNot(HaveOccurred())
 				Expect(len(settings.TLSCertificates)).To(Equal(1))
 			})
 		})
+
+		Context("invalid server certificate", func() {
+			It("should have certificate", func() {
+				settings.ServerCertificate = tls_settings.InvalidServerManagerCertificate
+				settings.ServerCertificateKey = tls_settings.InvalidServerManagerCertificateKey
+				Expect(settings.Validate()).To(HaveOccurred())
+				Expect(len(settings.TLSCertificates)).To(Equal(0))
+			})
+		})
+
 
 		Context("on invalid tls_handshake_timeout", func() {
 			It("should return error", func() {

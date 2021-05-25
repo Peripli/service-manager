@@ -20,7 +20,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"net/http"
@@ -57,17 +56,12 @@ func (bc *BrokerClient) addBasicAuth(req *http.Request) *BrokerClient {
 func (bc *BrokerClient) authAndTlsDecorator(requestHandler util.DoRequestWithClientFunc) util.DoRequestFunc {
 	return func(req *http.Request) (*http.Response, error) {
 		client := http.DefaultClient
-		ctx := req.Context()
-		logger := log.C(ctx)
 		if bc.broker.Credentials.Basic != nil && bc.broker.Credentials.Basic.Username != "" && bc.broker.Credentials.Basic.Password != "" {
 			bc.addBasicAuth(req)
 		}
 
 		client = &http.Client{}
-		transport, err := GetTransportWithTLS(bc.broker)
-		if err != nil {
-			logger.Errorf("Failed to set ssl connection with the %s broker : %v", bc.broker.Name, err)
-		}
+		transport, _ := GetTransportWithTLS(bc.broker)
 		client.Transport = transport
 		return requestHandler(req, client)
 

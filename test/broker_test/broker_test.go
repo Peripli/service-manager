@@ -584,7 +584,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("tls", func() {
 					var certificates []tls.Certificate
 					Context("mutual tls", func() {
-
 						JustBeforeEach(func() {
 							settings := ctx.Config.HTTPClient
 							settings.TLSCertificates = certificates
@@ -598,6 +597,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						JustAfterEach(func() {
 							http.DefaultTransport.(*http.Transport).TLSClientConfig = nil
 							certificates = []tls.Certificate{}
+							settings := ctx.Config.HTTPClient
+							settings.TLSCertificates = []tls.Certificate{}
+							settings.ServerCertificate = ""
+							settings.ServerCertificateKey = ""
+							settings.SkipSSLValidation = false
+							settings.RootCACertificates = []string{}
 
 						})
 
@@ -656,6 +661,17 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									Expect().
 									Status(http.StatusBadGateway).Body()
 
+							})
+
+							When("broker certificate is configured", func() {
+								It("should succeed", func() {
+									reply := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLSandBasic).
+										Expect().
+										Status(http.StatusCreated).
+										JSON().Object()
+									reply.ContainsMap(expectedBrokerResponseTLS)
+									assertInvocationCount(brokerServerWithBrokerCertificate.CatalogEndpointRequests, 1)
+								})
 							})
 
 						})
