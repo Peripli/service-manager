@@ -1,17 +1,17 @@
 /*
- *    Copyright 2018 The Service Manager Authors
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *        http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+*    Copyright 2018 The Service Manager Authors
+*
+*    Licensed under the Apache License, Version 2.0 (the "License");
+*    you may not use this file except in compliance with the License.
+*    You may obtain a copy of the License at
+*
+*        http://www.apache.org/licenses/LICENSE-2.0
+*
+*    Unless required by applicable law or agreed to in writing, software
+*    distributed under the License is distributed on an "AS IS" BASIS,
+*    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*    See the License for the specific language governing permissions and
+*    limitations under the License.
  */
 package broker_test
 
@@ -411,20 +411,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ctx.SMWithOAuth.POST(web.ServiceBrokersURL).
 								WithHeader("Content-Type", "application/json").
 								WithBytes([]byte(fmt.Sprintf(`{
-								"name":        "broker-with-labels",
-								"broker_url":  "%s",
-								"description": "desc",
-								"credentials": {
-									"basic": {
-										"username": "%s",
-										"password": "%s"
-									}
-								},
-								"labels": {},
-								"labels": {
-									"%s":["test-tenant"]
-								}	
-							}`, brokerWithLabelsServer.URL(), brokerWithLabelsServer.Username, brokerWithLabelsServer.Password, TenantLabelKey))).
+                        "name":        "broker-with-labels",
+                        "broker_url":  "%s",
+                        "description": "desc",
+                        "credentials": {
+                           "basic": {
+                              "username": "%s",
+                              "password": "%s"
+                           }
+                        },
+                        "labels": {},
+                        "labels": {
+                           "%s":["test-tenant"]
+                        }  
+                     }`, brokerWithLabelsServer.URL(), brokerWithLabelsServer.Username, brokerWithLabelsServer.Password, TenantLabelKey))).
 								Expect().
 								Status(http.StatusBadRequest).
 								JSON().Object().Value("description").String().Contains("invalid json: duplicate key labels")
@@ -597,7 +597,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						JustAfterEach(func() {
 							http.DefaultTransport.(*http.Transport).TLSClientConfig = nil
 							certificates = []tls.Certificate{}
-							/*
 							settings := ctx.Config.HTTPClient
 							settings.TLSCertificates = []tls.Certificate{}
 							settings.ServerCertificate = ""
@@ -605,7 +604,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							settings.SkipSSLValidation = true
 							settings.RootCACertificates = []string{}
 							httpclient.SetHTTPClientGlobalSettings(settings)
-							httpclient.Configure()*/
+							httpclient.Configure()
 						})
 
 						Context("server manager certificate is valid", func() {
@@ -940,7 +939,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("When label key has new line", func() {
 						It("Should return 400", func() {
 							labels[`key with
-	new line`] = Array{"label-value"}
+   new line`] = Array{"label-value"}
 							ctx.SMWithOAuth.POST(web.ServiceBrokersURL).
 								WithJSON(postBrokerRequestWithLabels).
 								Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("cannot contain whitespaces")
@@ -950,9 +949,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("When label value has new line", func() {
 						It("Should return 400", func() {
 							labels["cluster_id"] = Array{`{
-	"key": "k1",
-	"val": "val1"
-	}`}
+   "key": "k1",
+   "val": "val1"
+   }`}
 							ctx.SMWithOAuth.POST(web.ServiceBrokersURL).
 								WithJSON(postBrokerRequestWithLabels).
 								Expect().Status(http.StatusBadRequest)
@@ -1017,7 +1016,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("when broker is responding slow", func() {
-					FIt("should timeout", func() {
+					It("should timeout", func() {
 						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
 							rw.WriteHeader(http.StatusOK)
 							if fl, ok := rw.(http.Flusher); ok {

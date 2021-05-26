@@ -201,14 +201,16 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 		logger.Infof("Forwarded OSB request to service broker %s at %s", broker.Name, request.URL)
 	}
 
-	transport, err := client.GetTransportWithTLS(broker)
+	tlsConfig, err := broker.GetTLSConfig()
 	if err != nil {
-		logger.Errorf("Failed to set ssl connection with the %s broker : %v", broker.Name, err)
-
-	}else{
-		proxy.Transport = transport
+		return nil, err
 	}
 
+	if tlsConfig != nil {
+		proxy.Transport = client.GetTransportWithTLS(tlsConfig)
+	}else{
+		proxy.Transport = http.DefaultTransport.(*http.Transport)
+	}
 	proxy.ModifyResponse = func(response *http.Response) error {
 		logger.Infof("Service broker %s replied with status %d", broker.Name, response.StatusCode)
 		return nil
