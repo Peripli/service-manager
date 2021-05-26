@@ -642,7 +642,7 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, br
 
 func (ctx *TestContext) RegisterBrokerWithRandomCatalogAndTLS(expect *SMExpect) *BrokerUtils {
 	generatedCatalog := NewRandomSBCatalog()
-	brokerServerWithTLS := NewBrokerServerMTLS([]byte(tls_settings.BrokerCertificate), []byte(tls_settings.BrokerCertificateKey),
+	brokerServerWithTLS :=NewBrokerServerWithTLSAndCatalog(generatedCatalog,[]byte(tls_settings.BrokerCertificate), []byte(tls_settings.BrokerCertificateKey),
 		[]byte(tls_settings.ClientCaCertificate))
 
 	UUID, err := uuid.NewV4()
