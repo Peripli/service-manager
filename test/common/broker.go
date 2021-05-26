@@ -479,4 +479,3 @@ func MultipleErrorsBeforeSuccessHandler(initialStatusCode, finalStatusCode int, 
 		}
 	}
 }
- 
