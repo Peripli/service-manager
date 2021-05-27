@@ -229,6 +229,7 @@ var (
 	ErrReferencedInstanceNotShared               = errors.New("referenced-instance should be shared first")
 	ErrReferencedInstanceNotFound                = errors.New("referenced-instance not found")
 	ErrMultipleReferenceSelectorResults          = errors.New("multiple selector results")
+	ErrNoResultsForReferenceSelector             = errors.New("no results for reference selector")
 	ErrReferenceWithWrongServiceOffering         = errors.New("referenced-instance not matches the service offering")
 	ErrChangingPlanOfReferenceInstance           = errors.New("changing plan of reference instance")
 	ErrNewPlanDoesNotSupportInstanceSharing      = errors.New("changing shared instance plan to a non-shareable plan")
@@ -284,9 +285,15 @@ func HandleInstanceSharingError(err error, entityName string) error {
 		}
 	case ErrMultipleReferenceSelectorResults:
 		return &HTTPError{
-			ErrorType:   "NotFound",
+			ErrorType:   "BadRequest",
 			Description: "Failed to create the reference. Your query selector provided multiple results. Use referenced_instance_id instead.",
 			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrNoResultsForReferenceSelector:
+		return &HTTPError{
+			ErrorType:   "NotFound",
+			Description: "Failed to create the reference. Could not find a shared instance with the selectors provided.",
+			StatusCode:  http.StatusNotFound,
 		}
 	case ErrChangingPlanOfReferenceInstance:
 		return &HTTPError{
@@ -314,7 +321,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 		}
 	case ErrMissingOrInvalidReferenceParameter:
 		return &HTTPError{
-			ErrorType:   "InvalidRequest",
+			ErrorType:   "BadRequest",
 			Description: fmt.Sprintf("Failed to create the instance. Missing or invalid parameter \"%s\".", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}

@@ -3960,12 +3960,12 @@ var _ = DescribeTestsFor(TestCase{
 								resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrRequestBodyContainsReferencedInstanceID, instance_sharing.ReferencedInstanceIDKey))
 							})
 						})
-						FContext("selectors", func() {
+						Context("selectors", func() {
 							var sharedInstance *types.ServiceInstance
 							BeforeEach(func() {
 								sharedInstance, _ = GetInstanceObjectByID(ctx, sharedInstanceID)
 							})
-							When("provisioning reference by selectors", func() {
+							When("provisioning reference instance with selectors", func() {
 								var resp *httpexpect.Response
 								AfterEach(func() {
 									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -4050,7 +4050,7 @@ var _ = DescribeTestsFor(TestCase{
 										Status(http.StatusCreated)
 								})
 							})
-							When("selectors have more than one result", func() {
+							When("the selectors have more than one result", func() {
 								var anotherSharedInstance *types.ServiceInstance
 								BeforeEach(func() {
 									resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
@@ -4161,7 +4161,7 @@ var _ = DescribeTestsFor(TestCase{
 									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, ""))
 								})
 							})
-							When("no results for selectors", func() {
+							When("the selectors does not provide any result", func() {
 								It("fails to provision", func() {
 									randomUUID, _ := uuid.NewV4()
 									requestBody := Object{
