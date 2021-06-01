@@ -140,7 +140,7 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 					StatusCode:  http.StatusBadRequest,
 				}
 			}
-			if servicePlan.IsShareablePlan() {
+			if servicePlan.SupportInstanceSharing() {
 				if !isBindablePlan(service, servicePlan) {
 					return util.HandleInstanceSharingError(util.ErrPlanMustBeBindable, servicePlan.ID)
 				}

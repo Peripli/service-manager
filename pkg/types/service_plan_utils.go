@@ -74,8 +74,8 @@ func (e *ServicePlan) ExcludedPlatformNames() []string {
 	return e.metadataPropertyAsStringArray("excludedPlatformNames")
 }
 
-// IsShareablePlan returns the supportInstanceSharing provided in a plan's metadata (if a value is provided at all).
-func (e *ServicePlan) IsShareablePlan() bool {
+// SupportInstanceSharing returns the supportInstanceSharing provided in a plan's metadata (if a value is provided at all).
+func (e *ServicePlan) SupportInstanceSharing() bool {
 	isShareable := gjson.GetBytes(e.Metadata, instance_sharing.SupportInstanceSharingKey).Raw
 	return isShareable == "true"
 }
