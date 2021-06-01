@@ -229,6 +229,7 @@ var (
 	ErrReferencedInstanceNotShared               = errors.New("referenced-instance should be shared first")
 	ErrReferencedInstanceNotFound                = errors.New("referenced-instance not found")
 	ErrMultipleReferenceSelectorResults          = errors.New("multiple selector results")
+	ErrInvalidReferenceSelectors                 = errors.New("invalid selectors")
 	ErrNoResultsForReferenceSelector             = errors.New("no results for reference selector")
 	ErrReferenceWithWrongServiceOffering         = errors.New("referenced-instance not matches the service offering")
 	ErrChangingPlanOfReferenceInstance           = errors.New("changing plan of reference instance")
@@ -287,6 +288,12 @@ func HandleInstanceSharingError(err error, entityName string) error {
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: "Failed to create the reference. Your query selector provided multiple results. Use referenced_instance_id instead.",
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrInvalidReferenceSelectors:
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "Failed to create the reference. Your query selectors are invalid.",
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrNoResultsForReferenceSelector:

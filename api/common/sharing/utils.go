@@ -14,27 +14,24 @@ import (
 
 func ExtractReferenceInstanceID(req *web.Request, repository storage.Repository, body []byte, tenantIdentifier string, getTenantId func() string, isSMAAP bool) (string, error) {
 	var err error
-	var selectorResult types.ObjectList
+	selectorResults := map[string]*types.ServiceInstance{}
 	ctx := req.Context()
 	parameters := gjson.GetBytes(body, "parameters").Map()
 
-	if len(parameters) == 0 {
-		return "", util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
-	}
-	selectorResult, err = getInstanceBySelector(ctx, repository, parameters, tenantIdentifier, getTenantId(), isSMAAP)
-
+	err = validParameters(parameters)
 	if err != nil {
 		return "", err
 	}
-	if selectorResult == nil || selectorResult.Len() == 0 {
-		// todo: add a new error: not found a shared instance which meets your criteria
-		return "", util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, "")
+
+	selectorResults, err = getSelectorResults(ctx, repository, parameters, tenantIdentifier, getTenantId(), isSMAAP)
+	if err != nil {
+		return "", err
 	}
-	if selectorResult.Len() > 1 {
-		// there is more than one shared instance that meets your criteria
-		return "", util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
+
+	referencedInstance, err := getInstanceFromResult(selectorResults)
+	if err != nil {
+		return "", err
 	}
-	referencedInstance := selectorResult.ItemAt(0).(*types.ServiceInstance)
 
 	// If the selector is instanceID, we would like to inform the user if the target instance was not shared:
 	if !referencedInstance.IsShared() {
@@ -43,6 +40,18 @@ func ExtractReferenceInstanceID(req *web.Request, repository storage.Repository,
 	}
 
 	return referencedInstance.ID, nil
+}
+
+func validSelectorResults(results map[string]*types.ServiceInstance) error {
+	if results == nil || len(results) == 0 {
+		// todo: add a new error: not found a shared instance which meets your criteria
+		return util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, "")
+	}
+	if len(results) > 1 {
+		// there is more than one shared instance that meets your criteria
+		return util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
+	}
+	return nil
 }
 
 func IsValidReferenceInstancePatchRequest(req *web.Request, instance *types.ServiceInstance, planIDProperty string) error {
@@ -57,20 +66,56 @@ func IsValidReferenceInstancePatchRequest(req *web.Request, instance *types.Serv
 	return nil
 }
 
-func getInstanceBySelector(ctx context.Context, repository storage.Repository, parameters map[string]gjson.Result, tenantIdentifier, tenantID string, smaap bool) (types.ObjectList, error) {
+func getInstanceFromResult(results map[string]*types.ServiceInstance) (*types.ServiceInstance, error) {
+	var instance *types.ServiceInstance
+	err := validSelectorResults(results)
+	if err != nil {
+		return nil, err
+	}
+	for key := range results {
+		instance = results[key]
+	}
+	return instance, nil
+}
 
-	objectList, err := getObjectList(ctx, repository, tenantIdentifier, tenantID)
+func getSelectorResults(ctx context.Context, repository storage.Repository, parameters map[string]gjson.Result, tenantIdentifier, tenantID string, smaap bool) (map[string]*types.ServiceInstance, error) {
+	objectsList, err := getObjectList(ctx, repository, tenantIdentifier, tenantID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
+	objectsMap := convertObjectListToInstancesMap(objectsList)
 
-	filteredArray := types.NewObjectArray()
-	filteredArray, err = filterListToArray(ctx, repository, filteredArray, objectList, parameters, smaap)
+	filteredMap, err := filterInstancesBySelectors(ctx, repository, objectsMap, parameters, smaap)
 	if err != nil {
 		return nil, err
 	}
 
-	return filteredArray, nil
+	return filteredMap, nil
+}
+
+func validParameters(parameters map[string]gjson.Result) error {
+	if len(parameters) == 0 {
+		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
+	}
+
+	_, byID := parameters[instance_sharing.ReferencedInstanceIDKey]
+	if byID && len(parameters) > 1 {
+		return util.HandleInstanceSharingError(util.ErrInvalidReferenceSelectors, "")
+	}
+
+	return nil
+}
+
+func convertObjectListToInstancesMap(objectList types.ObjectList) map[string]*types.ServiceInstance {
+	instancesMap := map[string]*types.ServiceInstance{}
+	if objectList == nil {
+		return instancesMap
+	}
+	for index := 0; index < objectList.Len(); index++ {
+		instance := objectList.ItemAt(index).(*types.ServiceInstance)
+		instancesMap[instance.ID] = instance
+	}
+	return instancesMap
 }
 
 func getObjectList(ctx context.Context, repository storage.Repository, tenantIdentifier string, tenantID string) (types.ObjectList, error) {
@@ -85,48 +130,49 @@ func getObjectList(ctx context.Context, repository storage.Repository, tenantIde
 	return objectList, err
 }
 
-func filterListToArray(ctx context.Context, repository storage.Repository, objectArray *types.ObjectArray, objectList types.ObjectList, parameters map[string]gjson.Result, smaap bool) (*types.ObjectArray, error) {
+func filterInstancesBySelectors(ctx context.Context, repository storage.Repository, instances map[string]*types.ServiceInstance, parameters map[string]gjson.Result, smaap bool) (map[string]*types.ServiceInstance, error) {
 	var err error
-	referencedInstanceID := parameters[instance_sharing.ReferencedInstanceIDKey].String()
-	planNameSelector := parameters[instance_sharing.ReferencePlanNameSelector].String()
-	instanceNameSelector := parameters[instance_sharing.ReferenceInstanceNameSelector].String()
-	labelsSelector := parameters[instance_sharing.ReferenceLabelSelector].Raw
+	for _, instance := range instances {
+		selectors := make(map[string]interface{})
 
-	if referencedInstanceID == "*" {
-		objectArray, err = filterBySelector(objectArray, objectList, "*", "")
-		if err != nil {
-			return nil, err
+		val, exists := parameters[instance_sharing.ReferenceInstanceNameSelector]
+		if exists {
+			selectors["name"] = filterBySelector(instance, "name", val.String())
 		}
-	}
-	if len(referencedInstanceID) > 1 {
-		objectArray, err = filterBySelector(objectArray, objectList, "id", referencedInstanceID)
-		if err != nil {
-			return nil, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, referencedInstanceID)
 
+		val, exists = parameters[instance_sharing.ReferenceInstanceNameSelector]
+		if exists {
+			selectors["name"] = filterBySelector(instance, "name", val.String())
 		}
-	}
-	if len(planNameSelector) > 0 {
-		objectArray, err = filterByPlanSelector(ctx, repository, objectArray, objectList, planNameSelector, smaap)
-		if err != nil {
-			return nil, err
+
+		val, exists = parameters[instance_sharing.ReferencePlanNameSelector]
+		if exists {
+			selectors["plan"], err = filterByPlanSelector(ctx, repository, instance, val.String(), smaap)
+			if err != nil {
+				return nil, err
+			}
 		}
-	}
-	if len(instanceNameSelector) > 0 {
-		objectArray, err = filterBySelector(objectArray, objectList, "name", instanceNameSelector)
-		if err != nil {
-			return nil, err
+
+		val, exists = parameters[instance_sharing.ReferenceLabelSelector]
+		if exists {
+			selectors["label"], err = filterByLabelSelector(instance, []byte(val.Raw))
+			if err != nil {
+				return nil, err
+			}
 		}
-	}
-	if len(labelsSelector) > 0 {
-		objectArray, err = filterByLabelSelector(objectArray, objectList, []byte(labelsSelector))
-		if err != nil {
-			return nil, err
+
+		for _, isValid := range selectors {
+			_, ok := instances[instance.ID]
+			if ok && isValid != nil && isValid == false {
+				delete(instances, instance.ID)
+			}
 		}
+
 	}
-	return objectArray, nil
+	return instances, nil
 }
 
-func filterByPlanSelector(ctx context.Context, repository storage.Repository, objectArray *types.ObjectArray, objectList types.ObjectList, selector string, smaap bool) (*types.ObjectArray, error) {
+func filterByPlanSelector(ctx context.Context, repository storage.Repository, instance *types.ServiceInstance, selector string, smaap bool) (bool, error) {
 	var selectorPlanObj types.Object
 	var err error
 	var key string
@@ -137,60 +183,30 @@ func filterByPlanSelector(ctx context.Context, repository storage.Repository, ob
 	}
 	selectorPlanObj, err = storage.GetObjectByField(ctx, repository, types.ServicePlanType, key, selector)
 	if err != nil {
-		return types.NewObjectArray(), util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, "")
+		return false, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, "")
 	}
 	selectorPlan := selectorPlanObj.(*types.ServicePlan)
-	return filterBySelector(objectArray, objectList, "service_plan_id", selectorPlan.ID)
+	return filterBySelector(instance, "service_plan_id", selectorPlan.ID), nil
 }
 
-func filterByLabelSelector(objectArray *types.ObjectArray, objectList types.ObjectList, labels []byte) (*types.ObjectArray, error) {
-	for index := 0; index < objectList.Len(); index++ {
-		isNil := objectList.ItemAt(index) == nil
-		if isNil {
-			return nil, nil
-		}
-		instance := objectList.ItemAt(index).(*types.ServiceInstance)
-		var selectorLabels types.Labels
-		if err := util.BytesToObject(labels, &selectorLabels); err != nil {
-			return nil, err
-		}
-		if reflect.DeepEqual(instance.Labels, selectorLabels) {
-			objectArray.Add(objectList.ItemAt(index))
-		}
+func filterByLabelSelector(instance *types.ServiceInstance, labels []byte) (bool, error) {
+	var selectorLabels types.Labels
+	if err := util.BytesToObject(labels, &selectorLabels); err != nil {
+		return false, err
 	}
-	if objectArray.Len() == 0 {
-		return objectArray, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, "")
-
-	}
-	return objectArray, nil
+	return reflect.DeepEqual(instance.Labels, selectorLabels), nil
 }
 
-func filterBySelector(objectArray *types.ObjectArray, objectList types.ObjectList, key, value string) (*types.ObjectArray, error) {
-	for index := 0; index < objectList.Len(); index++ {
-		isNil := objectList.ItemAt(index) == nil
-		instance := objectList.ItemAt(index).(*types.ServiceInstance)
-		switch key {
-		case "*":
-			{
-				objectArray.Add(objectList.ItemAt(index))
-			}
-		case "id":
-			if !isNil && instance.ID == value {
-				objectArray.Add(objectList.ItemAt(index))
-			}
-		case "name":
-			if !isNil && instance.Name == value {
-				objectArray.Add(objectList.ItemAt(index))
-			}
-		case "service_plan_id":
-			if !isNil && instance.ServicePlanID == value {
-				objectArray.Add(objectList.ItemAt(index))
-			}
-		}
+func filterBySelector(instance *types.ServiceInstance, key, value string) bool {
+	switch key {
+	case "*":
+		return true
+	case "id":
+		return instance.ID == value
+	case "name":
+		return instance.Name == value
+	case "service_plan_id":
+		return instance.ServicePlanID == value
 	}
-	if objectArray.Len() == 0 {
-		return objectArray, util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
-
-	}
-	return objectArray, nil
+	return false
 }

@@ -64,7 +64,7 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 		return nil, err
 	}
 
-	log.C(ctx).Infof("Reference Instance validation has passed successfully, instanceID: \"%s\"", referenceInstanceID)
+	log.C(ctx).Infof("Reference Instance validation has passed successfully, referenced-instance-id: \"%s\"", referenceInstanceID)
 
 	//OSB spec does not require any fields to be returned
 	return util.NewJSONResponse(http.StatusCreated, map[string]string{})

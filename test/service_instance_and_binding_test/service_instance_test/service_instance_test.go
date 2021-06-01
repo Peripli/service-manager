@@ -4182,6 +4182,28 @@ var _ = DescribeTestsFor(TestCase{
 									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, ""))
 								})
 							})
+							When("selectors are invalid", func() {
+								It("fails to provision", func() {
+									randomUUID, _ := uuid.NewV4()
+									requestBody := Object{
+										"name":             "reference-instance-" + randomUUID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
+										"parameters": map[string]Object{
+											instance_sharing.ReferenceLabelSelector: {
+												TenantIdentifier: Array{randomUUID.String()},
+											},
+											"some-selector": {},
+										},
+									}
+									resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusNotFound)
+									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, ""))
+								})
+							})
 						})
 					})
 					Context("instance ownership", func() {
