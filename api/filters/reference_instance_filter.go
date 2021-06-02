@@ -94,7 +94,7 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 		return next.Handle(req)
 	}
 
-	referenceInstanceID, err := sharing.ExtractReferenceInstanceID(req, rif.repository, req.Body, rif.tenantIdentifier, func() string {
+	referenceInstanceID, err := sharing.ExtractReferencedInstanceID(req, rif.repository, req.Body, rif.tenantIdentifier, func() string {
 		return query.RetrieveFromCriteria(rif.tenantIdentifier, query.CriteriaForContext(req.Context())...)
 	}, true)
 

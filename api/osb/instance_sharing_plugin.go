@@ -57,7 +57,7 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 		return nil, err
 	}
 
-	referenceInstanceID, err := sharing.ExtractReferenceInstanceID(req, is.repository, req.Body, is.tenantIdentifier, func() string {
+	referenceInstanceID, err := sharing.ExtractReferencedInstanceID(req, is.repository, req.Body, is.tenantIdentifier, func() string {
 		return gjson.GetBytes(req.Body, fmt.Sprintf("context.%s", is.tenantIdentifier)).String()
 	}, false)
 	if err != nil {
