@@ -98,11 +98,9 @@ func validateSingleResult(results types.ServiceInstances, parameters map[string]
 			return util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, referencedInstanceID.String())
 		}
 		return util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
-	}
-	if results.Len() > 1 && len(parameters) == 0 {
+	} else if results.Len() > 1 && len(parameters) == 0 {
 		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
-	}
-	if results.Len() > 1 {
+	} else if results.Len() > 1 {
 		// there is more than one shared instance that meets your criteria
 		return util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
 	}
