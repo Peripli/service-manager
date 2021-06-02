@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -30,7 +31,13 @@ func ExtractReferenceInstanceID(req *web.Request, repository storage.Repository,
 		return "", err
 	}
 
-	filteredInstancesMap, err := filterInstancesBySelectors(ctx, repository, sharedInstancesMap, parameters, smaap)
+	filteredInstancesMap := map[string]*types.ServiceInstance{}
+	referencedInstanceID := parameters[instance_sharing.ReferencedInstanceIDKey].String()
+	if len(referencedInstanceID) > 1 {
+		filteredInstancesMap, err = filterInstancesByID(ctx, repository, referencedInstanceID, tenantIdentifier, getTenantId())
+	} else {
+		filteredInstancesMap, err = filterInstancesBySelectors(ctx, repository, sharedInstancesMap, parameters, smaap)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -54,10 +61,29 @@ func ExtractReferenceInstanceID(req *web.Request, repository storage.Repository,
 	return referencedInstance.ID, nil
 }
 
+func filterInstancesByID(ctx context.Context, repository storage.Repository, referencedInstanceID string, tenantIdentifier string, tenantValue string) (map[string]*types.ServiceInstance, error) {
+	referencedInstanceObj, err := repository.Get(ctx, types.ServiceInstanceType,
+		query.ByLabel(query.EqualsOperator, tenantIdentifier, tenantValue),
+		query.ByField(query.EqualsOperator, "id", referencedInstanceID),
+	)
+	if err != nil {
+		log.C(ctx).Errorf("failed retrieving service instance %s: %v", referencedInstanceID, err)
+		return nil, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, referencedInstanceID)
+	}
+	referencedInstance := referencedInstanceObj.(*types.ServiceInstance)
+
+	instances := map[string]*types.ServiceInstance{}
+	instances[referencedInstance.ID] = referencedInstance
+	return instances, nil
+}
+
 func validateSelectorResults(results map[string]*types.ServiceInstance, parameters map[string]gjson.Result) error {
 	if results == nil || len(results) == 0 {
-		// todo: add a new error: not found a shared instance which meets your criteria
-		return util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, createKeyValuePairs(parameters))
+		referencedInstanceID := parameters[instance_sharing.ReferencedInstanceIDKey].String()
+		if len(referencedInstanceID) > 1 {
+			return util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, referencedInstanceID)
+		}
+		return util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
 	}
 	if len(results) > 1 {
 		// there is more than one shared instance that meets your criteria
@@ -148,13 +174,15 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 		selectors := make(map[string]interface{})
 
 		val, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
-		if exists {
-			selectors["id"] = filterBySelector(instance, "id", val.String())
+
+		// "*" for any shared instance of the tenant
+		if exists && val.String() == "*" {
+			selectors["id"] = true
 		}
 
 		val, exists = parameters[instance_sharing.ReferenceInstanceNameSelector]
 		if exists {
-			selectors["name"] = filterBySelector(instance, "name", val.String())
+			selectors["name"] = instance.Name == val.String()
 		}
 
 		val, exists = parameters[instance_sharing.ReferencePlanNameSelector]
@@ -199,7 +227,7 @@ func filterByPlanSelector(ctx context.Context, repository storage.Repository, in
 		return false, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, "")
 	}
 	selectorPlan := selectorPlanObj.(*types.ServicePlan)
-	return filterBySelector(instance, "service_plan_id", selectorPlan.ID), nil
+	return instance.ServicePlanID == selectorPlan.ID, nil
 }
 
 func filterByLabelSelector(instance *types.ServiceInstance, labels []byte) (bool, error) {
@@ -208,21 +236,4 @@ func filterByLabelSelector(instance *types.ServiceInstance, labels []byte) (bool
 		return false, err
 	}
 	return reflect.DeepEqual(instance.Labels, selectorLabels), nil
-}
-
-func filterBySelector(instance *types.ServiceInstance, key, value string) bool {
-	switch key {
-	case "id":
-		// "*" for any shared instance of the tenant
-		if value == "*" {
-			return true
-		}
-		return instance.ID == value
-	case "name":
-		return instance.Name == value
-	case "service_plan_id":
-		// plan name should be converted to planID by this point, so we support OSB and SMAAP flows
-		return instance.ServicePlanID == value
-	}
-	return false
 }

@@ -4179,7 +4179,7 @@ var _ = DescribeTestsFor(TestCase{
 										WithJSON(requestBody).
 										Expect().
 										Status(http.StatusNotFound)
-									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, ""))
+									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
 								})
 							})
 							When("selectors are invalid", func() {
@@ -4201,7 +4201,7 @@ var _ = DescribeTestsFor(TestCase{
 										WithJSON(requestBody).
 										Expect().
 										Status(http.StatusNotFound)
-									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, ""))
+									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
 								})
 							})
 						})
