@@ -31,31 +31,31 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 		return "", err
 	}
 
-	filteredInstancesMap := map[string]*types.ServiceInstance{}
+	var referencedInstance *types.ServiceInstance
 	referencedInstanceID := parameters[instance_sharing.ReferencedInstanceIDKey].String()
 	if len(referencedInstanceID) > 1 {
-		filteredInstancesMap, err = filterInstancesByID(ctx, repository, referencedInstanceID, tenantIdentifier, getTenantId())
+		referencedInstance, err = filterInstancesByID(ctx, repository, referencedInstanceID, tenantIdentifier, getTenantId())
+		if err != nil {
+			return "", err
+		}
 	} else {
+		filteredInstancesMap := map[string]*types.ServiceInstance{}
 		filteredInstancesMap, err = filterInstancesBySelectors(ctx, repository, sharedInstancesMap, parameters, smaap)
-	}
-	if err != nil {
-		return "", err
-	}
+		err = validateSelectorResults(filteredInstancesMap, parameters)
+		if err != nil {
+			return "", err
+		}
 
-	err = validateSelectorResults(filteredInstancesMap, parameters)
-	if err != nil {
-		return "", err
-	}
-
-	referencedInstance, err := retrieveInstanceFromMap(sharedInstancesMap)
-	if err != nil {
-		return "", err
+		referencedInstance, err = retrieveInstanceFromMap(sharedInstancesMap)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	return referencedInstance.ID, nil
 }
 
-func filterInstancesByID(ctx context.Context, repository storage.Repository, referencedInstanceID string, tenantIdentifier string, tenantValue string) (map[string]*types.ServiceInstance, error) {
+func filterInstancesByID(ctx context.Context, repository storage.Repository, referencedInstanceID string, tenantIdentifier string, tenantValue string) (*types.ServiceInstance, error) {
 	referencedInstanceObj, err := repository.Get(ctx, types.ServiceInstanceType,
 		query.ByLabel(query.EqualsOperator, tenantIdentifier, tenantValue),
 		query.ByField(query.EqualsOperator, "id", referencedInstanceID),
@@ -85,9 +85,7 @@ func filterInstancesByID(ctx context.Context, repository storage.Repository, ref
 		return nil, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, referencedInstance.ID)
 	}
 
-	instances := map[string]*types.ServiceInstance{}
-	instances[referencedInstance.ID] = referencedInstance
-	return instances, nil
+	return referencedInstance, nil
 }
 
 func validateSelectorResults(results map[string]*types.ServiceInstance, parameters map[string]gjson.Result) error {
