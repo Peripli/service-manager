@@ -100,6 +100,9 @@ func validateSingleResult(results types.ServiceInstances, parameters map[string]
 		}
 		return util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
 	}
+	if results.Len() > 1 && len(parameters) == 0 {
+		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
+	}
 	if results.Len() > 1 {
 		// there is more than one shared instance that meets your criteria
 		return util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
@@ -116,9 +119,6 @@ func getSharedInstancesByTenant(ctx context.Context, repository storage.Reposito
 }
 
 func validateParameters(parameters map[string]gjson.Result) error {
-	if len(parameters) == 0 {
-		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
-	}
 	// when provisioning reference by instance id, we only allow one parameter:
 	_, byID := parameters[instance_sharing.ReferencedInstanceIDKey]
 	if byID && len(parameters) > 1 {

@@ -3973,7 +3973,7 @@ var _ = DescribeTestsFor(TestCase{
 							BeforeEach(func() {
 								sharedInstance, _ = GetInstanceObjectByID(ctx, sharedInstanceID)
 							})
-							When("provisioning reference instance with selectors", func() {
+							When("one shared instance is returned by the selectors", func() {
 								var resp *httpexpect.Response
 								AfterEach(func() {
 									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -4050,6 +4050,19 @@ var _ = DescribeTestsFor(TestCase{
 												TenantIdentifier: Array{TenantIDValue},
 											},
 										},
+									}
+									resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusCreated)
+								})
+								It("creates reference instance with empty parameters", func() {
+									randomUUID, _ := uuid.NewV4()
+									requestBody := Object{
+										"name":             "reference-instance-" + randomUUID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
 									}
 									resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 										WithQuery("async", false).
