@@ -72,6 +72,20 @@ func filterInstancesByID(ctx context.Context, repository storage.Repository, ref
 	}
 	referencedInstance := referencedInstanceObj.(*types.ServiceInstance)
 
+	referencePlan, ok := types.PlanFromContext(ctx)
+	if !ok || referencePlan == nil {
+		return nil, util.HandleStorageError(util.ErrNotFoundInStorage, types.ServicePlanType.String())
+	}
+	// verify the reference plan and the target instance are of the same service offering:
+	sameOffering, err := isSameServiceOffering(ctx, repository, referencePlan.ServiceOfferingID, referencedInstance.ServicePlanID)
+	if err != nil {
+		return nil, err
+	}
+	if !sameOffering {
+		log.C(ctx).Debugf("The target instance %s is not of the same service offering.", referencedInstance.ID)
+		return nil, util.HandleInstanceSharingError(util.ErrReferenceWithWrongServiceOffering, referencedInstance.ID)
+	}
+
 	instances := map[string]*types.ServiceInstance{}
 	instances[referencedInstance.ID] = referencedInstance
 	return instances, nil
@@ -236,4 +250,14 @@ func filterByLabelSelector(instance *types.ServiceInstance, labels []byte) (bool
 		return false, err
 	}
 	return reflect.DeepEqual(instance.Labels, selectorLabels), nil
+}
+
+func isSameServiceOffering(ctx context.Context, repository storage.Repository, offeringID string, planID string) (bool, error) {
+	byID := query.ByField(query.EqualsOperator, "id", planID)
+	servicePlanObj, err := repository.Get(ctx, types.ServicePlanType, byID)
+	if err != nil {
+		return false, util.HandleStorageError(err, types.ServicePlanType.String())
+	}
+	servicePlan := servicePlanObj.(*types.ServicePlan)
+	return offeringID == servicePlan.ServiceOfferingID, nil
 }
