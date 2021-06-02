@@ -30,7 +30,7 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 	var referencedInstance *types.ServiceInstance
 	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
 	if exists && referencedInstanceID.String() != "*" {
-		referencedInstance, err = getReferencedInstancesByID(ctx, repository, referencedInstanceID.String(), tenantIdentifier, getTenantId())
+		referencedInstance, err = getInstanceByID(ctx, repository, referencedInstanceID.String(), tenantIdentifier, getTenantId())
 		if err != nil {
 			return "", err
 		}
@@ -58,7 +58,7 @@ func IsValidReferenceInstancePatchRequest(req *web.Request, instance *types.Serv
 	return nil
 }
 
-func getReferencedInstancesByID(ctx context.Context, repository storage.Repository, referencedInstanceID string, tenantIdentifier string, tenantValue string) (*types.ServiceInstance, error) {
+func getInstanceByID(ctx context.Context, repository storage.Repository, referencedInstanceID string, tenantIdentifier string, tenantValue string) (*types.ServiceInstance, error) {
 	referencedInstanceObj, err := repository.Get(ctx, types.ServiceInstanceType,
 		query.ByLabel(query.EqualsOperator, tenantIdentifier, tenantValue),
 		query.ByField(query.EqualsOperator, "id", referencedInstanceID),
@@ -212,15 +212,17 @@ func foundSharedInstanceWithLabels(instance *types.ServiceInstance, labels []byt
 		return false, err
 	}
 	/*
-		selectorLabels: {
-			"key": ["x"],
-			"region": ["us", "jp"]
-		}
+		todo: remove after review
+		should accept this label selector:
+			selectorLabels: {
+				"key": ["x"],
+				"region": ["us", "jp"]
+			}
 
-		instanceLabels: {
-			"key": ["x", "y"],
-			"region": ["us", "eu", "jp"]
-		}
+			instanceLabels: {
+				"key": ["x", "y"],
+				"region": ["us", "eu", "jp"]
+			}
 	*/
 	selectorValidation := make(map[string]bool)
 	for selectorLabelKey, selectorLabelArray := range selectorLabels {
