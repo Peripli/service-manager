@@ -1,9 +1,7 @@
 package sharing
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -33,6 +31,7 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 
 	var referencedInstance *types.ServiceInstance
 	referencedInstanceID := parameters[instance_sharing.ReferencedInstanceIDKey].String()
+	// if ReferencedInstanceID = <guid> (another selector supports ReferencedInstanceIDKey="*" for any shared instance.
 	if len(referencedInstanceID) > 1 {
 		referencedInstance, err = filterInstancesByID(ctx, repository, referencedInstanceID, tenantIdentifier, getTenantId())
 		if err != nil {
@@ -53,6 +52,18 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 	}
 
 	return referencedInstance.ID, nil
+}
+
+func IsValidReferenceInstancePatchRequest(req *web.Request, instance *types.ServiceInstance, planIDProperty string) error {
+	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
+	if instance.ServicePlanID != newPlanID {
+		return util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, instance.ID)
+	}
+	parametersRaw := gjson.GetBytes(req.Body, "parameters").Raw
+	if parametersRaw != "" {
+		return util.HandleInstanceSharingError(util.ErrChangingParametersOfReferenceInstance, instance.ID)
+	}
+	return nil
 }
 
 func filterInstancesByID(ctx context.Context, repository storage.Repository, referencedInstanceID string, tenantIdentifier string, tenantValue string) (*types.ServiceInstance, error) {
@@ -91,6 +102,7 @@ func filterInstancesByID(ctx context.Context, repository storage.Repository, ref
 func validateSelectorResults(results map[string]*types.ServiceInstance, parameters map[string]gjson.Result) error {
 	if results == nil || len(results) == 0 {
 		referencedInstanceID := parameters[instance_sharing.ReferencedInstanceIDKey].String()
+		// if ReferencedInstanceID = <guid> (the other case supports ReferencedInstanceIDKey="*" for any shared instance.
 		if len(referencedInstanceID) > 1 {
 			return util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, referencedInstanceID)
 		}
@@ -99,28 +111,6 @@ func validateSelectorResults(results map[string]*types.ServiceInstance, paramete
 	if len(results) > 1 {
 		// there is more than one shared instance that meets your criteria
 		return util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
-	}
-	return nil
-}
-func createKeyValuePairs(m map[string]gjson.Result) string {
-	b := new(bytes.Buffer)
-	for key, value := range m {
-		_, err := fmt.Fprintf(b, "%s=\"%s\"\n", key, value)
-		if err != nil {
-			return ""
-		}
-	}
-	return b.String()
-}
-
-func IsValidReferenceInstancePatchRequest(req *web.Request, instance *types.ServiceInstance, planIDProperty string) error {
-	newPlanID := gjson.GetBytes(req.Body, planIDProperty).String()
-	if instance.ServicePlanID != newPlanID {
-		return util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, instance.ID)
-	}
-	parametersRaw := gjson.GetBytes(req.Body, "parameters").Raw
-	if parametersRaw != "" {
-		return util.HandleInstanceSharingError(util.ErrChangingParametersOfReferenceInstance, instance.ID)
 	}
 	return nil
 }
@@ -145,12 +135,11 @@ func validateParameters(parameters map[string]gjson.Result) error {
 	if len(parameters) == 0 {
 		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
 	}
-
+	// when provisioning reference by instance id, we only allow one parameter:
 	_, byID := parameters[instance_sharing.ReferencedInstanceIDKey]
 	if byID && len(parameters) > 1 {
 		return util.HandleInstanceSharingError(util.ErrInvalidReferenceSelectors, "")
 	}
-
 	return nil
 }
 
