@@ -3973,7 +3973,7 @@ var _ = DescribeTestsFor(TestCase{
 							BeforeEach(func() {
 								sharedInstance, _ = GetInstanceObjectByID(ctx, sharedInstanceID)
 							})
-							When("one shared instance is returned by the selectors", func() {
+							When("tenant has single shared instance", func() {
 								var resp *httpexpect.Response
 								AfterEach(func() {
 									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -3989,6 +3989,69 @@ var _ = DescribeTestsFor(TestCase{
 										Ready: true,
 									})
 									cleanupInstances(instanceID)
+								})
+								It("creates reference instance by global (*) pointer to a shared instance", func() {
+									randomUUID, _ := uuid.NewV4()
+									requestBody := Object{
+										"name":             "reference-instance-" + randomUUID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
+										"parameters": map[string]string{
+											instance_sharing.ReferencedInstanceIDKey: "*",
+										},
+									}
+									resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusCreated)
+								})
+								It("creates reference instance with empty parameters", func() {
+									randomUUID, _ := uuid.NewV4()
+									requestBody := Object{
+										"name":             "reference-instance-" + randomUUID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
+									}
+									resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusCreated)
+								})
+							})
+							When("tenant has many shared instances", func() {
+								var sharedGuids []string
+								BeforeEach(func() {
+									sharedGuids = nil
+									EnsurePublicPlanVisibility(ctx.SMRepository, anotherServicePlanID)
+									for i := 0; i < 5; i++ {
+										ID, _ := uuid.NewV4()
+										postInstanceRequest["name"] = fmt.Sprintf("shared-%s", ID.String())
+										postInstanceRequest["service_plan_id"] = anotherServicePlanID
+										postInstanceRequest["labels"] = map[string][]string{
+											"origin": {"eu", fmt.Sprint(i)},
+										}
+										sharedGuid, _, _ := prepareInstanceSharingPrerequisites(ctx.SMWithOAuthForTenant, true, false)
+										sharedGuids = append(sharedGuids, sharedGuid)
+									}
+								})
+								var resp *httpexpect.Response
+								AfterEach(func() {
+									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    instanceID,
+										Type:  types.ServiceInstanceType,
+										Ready: true,
+									})
+									cleanupInstances(instanceID)
+									cleanupInstances(sharedGuids...)
 								})
 								It("creates reference instance by plan selector", func() {
 									randomUUID, _ := uuid.NewV4()
@@ -4017,23 +4080,7 @@ var _ = DescribeTestsFor(TestCase{
 											instance_sharing.ReferenceInstanceNameSelector: sharedInstance.Name,
 										},
 									}
-									ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
-										WithQuery("async", false).
-										WithJSON(requestBody).
-										Expect().
-										Status(http.StatusCreated)
-								})
-								It("creates reference instance by global (*) pointer to a shared instance", func() {
-									randomUUID, _ := uuid.NewV4()
-									requestBody := Object{
-										"name":             "reference-instance-" + randomUUID.String(),
-										"service_plan_id":  referencePlan.ID,
-										"maintenance_info": "{}",
-										"parameters": map[string]string{
-											instance_sharing.ReferencedInstanceIDKey: "*",
-										},
-									}
-									ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+									resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 										WithQuery("async", false).
 										WithJSON(requestBody).
 										Expect().
@@ -4045,24 +4092,12 @@ var _ = DescribeTestsFor(TestCase{
 										"name":             "reference-instance-" + randomUUID.String(),
 										"service_plan_id":  referencePlan.ID,
 										"maintenance_info": "{}",
-										"parameters": map[string]Object{
+										"parameters": map[string]map[string][]string{
 											instance_sharing.ReferenceLabelSelector: {
-												TenantIdentifier: Array{TenantIDValue},
+												TenantIdentifier: {TenantIDValue},
+												"origin":         {"1"},
 											},
 										},
-									}
-									resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
-										WithQuery("async", false).
-										WithJSON(requestBody).
-										Expect().
-										Status(http.StatusCreated)
-								})
-								It("creates reference instance with empty parameters", func() {
-									randomUUID, _ := uuid.NewV4()
-									requestBody := Object{
-										"name":             "reference-instance-" + randomUUID.String(),
-										"service_plan_id":  referencePlan.ID,
-										"maintenance_info": "{}",
 									}
 									resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 										WithQuery("async", false).
