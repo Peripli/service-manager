@@ -32,7 +32,7 @@ type ServiceInstance struct {
 	Name                 string             `db:"name"`
 	ServicePlanID        string             `db:"service_plan_id"`
 	PlatformID           string             `db:"platform_id"`
-	ReferencedInstanceID string             `db:"referenced_instance_id"`
+	ReferencedInstanceID sql.NullString     `db:"referenced_instance_id"`
 	DashboardURL         sql.NullString     `db:"dashboard_url"`
 	MaintenanceInfo      sqlxtypes.JSONText `db:"maintenance_info"`
 	Context              sqlxtypes.JSONText `db:"context"`
@@ -61,7 +61,7 @@ func (si *ServiceInstance) ToObject() (types.Object, error) {
 		Name:                 si.Name,
 		ServicePlanID:        si.ServicePlanID,
 		PlatformID:           si.PlatformID,
-		ReferencedInstanceID: si.ReferencedInstanceID,
+		ReferencedInstanceID: si.ReferencedInstanceID.String,
 		DashboardURL:         si.DashboardURL.String,
 		MaintenanceInfo:      getJSONRawMessage(si.MaintenanceInfo),
 		Context:              getJSONRawMessage(si.Context),
@@ -94,7 +94,7 @@ func (*ServiceInstance) FromObject(object types.Object) (storage.Entity, error) 
 		Name:                 serviceInstance.Name,
 		ServicePlanID:        serviceInstance.ServicePlanID,
 		PlatformID:           serviceInstance.PlatformID,
-		ReferencedInstanceID: serviceInstance.ReferencedInstanceID,
+		ReferencedInstanceID: toNullString(serviceInstance.ReferencedInstanceID),
 		DashboardURL:         toNullString(serviceInstance.DashboardURL),
 		MaintenanceInfo:      getJSONText(serviceInstance.MaintenanceInfo),
 		Context:              getJSONText(serviceInstance.Context),

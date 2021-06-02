@@ -261,8 +261,8 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			return nil, fmt.Errorf("operation missing from context")
 		}
 
-		if len(updatedInstance.ReferencedInstanceID) > 0 {
-			log.C(ctx).Infof("Service Instance Interceptor is updating the reference instance %s, which points to the instance: %s", updatedInstance.ID, updatedInstance.ReferencedInstanceID)
+		if updatedInstance.Shared != nil || len(updatedInstance.ReferencedInstanceID) > 0 {
+			log.C(ctx).Infof("Instance sharing flow: updating the instance %s, skipping the broker.", updatedInstance.ID)
 			UpdatedObject, err := f(ctx, updatedObj)
 			return UpdatedObject, err
 		}

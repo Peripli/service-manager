@@ -930,6 +930,12 @@ func createReferenceInstance(platformID, selectorKey string, selectorValue inter
 		Expect(instanceSharingBrokerServer.LastRequest.RequestURI).To(ContainSubstring(sprintf))
 	}
 	Expect(instanceSharingBrokerServer.LastRequest.Method).To(ContainSubstring("PUT"))
+
+	if selectorKey == instance_sharing.ReferencedInstanceIDKey {
+		referenceInstance, _ := GetInstanceObjectByID(ctx, instanceID)
+		Expect(referenceInstance.ReferencedInstanceID).To(Equal(selectorValue))
+	}
+
 	return resp, instanceID
 }
 

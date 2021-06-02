@@ -32,7 +32,7 @@ type ServiceInstance struct {
 	Base
 	Name                 string               `json:"name"`
 	ServicePlanID        string               `json:"service_plan_id"`
-	ReferencedInstanceID string               `json:"referenced_instance_id"`
+	ReferencedInstanceID string               `json:"referenced_instance_id,omitempty"`
 	PlatformID           string               `json:"platform_id"`
 	DashboardURL         string               `json:"dashboard_url,omitempty"`
 	MaintenanceInfo      json.RawMessage      `json:"maintenance_info,omitempty"`

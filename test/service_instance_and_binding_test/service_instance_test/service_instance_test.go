@@ -299,6 +299,14 @@ var _ = DescribeTestsFor(TestCase{
 						Ready: true,
 					})
 					ShareInstance(smExpect, false, http.StatusOK, sharedInstanceID)
+
+					// Expect to retrieve the data from the broker of the shared instance and not of the reference instance
+					uri := brokerServer.LastRequest.RequestURI
+					Expect(uri).To(ContainSubstring(sharedInstanceID))
+					// method should not be patch to the broker, but only post of the previous request
+					method := brokerServer.LastRequest.Method
+					Expect(method).To(Equal("PUT"))
+
 					// reference plan & visibilities
 					referencePlan = GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
 					EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
