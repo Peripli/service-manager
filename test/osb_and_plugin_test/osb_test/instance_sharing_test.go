@@ -781,6 +781,10 @@ func createReferenceInstance(platformID, sharedInstanceID string, accepts_incomp
 	resp.Body().Contains("{}")
 	Expect(instanceSharingBrokerServer.LastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
 	Expect(instanceSharingBrokerServer.LastRequest.Method).To(ContainSubstring("PUT"))
+
+	referenceInstance, _ := GetInstanceObjectByID(ctx, instanceID)
+	Expect(referenceInstance.ReferencedInstanceID).To(Equal(sharedInstanceID))
+
 	return resp, instanceID
 }
 
