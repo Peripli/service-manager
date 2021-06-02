@@ -47,15 +47,9 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 		return "", err
 	}
 
-	referencedInstance, err := getInstanceFromResult(sharedInstancesMap)
+	referencedInstance, err := retrieveInstanceFromMap(sharedInstancesMap)
 	if err != nil {
 		return "", err
-	}
-
-	// If the selector is instanceID, we would like to inform the user if the target instance was not shared:
-	if !referencedInstance.IsShared() {
-		log.C(ctx).Debugf("The target instance %s is not shared.", referencedInstance.ID)
-		return "", util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, referencedInstance.ID)
 	}
 
 	return referencedInstance.ID, nil
@@ -84,6 +78,11 @@ func filterInstancesByID(ctx context.Context, repository storage.Repository, ref
 	if !sameOffering {
 		log.C(ctx).Debugf("The target instance %s is not of the same service offering.", referencedInstance.ID)
 		return nil, util.HandleInstanceSharingError(util.ErrReferenceWithWrongServiceOffering, referencedInstance.ID)
+	}
+
+	if !referencedInstance.IsShared() {
+		log.C(ctx).Debugf("The target instance %s is not shared.", referencedInstance.ID)
+		return nil, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, referencedInstance.ID)
 	}
 
 	instances := map[string]*types.ServiceInstance{}
@@ -128,7 +127,7 @@ func IsValidReferenceInstancePatchRequest(req *web.Request, instance *types.Serv
 	return nil
 }
 
-func getInstanceFromResult(results map[string]*types.ServiceInstance) (*types.ServiceInstance, error) {
+func retrieveInstanceFromMap(results map[string]*types.ServiceInstance) (*types.ServiceInstance, error) {
 	var instance *types.ServiceInstance
 	for key := range results {
 		instance = results[key]
