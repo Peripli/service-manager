@@ -12,7 +12,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-func ExtractReferenceInstanceID(ctx context.Context, repository storage.Repository, body []byte, tenantIdentifier string, getTenantId func() string) (string, error) {
+func ExtractReferencedInstanceID(ctx context.Context, repository storage.Repository, body []byte, tenantIdentifier string, getTenantId func() string) (string, error) {
 	parameters := gjson.GetBytes(body, "parameters").Map()
 	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
 
@@ -20,10 +20,12 @@ func ExtractReferenceInstanceID(ctx context.Context, repository storage.Reposito
 		return "", util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
 	}
 
-	byLabel := query.ByLabel(query.EqualsOperator, tenantIdentifier, getTenantId())
-	referencedInstanceObj, err := storage.GetObjectByField(ctx, repository, types.ServiceInstanceType, "id", referencedInstanceID.String(), byLabel)
+	referencedInstanceObj, err := repository.Get(ctx, types.ServiceInstanceType,
+		query.ByLabel(query.EqualsOperator, tenantIdentifier, getTenantId()),
+		query.ByField(query.EqualsOperator, "id", referencedInstanceID.String()),
+	)
 	if err != nil {
-		log.C(ctx).Errorf("Failed to retrieve the instance %s by the caller %s", referencedInstanceID, getTenantId())
+		log.C(ctx).Errorf("failed retrieving service instance %s: %v", referencedInstanceID.String(), err)
 		return "", util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, referencedInstanceID.String())
 	}
 	referencedInstance := referencedInstanceObj.(*types.ServiceInstance)
