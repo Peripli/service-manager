@@ -275,8 +275,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						Context("positive", func() {
 							var brokerID string
 							var shareableCatalogID string
-							var schema json.RawMessage
-							var metadata json.RawMessage
+							var plan *types.ServicePlan
 							var err error
 							BeforeEach(func() {
 								_, shareableCatalogID, brokerID, _, _ = sharingInstanceBlueprint(ctx, ctx.SMWithOAuth, false)
@@ -285,7 +284,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusNotFound)
 								assertPlansForPlatform(k8sAgent, nil...)
 								common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, referencePlanID, k8sPlatform.ID)
-								schema, metadata, err = schemas.SchemaLoader(schemas.ReferencePlan)
+								plan, err = schemas.CreatePlanOutOfSchema(schemas.ReferencePlan)
 								Expect(err).To(BeNil())
 							})
 							When("creating a new catalog with shareable plan", func() {
@@ -295,11 +294,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									catalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
 									marshalCatalog, _ := json.Marshal(catalog)
 									Expect(strings.Contains(string(marshalCatalog), referencePlanID)).To(Equal(true))
-									Expect(gjson.GetBytes(catalog, "services.0.plans.1.metadata")).To(MatchJSON(metadata))
-									Expect(gjson.GetBytes(catalog, "services.0.plans.1.schemas")).To(MatchJSON(schema))
+									Expect(gjson.GetBytes(catalog, "services.0.plans.1.metadata")).To(MatchJSON(plan.Metadata))
+									Expect(gjson.GetBytes(catalog, "services.0.plans.1.schemas")).To(MatchJSON(plan.Schemas))
 									servicePlan, _ := getServicePlanByID(ctx.SMRepository, context.TODO(), referencePlanID)
-									Expect(servicePlan.Schemas).To(MatchJSON(schema))
-									Expect(servicePlan.Metadata).To(MatchJSON(metadata))
+									Expect(servicePlan.Schemas).To(MatchJSON(plan.Schemas))
+									Expect(servicePlan.Metadata).To(MatchJSON(plan.Metadata))
 								})
 							})
 							When("updating a broker with existing reference plan", func() {

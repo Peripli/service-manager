@@ -28,7 +28,6 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/tidwall/sjson"
 	"net/http"
-	"time"
 )
 
 const BrokerCreateCatalogInterceptorName = "BrokerCreateCatalogInterceptor"
@@ -188,31 +187,14 @@ func convertReferencePlanObjectToOSBPlan(plan *types.ServicePlan) interface{} {
 }
 
 func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
-	referencePlan := new(types.ServicePlan)
-
-	UUID, err := uuid.NewV4()
-	if err != nil {
-		panic(fmt.Errorf("could not generate GUID for ServicePlan: %s", err))
-	}
-
-	referencePlan.ID = UUID.String()
-	referencePlan.CatalogID = UUID.String()
-	referencePlan.CatalogName = instance_sharing.ReferencePlanName
-	referencePlan.Name = instance_sharing.ReferencePlanName
-	referencePlan.Description = instance_sharing.ReferencePlanDescription
-	referencePlan.ServiceOfferingID = serviceOfferingId
-	referencePlan.Bindable = newTrue()
-	referencePlan.Ready = true
-	referencePlan.CreatedAt = time.Now()
-	referencePlan.UpdatedAt = time.Now()
-	schema, metadata, err := schemas.SchemaLoader(schemas.ReferencePlan)
+	referencePlan, err := schemas.CreatePlanOutOfSchema(schemas.ReferencePlan)
 	if err != nil {
 		panic(fmt.Errorf("error setting reference schema for the reference plan: %s", err))
 	}
-
-	referencePlan.Schemas = schema
-	referencePlan.Metadata = metadata
-
+	referencePlan.ServiceOfferingID = serviceOfferingId
+	if err != nil {
+		panic(fmt.Errorf("error setting reference schema for the reference plan: %s", err))
+	}
 	return referencePlan
 }
 

@@ -1,8 +1,22 @@
 package schemas
+import (
+	"encoding/json"
+	"fmt"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/gofrs/uuid"
+	"time"
+)
 
 const ReferencePlan = `{
-  "metadata": {
-    "supportedPlatforms": [],
+ "name": "reference-instance",
+  "catalog_name": "reference-instance",
+  "description": "Allows to create a reference to a shared service instance from any environment in a subaccount and manage service bindings to that service instance.",
+  "bindable": true,
+  "ready": true,
+ "metadata": {
+    "supportedPlatforms": [
+      
+    ],
     "translations": {
       "en-US": {
         "displayName": "reference-instance",
@@ -34,3 +48,23 @@ const ReferencePlan = `{
     }
   }
 }`
+
+
+
+func CreatePlanOutOfSchema(schema string) (*types.ServicePlan, error) {
+	var plan types.ServicePlan
+	err := json.Unmarshal([]byte(schema), &plan)
+	if err != nil {
+		return &plan, fmt.Errorf("error creating plan from schema: %s", err)
+	}
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		return nil, fmt.Errorf("could not generate GUID for ServicePlan: %s", err)
+	}
+	plan.ID = UUID.String()
+	plan.CatalogID = UUID.String()
+	plan.CreatedAt = time.Now()
+	plan.UpdatedAt = time.Now()
+	return &plan, nil
+
+}
