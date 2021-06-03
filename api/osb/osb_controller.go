@@ -208,6 +208,8 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 
 	if tlsConfig != nil {
 		proxy.Transport = client.GetTransportWithTLS(tlsConfig)
+	} else {
+		proxy.Transport = http.DefaultTransport.(*http.Transport)
 	}
 	proxy.ModifyResponse = func(response *http.Response) error {
 		logger.Infof("Service broker %s replied with status %d", broker.Name, response.StatusCode)

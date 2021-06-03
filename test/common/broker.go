@@ -1,17 +1,17 @@
 /*
- *    Copyright 2018 The Service Manager Authors
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *        http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+*    Copyright 2018 The Service Manager Authors
+*
+*    Licensed under the Apache License, Version 2.0 (the "License");
+*    you may not use this file except in compliance with the License.
+*    You may obtain a copy of the License at
+*
+*        http://www.apache.org/licenses/LICENSE-2.0
+*
+*    Unless required by applicable law or agreed to in writing, software
+*    distributed under the License is distributed on an "AS IS" BASIS,
+*    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*    See the License for the specific language governing permissions and
+*    limitations under the License.
  */
 
 package common
@@ -28,8 +28,6 @@ import (
 	"net/http/httptest"
 	"sync"
 	"time"
-
-	"github.com/Peripli/service-manager/test/tls_settings"
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/gorilla/mux"
@@ -83,10 +81,9 @@ func NewBrokerServer() *BrokerServer {
 	return NewBrokerServerWithCatalog(NewRandomSBCatalog())
 }
 
-func NewBrokerServerTLS() *BrokerServer {
-	return NewBrokerServerWithTLSAndCatalog(NewRandomSBCatalog())
+func NewBrokerServerMTLS(serverCertificate []byte, serverCertificateKey []byte, certificates ...[]byte) *BrokerServer {
+	return NewBrokerServerWithTLSAndCatalog(NewRandomSBCatalog(), serverCertificate, serverCertificateKey, certificates...)
 }
-
 func NewBrokerServerWithCatalog(catalog SBCatalog) *BrokerServer {
 	brokerServer := &BrokerServer{}
 	brokerServer.mutex = &sync.RWMutex{}
@@ -98,9 +95,8 @@ func NewBrokerServerWithCatalog(catalog SBCatalog) *BrokerServer {
 	return brokerServer
 }
 
-func NewBrokerServerWithTLSAndCatalog(catalog SBCatalog) *BrokerServer {
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM([]byte(tls_settings.ClientCertificate))
+func NewBrokerServerWithTLSAndCatalog(catalog SBCatalog, serverCertificate []byte, serverCertificateKey []byte, clientCertificates ...[]byte) *BrokerServer {
+
 	brokerServer := &BrokerServer{}
 	brokerServer.mutex = &sync.RWMutex{}
 	brokerServer.shouldRecordRequests = true
@@ -109,8 +105,22 @@ func NewBrokerServerWithTLSAndCatalog(catalog SBCatalog) *BrokerServer {
 	brokerServer.Catalog = catalog
 	uServer := httptest.NewUnstartedServer(brokerServer.router)
 	uServer.TLS = &tls.Config{}
+	caCertPool := x509.NewCertPool()
+	for _, certificate := range clientCertificates {
+		caCertPool.AppendCertsFromPEM(certificate)
+	}
+
 	uServer.TLS.ClientCAs = caCertPool
 	uServer.TLS.ClientAuth = tls.RequireAndVerifyClientCert
+	if serverCertificate != nil && len(serverCertificate) > 0 && serverCertificateKey != nil && len(serverCertificateKey) > 0 {
+		cert, err := tls.X509KeyPair(serverCertificate, serverCertificateKey)
+		if err != nil {
+			panic(err)
+		}
+		uServer.TLS.Certificates = []tls.Certificate{cert}
+	}
+	uServer.TLS.ServerName = "localhost"
+
 	brokerServer.Server = uServer
 	brokerServer.StartTLS()
 	return brokerServer
