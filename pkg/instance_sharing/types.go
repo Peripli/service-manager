@@ -6,7 +6,7 @@ const (
 
 	ReferencedInstanceIDKey = "referenced_instance_id"
 
-	SupportInstanceSharingKey = "supportInstanceSharing"
+	SupportsInstanceSharingKey = "supportInstanceSharing"
 
 	ReferencePlanNameSelector     = "plan_name_selector"
 	ReferenceInstanceNameSelector = "instance_name_selector"

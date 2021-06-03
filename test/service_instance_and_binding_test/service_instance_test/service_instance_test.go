@@ -236,13 +236,13 @@ var _ = DescribeTestsFor(TestCase{
 				}
 			}
 
-			preparePrerequisitesWithMaxPollingDuration := func(maxPollingDuration int, supportInstanceSharing bool) {
+			preparePrerequisitesWithMaxPollingDuration := func(maxPollingDuration int, supportsInstanceSharing bool) {
 				ID, err := uuid.NewV4()
 				Expect(err).ToNot(HaveOccurred())
 				var plans *httpexpect.Array
 				var brokerUtils *BrokerUtils
 				var serviceOffering *httpexpect.Value
-				if supportInstanceSharing == true {
+				if supportsInstanceSharing == true {
 					brokerUtils, serviceOffering, plans = prepareBrokerWithShareableCatalogAndPollingDuration(ctx, ctx.SMWithOAuth, maxPollingDuration)
 				} else {
 					brokerUtils, serviceOffering, plans = prepareBrokerWithCatalogAndPollingDuration(ctx, ctx.SMWithOAuth, maxPollingDuration)
@@ -4659,7 +4659,7 @@ var _ = DescribeTestsFor(TestCase{
 						})
 						AfterEach(func() {
 							plan = GetPlanByKey(ctx, "id", anotherServicePlanID)
-							plan.Metadata = []byte("{\"supportInstanceSharing\": true}")
+							plan.Metadata = []byte("{\"supportsInstanceSharing\": true}")
 							ctx.SMRepository.Update(context.TODO(), plan, types.LabelChanges{})
 						})
 						It("should fail to share the instance", func() {

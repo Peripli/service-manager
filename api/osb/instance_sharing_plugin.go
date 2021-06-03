@@ -242,7 +242,7 @@ func isValidSharedInstancePatchRequest(ctx context.Context, repository storage.R
 			return util.HandleStorageError(err, types.ServicePlanType.String())
 		}
 		newPlan := dbNewPlanObject.(*types.ServicePlan)
-		if !newPlan.SupportInstanceSharing() {
+		if !newPlan.SupportsInstanceSharing() {
 			return util.HandleInstanceSharingError(util.ErrNewPlanDoesNotSupportInstanceSharing, "")
 		}
 	}

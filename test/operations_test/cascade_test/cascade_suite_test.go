@@ -381,7 +381,7 @@ func SimpleCatalog(serviceID, planID string, planID2 string) SBCatalog {
 		}
       }]
     }]
-  }`, serviceID, planID2, instance_sharing.SupportInstanceSharingKey, planID, instance_sharing.SupportInstanceSharingKey))
+  }`, serviceID, planID2, instance_sharing.SupportsInstanceSharingKey, planID, instance_sharing.SupportsInstanceSharingKey))
 }
 
 func fetchFullTree(repository storage.TransactionalRepository, rootID string) (*tree, error) {

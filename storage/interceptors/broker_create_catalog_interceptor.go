@@ -147,7 +147,7 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 					StatusCode:  http.StatusBadRequest,
 				}
 			}
-			if servicePlan.SupportInstanceSharing() {
+			if servicePlan.SupportsInstanceSharing() {
 				if !isBindablePlan(service, servicePlan) {
 					log.C(ctx).Errorf("%s: %s", util.ErrPlanMustBeBindable, servicePlan.ID)
 					return util.HandleInstanceSharingError(util.ErrPlanMustBeBindable, servicePlan.ID)

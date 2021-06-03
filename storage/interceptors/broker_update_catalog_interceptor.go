@@ -188,7 +188,7 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 						if err != nil {
 							return nil, err
 						}
-						if hasSharedInstances && !existingPlanUpdated.SupportInstanceSharing() {
+						if hasSharedInstances && !existingPlanUpdated.SupportsInstanceSharing() {
 							return nil, util.HandleInstanceSharingError(util.ErrSharedPlanHasReferences, existingPlanUpdated.ID)
 						}
 						if err := existingPlanUpdated.Validate(); err != nil {
