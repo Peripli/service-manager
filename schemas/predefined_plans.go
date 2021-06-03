@@ -51,7 +51,7 @@ const ReferencePlan = `{
 
 
 
-func CreatePlanOutOfSchema(schema string) (*types.ServicePlan, error) {
+func CreatePlanOutOfSchema(schema string, serviceOfferingId string) (*types.ServicePlan, error) {
 	var plan types.ServicePlan
 	err := json.Unmarshal([]byte(schema), &plan)
 	if err != nil {
@@ -65,6 +65,7 @@ func CreatePlanOutOfSchema(schema string) (*types.ServicePlan, error) {
 	plan.CatalogID = UUID.String()
 	plan.CreatedAt = time.Now()
 	plan.UpdatedAt = time.Now()
+	plan.ServiceOfferingID = serviceOfferingId
 	return &plan, nil
 
 }

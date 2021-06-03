@@ -156,7 +156,12 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 			}
 		}
 		if sharedPlanFound {
-			referencePlan := generateReferencePlanObject(service.ID)
+			referencePlan, err := schemas.CreatePlanOutOfSchema(schemas.ReferencePlan, service.ID)
+			if err != nil {
+				err := fmt.Errorf("error setting reference schema for the reference plan: %s", err)
+				log.C(ctx).WithError(err)
+				return err
+			}
 			service.Plans = append(service.Plans, referencePlan)
 			// Adds OSB spec properties only
 			referencePlanOSBObj := convertReferencePlanObjectToOSBPlan(referencePlan)
@@ -184,18 +189,6 @@ func convertReferencePlanObjectToOSBPlan(plan *types.ServicePlan) interface{} {
 		"metadata":    plan.Metadata,
 		"schemas":     plan.Schemas,
 	}
-}
-
-func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
-	referencePlan, err := schemas.CreatePlanOutOfSchema(schemas.ReferencePlan)
-	if err != nil {
-		panic(fmt.Errorf("error setting reference schema for the reference plan: %s", err))
-	}
-	referencePlan.ServiceOfferingID = serviceOfferingId
-	if err != nil {
-		panic(fmt.Errorf("error setting reference schema for the reference plan: %s", err))
-	}
-	return referencePlan
 }
 
 func isBindablePlan(service *types.ServiceOffering, plan *types.ServicePlan) bool {
