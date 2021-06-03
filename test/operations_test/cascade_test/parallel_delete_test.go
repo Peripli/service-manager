@@ -15,7 +15,7 @@ var _ = Describe("cascade operations", func() {
 	Context("parallel delete", func() {
 
 		BeforeEach(func() {
-			initTenantResources(true)
+			initTenantResources(true, false)
 		})
 
 		When("Cascade deleting platform during tenant removal", func() {

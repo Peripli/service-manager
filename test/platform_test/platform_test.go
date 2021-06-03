@@ -49,6 +49,11 @@ func TestPlatforms(t *testing.T) {
 	RunSpecs(t, "Platform API Tests Suite")
 }
 
+const (
+	TenantIdentifier = "tenant"
+	TenantIDValue    = "tenantID"
+)
+
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.PlatformsURL,
 	SupportedOps: []test.Op{
@@ -58,10 +63,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 		ClientID:           "tenancyClient",
 		ClientIDTokenClaim: "cid",
 		TenantTokenClaim:   "zid",
-		LabelKey:           "tenant",
+		LabelKey:           TenantIdentifier,
 		TokenClaims: map[string]interface{}{
 			"cid": "tenancyClient",
-			"zid": "tenantID",
+			"zid": TenantIDValue,
 		},
 	},
 	SupportsAsyncOperations:                false,
@@ -544,7 +549,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			Describe("DELETE", func() {
 				const platformID = "p1"
 				var platform common.Object
-
 				BeforeEach(func() {
 					platform = common.MakePlatform(platformID, "cf-10", "cf", "descr")
 					ctx.SMWithOAuth.POST(web.PlatformsURL).
@@ -566,11 +570,98 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							JSON().Object().
 							Value("error").String().Contains("ExistingReferenceEntity")
 					})
-					It("should delete instances when cascade requested", func() {
-						ctx.SMWithOAuth.DELETE(web.PlatformsURL+"/"+platformID).
-							WithQuery("cascade", "true").
-							Expect().
-							Status(http.StatusAccepted)
+					Context("cascade flag in use", func() {
+						It("should delete instances when cascade requested", func() {
+							ctx.SMWithOAuth.DELETE(web.PlatformsURL+"/"+platformID).
+								WithQuery("cascade", "true").
+								Expect().
+								Status(http.StatusAccepted)
+						})
+						When("shared instances exists", func() {
+							var targetPlatform *types.Platform
+							var shareableInstanceID string
+							var sharedInstancePlan *types.ServicePlan
+							BeforeEach(func() {
+								targetPlatform = common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuthForTenant, nil)
+								targetPlatformUser := targetPlatform.Credentials.Basic.Username
+								targetPlatformPassword := targetPlatform.Credentials.Basic.Password
+								targetPlatformExpect := &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+									req.WithBasicAuth(targetPlatformUser, targetPlatformPassword).WithClient(ctx.HttpClient)
+								})}
+
+								plan, _ := common.GenerateShareablePaidTestPlan()
+								sharedInstancePlanCatalogID := gjson.Get(plan, "id").String()
+								service := common.GenerateTestServiceWithPlansWithID("1", plan)
+								serviceID := gjson.Get(service, "id").String()
+
+								catalog := common.NewEmptySBCatalog()
+								catalog.AddService(service)
+
+								brokerUtils := ctx.RegisterBrokerWithCatalog(catalog)
+								brokerID := brokerUtils.Broker.ID
+
+								planObject, _ := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, query.ByField(query.EqualsOperator, "catalog_id", sharedInstancePlanCatalogID))
+								sharedInstancePlan = planObject.(*types.ServicePlan)
+								test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, targetPlatform.GetID(), sharedInstancePlan.GetID(), TenantIDValue)
+
+								shareableInstanceUUID, err := uuid.NewV4()
+								Expect(err).ToNot(HaveOccurred())
+								shareableInstanceID = shareableInstanceUUID.String()
+
+								targetPlatformExpect.PUT(web.BrokerPlatformCredentialsURL).WithJSON(common.Object{
+									"broker_id":     brokerID,
+									"username":      "admin",
+									"password_hash": hashPassword("admin"),
+								}).Expect().Status(http.StatusOK)
+
+								tenantBrokerExpect := ctx.SM.Builder(func(req *httpexpect.Request) {
+									req.WithBasicAuth("admin", "admin")
+								})
+
+								tenantBrokerExpect.PUT(fmt.Sprintf("%s/%s/v2/service_instances/%s", web.OSBURL, brokerID, shareableInstanceID)).
+									WithJSON(common.Object{
+										"service_id": serviceID,
+										"plan_id":    sharedInstancePlanCatalogID,
+										"context": map[string]string{
+											TenantIdentifier: TenantIDValue,
+										},
+									}).Expect().Status(http.StatusCreated)
+
+								err = common.ShareInstanceOnDB(ctx, shareableInstanceID)
+								Expect(err).NotTo(HaveOccurred())
+							})
+
+							Context("no references exists", func() {
+								It("should accept the request", func() {
+									ctx.SMWithOAuthForTenant.DELETE(web.PlatformsURL+"/"+targetPlatform.GetID()).
+										WithQuery("cascade", "true").
+										Expect().
+										Status(http.StatusAccepted)
+								})
+							})
+							Context("references exists in the other platform", func() {
+								BeforeEach(func() {
+									otherPlatform := common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuthForTenant, nil)
+									referencePlan := common.GetReferencePlanOfExistingPlan(ctx, "id", sharedInstancePlan.GetID())
+									test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, otherPlatform.GetID(), referencePlan.ID, TenantIDValue)
+									resp := common.CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated, shareableInstanceID, referencePlan.ID)
+									referenceInstanceID, _ := common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+									Expect(referenceInstanceID).NotTo(BeEmpty())
+								})
+								It("should return reject", func() {
+									ctx.SMWithOAuthForTenant.DELETE(web.PlatformsURL+"/"+targetPlatform.GetID()).
+										WithQuery("cascade", "true").
+										Expect().
+										Status(http.StatusUnprocessableEntity)
+								})
+							})
+						})
 					})
 				})
 

@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"fmt"
 
 	"github.com/Peripli/service-manager/storage"
 
@@ -66,7 +67,9 @@ var _ = Describe("Storage Locker", func() {
 		mock.ExpectQuery(`SELECT CURRENT_DATABASE()`).WillReturnRows(sqlmock.NewRows([]string{"mock"}).FromCSVString("mock"))
 		mock.ExpectQuery(`SELECT COUNT(1)*`).WillReturnRows(sqlmock.NewRows([]string{"mock"}).FromCSVString("1"))
 		mock.ExpectExec("SELECT pg_advisory_lock*").WithArgs(sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
-		mock.ExpectQuery(`SELECT version, dirty FROM "schema_migrations" LIMIT 1`).WillReturnRows(sqlmock.NewRows([]string{"version", "dirty"}).FromCSVString("20210218104000,false"))
+
+		fromCSVString := fmt.Sprintf("%s,false", latestMigrationVersion)
+		mock.ExpectQuery(`SELECT version, dirty FROM "schema_migrations" LIMIT 1`).WillReturnRows(sqlmock.NewRows([]string{"version", "dirty"}).FromCSVString(fromCSVString))
 		mock.ExpectExec("SELECT pg_advisory_unlock*").WithArgs(sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
 
 		options := storage.DefaultSettings()

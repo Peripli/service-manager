@@ -35,7 +35,7 @@ func FindCascadeOperationForResource(ctx context.Context, storage storage.Reposi
 func GetAllLevelsCascadeOperations(ctx context.Context, object types.Object, operation *types.Operation, storage storage.Repository) ([]*types.Operation, error) {
 	// if the root is broker we have to enrich his service offerings and plans
 	if object.GetType() == types.ServiceBrokerType {
-		if err := enrichBrokersOfferings(ctx, object, storage); err != nil {
+		if err := EnrichBrokersOfferings(ctx, object, storage); err != nil {
 			return nil, err
 		}
 	}
@@ -66,27 +66,45 @@ func recursiveGetAllLevelsCascadeOperations(ctx context.Context, object types.Ob
 	return operations, nil
 }
 
-func GetObjectChildren(ctx context.Context, object types.Object, storage storage.Repository) (cascade.CascadeChildren, error) {
-	children := make(cascade.CascadeChildren)
-	cascadeObject, isCascade := cascade.GetCascadeObject(ctx, object)
-	if isCascade {
-		for childType, childCriteria := range cascadeObject.GetChildrenCriterion() {
-			list, err := storage.List(ctx, childType, childCriteria...)
+func ListCascadeChildren(ctx context.Context, childrenCriterion cascade.ChildrenCriterion, storage storage.Repository) (cascade.CascadeChildren, error) {
+	cascadeChildren := make(cascade.CascadeChildren)
+	for childType, criterionDisjunction := range childrenCriterion {
+		for _, criterionConjunction := range criterionDisjunction {
+			childrenList, err := storage.List(ctx, childType, criterionConjunction...)
 			if err != nil {
 				return nil, err
 			}
-			children[childType] = list
+			if cascadeChildren[childType] == nil {
+				cascadeChildren[childType] = childrenList
+			} else {
+				for i := 0; i < childrenList.Len(); i++ {
+					cascadeChildren[childType].Add(childrenList.ItemAt(i))
+				}
+			}
+		}
+	}
+	return cascadeChildren, nil
+}
+
+func GetObjectChildren(ctx context.Context, object types.Object, storage storage.Repository) (cascade.CascadeChildren, error) {
+	cascadeObject, isCascade := cascade.GetCascadeObject(ctx, object)
+	if isCascade {
+		children, err := ListCascadeChildren(ctx, cascadeObject.GetChildrenCriterion(), storage)
+		if err != nil {
+			return nil, err
 		}
 		if brokers, found := children[types.ServiceBrokerType]; found {
 			for i := 0; i < brokers.Len(); i++ {
-				if err := enrichBrokersOfferings(ctx, brokers.ItemAt(i), storage); err != nil {
+				if err := EnrichBrokersOfferings(ctx, brokers.ItemAt(i), storage); err != nil {
 					return nil, err
 				}
 			}
 		}
 		removeDuplicateSubOperations(cascadeObject, children)
+		return children, nil
+	} else {
+		return make(cascade.CascadeChildren), nil
 	}
-	return children, nil
 }
 
 func removeDuplicateSubOperations(cascadeObject cascade.Cascade, children cascade.CascadeChildren) {
@@ -96,7 +114,7 @@ func removeDuplicateSubOperations(cascadeObject cascade.Cascade, children cascad
 	}
 }
 
-func enrichBrokersOfferings(ctx context.Context, brokerObj types.Object, storage storage.Repository) error {
+func EnrichBrokersOfferings(ctx context.Context, brokerObj types.Object, storage storage.Repository) error {
 	broker := brokerObj.(*types.ServiceBroker)
 	serviceOfferings, err := storage.List(ctx, types.ServiceOfferingType, query.ByField(query.EqualsOperator, "broker_id", broker.GetID()))
 	if err != nil {

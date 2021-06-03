@@ -29,9 +29,10 @@ var _ = Describe("Bind", func() {
 	var BID = "01010"
 	BeforeEach(func() {
 		brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+		json := provisionRequestBodyMapWith("plan_id", plan1CatalogID)()
 		ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+IID).
 			WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-			WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
+			WithJSON(json).
 			Expect().Status(http.StatusCreated)
 	})
 

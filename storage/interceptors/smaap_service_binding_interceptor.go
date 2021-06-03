@@ -101,6 +101,10 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		if err != nil {
 			return nil, err
 		}
+		// we use isReferenceInstance bool, since we override the instance object on the instance sharing flow, so we dont have instance.ReferencedInstanceID
+		isReferenceInstance := false
+		// instanceContext will be used for reverting the binding.context on the instance sharing flow.
+		instanceContext := instance.Context
 		smaapOperated := isOperatedBySmaaP(instance)
 
 		if instance.PlatformID != types.SMPlatform && !smaapOperated {
@@ -110,6 +114,17 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		operation, found := opcontext.Get(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
+		}
+
+		if len(instance.ReferencedInstanceID) > 0 {
+			isReferenceInstance = true
+			log.C(ctx).Infof("Creating a reference-binding. Switching the reference-instance context of \"%s\", with the shared instance: \"%s\"", instance.ID, instance.ReferencedInstanceID)
+			instance, err = getInstanceByID(ctx, instance.ReferencedInstanceID, i.repository)
+			if err != nil {
+				log.C(ctx).Errorf("Failed to retrieve the instance %s. Error: %s", instance.ReferencedInstanceID, err)
+				return nil, err
+			}
+			binding.Context = instance.Context
 		}
 
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
@@ -184,6 +199,10 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 					}
 				}
 
+				if isReferenceInstance {
+					// we revert the binding context using the original instance context before saving in the database
+					binding.Context = instanceContext
+				}
 				if operation.IsAsyncResponse() {
 					_, err := f(ctx, obj)
 					if err != nil {
@@ -224,6 +243,10 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 					logBindRequest(bindRequest), broker.Name, logBindResponse(bindResponse))
 			}
 
+			if isReferenceInstance {
+				// we revert the binding context using the original instance context before saving in the database
+				binding.Context = instanceContext
+			}
 			object, err := f(ctx, obj)
 			if err != nil {
 				return nil, err
@@ -307,6 +330,12 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 	instance, err := getInstanceByID(ctx, binding.ServiceInstanceID, i.repository)
 	if err != nil {
 		return err
+	}
+
+	if len(instance.ReferencedInstanceID) > 0 {
+		log.C(ctx).Infof("Deleting a reference-binding. Switching the reference-instance context of \"%s\", with the shared instance: \"%s\"", instance.ID, instance.ReferencedInstanceID)
+		instance, _ = getInstanceByID(ctx, instance.ReferencedInstanceID, i.repository)
+		binding.Context = instance.Context
 	}
 
 	osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
@@ -577,7 +606,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 
 				// for async creation of bindings, an extra fetching of the binding is required to get the credentials
 				if operation.Type == types.CREATE {
-					bindingDetails, err := i.getBindingDetailsFromBroker(ctx, binding, operation, brokerID, osbClient)
+					bindingDetails, err := i.getBindingDetailsFromBroker(ctx, binding, operation, brokerID, osbClient, instance)
 					if err != nil {
 						return err
 					}
@@ -634,9 +663,9 @@ func (i *ServiceBindingInterceptor) processMaxPollingDurationElapsed(ctx context
 	}
 }
 
-func (i *ServiceBindingInterceptor) getBindingDetailsFromBroker(ctx context.Context, binding *types.ServiceBinding, operation *types.Operation, brokerID string, osbClient osbc.Client) (*bindResponseDetails, error) {
+func (i *ServiceBindingInterceptor) getBindingDetailsFromBroker(ctx context.Context, binding *types.ServiceBinding, operation *types.Operation, brokerID string, osbClient osbc.Client, instance *types.ServiceInstance) (*bindResponseDetails, error) {
 	getBindingRequest := &osbc.GetBindingRequest{
-		InstanceID: binding.ServiceInstanceID,
+		InstanceID: instance.GetID(),
 		BindingID:  binding.ID,
 	}
 	log.C(ctx).Infof("Sending get binding request %s to broker with id %s", logGetBindingRequest(getBindingRequest), brokerID)

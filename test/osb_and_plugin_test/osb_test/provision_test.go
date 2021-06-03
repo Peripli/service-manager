@@ -324,7 +324,7 @@ var _ = Describe("Provision", func() {
 			ctx.SMWithBasic.SetBasicCredentials(ctx, credentials.username, credentials.password)
 
 			assertUnresponsiveBrokerError(ctx.SMWithBasic.PUT(smUrlToStoppedBroker+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(common.JSONToMap(buildRequestBody(service0CatalogID, plan0CatalogID))).Expect())
+				WithJSON(common.JSONToMap(buildRequestBody(service0CatalogID, plan0CatalogID, "cloudfoundry", "my-db"))).Expect())
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
@@ -367,11 +367,10 @@ var _ = Describe("Provision", func() {
 			BeforeEach(func() {
 				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 			})
-
 			Context("when creating a the broker over tls", func() {
 				It("creating broker with valid tls settings", func() {
 					provisionRequestBody = buildRequestBody(utils.GetServiceCatalogId(0), utils.
-						SelectBroker(&utils.BrokerWithTLS).GetPlanCatalogId(0, 0))
+						SelectBroker(&utils.BrokerWithTLS).GetPlanCatalogId(0, 0), "cloudfoundry", "my-db")
 					ctx.SMWithBasic.PUT(utils.GetBrokerOSBURL(utils.BrokerWithTLS.ID)+"/v2/service_instances/test").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						WithJSON(common.JSONToMap(provisionRequestBody)).Expect().Status(http.StatusCreated)
 				})

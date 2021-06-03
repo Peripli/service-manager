@@ -17,12 +17,15 @@
 package filters
 
 import (
+	"context"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -62,9 +65,70 @@ func (f *platformTerminationFilter) Run(req *web.Request, next web.Handler) (*we
 				StatusCode:  http.StatusUnprocessableEntity,
 			}
 		}
+		instancesInOtherPlatforms, err := findReferencesOfSharedInstancesInOtherPlatforms(ctx, platform, f.repository)
+		if err != nil {
+			return nil, err
+		}
+
+		if instancesInOtherPlatforms != nil && instancesInOtherPlatforms.Len() > 0 {
+			return nil, &util.HTTPError{
+				ErrorType:   "UnprocessableEntity",
+				Description: "Platform cannot be deleted because other platform(s) has reference instance(s) to the shared instances in given platform. Details: " + formatSharingReferences(instancesInOtherPlatforms),
+				StatusCode:  http.StatusUnprocessableEntity,
+			}
+		}
+	}
+	return next.Handle(req)
+}
+
+func formatSharingReferences(references types.ObjectList) string {
+	refBySharedInstanceID := make(map[string][]string)
+	for i := 0; i < references.Len(); i++ {
+		referenceInstance := references.ItemAt(i).(*types.ServiceInstance)
+		sharedInstanceID := referenceInstance.ReferencedInstanceID
+		refBySharedInstanceID[sharedInstanceID] = append(refBySharedInstanceID[sharedInstanceID], referenceInstance.GetID())
 	}
 
-	return next.Handle(req)
+	var msg []string
+	for key, references := range refBySharedInstanceID {
+		msg = append(msg, "shared instance "+key+" is referenced by instance(s)"+strings.Join(references, ", "))
+	}
+	return strings.Join(msg, ", ")
+}
+
+func findReferencesOfSharedInstancesInOtherPlatforms(ctx context.Context, platform *types.Platform, repository storage.Repository) (types.ObjectList, error) {
+	sharedInstanceIDs, err := findSharedInstancesInPlatform(ctx, platform, repository)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(sharedInstanceIDs) == 0 {
+		return nil, nil
+	}
+
+	references, err := repository.ListNoLabels(ctx,
+		types.ServiceInstanceType,
+		query.ByField(query.InOperator, instance_sharing.ReferencedInstanceIDKey, sharedInstanceIDs...),
+		query.ByField(query.NotEqualsOperator, "platform_id", platform.GetID()))
+
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+	}
+
+	return references, nil
+}
+
+func findSharedInstancesInPlatform(ctx context.Context, platform *types.Platform, repository storage.Repository) ([]string, error) {
+	sharedInstances, err := repository.ListNoLabels(ctx, types.ServiceInstanceType,
+		query.ByField(query.EqualsOperator, "platform_id", platform.ID),
+		query.ByField(query.EqualsOperator, "shared", "true"),
+	)
+
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+	}
+
+	return types.ObjectListIDsToStringArray(sharedInstances), nil
 }
 
 func (*platformTerminationFilter) FilterMatchers() []web.FilterMatcher {

@@ -26,6 +26,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"regexp"
+	"strings"
 
 	"github.com/Peripli/service-manager/pkg/client"
 	"github.com/tidwall/gjson"
@@ -106,8 +107,8 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 
 	targetBrokerURL, _ := url.Parse(broker.BrokerURL)
 
-	m := osbPathPattern.FindStringSubmatch(r.URL.Path)
-	if m == nil || len(m) < 2 {
+	osbPath := osbPathPattern.FindStringSubmatch(r.URL.Path)
+	if osbPath == nil || len(osbPath) < 2 {
 		return nil, fmt.Errorf("could not get OSB path from URL %s", r.URL)
 	}
 
@@ -116,9 +117,15 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 		modifiedRequest.SetBasicAuth(broker.Credentials.Basic.Username, broker.Credentials.Basic.Password)
 	}
 
+	referencedInstance := getReferencedInstance(ctx)
+	if referencedInstance != nil {
+		modifiedRequest.URL.Path = getPathForReferencedInstance(referencedInstance, osbPath[1])
+	} else {
+		modifiedRequest.URL.Path = osbPath[1]
+	}
+
 	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(r.Body))
 	modifiedRequest.ContentLength = int64(len(r.Body))
-	modifiedRequest.URL.Path = m[1]
 
 	// This is needed because the request is shallow copy of the request to the Service Manager
 	// This sets the host header to point to the service broker that the request will be proxied to
@@ -134,6 +141,20 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 
 	proxy.ServeHTTP(recorder, modifiedRequest)
 	return validateBrokerResponse(recorder, broker)
+}
+
+func getReferencedInstance(ctx context.Context) *types.ServiceInstance {
+	instanceFromContext, _ := types.SharedInstanceFromContext(ctx)
+	return instanceFromContext
+}
+
+func getPathForReferencedInstance(referencedInstance *types.ServiceInstance, currentPath string) string {
+	splitted := strings.Split(currentPath, "/")
+	if splitted[3] != "" {
+		splitted[3] = referencedInstance.ID
+		return strings.Join(splitted, "/")
+	}
+	return currentPath
 }
 
 func validateBrokerResponse(recorder *httptest.ResponseRecorder, broker *types.ServiceBroker) (*web.Response, error) {

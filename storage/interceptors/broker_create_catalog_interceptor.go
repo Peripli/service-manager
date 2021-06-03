@@ -19,12 +19,15 @@ package interceptors
 import (
 	"context"
 	"fmt"
-	"net/http"
-
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
+	"github.com/tidwall/sjson"
+	"net/http"
+	"time"
 )
 
 const BrokerCreateCatalogInterceptorName = "BrokerCreateCatalogInterceptor"
@@ -89,15 +92,15 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 		return err
 	}
 	broker.Catalog = catalogBytes
-
 	catalogResponse := struct {
 		Services []*types.ServiceOffering `json:"services"`
 	}{}
 	if err := util.BytesToObject(catalogBytes, &catalogResponse); err != nil {
+		log.C(ctx).Errorf("Failed to create the catalog: %s", err)
 		return err
 	}
 
-	for _, service := range catalogResponse.Services {
+	for serviceIndex, service := range catalogResponse.Services {
 		service.CatalogID = service.ID
 		service.CatalogName = service.Name
 		service.BrokerID = broker.ID
@@ -110,13 +113,20 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 		}
 		service.ID = UUID.String()
 		if err := service.Validate(); err != nil {
+			errorDescription := fmt.Sprintf("service offering constructed during catalog insertion for broker with name %s is invalid: %s", broker.Name, err)
+			log.C(ctx).Errorf(errorDescription)
 			return &util.HTTPError{
 				ErrorType:   "BadRequest",
-				Description: fmt.Sprintf("service offering constructed during catalog insertion for broker with name %s is invalid: %s", broker.Name, err),
+				Description: errorDescription,
 				StatusCode:  http.StatusBadRequest,
 			}
 		}
+		var sharedPlanFound = false
 		for _, servicePlan := range service.Plans {
+			if servicePlanUsesReservedNameForReferencePlan(servicePlan) {
+				log.C(ctx).Errorf("%s: %s", util.ErrCatalogUsesReservedPlanName, instance_sharing.ReferencePlanName)
+				return util.HandleInstanceSharingError(util.ErrCatalogUsesReservedPlanName, instance_sharing.ReferencePlanName)
+			}
 			servicePlan.CatalogID = servicePlan.ID
 			servicePlan.CatalogName = servicePlan.Name
 			servicePlan.ServiceOfferingID = service.ID
@@ -129,15 +139,85 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 			}
 			servicePlan.ID = UUID.String()
 			if err := servicePlan.Validate(); err != nil {
+				errorDescription := fmt.Sprintf("service plan constructed during catalog insertion for broker with name %s is invalid: %s", broker.Name, err)
+				log.C(ctx).Errorf(errorDescription)
 				return &util.HTTPError{
 					ErrorType:   "BadRequest",
-					Description: fmt.Sprintf("service plan constructed during catalog insertion for broker with name %s is invalid: %s", broker.Name, err),
+					Description: errorDescription,
 					StatusCode:  http.StatusBadRequest,
 				}
 			}
+			if servicePlan.SupportInstanceSharing() {
+				if !isBindablePlan(service, servicePlan) {
+					log.C(ctx).Errorf("%s: %s", util.ErrPlanMustBeBindable, servicePlan.ID)
+					return util.HandleInstanceSharingError(util.ErrPlanMustBeBindable, servicePlan.ID)
+				}
+				sharedPlanFound = true
+			}
+		}
+		if sharedPlanFound {
+			referencePlan := generateReferencePlanObject(service.ID)
+			service.Plans = append(service.Plans, referencePlan)
+			// Adds OSB spec properties only
+			referencePlanOSBObj := convertReferencePlanObjectToOSBPlan(referencePlan)
+			// The path should append reference plan into service plans json
+			catalogJsonPath := fmt.Sprintf("services.%d.plans.-1", serviceIndex)
+			catalogJson, err := sjson.SetBytes(broker.Catalog, catalogJsonPath, referencePlanOSBObj)
+			if err != nil {
+				log.C(ctx).Errorf("Failed to create the reference plan: %s", err)
+				return err
+			}
+			broker.Catalog = catalogJson
 		}
 	}
 	broker.Services = catalogResponse.Services
 
 	return nil
+}
+
+func convertReferencePlanObjectToOSBPlan(plan *types.ServicePlan) interface{} {
+	return map[string]interface{}{
+		"id":          plan.ID,
+		"name":        plan.Name,
+		"description": plan.Description,
+		"bindable":    plan.Bindable,
+	}
+}
+
+func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
+	referencePlan := new(types.ServicePlan)
+
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Errorf("could not generate GUID for ServicePlan: %s", err))
+	}
+
+	referencePlan.ID = UUID.String()
+	referencePlan.CatalogID = UUID.String()
+	referencePlan.CatalogName = instance_sharing.ReferencePlanName
+	referencePlan.Name = instance_sharing.ReferencePlanName
+	referencePlan.Description = instance_sharing.ReferencePlanDescription
+	referencePlan.ServiceOfferingID = serviceOfferingId
+	referencePlan.Bindable = newTrue()
+	referencePlan.Ready = true
+	referencePlan.CreatedAt = time.Now()
+	referencePlan.UpdatedAt = time.Now()
+
+	return referencePlan
+}
+
+func isBindablePlan(service *types.ServiceOffering, plan *types.ServicePlan) bool {
+	if plan.Bindable != nil {
+		return *plan.Bindable
+	}
+	return service.Bindable
+}
+
+func servicePlanUsesReservedNameForReferencePlan(servicePlan *types.ServicePlan) bool {
+	return servicePlan.Name == instance_sharing.ReferencePlanName || servicePlan.CatalogName == instance_sharing.ReferencePlanName
+}
+
+func newTrue() *bool {
+	b := true
+	return &b
 }

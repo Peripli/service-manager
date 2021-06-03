@@ -124,7 +124,6 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		instance := obj.(*types.ServiceInstance)
 		instance.Usable = false
 		smaapOperated := isOperatedBySmaaP(instance)
-
 		if instance.PlatformID != types.SMPlatform && !smaapOperated {
 			return f(ctx, obj)
 		}
@@ -134,7 +133,24 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			return nil, fmt.Errorf("operation missing from context")
 		}
 
+		if len(instance.ReferencedInstanceID) > 0 {
+			log.C(ctx).Infof("Service Instance Interceptor creates a reference instance \"%s\", which points to instance-id: \"%s\"", instance.ID, instance.ReferencedInstanceID)
+			instanceContext, err := i.generateInstanceContext(instance)
+			if err != nil {
+				log.C(ctx).Errorf("Failed to generate context to the instance %s. Error: %s", instance.ID, err)
+				return nil, err
+			}
+			marshal, err := json.Marshal(instanceContext)
+			if err != nil {
+				return nil, err
+			}
+			instance.Context = marshal
+			object, err := f(ctx, obj)
+			return object, err
+		}
+
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
+
 		if err != nil {
 			return nil, err
 		}
@@ -244,6 +260,12 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 		operation, found := opcontext.Get(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
+		}
+
+		if updatedInstance.Shared != nil || len(updatedInstance.ReferencedInstanceID) > 0 {
+			log.C(ctx).Infof("Instance sharing flow: updating the instance %s, skipping the broker.", updatedInstance.ID)
+			UpdatedObject, err := f(ctx, updatedObj)
+			return UpdatedObject, err
 		}
 
 		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, updatedInstance)
@@ -421,12 +443,29 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 	if bindingsCount, err = i.repository.Count(ctx, types.ServiceBindingType, byServiceInstanceID); err != nil {
 		return fmt.Errorf("could not fetch bindings for instance with id %s", instance.ID)
 	}
+
+	if instance.IsShared() {
+		referencesList, err := storage.GetInstanceReferencesByID(ctx, i.repository, instance.ID)
+		if err != nil {
+			log.C(ctx).Errorf("Could not retrieve references of the service instance (%s)s: %v", instance.ID, err)
+		}
+		if referencesList != nil && referencesList.Len() > 0 {
+			referencesArray := types.ObjectListIDsToStringArray(referencesList)
+			log.C(ctx).Errorf("Failed to delete the instance: %s, instance ID: %s, references: %s", util.ErrSharedInstanceHasReferences, instance.ID, referencesArray)
+			return util.HandleReferencesError(util.ErrSharedInstanceHasReferences, referencesArray)
+		}
+	}
+
 	if bindingsCount > 0 {
 		return &util.HTTPError{
 			ErrorType:   "BadRequest",
 			Description: fmt.Sprintf("could not delete instance due to %d existing bindings", bindingsCount),
 			StatusCode:  http.StatusBadRequest,
 		}
+	}
+	if len(instance.ReferencedInstanceID) > 0 {
+		log.C(ctx).Infof("Returning out of Service Instance Interceptor - deleting the reference instance \"%s\", which points to shared-instance: \"%s\"", instance.ID, instance.ReferencedInstanceID)
+		return nil
 	}
 
 	osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
@@ -712,9 +751,30 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 }
 
 func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string, userInfo *types.UserInfo) (*osbc.ProvisionRequest, error) {
+	instanceContext, err := i.generateInstanceContext(instance)
+	if err != nil {
+		return nil, err
+	}
+
+	provisionRequest := &osbc.ProvisionRequest{
+		InstanceID:          instance.GetID(),
+		AcceptsIncomplete:   true,
+		ServiceID:           serviceCatalogID,
+		PlanID:              planCatalogID,
+		OrganizationGUID:    "-",
+		SpaceGUID:           "-",
+		Parameters:          instance.Parameters,
+		Context:             instanceContext,
+		OriginatingIdentity: getOriginIdentity(userInfo, instance),
+	}
+
+	return provisionRequest, nil
+}
+
+func (i *ServiceInstanceInterceptor) generateInstanceContext(instance *types.ServiceInstance) (map[string]interface{}, error) {
 	instanceContext := make(map[string]interface{})
+	var err error
 	if len(instance.Context) != 0 {
-		var err error
 		instance.Context, err = sjson.SetBytes(instance.Context, "instance_name", instance.Name)
 		if err != nil {
 			return nil, err
@@ -741,20 +801,7 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.Ser
 		}
 		instance.Context = contextBytes
 	}
-
-	provisionRequest := &osbc.ProvisionRequest{
-		InstanceID:          instance.GetID(),
-		AcceptsIncomplete:   true,
-		ServiceID:           serviceCatalogID,
-		PlanID:              planCatalogID,
-		OrganizationGUID:    "-",
-		SpaceGUID:           "-",
-		Parameters:          instance.Parameters,
-		Context:             instanceContext,
-		OriginatingIdentity: getOriginIdentity(userInfo, instance),
-	}
-
-	return provisionRequest, nil
+	return instanceContext, nil
 }
 
 func getOriginIdentity(userInfo *types.UserInfo, instance *types.ServiceInstance) *osbc.OriginatingIdentity {

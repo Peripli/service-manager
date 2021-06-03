@@ -168,6 +168,8 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			&filters.PatchOnlyLabelsFilter{},
 			filters.NewPlansFilterByVisibility(options.Repository),
 			filters.NewServicesFilterByVisibility(options.Repository),
+			filters.NewSharedInstanceUpdateFilter(options.Repository),
+			filters.NewReferenceInstanceFilter(options.Repository, options.TenantLabelKey),
 			filters.NewBrokersFilterByVisibility(options.Repository),
 			&filters.CheckBrokerCredentialsFilter{},
 			filters.NewServiceInstanceTransferFilter(options.Repository, options.APISettings.EnableInstanceTransfer),

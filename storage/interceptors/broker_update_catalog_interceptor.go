@@ -19,7 +19,10 @@ package interceptors
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
+	"github.com/tidwall/sjson"
 	"net/http"
+	"strconv"
 
 	"github.com/gofrs/uuid"
 
@@ -78,6 +81,11 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 
 		oldBroker.Services = existingServiceOfferingsWithServicePlans.ServiceOfferings
 
+		err = reuseReferenceInstancePlans(oldObj.(*types.ServiceBroker), newObj.(*types.ServiceBroker))
+		if err != nil {
+			return nil, err
+		}
+
 		_, err = f(ctx, txStorage, oldObj, newObj, labelChanges...)
 		if err != nil {
 			return nil, err
@@ -86,7 +94,7 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 		newBrokerObj := newObj.(*types.ServiceBroker)
 		brokerID := newObj.GetID()
 
-		existingServicesOfferingsMap, existingServicePlansPerOfferingMap := convertExistingServiceOfferringsToMaps(existingServiceOfferingsWithServicePlans.ServiceOfferings)
+		existingServicesOfferingsMap, existingServicePlansPerOfferingMap := convertExistingServiceOfferingsToMaps(existingServiceOfferingsWithServicePlans.ServiceOfferings)
 		log.C(ctx).Debugf("Found %d services currently known for broker", len(existingServicesOfferingsMap))
 
 		catalogServices, catalogPlansMap, err := getBrokerCatalogServicesAndPlans(newBrokerObj.Services)
@@ -176,6 +184,13 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 						}
 					}
 					if existingPlanUpdated != nil {
+						hasSharedInstances, err := planHasSharedInstances(txStorage, ctx, existingPlanUpdated.ID)
+						if err != nil {
+							return nil, err
+						}
+						if hasSharedInstances && !existingPlanUpdated.SupportInstanceSharing() {
+							return nil, util.HandleInstanceSharingError(util.ErrSharedPlanHasReferences, existingPlanUpdated.ID)
+						}
 						if err := existingPlanUpdated.Validate(); err != nil {
 							return nil, &util.HTTPError{
 								ErrorType:   "BadRequest",
@@ -228,6 +243,42 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 	}
 }
 
+// reuseReferenceInstancePlans checks whether you have a reference plan already or not.
+// if the catalog has a reference plan already, it does not re-generate it, but uses the existing one.
+// so we don't have multiple reference plans or changes of IDs on the existing reference plans that might be in use by other instances.
+func reuseReferenceInstancePlans(oldBroker *types.ServiceBroker, newBroker *types.ServiceBroker) error {
+	var newServicesByCatalogID = make(map[string]*types.ServiceOffering)
+	var newServicesIdxByCatalogID = make(map[string]int)
+	for index, newService := range newBroker.Services {
+		newServicesByCatalogID[newService.CatalogID] = newService
+		newServicesIdxByCatalogID[newService.CatalogID] = index
+	}
+	for _, oldService := range oldBroker.Services {
+		for _, oldPlan := range oldService.Plans {
+			if oldPlan.Name == instance_sharing.ReferencePlanName {
+				if newServicesByCatalogID[oldService.CatalogID] != nil {
+					newService := newServicesByCatalogID[oldService.CatalogID]
+					for newPlanIndex, newPlan := range newService.Plans {
+						if newPlan.Name == instance_sharing.ReferencePlanName {
+							newPlan.CatalogID = oldPlan.CatalogID
+							newPlan.ID = oldPlan.ID
+							jsonPath := fmt.Sprintf("services.%d.plans.%d.id", newServicesIdxByCatalogID[newService.CatalogID], newPlanIndex)
+							catalog, err := sjson.SetBytes(newBroker.Catalog, jsonPath, oldPlan.ID)
+							if err != nil {
+								return err
+							}
+							newBroker.Catalog = catalog
+							break
+						}
+					}
+				}
+				break
+			}
+		}
+	}
+	return nil
+}
+
 func createPlan(ctx context.Context, txStorage storage.Repository, servicePlan *types.ServicePlan, brokerID string) error {
 	UUID, err := uuid.NewV4()
 	if err != nil {
@@ -248,7 +299,7 @@ func createPlan(ctx context.Context, txStorage storage.Repository, servicePlan *
 	return nil
 }
 
-func convertExistingServiceOfferringsToMaps(serviceOfferings []*types.ServiceOffering) (map[string]*types.ServiceOffering, map[string][]*types.ServicePlan) {
+func convertExistingServiceOfferingsToMaps(serviceOfferings []*types.ServiceOffering) (map[string]*types.ServiceOffering, map[string][]*types.ServicePlan) {
 	serviceOfferingsMap := make(map[string]*types.ServiceOffering)
 	servicePlansMap := make(map[string][]*types.ServicePlan)
 
@@ -275,4 +326,17 @@ func getBrokerCatalogServicesAndPlans(serviceOfferings []*types.ServiceOffering)
 		plans[serviceOfferings[serviceIndex].CatalogID] = plansForService
 	}
 	return services, plans, nil
+}
+
+func planHasSharedInstances(storage storage.Repository, ctx context.Context, planID string) (bool, error) {
+	byServicePlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
+	bySharedValue := query.ByField(query.EqualsOperator, "shared", strconv.FormatBool(true))
+	sharedInstancesCount, err := storage.Count(ctx, types.ServiceInstanceType, byServicePlanID, bySharedValue)
+	if err != nil {
+		return false, err
+	}
+	if sharedInstancesCount > 0 {
+		return true, nil
+	}
+	return false, nil
 }

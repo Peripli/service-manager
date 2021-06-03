@@ -81,6 +81,14 @@ type ObjectList interface {
 	Len() int
 }
 
+func ObjectListIDsToStringArray(objectList ObjectList) []string {
+	var array []string
+	for index := 0; index < objectList.Len(); index++ {
+		array = append(array, objectList.ItemAt(index).GetID())
+	}
+	return array
+}
+
 // ObjectPage is the DTO for a given page of resources when listing
 type ObjectPage struct {
 	//Token represents the base64 encoded paging_sequence of the last entity in items list

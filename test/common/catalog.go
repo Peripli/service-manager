@@ -61,6 +61,101 @@ var testFreePlan = `
     }
 `
 
+var testShareableFreePlan = `
+	{
+      "name": "another-free-plan-name-%[1]s",
+      "id": "%[1]s",
+      "description": "test-description",
+	  "free": true,
+	  "bindable": true,
+      "metadata": {
+		"supportInstanceSharing": true,
+        "max_storage_tb": 5,
+        "costs":[
+            {
+               "amount":{
+                  "usd":199.0
+               },
+               "unit":"MONTHLY"
+            },
+            {
+               "amount":{
+                  "usd":0.99
+               },
+               "unit":"1GB of messages over 20GB"
+            }
+         ],
+        "bullets": [
+          "40 concurrent connections"
+        ]
+      }
+    }
+`
+
+var testShareablePaidPlan = `
+	{
+      "name": "shareable-plan-name-%[1]s",
+      "id": "%[1]s",
+      "description": "test-description",
+	  "free": false,
+	  "bindable": true,
+      "metadata": {
+        "max_storage_tb": 5,
+		"supportedPlatforms": [],
+		"supportInstanceSharing": true,
+        "costs":[
+            {
+               "amount":{
+                  "usd":199.0
+               },
+               "unit":"MONTHLY"
+            },
+            {
+               "amount":{
+                  "usd":0.99
+               },
+               "unit":"1GB of messages over 20GB"
+            }
+         ],
+        "bullets": [
+          "40 concurrent connections"
+        ]
+      }
+    }
+`
+
+var testShareableNonBindablePlan = `
+	{
+      "name": "shareable-plan-name-%[1]s",
+      "id": "%[1]s",
+      "description": "test-description",
+	  "free": false,
+	  "bindable": false,
+      "metadata": {
+        "max_storage_tb": 5,
+		"supportedPlatforms": [],
+		"supportInstanceSharing": true,
+        "costs":[
+            {
+               "amount":{
+                  "usd":199.0
+               },
+               "unit":"MONTHLY"
+            },
+            {
+               "amount":{
+                  "usd":0.99
+               },
+               "unit":"1GB of messages over 20GB"
+            }
+         ],
+        "bullets": [
+          "40 concurrent connections"
+        ]
+      }
+    }
+`
+
 var testPaidPlan = `
 	{
       "name": "another-paid-plan-name-%[1]s",
@@ -99,6 +194,33 @@ var testService = `
     "requires": ["another-route_forwarding"],
     "tags": ["another-no-sql", "another-relational"],
     "bindable": true,	
+    "instances_retrievable": true,	
+    "allow_context_updates": true,	
+    "bindings_retrievable": true,	
+    "metadata": {	
+      "provider": {	
+        "name": "another name"	
+      },	
+      "listing": {	
+        "imageUrl": "http://example.com/cat.gif",	
+        "blurb": "another blurb here",	
+        "longDescription": "A long time ago, in a another galaxy far far away..."	
+      },	
+      "displayName": "another Fake Service Broker"	
+    },	
+    "plan_updateable": true,	
+    "plans": []
+}
+`
+
+var testServiceNonBindable = `
+{
+    "name": "another-fake-service-%[1]s",
+    "id": "%[1]s",
+    "description": "test-description",
+    "requires": ["another-route_forwarding"],
+    "tags": ["another-no-sql", "another-relational"],
+    "bindable": false,	
     "instances_retrievable": true,	
     "allow_context_updates": true,	
     "bindings_retrievable": true,	
@@ -189,6 +311,22 @@ func NewRandomSBCatalog() SBCatalog {
 	return catalog
 }
 
+// NewRandomSBCatalog returns a service broker catalog containg one random service with one free and one paid random plans
+func NewShareableCatalog() (SBCatalog, string, string, string, string, string) {
+	plan1, _ := GenerateShareablePaidTestPlan()
+	plan2, _ := GenerateShareablePaidTestPlan()
+	plan3, _ := GenerateShareablePaidTestPlan()
+
+	service1 := GenerateTestServiceWithPlans(plan1, plan2)
+	service2 := GenerateTestServiceWithPlans(plan3)
+
+	catalog := NewEmptySBCatalog()
+	catalog.AddService(service1)
+	catalog.AddService(service2)
+
+	return catalog, service1, service2, plan1, plan2, plan3
+}
+
 // NewEmptySBCatalog returns an empty service broker catalog tha contains no services and no plans
 func NewEmptySBCatalog() SBCatalog {
 	catalog := SBCatalog(emptyCatalog)
@@ -217,6 +355,28 @@ func GenerateTestServiceWithPlansWithID(serviceID string, plans ...string) strin
 	return catalogService
 }
 
+func GenerateTestServiceWithPlansWithIDNonBindable(serviceID string, plans ...string) string {
+	var err error
+	catalogService := fmt.Sprintf(testServiceNonBindable, serviceID)
+	for _, plan := range plans {
+		catalogService, err = sjson.Set(catalogService, "plans.-1", JSONToMap(plan))
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	catalogID := gjson.Get(catalogService, "id").Str
+	if catalogID == "" {
+		panic("catalog_id cannot be empty")
+	}
+	catalogName := gjson.Get(catalogService, "name").Str
+	if catalogName == "" {
+		panic("catalog_name cannot be empty")
+	}
+
+	return catalogService
+}
+
 func GenerateTestServiceWithPlans(plans ...string) string {
 	UUID, err := uuid.NewV4()
 	if err != nil {
@@ -226,9 +386,21 @@ func GenerateTestServiceWithPlans(plans ...string) string {
 	return GenerateTestServiceWithPlansWithID(UUID.String(), plans...)
 
 }
+func GenerateTestServiceWithPlansNonBindable(plans ...string) string {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+
+	return GenerateTestServiceWithPlansWithIDNonBindable(UUID.String(), plans...)
+
+}
 
 func GenerateTestPlanWithID(planID string) string {
 	return GenerateTestPlanFromTemplate(planID, testPaidPlan)
+}
+func GenerateShareableTestPlanWithID(planID string) string {
+	return GenerateTestPlanFromTemplate(planID, testShareablePaidPlan)
 }
 
 func GenerateTestPlan() string {
@@ -246,6 +418,28 @@ func GenerateFreeTestPlan() string {
 		panic(err)
 	}
 	return GenerateTestPlanFromTemplate(UUID.String(), testFreePlan)
+}
+func GenerateShareableFreeTestPlan() string {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	return GenerateTestPlanFromTemplate(UUID.String(), testShareableFreePlan)
+}
+func GenerateShareablePaidTestPlan() (string, string) {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	return GenerateTestPlanFromTemplate(UUID.String(), testShareablePaidPlan), UUID.String()
+}
+
+func GenerateShareableNonBindablePlan() string {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	return GenerateTestPlanFromTemplate(UUID.String(), testShareableNonBindablePlan)
 }
 
 func GeneratePaidTestPlan() string {

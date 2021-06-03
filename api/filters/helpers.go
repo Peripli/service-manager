@@ -2,6 +2,7 @@ package filters
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -57,4 +58,13 @@ func plansCriteria(ctx context.Context, repository storage.Repository, platformI
 	}
 	c := query.ByField(query.InOperator, "id", planIDs...)
 	return &c, nil
+}
+
+func getSharedProperty(reqBody []byte) *bool {
+	var reqServiceInstance types.ServiceInstance
+	err := util.BytesToObjectNoLabels(reqBody, &reqServiceInstance)
+	if err != nil {
+		return nil
+	}
+	return reqServiceInstance.Shared
 }

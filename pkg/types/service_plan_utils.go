@@ -17,6 +17,7 @@
 package types
 
 import (
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/tidwall/gjson"
 )
@@ -71,6 +72,12 @@ func (e *ServicePlan) SupportedPlatformNames() []string {
 // If there are no excluded platforms names, empty array is returned
 func (e *ServicePlan) ExcludedPlatformNames() []string {
 	return e.metadataPropertyAsStringArray("excludedPlatformNames")
+}
+
+// SupportInstanceSharing returns the supportInstanceSharing provided in a plan's metadata (if a value is provided at all).
+func (e *ServicePlan) SupportInstanceSharing() bool {
+	isShareable := gjson.GetBytes(e.Metadata, instance_sharing.SupportInstanceSharingKey).Raw
+	return isShareable == "true"
 }
 
 func (e *ServicePlan) metadataPropertyAsStringArray(propertyKey string) []string {

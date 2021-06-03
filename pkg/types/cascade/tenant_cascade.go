@@ -9,7 +9,7 @@ type TenantCascade struct {
 	*types.Tenant
 }
 
-func (t *TenantCascade) CleanDuplicates(children CascadeChildren) {
+func (tc *TenantCascade) CleanDuplicates(children CascadeChildren) {
 	// cleaning instances that will be under platforms or brokers
 	instances, found := children[types.ServiceInstanceType]
 	if !found || instances.Len() == 0 {
@@ -50,10 +50,10 @@ func (t *TenantCascade) CleanDuplicates(children CascadeChildren) {
 	children[types.ServiceInstanceType] = &filteredServiceInstances
 }
 
-func (t *TenantCascade) GetChildrenCriterion() ChildrenCriterion {
+func (tc *TenantCascade) GetChildrenCriterion() ChildrenCriterion {
 	return ChildrenCriterion{
-		types.PlatformType:        {query.ByLabel(query.EqualsOperator, t.TenantIdentifier, t.ID)},
-		types.ServiceBrokerType:   {query.ByLabel(query.EqualsOperator, t.TenantIdentifier, t.ID)},
-		types.ServiceInstanceType: {query.ByLabel(query.EqualsOperator, t.TenantIdentifier, t.ID)},
+		types.PlatformType:        {{query.ByLabel(query.EqualsOperator, tc.TenantIdentifier, tc.ID)}},
+		types.ServiceBrokerType:   {{query.ByLabel(query.EqualsOperator, tc.TenantIdentifier, tc.ID)}},
+		types.ServiceInstanceType: {{query.ByLabel(query.EqualsOperator, tc.TenantIdentifier, tc.ID)}},
 	}
 }

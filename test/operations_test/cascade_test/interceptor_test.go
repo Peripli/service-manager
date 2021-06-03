@@ -16,7 +16,7 @@ type childrenMap = map[string]interface{}
 var _ = Describe("Cascade Operation Interceptor", func() {
 
 	JustBeforeEach(func() {
-		initTenantResources(true)
+		initTenantResources(true, false)
 	})
 
 	Context("tree creation", func() {

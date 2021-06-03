@@ -28,6 +28,6 @@ type PlatformCascade struct {
 
 func (p *PlatformCascade) GetChildrenCriterion() ChildrenCriterion {
 	return ChildrenCriterion{
-		types.ServiceInstanceType: {query.ByField(query.EqualsOperator, "platform_id", p.ID)},
+		types.ServiceInstanceType: {{query.ByField(query.EqualsOperator, "platform_id", p.ID)}},
 	}
 }

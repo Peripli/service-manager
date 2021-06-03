@@ -109,6 +109,18 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 		return nil, util.HandleStorageError(err, types.ServiceBindingType.String())
 	}
 	serviceBinding := serviceBindingObject.(*types.ServiceBinding)
+
+	// Check whether the instance is reference type or not:
+	byID = query.ByField(query.EqualsOperator, "id", serviceBinding.ServiceInstanceID)
+	dbInstanceObject, err := c.repository.Get(ctx, types.ServiceInstanceType, byID)
+	if err != nil {
+		return nil, err
+	}
+	instance := dbInstanceObject.(*types.ServiceInstance)
+	if len(instance.ReferencedInstanceID) > 0 {
+		serviceBinding.ServiceInstanceID = instance.ReferencedInstanceID
+	}
+
 	service, err := storage.GetServiceOfferingByServiceInstanceId(c.repository, ctx, serviceBinding.ServiceInstanceID)
 	if err != nil {
 		return nil, err

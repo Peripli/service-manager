@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -38,6 +39,8 @@ var (
 	tenantOperationsCount = 14 //the number of operations that will be created after tenant creation in JustBeforeEach
 	tenantID              = "tenant_value"
 	osbInstanceID         = "test-instance"
+	sharedInstanceID      = "test-shared-instance"
+	referenceInstanceID   = ""
 	osbBindingID          = "test-binding"
 	smaapInstanceID1      = ""
 	smaapInstanceID2      = ""
@@ -56,14 +59,20 @@ var (
 )
 
 const (
-	polling                 = 1 * time.Millisecond
-	maintainerRetry         = 1 * time.Second
-	lifespan                = 1 * time.Millisecond
-	cascadeOrphanMitigation = 5 * time.Second
-	cleanupInterval         = 9999 * time.Hour
-	reconciliation          = 9999 * time.Hour
-	actionTimeout           = 2 * time.Second
-	pollCascade             = 500 * time.Millisecond
+	polling                              = 1 * time.Millisecond
+	maintainerRetry                      = 1 * time.Second
+	lifespan                             = 1 * time.Millisecond
+	cascadeOrphanMitigation              = 5 * time.Second
+	cleanupInterval                      = 9999 * time.Hour
+	reconciliation                       = 9999 * time.Hour
+	actionTimeout                        = 2 * time.Second
+	pollCascade                          = 500 * time.Millisecond
+	multitenancyLabel                    = "tenant"
+	tenantPlatformGlobalBrokerInstanceID = "tenant_platform_global_broker"
+	globalPlatformTenantBrokerInstanceID = "global_platform_tenant_broker"
+	globalPlatformGlobalBrokerInstanceID = "global_platform_global_broker"
+	osbBindingID1                        = "binding1"
+	osbBindingID2                        = "binding2"
 )
 
 var _ = AfterEach(func() {
@@ -112,7 +121,7 @@ var _ = BeforeSuite(func() {
 			"zid": tenantID,
 		}).
 		WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-			_, err := smb.EnableMultitenancy("tenant", ExtractTenantFunc)
+			_, err := smb.EnableMultitenancy(multitenancyLabel, ExtractTenantFunc)
 			return err
 		}).
 		Build()
@@ -120,12 +129,12 @@ var _ = BeforeSuite(func() {
 
 func registerGlobalBroker(ctx *TestContext, serviceNameID string, planID string) (string, *BrokerServer) {
 	catalog := SimpleCatalog(serviceNameID, planID, generateID())
-	id, _, brokerServer := ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, map[string]interface{}{}, ctx.SMWithOAuth).GetBrokerAsParams()
+	id, _, brokerServer := ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, map[string]interface{}{}, ctx.SMWithOAuth, http.StatusCreated).GetBrokerAsParams()
 	CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, id)
 	return id, brokerServer
 }
 
-func initTenantResources(createInstances bool) {
+func initTenantResources(createInstances bool, createSharedInstances bool) {
 	subaccountResources[types.PlatformType]++
 	globalBrokerID, globalBrokerServer = registerGlobalBroker(ctx, "global-service", "global-plan")
 	tenantBrokerID, tenantBrokerServer = registertenantScopedBroker(ctx, "test-service", "plan-service")
@@ -143,7 +152,8 @@ func initTenantResources(createInstances bool) {
 	if createInstances {
 		ctx.SMWithBasic.SetBasicCredentials(ctx, ctx.TestPlatform.Credentials.Basic.Username, ctx.TestPlatform.Credentials.Basic.Password)
 		// global platform + global broker (tenant child)
-		createOSBInstance(ctx, ctx.SMWithBasic, globalBrokerID, "global_platform_global_broker", map[string]interface{}{
+
+		createOSBInstance(ctx, ctx.SMWithBasic, globalBrokerID, globalPlatformGlobalBrokerInstanceID, map[string]interface{}{
 			"service_id":        "global-service",
 			"plan_id":           "global-plan",
 			"organization_guid": "my-orgafsf",
@@ -152,7 +162,7 @@ func initTenantResources(createInstances bool) {
 			},
 		})
 		// global platform + tenant scoped broker (broker child)
-		createOSBInstance(ctx, ctx.SMWithBasic, tenantBrokerID, "global_platform_tenant_broker", map[string]interface{}{
+		createOSBInstance(ctx, ctx.SMWithBasic, tenantBrokerID, globalPlatformTenantBrokerInstanceID, map[string]interface{}{
 			"service_id":        "test-service",
 			"plan_id":           "plan-service",
 			"organization_guid": "my-org",
@@ -174,7 +184,7 @@ func initTenantResources(createInstances bool) {
 
 		ctx.SMWithBasic.SetBasicCredentials(ctx, tenantPlatformUser, tenantPlatformSecret)
 		// tenant scoped platform + global broker (platform child)
-		createOSBInstance(ctx, ctx.SMWithBasic, globalBrokerID, "tenant_platform_global_broker", map[string]interface{}{
+		createOSBInstance(ctx, ctx.SMWithBasic, globalBrokerID, tenantPlatformGlobalBrokerInstanceID, map[string]interface{}{
 			"service_id":        "global-service",
 			"plan_id":           "global-plan",
 			"organization_guid": "my-orgafsf",
@@ -192,17 +202,41 @@ func initTenantResources(createInstances bool) {
 			},
 		})
 		// osbInstanceID child
-		createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, "binding1", map[string]interface{}{
+		createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, osbBindingID1, map[string]interface{}{
 			"service_id":        "test-service",
 			"plan_id":           "plan-service",
 			"organization_guid": "my-org",
 		})
 		// osbInstanceID child
-		createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, "binding2", map[string]interface{}{
+		createOSBBinding(ctx, ctx.SMWithBasic, tenantBrokerID, osbInstanceID, osbBindingID2, map[string]interface{}{
 			"service_id":        "test-service",
 			"plan_id":           "plan-service",
 			"organization_guid": "my-org",
 		})
+
+		if createSharedInstances {
+			createOSBInstance(ctx, ctx.SMWithBasic, tenantBrokerID, sharedInstanceID, map[string]interface{}{
+				"service_id":        "test-service",
+				"plan_id":           "plan-service",
+				"organization_guid": "my-org",
+				"context": map[string]string{
+					"tenant": tenantID,
+				},
+			})
+			err := ShareInstanceOnDB(ctx, sharedInstanceID)
+			Expect(err).NotTo(HaveOccurred())
+			referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", "plan-service")
+			resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated, sharedInstanceID, referencePlan.ID)
+			referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+				Category:          types.CREATE,
+				State:             types.SUCCEEDED,
+				ResourceType:      types.ServiceInstanceType,
+				Reschedulable:     false,
+				DeletionScheduled: false,
+			})
+			Expect(referenceInstanceID).NotTo(BeEmpty())
+		}
+
 	} else {
 		ctx.SMWithBasic.SetBasicCredentials(ctx, tenantPlatformUser, tenantPlatformSecret)
 	}
@@ -253,7 +287,7 @@ func createOSBBinding(ctx *TestContext, sm *SMExpect, brokerID string, instanceI
 func registertenantScopedBroker(ctx *TestContext, serviceNameID string, planID string) (string, *BrokerServer) {
 	// registering a tenant scope broker
 	catalog := SimpleCatalog(serviceNameID, planID, generateID())
-	id, _, brokerServer := ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, map[string]interface{}{}, ctx.SMWithOAuthForTenant).GetBrokerAsParams()
+	id, _, brokerServer := ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, map[string]interface{}{}, ctx.SMWithOAuthForTenant, http.StatusCreated).GetBrokerAsParams()
 	brokerServer.ShouldRecordRequests(false)
 
 	brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut, func(req *http.Request) (int, map[string]interface{}) {
@@ -332,16 +366,22 @@ func SimpleCatalog(serviceID, planID string, planID2 string) SBCatalog {
         "bindable": true,
         "name": "fake-plan-0",
         "id": "%s",
-        "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections."
+        "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections.",
+		"metadata": {
+			"%s": true
+		}
       },
       {
         "bindable": true,
         "name": "fake-plan-1",
         "id": "%s",
-        "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections."
+        "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections.",
+		"metadata": {
+			"%s": true
+		}
       }]
     }]
-  }`, serviceID, planID2, planID))
+  }`, serviceID, planID2, instance_sharing.SupportInstanceSharingKey, planID, instance_sharing.SupportInstanceSharingKey))
 }
 
 func fetchFullTree(repository storage.TransactionalRepository, rootID string) (*tree, error) {

@@ -14,7 +14,7 @@ import (
 
 var _ = Describe("cascade operations", func() {
 	JustBeforeEach(func() {
-		initTenantResources(true)
+		initTenantResources(true, false)
 	})
 
 	Context("cleanup", func() {

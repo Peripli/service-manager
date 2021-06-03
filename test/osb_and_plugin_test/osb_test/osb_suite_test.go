@@ -60,9 +60,13 @@ const (
 	plan1CatalogID              = "plan1CatalogID"
 	plan2CatalogID              = "plan2CatalogID"
 	plan3CatalogID              = "plan3CatalogID"
+	shareablePlanCatalogID      = "shareablePlanCatalogID"
+	shareablePlan2CatalogID     = "shareablePlan2CatalogID"
 	service0CatalogID           = "service0CatalogID"
 	service1CatalogID           = "service1CatalogID"
+	service2CatalogID           = "service2CatalogID"
 	organizationGUID            = "1113aa0-124e-4af2-1526-6bfacf61b111"
+	instanceSharingSpaceGUID    = "aaaa1234-da91-4f12-8ffa-b51d0336aaaa"
 	SID                         = "12345"
 	timeoutDuration             = time.Millisecond * 1500
 	additionalDelayAfterTimeout = time.Millisecond * 5
@@ -70,6 +74,8 @@ const (
 
 	brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
 	brokerAPIVersionHeaderValue = "2.16"
+
+	acceptsIncompleteKey = "accepts_incomplete"
 )
 
 var (
@@ -92,6 +98,14 @@ var (
 	brokerID     string
 	brokerName   string
 	smBrokerURL  string
+
+	instanceSharingUtils        *common.BrokerUtils
+	instanceSharingBrokerServer *common.BrokerServer
+	instanceSharingBrokerID     string
+	instanceSharingBrokerName   string
+	instanceSharingBrokerHost   string
+	instanceSharingBrokerPath   string
+	instanceSharingBrokerURL    string
 
 	provisionRequestBody string
 
@@ -169,6 +183,33 @@ var _ = BeforeSuite(func() {
 	catalog = common.NewEmptySBCatalog()
 	catalog.AddService(service1)
 
+	shareablePlan := common.GenerateShareableTestPlanWithID(shareablePlanCatalogID)
+	anotherShareablePlan := common.GenerateShareableTestPlanWithID(shareablePlan2CatalogID)
+	service2 := common.GenerateTestServiceWithPlansWithID(service2CatalogID, shareablePlan, anotherShareablePlan)
+	instanceSharingCatalog := common.NewEmptySBCatalog()
+	instanceSharingCatalog.AddService(service2)
+	instanceSharingUtils = ctx.RegisterBrokerWithCatalog(instanceSharingCatalog)
+	instanceSharingBrokerID = instanceSharingUtils.Broker.ID
+
+	var instanceSharingBrokerObject common.Object
+	instanceSharingBrokerObject = instanceSharingUtils.Broker.JSON
+	instanceSharingBrokerServer = instanceSharingUtils.Broker.BrokerServer
+	instanceSharingUtils.BrokerWithTLS = ctx.RegisterBrokerWithRandomCatalogAndTLS(ctx.SMWithOAuth).BrokerWithTLS
+	instanceSharingPlans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("catalog_id in ('%s','%s')", plan1CatalogID, plan2CatalogID)).Iter()
+	for _, p := range instanceSharingPlans {
+		common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, p.Object().Value("id").String().Raw(), ctx.TestPlatform.ID)
+	}
+	instanceSharingBrokerHost = ctx.Servers[common.SMServer].URL()
+	instanceSharingBrokerPath = "/v1/osb/" + instanceSharingBrokerID
+	instanceSharingBrokerURL = instanceSharingBrokerHost + instanceSharingBrokerPath
+	instanceSharingBrokerName = instanceSharingBrokerObject["name"].(string)
+
+	username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, instanceSharingBrokerID)
+	brokerPlatformCredentialsIDMap[instanceSharingBrokerID] = brokerPlatformCredentials{
+		username: username,
+		password: password,
+	}
+
 	var brokerObject common.Object
 
 	utils = ctx.RegisterBrokerWithCatalog(catalog)
@@ -194,7 +235,7 @@ var _ = BeforeSuite(func() {
 var _ = BeforeEach(func() {
 	resetBrokersHandlers()
 	resetBrokersCallHistory()
-	provisionRequestBody = buildRequestBody(service1CatalogID, plan1CatalogID)
+	provisionRequestBody = buildRequestBody(service1CatalogID, plan1CatalogID, "cloudfoundry", "my-db")
 
 	credentials := brokerPlatformCredentialsIDMap[brokerID]
 	ctx.SMWithBasic.SetBasicCredentials(ctx, credentials.username, credentials.password)
@@ -326,6 +367,7 @@ func resetBrokersHandlers() {
 	brokerServerWithEmptyCatalog.ResetHandlers()
 	stoppedBrokerServer.ResetHandlers()
 	brokerServer.ResetHandlers()
+	instanceSharingBrokerServer.ResetHandlers()
 
 }
 
@@ -333,9 +375,10 @@ func resetBrokersCallHistory() {
 	brokerServerWithEmptyCatalog.ResetCallHistory()
 	stoppedBrokerServer.ResetCallHistory()
 	brokerServer.ResetCallHistory()
+	instanceSharingBrokerServer.ResetCallHistory()
 }
 
-func buildRequestBody(serviceID, planID string) string {
+func buildRequestBody(serviceID, planID, platform, instanceName string) string {
 	result := fmt.Sprintf(`{
 		"service_id":        "%s",
 		"plan_id":           "%s",
@@ -346,18 +389,18 @@ func buildRequestBody(serviceID, planID string) string {
 			"param2": "value2"
 		},
 		"context": {
-			"platform": "cloudfoundry",
+			"platform": "%s",
 			"organization_guid": "%s",
 			"organization_name": "system",
 			"space_guid": "aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
 			"space_name": "development",
-			"instance_name": "my-db",
+			"instance_name": "%s",
 			"%s":"%s"
 		},
 		"maintenance_info": {
 			"version": "old"
 		}
-}`, serviceID, planID, organizationGUID, TenantIdentifier, TenantValue)
+}`, serviceID, planID, platform, organizationGUID, instanceName, TenantIdentifier, TenantValue)
 	return result
 }
 func provisionRequestBodyMapWith(key, value string, idsToRemove ...string) func() map[string]interface{} {
@@ -428,6 +471,37 @@ func updateRequestBody(serviceID, oldPlanID, newPlanID string) string {
 	return body
 }
 
+func updateRequestBodyForInstanceSharing(serviceID, oldPlanID, newPlanID, newName string) string {
+	body := fmt.Sprintf(`{
+		"service_id":        "%s",
+		"plan_id":           "%s",
+		"organization_id": "%s",
+		"space_id":        "%s",
+		"context": {
+			"platform": "cloudfoundry",
+			"organization_guid": "%s",
+			"organization_name": "system",
+			"space_guid": "%s",
+			"space_name": "development",
+			"instance_name": "%s",
+			"%s":"%s"
+		},
+		"maintenance_info": {
+			"version": "new"
+		},
+		"previous_values": {
+			"service_id":        "%s",
+			"plan_id":           "%s",
+			"organization_id": "%s",
+			"space_id":        "%s",
+			"maintenance_info": {
+				"version": "old"
+			}
+		}
+}`, serviceID, newPlanID, organizationGUID, instanceSharingSpaceGUID, organizationGUID, instanceSharingSpaceGUID, newName, TenantIdentifier, TenantValue, serviceID, oldPlanID, organizationGUID, instanceSharingSpaceGUID)
+	return body
+}
+
 func updateRequestBodyMapWith(key, value string) func() map[string]interface{} {
 	return func() map[string]interface{} {
 		defer GinkgoRecover()
@@ -437,6 +511,14 @@ func updateRequestBodyMapWith(key, value string) func() map[string]interface{} {
 		if err != nil {
 			Fail(err.Error())
 		}
+		return common.JSONToMap(body)
+	}
+}
+
+func generateUpdateRequestBody(serviceID, oldPlan, newPlan, newName string) func() map[string]interface{} {
+	return func() map[string]interface{} {
+		defer GinkgoRecover()
+		body := updateRequestBodyForInstanceSharing(serviceID, oldPlan, newPlan, newName)
 		return common.JSONToMap(body)
 	}
 }

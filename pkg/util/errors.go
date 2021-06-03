@@ -104,6 +104,12 @@ var (
 	// ErrNotFoundInStorage error returned from storage when entity is not found
 	ErrNotFoundInStorage = errors.New("not found")
 
+	// ErrSharedInstanceHasReferences error returned when shared instance has references
+	ErrSharedInstanceHasReferences = errors.New("shared instance has references")
+
+	// ErrUnsharingInstanceWithReferences error returned when un-sharing an instance with references
+	ErrUnsharingInstanceWithReferences = errors.New("failed un-sharing instance with references")
+
 	// ErrAlreadyExistsInStorage error returned from storage when entity has conflicting fields
 	ErrAlreadyExistsInStorage = errors.New("unique constraint violation")
 
@@ -184,5 +190,169 @@ func HandleStorageError(err error, entityName string) error {
 		default:
 			return err
 		}
+	}
+}
+
+func HandleReferencesError(err error, guidsArray []string) error {
+	if err == nil {
+		return nil
+	}
+
+	if _, ok := err.(*HTTPError); ok {
+		return err
+	}
+
+	switch err {
+	case ErrSharedInstanceHasReferences:
+		errorMessage := fmt.Sprintf("Couldn't delete the service instance. Before you can delete it, you first need to delete these %d references: %s", len(guidsArray), guidsArray)
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: errorMessage,
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrUnsharingInstanceWithReferences:
+		errorMessage := fmt.Sprintf("Couldn't unshare the service instance. Before you can unshare it, you first need to delete these %d references: %s", len(guidsArray), guidsArray)
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: errorMessage,
+			StatusCode:  http.StatusBadRequest,
+		}
+	default:
+		return err
+	}
+}
+
+var (
+	ErrCatalogUsesReservedPlanName               = errors.New("catalog contains a reserved plan name")
+	ErrPlanMustBeBindable                        = errors.New("plan must be bindable")
+	ErrAsyncNotSupportedForSharing               = errors.New("can't use async for sharing instances")
+	ErrReferencedInstanceNotShared               = errors.New("referenced-instance should be shared first")
+	ErrReferencedInstanceNotFound                = errors.New("referenced-instance not found")
+	ErrReferenceWithWrongServiceOffering         = errors.New("referenced-instance not matches the service offering")
+	ErrChangingPlanOfReferenceInstance           = errors.New("changing plan of reference instance")
+	ErrNewPlanDoesNotSupportInstanceSharing      = errors.New("changing shared instance plan to a non-shareable plan")
+	ErrPlanDoesNotSupportInstanceSharing         = errors.New("plan does not support instance sharing")
+	ErrChangingParametersOfReferenceInstance     = errors.New("changing parameters of reference instance")
+	ErrMissingOrInvalidReferenceParameter        = errors.New("missing or invalid referenced_instance_id parameter")
+	ErrUnknownOSBMethod                          = errors.New("osb method is unknown")
+	ErrSharedPlanHasReferences                   = errors.New("shared plan has references")
+	ErrInvalidShareRequest                       = errors.New("invalid share request")
+	ErrInvalidProvisionRequestWithSharedProperty = errors.New("invalid provision request")
+	ErrRequestBodyContainsReferencedInstanceID   = errors.New("invalid provision request body with reference key")
+)
+
+func HandleInstanceSharingError(err error, entityName string) error {
+	if err == nil {
+		return nil
+	}
+
+	if _, ok := err.(*HTTPError); ok {
+		return err
+	}
+
+	switch err {
+	case ErrCatalogUsesReservedPlanName:
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("The plan name you used for registration \"%s\" is a reserved name; you must choose a different name.", entityName),
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrPlanMustBeBindable:
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("The plan %s must be defined as 'bindable' so that it can support instance sharing.", entityName),
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrReferencedInstanceNotShared:
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("Failed to create the reference. The instance %s, for which you want to create the reference, must be shared first.", entityName),
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrReferencedInstanceNotFound:
+		return &HTTPError{
+			ErrorType:   "NotFound",
+			Description: fmt.Sprintf("Failed to create the reference. The instance %s, for which you want to create the reference, not found.", entityName),
+			StatusCode:  http.StatusNotFound,
+		}
+	case ErrReferenceWithWrongServiceOffering:
+		return &HTTPError{
+			ErrorType:   "NotFound",
+			Description: fmt.Sprintf("Failed to create the reference. The instance %s, for which you want to create the reference, does not match the service offering.", entityName),
+			StatusCode:  http.StatusNotFound,
+		}
+	case ErrChangingPlanOfReferenceInstance:
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("Failed to update the instance %s. It isn't allowed to change the plan of reference instances.", entityName),
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrNewPlanDoesNotSupportInstanceSharing:
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "Failed to update the instance’s plan. The new plan must support instance sharing.",
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrPlanDoesNotSupportInstanceSharing:
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("Failed to share the instance. The plan %s does not support instance sharing.", entityName),
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrChangingParametersOfReferenceInstance:
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("Failed to update the instance %s. It isn't allowed to change a reference instance.", entityName),
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrMissingOrInvalidReferenceParameter:
+		return &HTTPError{
+			ErrorType:   "InvalidRequest",
+			Description: fmt.Sprintf("Failed to create the instance. Missing or invalid parameter \"%s\".", entityName),
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrUnknownOSBMethod:
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("Unknown OSB method: \"%s\".", entityName),
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrSharedPlanHasReferences:
+		errorMessage := fmt.Sprintf("Couldn't update the service plan. Before you can set it as supportInstanceSharing=false, you first need to unshare the instances of the plan: %s.", entityName)
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: errorMessage,
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrInvalidShareRequest:
+		errorMessage := fmt.Sprintf("Could not update the instance %s. Modifying the \"shared\" property should be in a dedicated request that doesn't contain any other properties.", entityName)
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: errorMessage,
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrInvalidProvisionRequestWithSharedProperty:
+		errorMessage := "Failed provisioning the instance. The \"shared\" property should be in a dedicated request that doesn't contain any other properties."
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: errorMessage,
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrAsyncNotSupportedForSharing:
+		errorMessage := "Async requests are not supported when modifying the 'shared' property. Try again with \"async\" = \"false\"."
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: errorMessage,
+			StatusCode:  http.StatusBadRequest,
+		}
+	case ErrRequestBodyContainsReferencedInstanceID:
+		errorMessage := fmt.Sprintf("Invalid request. Place the \"%s\" key in the \"parameters\" section of the request.", entityName)
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: errorMessage,
+			StatusCode:  http.StatusBadRequest,
+		}
+	default:
+		return err
 	}
 }

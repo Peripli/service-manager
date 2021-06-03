@@ -44,7 +44,7 @@ func (*PlatformIDInstanceValidationFilter) Name() string {
 }
 
 func (*PlatformIDInstanceValidationFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	if web.IsSMAAPOperated(req.Context()) {
+	if web.IsSMAAPOperated(req.Context()) || getSharedProperty(req.Body) != nil {
 		return next.Handle(req)
 	}
 

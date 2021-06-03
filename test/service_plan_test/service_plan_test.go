@@ -17,9 +17,16 @@
 package service_test
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
+	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/storage"
+	"github.com/tidwall/sjson"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/gavv/httpexpect"
@@ -256,6 +263,89 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							})
 						})
 
+					})
+				})
+
+				Context("Instance Sharing", func() {
+					var referencePlanID string
+
+					When("catalog contains a shareable plan", func() {
+						Context("positive", func() {
+							var brokerID string
+							var shareableCatalogID string
+							BeforeEach(func() {
+								_, shareableCatalogID, brokerID, _, _ = sharingInstanceBlueprint(ctx, ctx.SMWithOAuth, false)
+								referencePlan := common.GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareableCatalogID)
+								referencePlanID = referencePlan.ID
+								assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusNotFound)
+								assertPlansForPlatform(k8sAgent, nil...)
+								common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, referencePlanID, k8sPlatform.ID)
+							})
+							When("creating a new catalog with shareable plan", func() {
+								It("creates a new reference plan", func() {
+									assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusOK)
+									assertPlansForPlatform(k8sAgent, referencePlanID)
+									catalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
+									marshalCatalog, _ := json.Marshal(catalog)
+									Expect(strings.Contains(string(marshalCatalog), referencePlanID)).To(Equal(true))
+								})
+							})
+							When("updating a broker with existing reference plan", func() {
+								It("should not generate new reference plan", func() {
+									ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
+										WithJSON(common.Object{}).Expect()
+
+									assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusOK)
+									Expect(getServicePlanByID(ctx.SMRepository, context.TODO(), referencePlanID)).ToNot(Equal(nil))
+								})
+							})
+							When("two plans support instance sharing", func() {
+								BeforeEach(func() {
+									cPaidPlan1, _ := common.GenerateShareablePaidTestPlan()
+									cPaidPlan1, err := sjson.Set(cPaidPlan1, "maximum_polling_duration", 2)
+									cPaidPlan1, err = sjson.Set(cPaidPlan1, "bindable", true)
+									if err != nil {
+										panic(err)
+									}
+									cPaidPlan2, _ := common.GenerateShareablePaidTestPlan()
+									cPaidPlan2, err = sjson.Set(cPaidPlan2, "bindable", true)
+									if err != nil {
+										panic(err)
+									}
+									cService := common.GenerateTestServiceWithPlansNonBindable(cPaidPlan1, cPaidPlan2)
+									catalog := common.NewEmptySBCatalog()
+									catalog.AddService(cService)
+									ctx.TryRegisterBrokerWithCatalogAndLabels(catalog, common.Object{}, ctx.SMWithOAuth, http.StatusCreated)
+								})
+								It("should have only single reference plan", func() {
+									newCatalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
+									s := string(newCatalog)
+									count := strings.Count(s, instance_sharing.ReferencePlanName)
+									Expect(count).To(Equal(1))
+								})
+							})
+						})
+						Context("negative", func() {
+							When("service and plan are not bindable", func() {
+								It("should fail creating a new reference", func() {
+									cShareablePlan := common.GenerateShareableNonBindablePlan()
+									cService := common.GenerateTestServiceWithPlansNonBindable(cShareablePlan)
+									catalog := common.NewEmptySBCatalog()
+									catalog.AddService(cService)
+									ctx.TryRegisterBrokerWithCatalogAndLabels(catalog, common.Object{}, ctx.SMWithOAuth, http.StatusBadRequest)
+								})
+							})
+							When("first plan is valid for instance sharing, but the second is invalid", func() {
+								It("should fail creating a new reference and return a bad request error", func() {
+									cShareableNonBindablePlan := common.GenerateShareableNonBindablePlan()
+									cShareablePlan, _ := common.GenerateShareablePaidTestPlan()
+									cService := common.GenerateTestServiceWithPlansNonBindable(cShareablePlan, cShareableNonBindablePlan)
+									catalog := common.NewEmptySBCatalog()
+									catalog.AddService(cService)
+									ctx.TryRegisterBrokerWithCatalogAndLabels(catalog, common.Object{}, ctx.SMWithOAuth, http.StatusBadRequest)
+								})
+							})
+						})
 					})
 				})
 
@@ -517,4 +607,40 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Ob
 	sp := auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).First()
 
 	return sp.Object().Raw()
+}
+
+func sharingInstanceBlueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) (common.Object, string, string, common.Object, *common.BrokerServer) {
+	cShareablePlan, shareableCatalogID := common.GenerateShareablePaidTestPlan()
+	cService := common.GenerateTestServiceWithPlans(cShareablePlan)
+	catalog := common.NewEmptySBCatalog()
+	catalog.AddService(cService)
+	brokerID, brokerJSON, BrokerServer := ctx.RegisterBrokerWithCatalog(catalog).GetBrokerAsParams()
+
+	so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
+
+	sp := auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).First()
+
+	return sp.Object().Raw(), shareableCatalogID, brokerID, brokerJSON, BrokerServer
+}
+
+func getCatalogByBrokerID(storage storage.TransactionalRepository, ctx context.Context, brokerID string) (json.RawMessage, error) {
+	byID := query.ByField(query.EqualsOperator, "id", brokerID)
+	object, err := storage.Get(ctx, types.ServiceBrokerType, byID)
+	if err != nil {
+		return nil, err
+	}
+
+	broker := object.(*types.ServiceBroker)
+	return broker.Catalog, nil
+}
+
+func getServicePlanByID(storage storage.TransactionalRepository, ctx context.Context, planID string) (*types.ServicePlan, error) {
+	byID := query.ByField(query.EqualsOperator, "id", planID)
+	object, err := storage.Get(ctx, types.ServicePlanType, byID)
+	if err != nil {
+		return nil, err
+	}
+
+	plan := object.(*types.ServicePlan)
+	return plan, nil
 }

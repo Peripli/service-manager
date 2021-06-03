@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/util/slice"
+	"github.com/tidwall/sjson"
 	"mime"
 	"net/http"
 	"strings"
@@ -172,6 +173,20 @@ func BytesToObject(bytes []byte, object interface{}) error {
 		return err
 	}
 
+	return nil
+}
+
+func BytesToObjectNoLabels(bytes []byte, object interface{}) error {
+	var bytesNoLabels []byte
+	var err error
+
+	if bytesNoLabels, err = sjson.DeleteBytes(bytes, "labels"); err != nil {
+		return err
+	}
+
+	if err = unmarshal(bytesNoLabels, object); err != nil {
+		return err
+	}
 	return nil
 }
 
