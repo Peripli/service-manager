@@ -1,4 +1,5 @@
 package schemas
+
 import (
 	"encoding/json"
 	"fmt"
@@ -48,8 +49,6 @@ const ReferencePlan = `{
     }
   }
 }`
-
-
 
 func CreatePlanOutOfSchema(schema string, serviceOfferingId string) (*types.ServicePlan, error) {
 	var plan types.ServicePlan

@@ -284,7 +284,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusNotFound)
 								assertPlansForPlatform(k8sAgent, nil...)
 								common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, referencePlanID, k8sPlatform.ID)
-								plan, err = schemas.CreatePlanOutOfSchema(schemas.ReferencePlan,"")
+								plan, err = schemas.CreatePlanOutOfSchema(schemas.ReferencePlan, "")
 								Expect(err).To(BeNil())
 							})
 							When("creating a new catalog with shareable plan", func() {
