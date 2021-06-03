@@ -110,7 +110,9 @@ func validateParameters(parameters map[string]gjson.Result) error {
 		return err
 	}
 	hasAtLeastOneSelector := selectorLabels != nil && len(selectorLabels) > 0 || nameExists && len(name.String()) > 0 || planExists && len(plan.String()) > 0
-	if IDExists && len(ID.String()) > 0 && hasAtLeastOneSelector {
+	selectorsAndID := IDExists && len(ID.String()) > 0 && hasAtLeastOneSelector
+	emptyValues := len(ID.String()) == 0 && !hasAtLeastOneSelector
+	if selectorsAndID || emptyValues {
 		return util.HandleInstanceSharingError(util.ErrInvalidReferenceSelectors, "")
 	}
 	return nil

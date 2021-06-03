@@ -4329,8 +4329,8 @@ var _ = DescribeTestsFor(TestCase{
 									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
 								})
 							})
-							When("selectors are invalid", func() {
-								It("fails to provision", func() {
+							FWhen("selectors are invalid", func() {
+								It("fails to provision due to unknown selector", func() {
 									randomUUID, _ := uuid.NewV4()
 									requestBody := Object{
 										"name":             "reference-instance-" + randomUUID.String(),
@@ -4349,6 +4349,29 @@ var _ = DescribeTestsFor(TestCase{
 										Expect().
 										Status(http.StatusNotFound)
 									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
+								})
+								It("fails to provision due to empty selectors", func() {
+									randomUUID, _ := uuid.NewV4()
+
+									parameters := make(map[string]interface{})
+									parameters[instance_sharing.ReferencedInstanceIDKey] = ""
+									parameters[instance_sharing.ReferenceInstanceNameSelector] = ""
+									parameters[instance_sharing.ReferencePlanNameSelector] = ""
+									parameters[instance_sharing.ReferenceLabelSelector] = Object{}
+
+									requestBody := Object{
+										"name":             "reference-instance-" + randomUUID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
+										"parameters":       parameters,
+									}
+
+									resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusBadRequest)
+									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrInvalidReferenceSelectors, ""))
 								})
 							})
 						})
