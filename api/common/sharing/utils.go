@@ -132,11 +132,6 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 	var err error
 	var filteredInstances types.ServiceInstances
 	for i := 0; i < instances.Len(); i++ {
-		// only single result is accepted for selectors:
-		if filteredInstances.Len() > 1 {
-			log.C(ctx).Errorf("%s", util.ErrMultipleReferenceSelectorResults)
-			return types.ServiceInstances{}, util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
-		}
 		// selectors: true or false -> the entire map should be true in order to pass
 		selectors := make(map[string]bool)
 		selectorVal, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
@@ -174,7 +169,11 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 		for _, isValid := range selectors {
 			shouldAdd = shouldAdd && isValid
 		}
-		if shouldAdd {
+		// only single result is accepted for selectors:
+		if shouldAdd && filteredInstances.Len() >= 1 {
+			log.C(ctx).Errorf("%s", util.ErrMultipleReferenceSelectorResults)
+			return types.ServiceInstances{}, util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
+		} else if shouldAdd {
 			filteredInstances.Add(instance)
 		}
 	}
