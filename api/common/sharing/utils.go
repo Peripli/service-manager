@@ -153,7 +153,7 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 
 		selectorVal, exists = parameters[instance_sharing.ReferencePlanNameSelector]
 		if exists {
-			selectors["service_plan_id"], err = foundSharedInstanceWithPlan(ctx, repository, instance, selectorVal.String(), smaap)
+			selectors["service_plan_id"], err = compareInstancePlanWithSelector(ctx, repository, instance.ServicePlanID, selectorVal.String(), smaap)
 			if err != nil {
 				return types.ServiceInstances{}, err
 			}
@@ -161,7 +161,7 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 
 		selectorVal, exists = parameters[instance_sharing.ReferenceLabelSelector]
 		if exists {
-			selectors["label"], err = foundSharedInstanceWithLabels(instance, []byte(selectorVal.Raw))
+			selectors["label"], err = compareInstanceLabelsWithSelector(instance.Labels, []byte(selectorVal.Raw))
 			if err != nil {
 				return types.ServiceInstances{}, err
 			}
@@ -179,7 +179,7 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 	return filteredInstances, nil
 }
 
-func foundSharedInstanceWithPlan(ctx context.Context, repository storage.Repository, instance *types.ServiceInstance, selector string, smaap bool) (bool, error) {
+func compareInstancePlanWithSelector(ctx context.Context, repository storage.Repository, planID string, selector string, smaap bool) (bool, error) {
 	var selectorPlanObj types.Object
 	var err error
 	var key string
@@ -193,10 +193,10 @@ func foundSharedInstanceWithPlan(ctx context.Context, repository storage.Reposit
 		return false, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, "")
 	}
 	selectorPlan := selectorPlanObj.(*types.ServicePlan)
-	return instance.ServicePlanID == selectorPlan.ID, nil
+	return planID == selectorPlan.ID, nil
 }
 
-func foundSharedInstanceWithLabels(instance *types.ServiceInstance, labels []byte) (bool, error) {
+func compareInstanceLabelsWithSelector(instanceLabels types.Labels, labels []byte) (bool, error) {
 	var selectorLabels types.Labels
 	if err := util.BytesToObject(labels, &selectorLabels); err != nil {
 		return false, err
@@ -216,8 +216,8 @@ func foundSharedInstanceWithLabels(instance *types.ServiceInstance, labels []byt
 	*/
 	selectorValidation := make(map[string]bool)
 	for selectorLabelKey, selectorLabelArray := range selectorLabels {
-		instanceLabelVal, exists := instance.Labels[selectorLabelKey]
-		if exists && instance.Labels != nil {
+		instanceLabelVal, exists := instanceLabels[selectorLabelKey]
+		if exists && instanceLabels != nil {
 			validLabel := true
 			for _, selectorLabelVal := range selectorLabelArray {
 				validLabel = validLabel && contains(instanceLabelVal, selectorLabelVal)
