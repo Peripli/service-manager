@@ -96,10 +96,11 @@ func getInstanceByID(ctx context.Context, repository storage.Repository, instanc
 }
 
 func validateParameters(parameters map[string]gjson.Result) error {
-	// failures:
-	// * parameters with empty values
-	// * combination of ID with any other selector
-	// * parameters should not be empty, but the values of each parameter can be "" (empty string/object)
+	/* failures:
+	 * parameters with empty values
+	 * combination of ID with any other selector
+	 * parameters should not be empty, but the values of each parameter can be "" (empty string/object)
+	 */
 	if len(parameters) == 0 {
 		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
 	}
