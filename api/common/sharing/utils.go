@@ -19,6 +19,7 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 
 	err = validateParameters(parameters)
 	if err != nil {
+		log.C(ctx).Errorf("Failed to validate parameters: %s", err)
 		return "", err
 	}
 
@@ -27,16 +28,25 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 	if exists && referencedInstanceID.String() != "*" {
 		referencedInstance, err = getInstanceByID(ctx, repository, referencedInstanceID.String(), tenantIdentifier, getTenantId())
 		if err != nil {
+			log.C(ctx).Errorf("Failed to retrieve the instance %s, error: %s", referencedInstanceID.String(), err)
 			return "", err
 		}
 	} else {
 		sharedInstances, err := getSharedInstances(ctx, repository, tenantIdentifier, getTenantId())
 		if err != nil {
+			log.C(ctx).Errorf("Failed to retrieve shared instances: %s", err)
 			return "", err
 		}
+
 		filteredInstancesList, err := filterInstancesBySelectors(ctx, repository, sharedInstances, parameters, smaap)
+		if err != nil {
+			log.C(ctx).Errorf("Failed to filter instances by selectors: %s", err)
+			return "", err
+		}
+
 		err = validateSingleResult(filteredInstancesList, parameters)
 		if err != nil {
+			log.C(ctx).Errorf("Failed on validating the selectors results: %s", err)
 			return "", err
 		}
 		referencedInstance = filteredInstancesList.ItemAt(0).(*types.ServiceInstance)
