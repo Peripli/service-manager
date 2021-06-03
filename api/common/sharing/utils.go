@@ -96,11 +96,13 @@ func getInstanceByID(ctx context.Context, repository storage.Repository, instanc
 }
 
 func validateParameters(parameters map[string]gjson.Result) error {
+	// failures:
+	// * parameters with empty values
+	// * combination of ID with any other selector
+	// * parameters should not be empty, but the values of each parameter can be "" (empty string/object)
 	if len(parameters) == 0 {
 		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
 	}
-	// don't allow combination of id with selectors.
-	// parameters should not be empty, but the values of each parameter can be ""
 	ID, IDExists := parameters[instance_sharing.ReferencedInstanceIDKey]
 	name, nameExists := parameters[instance_sharing.ReferenceInstanceNameSelector]
 	plan, planExists := parameters[instance_sharing.ReferencePlanNameSelector]
@@ -109,9 +111,6 @@ func validateParameters(parameters map[string]gjson.Result) error {
 	if err := util.BytesToObject([]byte(labels.Raw), &selectorLabels); labelsExists && err != nil {
 		return err
 	}
-	// failures:
-	// * parameters with empty values
-	// * combination of ID with any other selector
 	hasAtLeastOneSelector := selectorLabels != nil && len(selectorLabels) > 0 || nameExists && len(name.String()) > 0 || planExists && len(plan.String()) > 0
 	selectorsAndID := IDExists && len(ID.String()) > 0 && hasAtLeastOneSelector
 	emptyValues := len(ID.String()) == 0 && !hasAtLeastOneSelector
