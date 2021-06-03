@@ -22,11 +22,6 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 		return "", err
 	}
 
-	sharedInstances, err := getSharedInstances(ctx, repository, tenantIdentifier, getTenantId())
-	if err != nil {
-		return "", err
-	}
-
 	var referencedInstance *types.ServiceInstance
 	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
 	if exists && referencedInstanceID.String() != "*" {
@@ -35,6 +30,10 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 			return "", err
 		}
 	} else {
+		sharedInstances, err := getSharedInstances(ctx, repository, tenantIdentifier, getTenantId())
+		if err != nil {
+			return "", err
+		}
 		filteredInstancesList, err := filterInstancesBySelectors(ctx, repository, sharedInstances, parameters, smaap)
 		err = validateSingleResult(filteredInstancesList, parameters)
 		if err != nil {
@@ -99,6 +98,7 @@ func validateSingleResult(results types.ServiceInstances, parameters map[string]
 		}
 		return util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
 	} else if results.Len() > 1 && len(parameters) == 0 {
+		// todo: should not accept empty parameters
 		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
 	} else if results.Len() > 1 {
 		// there is more than one shared instance that meets your criteria

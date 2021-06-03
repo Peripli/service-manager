@@ -287,7 +287,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrMultipleReferenceSelectorResults:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: "Failed to create the reference. Your query selector provided multiple results. Use referenced_instance_id instead.",
+			Description: "Failed to create the reference. There are multiple shared instances that match your criteria. Specify explicity the instance id you would like to refer to.",
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrInvalidReferenceSelectors:
@@ -299,7 +299,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrNoResultsForReferenceSelector:
 		return &HTTPError{
 			ErrorType:   "NotFound",
-			Description: "Failed to create the reference. Couldn't find a shared instance with the provided selectors.",
+			Description: "Failed to create the reference. Couldn't find a shared instance that matches your criteria.",
 			StatusCode:  http.StatusNotFound,
 		}
 	case ErrChangingPlanOfReferenceInstance:
