@@ -299,7 +299,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrNoResultsForReferenceSelector:
 		return &HTTPError{
 			ErrorType:   "NotFound",
-			Description: "Failed to create the reference. Could not find a shared instance with the selectors provided.",
+			Description: "Failed to create the reference. Couldn't find a shared instance with the provided selectors.",
 			StatusCode:  http.StatusNotFound,
 		}
 	case ErrChangingPlanOfReferenceInstance:
