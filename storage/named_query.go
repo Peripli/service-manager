@@ -99,7 +99,8 @@ var namedQueries = map[NamedQuery]string{
 		  exists (
 			SELECT * FROM service_instance_labels 
 			WHERE 	service_instance_labels.key = :tenant_identifier and 
-					service_instance_labels.val = :tenant_id
+					service_instance_labels.val = :tenant_id and
+ 					service_instance_labels.service_instance_id = service_instances.id
 		  )`,
 }
 

@@ -4374,6 +4374,26 @@ var _ = DescribeTestsFor(TestCase{
 									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrInvalidReferenceSelectors, ""))
 								})
 							})
+							When("shared instance owned by different tenant", func() {
+								var otherTenantExpect *SMExpect
+								BeforeEach(func() {
+									// delete old shared instance
+									cleanupInstances(sharedInstanceID)
+									// create instance by other tenant
+									EnsurePublicPlanVisibility(ctx.SMRepository, servicePlanID)
+									otherTenantExpect = ctx.NewTenantExpect("tenancyClient", "other-tenant")
+									sharedInstanceID, _, referencePlan = prepareInstanceSharingPrerequisites(otherTenantExpect, true, false)
+								})
+								AfterEach(func() {
+									otherTenantExpect.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).WithQuery("async", false).
+										Expect().StatusRange(httpexpect.Status2xx)
+								})
+								FIt("should fail to provision the reference instance with selector due to ownership validation", func() {
+									sharedPlan := GetPlanByKey(ctx, "id", sharedInstance.ServicePlanID)
+									resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusNotFound, instance_sharing.ReferencePlanNameSelector, sharedPlan.Name, referencePlan.ID)
+									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
+								})
+							})
 						})
 					})
 					Context("instance ownership", func() {
