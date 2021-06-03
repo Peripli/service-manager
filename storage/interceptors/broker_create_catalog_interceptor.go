@@ -202,7 +202,3 @@ func servicePlanUsesReservedNameForReferencePlan(servicePlan *types.ServicePlan)
 	return servicePlan.Name == instance_sharing.ReferencePlanName || servicePlan.CatalogName == instance_sharing.ReferencePlanName
 }
 
-func newTrue() *bool {
-	b := true
-	return &b
-}
