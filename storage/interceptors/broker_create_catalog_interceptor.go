@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
@@ -95,6 +96,7 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 		Services []*types.ServiceOffering `json:"services"`
 	}{}
 	if err := util.BytesToObject(catalogBytes, &catalogResponse); err != nil {
+		log.C(ctx).Errorf("Failed to create the catalog: %s", err)
 		return err
 	}
 
@@ -111,15 +113,18 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 		}
 		service.ID = UUID.String()
 		if err := service.Validate(); err != nil {
+			errorDescription := fmt.Sprintf("service offering constructed during catalog insertion for broker with name %s is invalid: %s", broker.Name, err)
+			log.C(ctx).Errorf(errorDescription)
 			return &util.HTTPError{
 				ErrorType:   "BadRequest",
-				Description: fmt.Sprintf("service offering constructed during catalog insertion for broker with name %s is invalid: %s", broker.Name, err),
+				Description: errorDescription,
 				StatusCode:  http.StatusBadRequest,
 			}
 		}
 		var sharedPlanFound = false
 		for _, servicePlan := range service.Plans {
 			if servicePlanUsesReservedNameForReferencePlan(servicePlan) {
+				log.C(ctx).Errorf("%s: %s", util.ErrCatalogUsesReservedPlanName, instance_sharing.ReferencePlanName)
 				return util.HandleInstanceSharingError(util.ErrCatalogUsesReservedPlanName, instance_sharing.ReferencePlanName)
 			}
 			servicePlan.CatalogID = servicePlan.ID
@@ -134,14 +139,17 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 			}
 			servicePlan.ID = UUID.String()
 			if err := servicePlan.Validate(); err != nil {
+				errorDescription := fmt.Sprintf("service plan constructed during catalog insertion for broker with name %s is invalid: %s", broker.Name, err)
+				log.C(ctx).Errorf(errorDescription)
 				return &util.HTTPError{
 					ErrorType:   "BadRequest",
-					Description: fmt.Sprintf("service plan constructed during catalog insertion for broker with name %s is invalid: %s", broker.Name, err),
+					Description: errorDescription,
 					StatusCode:  http.StatusBadRequest,
 				}
 			}
 			if servicePlan.SupportInstanceSharing() {
 				if !isBindablePlan(service, servicePlan) {
+					log.C(ctx).Errorf("%s: %s", util.ErrPlanMustBeBindable, servicePlan.ID)
 					return util.HandleInstanceSharingError(util.ErrPlanMustBeBindable, servicePlan.ID)
 				}
 				sharedPlanFound = true
@@ -156,6 +164,7 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 			catalogJsonPath := fmt.Sprintf("services.%d.plans.-1", serviceIndex)
 			catalogJson, err := sjson.SetBytes(broker.Catalog, catalogJsonPath, referencePlanOSBObj)
 			if err != nil {
+				log.C(ctx).Errorf("Failed to create the reference plan: %s", err)
 				return err
 			}
 			broker.Catalog = catalogJson

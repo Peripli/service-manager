@@ -137,6 +137,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			log.C(ctx).Infof("Service Instance Interceptor creates a reference instance \"%s\", which points to instance-id: \"%s\"", instance.ID, instance.ReferencedInstanceID)
 			instanceContext, err := i.generateInstanceContext(instance)
 			if err != nil {
+				log.C(ctx).Errorf("Failed to generate context to the instance %s. Error: %s", instance.ID, err)
 				return nil, err
 			}
 			marshal, err := json.Marshal(instanceContext)
@@ -449,7 +450,9 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 			log.C(ctx).Errorf("Could not retrieve references of the service instance (%s)s: %v", instance.ID, err)
 		}
 		if referencesList != nil && referencesList.Len() > 0 {
-			return util.HandleReferencesError(util.ErrSharedInstanceHasReferences, types.ObjectListIDsToStringArray(referencesList))
+			referencesArray := types.ObjectListIDsToStringArray(referencesList)
+			log.C(ctx).Errorf("Failed to delete the instance: %s, instance ID: %s, references: %s", util.ErrSharedInstanceHasReferences, instance.ID, referencesArray)
+			return util.HandleReferencesError(util.ErrSharedInstanceHasReferences, referencesArray)
 		}
 	}
 

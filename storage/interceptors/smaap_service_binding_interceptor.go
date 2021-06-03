@@ -121,6 +121,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			log.C(ctx).Infof("Creating a reference-binding. Switching the reference-instance context of \"%s\", with the shared instance: \"%s\"", instance.ID, instance.ReferencedInstanceID)
 			instance, err = getInstanceByID(ctx, instance.ReferencedInstanceID, i.repository)
 			if err != nil {
+				log.C(ctx).Errorf("Failed to retrieve the instance %s. Error: %s", instance.ReferencedInstanceID, err)
 				return nil, err
 			}
 			binding.Context = instance.Context

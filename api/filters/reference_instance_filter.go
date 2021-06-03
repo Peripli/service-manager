@@ -53,6 +53,7 @@ func (*referenceInstanceFilter) Name() string {
 func (rif *referenceInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	err := isValidRequestBody(req)
 	if err != nil {
+		log.C(req.Context()).Errorf("Reference instance filter error, invalid request body: %s", err)
 		return nil, err
 	}
 	switch req.Request.Method {
@@ -85,9 +86,11 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 	isReferencePlan, err := storage.IsReferencePlan(req, rif.repository, types.ServicePlanType.String(), "id", servicePlanID)
 	// If plan not found on provisioning, allow sm to handle the issue
 	if err == util.ErrNotFoundInStorage {
+		log.C(ctx).Errorf("Failed to provision the reference instance to due a storage error: %s", err)
 		return next.Handle(req)
 	}
 	if err != nil {
+		log.C(ctx).Errorf("Failed to provision the reference instance: %s", err)
 		return nil, err // handled by the IsReference function
 	}
 	if !isReferencePlan {
@@ -99,6 +102,7 @@ func (rif *referenceInstanceFilter) handleProvision(req *web.Request, next web.H
 	}, true)
 
 	if err != nil {
+		log.C(ctx).Errorf("Failed to extract the referenced instance id: %s", err)
 		return nil, err
 	}
 
@@ -119,6 +123,7 @@ func (rif *referenceInstanceFilter) handleServiceUpdate(req *web.Request, next w
 
 	dbInstanceObject, err := storage.GetObjectByField(ctx, rif.repository, types.ServiceInstanceType, "id", resourceID)
 	if err != nil {
+		log.C(ctx).Errorf("Resource id: %s, not found: %s", resourceID, err)
 		return next.Handle(req)
 	}
 	instance := dbInstanceObject.(*types.ServiceInstance)
