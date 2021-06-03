@@ -18,6 +18,7 @@ package httpclient
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"net/http"
@@ -27,10 +28,15 @@ import (
 type Settings struct {
 	Timeout               time.Duration `mapstructure:"timeout" description:"timeout specifies a time limit for the request. The timeout includes connection time, any redirects, and reading the response body"`
 	TLSHandshakeTimeout   time.Duration `mapstructure:"tls_handshake_timeout"`
+	ServerCertificateKey  string        `mapstructure:"server_certificate_key"`
+	ServerCertificate     string        `mapstructure:"server_certificate"`
 	IdleConnTimeout       time.Duration `mapstructure:"idle_conn_timeout"`
 	ResponseHeaderTimeout time.Duration `mapstructure:"response_header_timeout"`
 	DialTimeout           time.Duration `mapstructure:"dial_timeout"`
 	SkipSSLValidation     bool          `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when making calls to external services"`
+	RootCACertificates    []string      `mapstructure:"root_certificates"`
+
+	TLSCertificates []tls.Certificate
 }
 
 var globalSettings Settings
@@ -64,6 +70,15 @@ func (s *Settings) Validate() error {
 	if s.DialTimeout < 0 {
 		return fmt.Errorf("validate httpclient settings: dial_timeout should be >= 0")
 	}
+	if s.ServerCertificate != "" && s.ServerCertificateKey != "" {
+		cert, err := tls.X509KeyPair([]byte(s.ServerCertificate), []byte(s.ServerCertificateKey))
+		if err != nil {
+			return fmt.Errorf("bad certificate: %s", err)
+		}
+		s.TLSCertificates = []tls.Certificate{cert}
+
+	}
+
 	return nil
 }
 
@@ -84,7 +99,23 @@ func Configure() {
 
 func ConfigureTransport(transport *http.Transport) {
 	settings := GetHttpClientGlobalSettings()
+
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation}
+	if len(settings.TLSCertificates) > 0 {
+		transport.TLSClientConfig.Certificates = settings.TLSCertificates
+	}
+
+	if len(settings.RootCACertificates) > 0 {
+		caCertPool, err := x509.SystemCertPool()
+		if err != nil {
+			caCertPool = x509.NewCertPool()
+		}
+		for _, certificate := range settings.RootCACertificates {
+			caCertPool.AppendCertsFromPEM([]byte(certificate))
+		}
+		transport.TLSClientConfig.RootCAs = caCertPool
+	}
+
 	transport.ResponseHeaderTimeout = settings.ResponseHeaderTimeout
 	transport.TLSHandshakeTimeout = settings.TLSHandshakeTimeout
 	transport.IdleConnTimeout = settings.IdleConnTimeout

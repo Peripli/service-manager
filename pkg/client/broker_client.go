@@ -66,7 +66,6 @@ func (bc *BrokerClient) authAndTlsDecorator(requestHandler util.DoRequestWithCli
 			client.Transport = GetTransportWithTLS(bc.tlsConfig)
 			return requestHandler(req, client)
 		}
-
 		return requestHandler(req, client)
 	}
 }

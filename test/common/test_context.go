@@ -1,17 +1,17 @@
 /*
- *    Copyright 2018 The Service Manager Authors
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *        http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+*    Copyright 2018 The Service Manager Authors
+*
+*    Licensed under the Apache License, Version 2.0 (the "License");
+*    you may not use this file except in compliance with the License.
+*    You may obtain a copy of the License at
+*
+*        http://www.apache.org/licenses/LICENSE-2.0
+*
+*    Unless required by applicable law or agreed to in writing, software
+*    distributed under the License is distributed on an "AS IS" BASIS,
+*    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*    See the License for the specific language governing permissions and
+*    limitations under the License.
  */
 
 package common
@@ -265,6 +265,7 @@ func (expect *SMExpect) ListWithQuery(path string, query string) *httpexpect.Arr
 
 func (expect *SMExpect) SetBasicCredentials(ctx *TestContext, username, password string) {
 	expect.Expect = ctx.SM.Builder(func(req *httpexpect.Request) {
+
 		req.WithBasicAuth(username, password).WithClient(ctx.HttpClient)
 	})
 }
@@ -641,7 +642,9 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, br
 
 func (ctx *TestContext) RegisterBrokerWithRandomCatalogAndTLS(expect *SMExpect) *BrokerUtils {
 	generatedCatalog := NewRandomSBCatalog()
-	brokerServerWithTLS := NewBrokerServerWithTLSAndCatalog(generatedCatalog)
+	brokerServerWithTLS := NewBrokerServerWithTLSAndCatalog(generatedCatalog, []byte(tls_settings.BrokerCertificate), []byte(tls_settings.BrokerCertificateKey),
+		[]byte(tls_settings.ClientCaCertificate))
+
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
@@ -701,9 +704,7 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatal
 
 func (ctx *TestContext) TryRegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object, expect *SMExpect, expectedStatus int) (*BrokerServer, *BrokerServer, Object, Object) {
 	brokerServer := NewBrokerServerWithCatalog(catalog)
-	generatedCatalog := NewRandomSBCatalog()
-	brokerServerWithTLS := NewBrokerServerWithTLSAndCatalog(generatedCatalog)
-
+	brokerServerWithTLS := NewBrokerServerMTLS([]byte(tls_settings.BrokerCertificate), []byte(tls_settings.BrokerCertificateKey), []byte(tls_settings.ClientCaCertificate))
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
