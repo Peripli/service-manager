@@ -167,13 +167,11 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 		if exists {
 			var selectorLabels types.Labels
 			if err := util.BytesToObject([]byte(selectorVal.Raw), &selectorLabels); err != nil {
-				log.C(ctx).Errorf("%s", err)
 				return nil, err
 			}
 			if len(selectorLabels) > 0 {
 				match, err := matchLabels(instance.Labels, selectorLabels)
 				if err != nil {
-					log.C(ctx).Errorf("%s", err)
 					return nil, err
 				}
 				if !match {
@@ -209,7 +207,7 @@ func getSelectorPlan(ctx context.Context, repository storage.Repository, smaap b
 		query.ByField(query.EqualsOperator, "service_offering_id", offeringID),
 	)
 	if err != nil {
-		return nil, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, "")
+		return nil, util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
 	}
 	selectorPlan := planObject.(*types.ServicePlan)
 	return selectorPlan, nil

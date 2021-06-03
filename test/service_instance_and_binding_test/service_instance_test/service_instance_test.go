@@ -134,16 +134,17 @@ var _ = DescribeTestsFor(TestCase{
 				postInstanceRequestTLS Object
 				patchInstanceRequest   Object
 
-				serviceCatalogName          string
-				servicePlanID               string
-				servicePlanCatalogName      string
-				servicePlanIDWithTLS        string
-				anotherServicePlanCatalogID string
-				anotherServicePlanID        string
-				brokerID                    string
-				brokerServer                *BrokerServer
-				brokerServerWithTLS         *BrokerServer
-				instanceID                  string
+				serviceCatalogName            string
+				servicePlanID                 string
+				servicePlanCatalogName        string
+				servicePlanIDWithTLS          string
+				anotherServicePlanCatalogID   string
+				anotherServicePlanID          string
+				servicePlanIDOfAnotherService string
+				brokerID                      string
+				brokerServer                  *BrokerServer
+				brokerServerWithTLS           *BrokerServer
+				instanceID                    string
 			)
 
 			testCases := []testCase{
@@ -258,6 +259,10 @@ var _ = DescribeTestsFor(TestCase{
 				servicePlanCatalogName = plans.Element(0).Object().Value("catalog_name").String().Raw()
 				anotherServicePlanCatalogID = plans.Element(1).Object().Value("catalog_id").String().Raw()
 				anotherServicePlanID = plans.Element(1).Object().Value("id").String().Raw()
+
+				anotherOfferingID := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).Last().Object().Value("id").String().Raw()
+				servicePlanOfAnotherService := GetPlanByKey(ctx, "service_offering_id", anotherOfferingID)
+				servicePlanIDOfAnotherService = servicePlanOfAnotherService.ID
 
 				postInstanceRequest = Object{
 					"name":             "test-instance" + ID.String(),
@@ -4058,7 +4063,7 @@ var _ = DescribeTestsFor(TestCase{
 									}
 									cleanupInstances(sharedGuids...)
 								})
-								It("creates reference instance by plan selector", func() {
+								It("creates reference instance by plan name selector", func() {
 									randomUUID, _ := uuid.NewV4()
 									sharedPlan := GetPlanByKey(ctx, "id", sharedInstance.ServicePlanID)
 									requestBody := Object{
@@ -4075,7 +4080,7 @@ var _ = DescribeTestsFor(TestCase{
 										Expect().
 										Status(http.StatusCreated)
 								})
-								It("creates reference instance by name selector", func() {
+								It("creates reference instance by instance name selector", func() {
 									randomUUID, _ := uuid.NewV4()
 									requestBody := Object{
 										"name":             "reference-instance-" + randomUUID.String(),
@@ -4091,7 +4096,7 @@ var _ = DescribeTestsFor(TestCase{
 										Expect().
 										Status(http.StatusCreated)
 								})
-								It("creates reference instance by name selector with other empty selectors", func() {
+								It("creates reference instance by instance name selector with other empty selectors", func() {
 									randomUUID, _ := uuid.NewV4()
 
 									parameters := make(map[string]interface{})
@@ -4112,7 +4117,7 @@ var _ = DescribeTestsFor(TestCase{
 										Expect().
 										Status(http.StatusCreated)
 								})
-								It("creates reference instance by plan selector with other empty selectors", func() {
+								It("creates reference instance by plan name selector with other empty selectors", func() {
 									randomUUID, _ := uuid.NewV4()
 									sharedPlan := GetPlanByKey(ctx, "id", sharedInstance.ServicePlanID)
 
@@ -4374,23 +4379,120 @@ var _ = DescribeTestsFor(TestCase{
 									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrInvalidReferenceSelectors, ""))
 								})
 							})
-							When("shared instance owned by different tenant", func() {
+							When("shared instance owned by a different tenant", func() {
 								var otherTenantExpect *SMExpect
+								var instanceName string
 								BeforeEach(func() {
 									// delete old shared instance
 									cleanupInstances(sharedInstanceID)
 									// create instance by other tenant
 									EnsurePublicPlanVisibility(ctx.SMRepository, servicePlanID)
 									otherTenantExpect = ctx.NewTenantExpect("tenancyClient", "other-tenant")
+									ID, _ := uuid.NewV4()
+									instanceName = fmt.Sprintf("instance-different-offering-%s", ID.String())
+									postInstanceRequest["name"] = instanceName
+									postInstanceRequest["labels"] = map[string][]string{
+										"origin": {"eu"},
+									}
 									sharedInstanceID, _, referencePlan = prepareInstanceSharingPrerequisites(otherTenantExpect, true, false)
 								})
 								AfterEach(func() {
 									otherTenantExpect.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).WithQuery("async", false).
 										Expect().StatusRange(httpexpect.Status2xx)
 								})
-								It("should fail to provision the reference instance with selector due to ownership validation", func() {
+								It("should fail to provision with plan name selector", func() {
 									sharedPlan := GetPlanByKey(ctx, "id", sharedInstance.ServicePlanID)
 									resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusNotFound, instance_sharing.ReferencePlanNameSelector, sharedPlan.Name, referencePlan.ID)
+									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
+								})
+								It("should fail to provision with instance name selector", func() {
+									resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusNotFound, instance_sharing.ReferenceInstanceNameSelector, instanceName, referencePlan.ID)
+									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
+								})
+								It("should fail to provision with instance id=(*) selector", func() {
+									resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusNotFound, instance_sharing.ReferencedInstanceIDKey, "*", referencePlan.ID)
+									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
+								})
+								It("should fail to provision with a label selector", func() {
+									parameters := make(map[string]interface{})
+									parameters[instance_sharing.ReferenceLabelSelector] = map[string][]string{
+										"origin": {"eu"},
+									}
+									randomUUID, _ := uuid.NewV4()
+									requestBody := Object{
+										"name":             "reference-instance-" + randomUUID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
+										"parameters":       parameters,
+									}
+									resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusNotFound)
+									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
+								})
+							})
+							When("shared a instance is of a different service offering", func() {
+								var instanceName string
+								var sharedInstanceID2 string
+								BeforeEach(func() {
+									// create new shared instance of a different service offering
+									ID, _ := uuid.NewV4()
+									instanceName = fmt.Sprintf("instance-different-offering-%s", ID.String())
+									postInstanceRequest["name"] = instanceName
+									postInstanceRequest["service_plan_id"] = servicePlanIDOfAnotherService
+									EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanIDOfAnotherService, TenantIDValue)
+									resp := createInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
+									sharedInstanceID2, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+										ID:    sharedInstanceID2,
+										Type:  types.ServiceInstanceType,
+										Ready: true,
+									})
+									ShareInstance(ctx.SMWithOAuthForTenant, false, http.StatusOK, sharedInstanceID2)
+								})
+								AfterEach(func() {
+									cleanupInstances(sharedInstanceID2)
+								})
+								It("should fail to provision with plan name selector", func() {
+									// get shared plan of a different offering and rename it
+									sharedPlan2 := GetPlanByKey(ctx, "id", servicePlanIDOfAnotherService)
+									ID, _ := uuid.NewV4()
+									sharedPlan2Name := fmt.Sprintf("shared-plan-%s", ID.String())
+									sharedPlan2.Name = sharedPlan2Name
+									_, err := ctx.SMRepository.Update(context.Background(), sharedPlan2, types.LabelChanges{})
+									Expect(err).ToNot(HaveOccurred())
+									resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusNotFound, instance_sharing.ReferencePlanNameSelector, sharedPlan2Name, referencePlan.ID)
+									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
+								})
+								It("should fail to provision with instance name selector", func() {
+									resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusNotFound, instance_sharing.ReferenceInstanceNameSelector, instanceName, referencePlan.ID)
+									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
+								})
+								It("should fail to provision with a label selector", func() {
+									parameters := make(map[string]interface{})
+									parameters[instance_sharing.ReferenceLabelSelector] = map[string][]string{
+										"origin": {"eu"},
+									}
+									randomUUID, _ := uuid.NewV4()
+									requestBody := Object{
+										"name":             "reference-instance-" + randomUUID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
+										"parameters":       parameters,
+									}
+									resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusNotFound)
 									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
 								})
 							})
