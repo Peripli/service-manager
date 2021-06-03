@@ -23,6 +23,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/schemas"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
 	"github.com/tidwall/sjson"
@@ -181,6 +182,8 @@ func convertReferencePlanObjectToOSBPlan(plan *types.ServicePlan) interface{} {
 		"name":        plan.Name,
 		"description": plan.Description,
 		"bindable":    plan.Bindable,
+		"metadata":    plan.Metadata,
+		"schemas":     plan.Schemas,
 	}
 }
 
@@ -202,6 +205,13 @@ func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
 	referencePlan.Ready = true
 	referencePlan.CreatedAt = time.Now()
 	referencePlan.UpdatedAt = time.Now()
+	schema, metadata, err := schemas.SchemaLoader(schemas.ReferencePlan)
+	if err != nil {
+		panic(fmt.Errorf("error setting reference schema for the reference plan: %s", err))
+	}
+
+	referencePlan.Schemas = schema
+	referencePlan.Metadata = metadata
 
 	return referencePlan
 }

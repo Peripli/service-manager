@@ -22,7 +22,9 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/schemas"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"net/http"
 	"net/url"
@@ -273,6 +275,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						Context("positive", func() {
 							var brokerID string
 							var shareableCatalogID string
+							var schema json.RawMessage
+							var metadata json.RawMessage
+							var err error
 							BeforeEach(func() {
 								_, shareableCatalogID, brokerID, _, _ = sharingInstanceBlueprint(ctx, ctx.SMWithOAuth, false)
 								referencePlan := common.GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareableCatalogID)
@@ -280,6 +285,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								assertPlanForPlatformByID(k8sAgent, referencePlanID, http.StatusNotFound)
 								assertPlansForPlatform(k8sAgent, nil...)
 								common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, referencePlanID, k8sPlatform.ID)
+								schema, metadata, err = schemas.SchemaLoader(schemas.ReferencePlan)
+								Expect(err).To(BeNil())
 							})
 							When("creating a new catalog with shareable plan", func() {
 								It("creates a new reference plan", func() {
@@ -288,6 +295,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									catalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
 									marshalCatalog, _ := json.Marshal(catalog)
 									Expect(strings.Contains(string(marshalCatalog), referencePlanID)).To(Equal(true))
+									Expect(gjson.GetBytes(catalog, "services.0.plans.1.metadata")).To(MatchJSON(metadata))
+									Expect(gjson.GetBytes(catalog, "services.0.plans.1.schemas")).To(MatchJSON(schema))
+									servicePlan, _ := getServicePlanByID(ctx.SMRepository, context.TODO(), referencePlanID)
+									Expect(servicePlan.Schemas).To(MatchJSON(schema))
+									Expect(servicePlan.Metadata).To(MatchJSON(metadata))
 								})
 							})
 							When("updating a broker with existing reference plan", func() {
@@ -319,8 +331,15 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								})
 								It("should have only single reference plan", func() {
 									newCatalog, _ := getCatalogByBrokerID(ctx.SMRepository, context.TODO(), brokerID)
-									s := string(newCatalog)
-									count := strings.Count(s, instance_sharing.ReferencePlanName)
+									marshalCatalog, _ := json.Marshal(newCatalog)
+									plans := gjson.GetBytes(marshalCatalog, "services.0.plans").Array()
+									count := 0
+									for _, plan := range plans {
+										if strings.Contains(plan.Map()["name"].String(), instance_sharing.ReferencePlanName) {
+											count++
+										}
+									}
+
 									Expect(count).To(Equal(1))
 								})
 							})
