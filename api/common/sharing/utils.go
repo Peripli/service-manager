@@ -132,6 +132,7 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 	var err error
 	var filteredInstances types.ServiceInstances
 	for i := 0; i < instances.Len(); i++ {
+		// only single result is accepted for selectors:
 		if filteredInstances.Len() > 1 {
 			break
 		}
