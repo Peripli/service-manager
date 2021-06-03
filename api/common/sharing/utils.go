@@ -122,7 +122,6 @@ func getSharedInstances(ctx context.Context, repository storage.Repository, offe
 		"tenant_id":         tenantID,
 		"offering_id":       offeringID,
 	}
-
 	objectList, err := repository.QueryForList(ctx, types.ServiceInstanceType, storage.QueryForSharedInstances, queryParams)
 	return objectList, err
 }
@@ -142,7 +141,6 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 	}
 
 	for i := 0; i < instances.Len(); i++ {
-
 		// "*" for any shared instance of the tenant, if parameter not passed, set true for any shared instance
 		selectorVal, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
 		if exists && len(selectorVal.String()) > 0 && selectorVal.String() != "*" {
@@ -213,20 +211,6 @@ func getSelectorPlan(ctx context.Context, repository storage.Repository, smaap b
 }
 
 func matchLabels(instanceLabels types.Labels, selectorLabels types.Labels) (bool, error) {
-	/*
-		todo: remove after review
-		should accept this label selector:
-			selectorLabels: {
-				"key": ["x"],
-				"region": ["us", "jp"]
-			}
-
-			instanceLabels: {
-				"key": ["x", "y"],
-				"region": ["us", "eu", "jp"]
-			}
-	*/
-
 	for selectorLabelKey, selectorLabelArray := range selectorLabels {
 		instanceLabelArray, exists := instanceLabels[selectorLabelKey]
 		if exists && instanceLabels != nil {
@@ -239,7 +223,6 @@ func matchLabels(instanceLabels types.Labels, selectorLabels types.Labels) (bool
 			return false, nil
 		}
 	}
-
 	return true, nil
 }
 
