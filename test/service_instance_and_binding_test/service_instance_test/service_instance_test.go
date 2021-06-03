@@ -4388,7 +4388,7 @@ var _ = DescribeTestsFor(TestCase{
 									otherTenantExpect.DELETE(web.ServiceInstancesURL+"/"+sharedInstanceID).WithQuery("async", false).
 										Expect().StatusRange(httpexpect.Status2xx)
 								})
-								FIt("should fail to provision the reference instance with selector due to ownership validation", func() {
+								It("should fail to provision the reference instance with selector due to ownership validation", func() {
 									sharedPlan := GetPlanByKey(ctx, "id", sharedInstance.ServicePlanID)
 									resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusNotFound, instance_sharing.ReferencePlanNameSelector, sharedPlan.Name, referencePlan.ID)
 									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
