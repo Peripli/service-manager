@@ -22,7 +22,7 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 		return "", err
 	}
 
-	sharedInstances, err := getSharedInstancesByTenant(ctx, repository, tenantIdentifier, getTenantId())
+	sharedInstances, err := getSharedInstances(ctx, repository, tenantIdentifier, getTenantId())
 	if err != nil {
 		return "", err
 	}
@@ -105,14 +105,6 @@ func validateSingleResult(results types.ServiceInstances, parameters map[string]
 		return util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
 	}
 	return nil
-}
-
-func getSharedInstancesByTenant(ctx context.Context, repository storage.Repository, tenantIdentifier, tenantID string) (types.ObjectList, error) {
-	sharedInstances, err := getSharedInstances(ctx, repository, tenantIdentifier, tenantID)
-	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
-	}
-	return sharedInstances, nil
 }
 
 func validateParameters(parameters map[string]gjson.Result) error {
