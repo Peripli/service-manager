@@ -4329,7 +4329,7 @@ var _ = DescribeTestsFor(TestCase{
 									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
 								})
 							})
-							FWhen("selectors are invalid", func() {
+							When("selectors are invalid", func() {
 								It("fails to provision due to unknown selector", func() {
 									randomUUID, _ := uuid.NewV4()
 									requestBody := Object{
