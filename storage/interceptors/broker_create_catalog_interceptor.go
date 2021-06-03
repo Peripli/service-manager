@@ -201,4 +201,3 @@ func isBindablePlan(service *types.ServiceOffering, plan *types.ServicePlan) boo
 func servicePlanUsesReservedNameForReferencePlan(servicePlan *types.ServicePlan) bool {
 	return servicePlan.Name == instance_sharing.ReferencePlanName || servicePlan.CatalogName == instance_sharing.ReferencePlanName
 }
-
