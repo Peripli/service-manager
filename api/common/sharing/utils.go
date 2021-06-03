@@ -58,20 +58,20 @@ func IsValidReferenceInstancePatchRequest(req *web.Request, instance *types.Serv
 	return nil
 }
 
-func getInstanceByID(ctx context.Context, repository storage.Repository, referencedInstanceID string, tenantIdentifier string, tenantValue string) (*types.ServiceInstance, error) {
-	referencedInstanceObj, err := repository.Get(ctx, types.ServiceInstanceType,
+func getInstanceByID(ctx context.Context, repository storage.Repository, instanceID string, tenantIdentifier string, tenantValue string) (*types.ServiceInstance, error) {
+	instanceObj, err := repository.Get(ctx, types.ServiceInstanceType,
 		query.ByLabel(query.EqualsOperator, tenantIdentifier, tenantValue),
-		query.ByField(query.EqualsOperator, "id", referencedInstanceID),
+		query.ByField(query.EqualsOperator, "id", instanceID),
 	)
 	if err != nil {
-		log.C(ctx).Errorf("failed retrieving service instance %s: %v", referencedInstanceID, err)
-		return nil, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, referencedInstanceID)
+		log.C(ctx).Errorf("failed retrieving service instance %s: %v", instanceID, err)
+		return nil, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, instanceID)
 	}
-	referencedInstance := referencedInstanceObj.(*types.ServiceInstance)
+	instance := instanceObj.(*types.ServiceInstance)
 
-	if !referencedInstance.IsShared() {
-		log.C(ctx).Debugf("The target instance %s is not shared.", referencedInstance.ID)
-		return nil, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, referencedInstance.ID)
+	if !instance.IsShared() {
+		log.C(ctx).Debugf("The target instance %s is not shared.", instance.ID)
+		return nil, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotShared, instance.ID)
 	}
 
 	// verify the reference plan and the target instance are of the same service offering:
@@ -79,16 +79,16 @@ func getInstanceByID(ctx context.Context, repository storage.Repository, referen
 	if !ok || referencePlan == nil {
 		return nil, util.HandleStorageError(util.ErrNotFoundInStorage, types.ServicePlanType.String())
 	}
-	sameOffering, err := isSameServiceOffering(ctx, repository, referencePlan.ServiceOfferingID, referencedInstance.ServicePlanID)
+	sameOffering, err := isSameServiceOffering(ctx, repository, referencePlan.ServiceOfferingID, instance.ServicePlanID)
 	if err != nil {
 		return nil, err
 	}
 	if !sameOffering {
-		log.C(ctx).Debugf("The target instance %s is not of the same service offering.", referencedInstance.ID)
-		return nil, util.HandleInstanceSharingError(util.ErrReferenceWithWrongServiceOffering, referencedInstance.ID)
+		log.C(ctx).Debugf("The target instance %s is not of the same service offering.", instance.ID)
+		return nil, util.HandleInstanceSharingError(util.ErrReferenceWithWrongServiceOffering, instance.ID)
 	}
 
-	return referencedInstance, nil
+	return instance, nil
 }
 
 func validateSingleResult(results types.ServiceInstances, parameters map[string]gjson.Result) error {
