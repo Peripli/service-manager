@@ -4029,6 +4029,7 @@ var _ = DescribeTestsFor(TestCase{
 										ID, _ := uuid.NewV4()
 										postInstanceRequest["name"] = fmt.Sprintf("shared-%s", ID.String())
 										postInstanceRequest["service_plan_id"] = anotherServicePlanID
+										postInstanceRequest["catalog_name"] = fmt.Sprintf("catalog-%s", ID.String())
 										postInstanceRequest["labels"] = map[string][]string{
 											"origin": {"eu", fmt.Sprint(i)},
 										}

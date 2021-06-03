@@ -160,7 +160,7 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 		}
 
 		if planSelectorExists && selectorPlan != nil {
-			selectors["service_plan_id"] = selectorPlan.ID == selectorPlan.ID
+			selectors["service_plan_id"] = compareInstanceWithPlanSelector(selectorPlan, planSelectorVal.String(), smaap)
 		}
 
 		selectorVal, exists = parameters[instance_sharing.ReferenceLabelSelector]
@@ -189,6 +189,16 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 		return types.ServiceInstances{}, util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
 	}
 	return filteredInstances, nil
+}
+
+func compareInstanceWithPlanSelector(selectorPlan *types.ServicePlan, selectorValue string, smaap bool) bool {
+	var selectorPlanName string
+	if smaap {
+		selectorPlanName = selectorPlan.Name
+	} else {
+		selectorPlanName = selectorPlan.CatalogName
+	}
+	return selectorPlanName == selectorValue
 }
 
 func getSelectorPlan(ctx context.Context, repository storage.Repository, smaap bool, offeringID, selectorValue string) (*types.ServicePlan, error) {
