@@ -313,7 +313,7 @@ var _ = DescribeTestsFor(TestCase{
 				}
 				// reference instance:
 				if createReferenceInstance && createAndShareInstance && referencePlan != nil {
-					resp = CreateReferenceInstance(smExpect, "false", http.StatusCreated, sharedInstanceID, referencePlan.ID)
+					resp = CreateReferenceInstance(smExpect, "false", http.StatusCreated, instance_sharing.ReferencedInstanceIDKey, sharedInstanceID, referencePlan.ID)
 					referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 						Category:          types.CREATE,
 						State:             types.SUCCEEDED,
@@ -3932,7 +3932,7 @@ var _ = DescribeTestsFor(TestCase{
 								{async: "false", status: http.StatusCreated},
 							} {
 								It(fmt.Sprintf("returns %d", testConfig.status), func() {
-									resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, testConfig.async, testConfig.status, sharedInstanceID, referencePlan.ID)
+									resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, testConfig.async, testConfig.status, instance_sharing.ReferencedInstanceIDKey, sharedInstanceID, referencePlan.ID)
 									referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.CREATE,
 										State:             types.SUCCEEDED,
@@ -4276,7 +4276,7 @@ var _ = DescribeTestsFor(TestCase{
 									Expect().StatusRange(httpexpect.Status2xx)
 							})
 							It("should fail to provision the reference instance on ownership validation", func() {
-								resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusNotFound, sharedInstanceID, referencePlan.ID)
+								resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusNotFound, instance_sharing.ReferencedInstanceIDKey, sharedInstanceID, referencePlan.ID)
 								resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, sharedInstanceID))
 							})
 						})

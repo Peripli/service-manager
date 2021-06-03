@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/api/filters"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gavv/httpexpect"
@@ -644,7 +645,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									otherPlatform := common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuthForTenant, nil)
 									referencePlan := common.GetReferencePlanOfExistingPlan(ctx, "id", sharedInstancePlan.GetID())
 									test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, otherPlatform.GetID(), referencePlan.ID, TenantIDValue)
-									resp := common.CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated, shareableInstanceID, referencePlan.ID)
+									resp := common.CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated, instance_sharing.ReferencedInstanceIDKey, shareableInstanceID, referencePlan.ID)
 									referenceInstanceID, _ := common.VerifyOperationExists(ctx, resp.Header("Location").Raw(), common.OperationExpectations{
 										Category:          types.CREATE,
 										State:             types.SUCCEEDED,
