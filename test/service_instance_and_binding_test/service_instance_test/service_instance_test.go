@@ -4006,7 +4006,7 @@ var _ = DescribeTestsFor(TestCase{
 										Expect().
 										Status(http.StatusCreated)
 								})
-								It("creates reference instance with empty parameters", func() {
+								It("should fail to create reference instance with empty parameters", func() {
 									randomUUID, _ := uuid.NewV4()
 									requestBody := Object{
 										"name":             "reference-instance-" + randomUUID.String(),
@@ -4017,7 +4017,7 @@ var _ = DescribeTestsFor(TestCase{
 										WithQuery("async", false).
 										WithJSON(requestBody).
 										Expect().
-										Status(http.StatusCreated)
+										Status(http.StatusBadRequest)
 								})
 							})
 							When("tenant has many shared instances", func() {
