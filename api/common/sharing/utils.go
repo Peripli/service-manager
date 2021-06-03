@@ -44,11 +44,6 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 			return "", err
 		}
 
-		err = validateSingleResult(filteredInstancesList, parameters)
-		if err != nil {
-			log.C(ctx).Errorf("Failed on validating the selectors results: %s", err)
-			return "", err
-		}
 		referencedInstance = filteredInstancesList.ItemAt(0).(*types.ServiceInstance)
 	}
 
@@ -100,27 +95,18 @@ func getInstanceByID(ctx context.Context, repository storage.Repository, instanc
 	return instance, nil
 }
 
-func validateSingleResult(results types.ServiceInstances, parameters map[string]gjson.Result) error {
-	if results.Len() == 0 {
-		referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
-		if exists && referencedInstanceID.String() != "*" {
-			return util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, referencedInstanceID.String())
-		}
-		return util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
-	} else if results.Len() > 1 && len(parameters) == 0 {
-		// todo: should not accept empty parameters
-		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
-	} else if results.Len() > 1 {
-		// there is more than one shared instance that meets your criteria
-		return util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
-	}
-	return nil
-}
-
 func validateParameters(parameters map[string]gjson.Result) error {
-	// when provisioning reference by instance id, we only allow one parameter:
-	_, byID := parameters[instance_sharing.ReferencedInstanceIDKey]
-	if byID && len(parameters) > 1 {
+	if len(parameters) == 0 {
+		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
+	}
+	// don't allow combination of id with selectors.
+	// parameters should not be empty, but the values of each parameter can be ""
+	id := parameters[instance_sharing.ReferencedInstanceIDKey].String()
+	label := parameters[instance_sharing.ReferenceLabelSelector].Raw
+	name := parameters[instance_sharing.ReferenceInstanceNameSelector].String()
+	plan := parameters[instance_sharing.ReferencePlanNameSelector].String()
+	hasAtLeastOneSelector := len(label) > 0 || len(name) > 0 || len(plan) > 0
+	if len(id) > 0 && hasAtLeastOneSelector {
 		return util.HandleInstanceSharingError(util.ErrInvalidReferenceSelectors, "")
 	}
 	return nil
@@ -144,7 +130,8 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 	for i := 0; i < instances.Len(); i++ {
 		// only single result is accepted for selectors:
 		if filteredInstances.Len() > 1 {
-			break
+			log.C(ctx).Errorf("%s", util.ErrMultipleReferenceSelectorResults)
+			return types.ServiceInstances{}, util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
 		}
 		// selectors: true or false -> the entire map should be true in order to pass
 		selectors := make(map[string]bool)
@@ -186,6 +173,10 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 		if shouldAdd {
 			filteredInstances.Add(instance)
 		}
+	}
+	if filteredInstances.Len() == 0 {
+		log.C(ctx).Errorf("%s", util.ErrNoResultsForReferenceSelector)
+		return types.ServiceInstances{}, util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
 	}
 	return filteredInstances, nil
 }
