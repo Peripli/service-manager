@@ -4091,6 +4091,71 @@ var _ = DescribeTestsFor(TestCase{
 										Expect().
 										Status(http.StatusCreated)
 								})
+								It("creates reference instance by name selector with other empty selectors", func() {
+									randomUUID, _ := uuid.NewV4()
+
+									parameters := make(map[string]interface{})
+									parameters[instance_sharing.ReferenceInstanceNameSelector] = sharedInstance.Name
+									parameters[instance_sharing.ReferencePlanNameSelector] = ""
+									parameters[instance_sharing.ReferencedInstanceIDKey] = ""
+									parameters[instance_sharing.ReferenceLabelSelector] = Object{}
+
+									requestBody := Object{
+										"name":             "reference-instance-" + randomUUID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
+										"parameters":       parameters,
+									}
+									resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusCreated)
+								})
+								It("creates reference instance by plan selector with other empty selectors", func() {
+									randomUUID, _ := uuid.NewV4()
+									sharedPlan := GetPlanByKey(ctx, "id", sharedInstance.ServicePlanID)
+
+									parameters := make(map[string]interface{})
+									parameters[instance_sharing.ReferenceInstanceNameSelector] = ""
+									parameters[instance_sharing.ReferencePlanNameSelector] = sharedPlan.Name
+									parameters[instance_sharing.ReferencedInstanceIDKey] = ""
+									parameters[instance_sharing.ReferenceLabelSelector] = Object{}
+
+									requestBody := Object{
+										"name":             "reference-instance-" + randomUUID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
+										"parameters":       parameters,
+									}
+									resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusCreated)
+								})
+								It("creates reference instance with combination of name and plan selector with other empty selectors", func() {
+									randomUUID, _ := uuid.NewV4()
+									sharedPlan := GetPlanByKey(ctx, "id", sharedInstance.ServicePlanID)
+
+									parameters := make(map[string]interface{})
+									parameters[instance_sharing.ReferenceInstanceNameSelector] = sharedInstance.Name
+									parameters[instance_sharing.ReferencePlanNameSelector] = sharedPlan.Name
+									parameters[instance_sharing.ReferencedInstanceIDKey] = ""
+									parameters[instance_sharing.ReferenceLabelSelector] = Object{}
+
+									requestBody := Object{
+										"name":             "reference-instance-" + randomUUID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
+										"parameters":       parameters,
+									}
+									resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusCreated)
+								})
 								It("creates reference instance by label selector", func() {
 									randomUUID, _ := uuid.NewV4()
 									requestBody := Object{

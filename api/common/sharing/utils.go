@@ -31,7 +31,7 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 
 	var referencedInstance *types.ServiceInstance
 	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
-	if exists && referencedInstanceID.String() != "*" {
+	if exists && len(referencedInstanceID.String()) > 0 && referencedInstanceID.String() != "*" {
 		referencedInstance, err = getInstanceByID(ctx, repository, referencedInstanceID.String(), referencePlan.ServiceOfferingID, tenantIdentifier, getTenantId())
 		if err != nil {
 			log.C(ctx).Errorf("Failed to retrieve the instance %s, error: %s", referencedInstanceID.String(), err)
@@ -44,13 +44,12 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 			return "", err
 		}
 
-		filteredInstancesList, err := filterInstancesBySelectors(ctx, repository, sharedInstances, parameters, smaap, referencePlan.ServiceOfferingID)
+		referencedInstance, err = filterInstancesBySelectors(ctx, repository, sharedInstances, parameters, smaap, referencePlan.ServiceOfferingID)
 		if err != nil {
 			log.C(ctx).Errorf("Failed to filter instances by selectors: %s", err)
 			return "", err
 		}
 
-		referencedInstance = filteredInstancesList.ItemAt(0).(*types.ServiceInstance)
 	}
 
 	return referencedInstance.ID, nil
@@ -74,7 +73,7 @@ func getInstanceByID(ctx context.Context, repository storage.Repository, instanc
 		query.ByField(query.EqualsOperator, "id", instanceID),
 	)
 	if err != nil {
-		log.C(ctx).Errorf("failed retrieving service instance %s: %v", instanceID, err)
+		log.C(ctx).Errorf("failed to retrieve service instance %s: %v", instanceID, err)
 		return nil, util.HandleInstanceSharingError(util.ErrReferencedInstanceNotFound, instanceID)
 	}
 	instance := instanceObj.(*types.ServiceInstance)
@@ -128,17 +127,17 @@ func getSharedInstances(ctx context.Context, repository storage.Repository, offe
 	return objectList, err
 }
 
-func filterInstancesBySelectors(ctx context.Context, repository storage.Repository, instances types.ObjectList, parameters map[string]gjson.Result, smaap bool, offeringID string) (types.ServiceInstances, error) {
+func filterInstancesBySelectors(ctx context.Context, repository storage.Repository, instances types.ObjectList, parameters map[string]gjson.Result, smaap bool, offeringID string) (*types.ServiceInstance, error) {
 	var err error
 	var filteredInstances types.ServiceInstances
 
 	planSelectorVal, planSelectorExists := parameters[instance_sharing.ReferencePlanNameSelector]
 	var selectorPlan *types.ServicePlan
-	if planSelectorExists {
+	if planSelectorExists && len(planSelectorVal.String()) > 0 {
 		selectorPlan, err = getSelectorPlan(ctx, repository, smaap, offeringID, planSelectorVal.String())
 		if err != nil {
 			log.C(ctx).Errorf("Failed to retrieve the plan %s with the offering %s via the selector provided: %s", planSelectorVal.String(), offeringID, err)
-			return types.ServiceInstances{}, err
+			return nil, err
 		}
 	}
 
@@ -146,7 +145,7 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 
 		// "*" for any shared instance of the tenant, if parameter not passed, set true for any shared instance
 		selectorVal, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
-		if exists && selectorVal.String() != "*" {
+		if exists && len(selectorVal.String()) > 0 && selectorVal.String() != "*" {
 			continue
 		}
 
@@ -157,18 +156,26 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 			continue
 		}
 
-		if planSelectorExists && (selectorPlan == nil || instance.ServicePlanID != selectorPlan.ID) {
+		if selectorPlan != nil && instance.ServicePlanID != selectorPlan.ID {
 			continue
 		}
 
 		selectorVal, exists = parameters[instance_sharing.ReferenceLabelSelector]
-		if exists && len(selectorVal.String()) > 0 {
-			match, err := matchLabels(instance.Labels, []byte(selectorVal.Raw))
-			if err != nil {
-				return types.ServiceInstances{}, err
+		if exists {
+			var selectorLabels types.Labels
+			if err := util.BytesToObject([]byte(selectorVal.Raw), &selectorLabels); err != nil {
+				log.C(ctx).Errorf("%s", err)
+				return nil, err
 			}
-			if !match {
-				continue
+			if len(selectorLabels) > 0 {
+				match, err := matchLabels(instance.Labels, selectorLabels)
+				if err != nil {
+					log.C(ctx).Errorf("%s", err)
+					return nil, err
+				}
+				if !match {
+					continue
+				}
 			}
 		}
 
@@ -176,14 +183,14 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 		// only single result is accepted for selectors:
 		if filteredInstances.Len() > 1 {
 			log.C(ctx).Errorf("%s", util.ErrMultipleReferenceSelectorResults)
-			return types.ServiceInstances{}, util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
+			return nil, util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
 		}
 	}
 	if filteredInstances.Len() == 0 {
 		log.C(ctx).Errorf("%s", util.ErrNoResultsForReferenceSelector)
-		return types.ServiceInstances{}, util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
+		return nil, util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
 	}
-	return filteredInstances, nil
+	return filteredInstances.ItemAt(0).(*types.ServiceInstance), nil
 }
 
 func getSelectorPlan(ctx context.Context, repository storage.Repository, smaap bool, offeringID, selectorValue string) (*types.ServicePlan, error) {
@@ -205,11 +212,7 @@ func getSelectorPlan(ctx context.Context, repository storage.Repository, smaap b
 	return selectorPlan, nil
 }
 
-func matchLabels(instanceLabels types.Labels, labels []byte) (bool, error) {
-	var selectorLabels types.Labels
-	if err := util.BytesToObject(labels, &selectorLabels); err != nil {
-		return false, err
-	}
+func matchLabels(instanceLabels types.Labels, selectorLabels types.Labels) (bool, error) {
 	/*
 		todo: remove after review
 		should accept this label selector:
@@ -225,12 +228,10 @@ func matchLabels(instanceLabels types.Labels, labels []byte) (bool, error) {
 	*/
 
 	for selectorLabelKey, selectorLabelArray := range selectorLabels {
-		instanceLabelVal, exists := instanceLabels[selectorLabelKey]
+		instanceLabelArray, exists := instanceLabels[selectorLabelKey]
 		if exists && instanceLabels != nil {
-			match := true
 			for _, selectorLabelVal := range selectorLabelArray {
-				match = match && contains(instanceLabelVal, selectorLabelVal)
-				if !match {
+				if !contains(instanceLabelArray, selectorLabelVal) {
 					return false, nil
 				}
 			}
