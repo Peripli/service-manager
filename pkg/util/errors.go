@@ -288,7 +288,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrMultipleReferenceSelectorResults:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: "Failed to create the reference. There are multiple shared instances that match your criteria. Specify explicity the instance id you would like to refer to.",
+			Description: "Failed to create the reference. There are multiple shared instances that match your criteria. Specify explicitly the instance id you would like to refer to.",
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrInvalidReferenceSelectors:
