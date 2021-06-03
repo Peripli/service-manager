@@ -41,19 +41,22 @@ func (is *instanceSharingPlugin) Name() string {
 }
 
 func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
+	ctx := req.Context()
 	shared := gjson.GetBytes(req.Body, "shared").String()
 	if shared != "" {
+		log.C(ctx).Errorf("Failed to provision, request body should not contain 'shared' property")
 		return nil, util.HandleInstanceSharingError(util.ErrInvalidProvisionRequestWithSharedProperty, "")
 	}
 
-	ctx := req.Context()
 	servicePlanID := gjson.GetBytes(req.Body, planIDProperty).String()
-	isReferencePlan, err := storage.IsReferencePlan(req, is.repository, types.ServicePlanType.String(), "catalog_id", servicePlanID)
+	key := "catalog_id"
+	isReferencePlan, err := storage.IsReferencePlan(req, is.repository, types.ServicePlanType.String(), key, servicePlanID)
 	// If plan not found on provisioning or not reference plan, allow sm to handle the process
 	if err == util.ErrNotFoundInStorage || !isReferencePlan {
 		return next.Handle(req)
 	}
 	if err != nil {
+		log.C(ctx).Errorf("Failed to retrieve plan %s=%s, while provisioning a reference instance: %s", key, servicePlanID, err)
 		return nil, err
 	}
 
@@ -61,6 +64,7 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 		return gjson.GetBytes(req.Body, fmt.Sprintf("context.%s", is.tenantIdentifier)).String()
 	})
 	if err != nil {
+		log.C(ctx).Errorf("Failed to extract the referenced instance id: %s", err)
 		return nil, err
 	}
 
@@ -72,22 +76,26 @@ func (is *instanceSharingPlugin) Provision(req *web.Request, next web.Handler) (
 
 // Deprovision validates whether we delete a reference or a shared instance and validates the request before deleting the instance.
 func (is *instanceSharingPlugin) Deprovision(req *web.Request, next web.Handler) (*web.Response, error) {
-	instanceID := req.PathParams["instance_id"]
 	ctx := req.Context()
+	instanceID := req.PathParams["instance_id"]
 
 	dbInstanceObject, err := storage.GetObjectByField(ctx, is.repository, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
 		return next.Handle(req)
 	}
+
 	instance := dbInstanceObject.(*types.ServiceInstance)
+
 	if instance.IsShared() {
 		return deprovisionSharedInstance(ctx, is.repository, req, instance, next)
 	}
-	isReferencePlan, err := storage.IsReferencePlan(req, is.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
 
+	isReferencePlan, err := storage.IsReferencePlan(req, is.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
 	if err != nil {
+		log.C(ctx).Errorf("failed to deprovision the reference instance with the plan %s, error: %s", instance.ServicePlanID, err)
 		return nil, err
 	}
+
 	if !isReferencePlan {
 		return next.Handle(req)
 	}
@@ -102,7 +110,9 @@ func deprovisionSharedInstance(ctx context.Context, repository storage.Transacti
 		log.C(ctx).Errorf("Could not retrieve references of the service instance (%s)s: %v", instance.ID, err)
 	}
 	if referencesList != nil && referencesList.Len() > 0 {
-		return nil, util.HandleReferencesError(util.ErrSharedInstanceHasReferences, types.ObjectListIDsToStringArray(referencesList))
+		referencesArray := types.ObjectListIDsToStringArray(referencesList)
+		log.C(ctx).Errorf("Failed to deprovision the shared instance: %s due to existing references %s, error: %s", instance.ID, referencesArray, err)
+		return nil, util.HandleReferencesError(util.ErrSharedInstanceHasReferences, referencesArray)
 	}
 	return next.Handle(req)
 }
@@ -115,6 +125,7 @@ func (is *instanceSharingPlugin) UpdateService(req *web.Request, next web.Handle
 
 	dbInstanceObject, err := storage.GetObjectByField(ctx, is.repository, types.ServiceInstanceType, "id", instanceID)
 	if err != nil {
+		log.C(ctx).Errorf("Failed to retrieve %s with %s=%s from storage: %s", types.ServiceInstanceType, "id", instanceID, err)
 		if err == util.ErrNotFoundInStorage {
 			return next.Handle(req)
 		}
@@ -127,6 +138,7 @@ func (is *instanceSharingPlugin) UpdateService(req *web.Request, next web.Handle
 	}
 	isReferencePlan, err := storage.IsReferencePlan(req, is.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
 	if err != nil {
+		log.C(ctx).Errorf("Failed to validate the plan %s as reference: %s", instance.ServicePlanID, err)
 		return nil, err
 	}
 	if !isReferencePlan {
@@ -136,6 +148,7 @@ func (is *instanceSharingPlugin) UpdateService(req *web.Request, next web.Handle
 	err = sharing.IsValidReferenceInstancePatchRequest(req, instance, planIDProperty)
 	if err != nil {
 		// error handled via the HandleInstanceSharingError util.
+		log.C(ctx).Errorf("Failed to validate patch request of the instance %s, error: %s", instance.ID, err)
 		return nil, err
 	}
 
@@ -146,6 +159,7 @@ func updateSharedInstance(ctx context.Context, repository storage.Repository, re
 	err := isValidSharedInstancePatchRequest(ctx, repository, req, instance)
 	if err != nil {
 		// error handled via the HandleInstanceSharingError util.
+		log.C(ctx).Errorf("Failed to validate patch request of the instance %s, error: %s", instance.ID, err)
 		return nil, err
 	}
 	return next.Handle(req)
@@ -178,13 +192,15 @@ func (is *instanceSharingPlugin) FetchService(req *web.Request, next web.Handler
 	if err != nil {
 		return next.Handle(req)
 	}
+
 	instance := dbInstanceObject.(*types.ServiceInstance)
 
 	isReferencePlan, err := storage.IsReferencePlan(req, is.repository, types.ServicePlanType.String(), "id", instance.ServicePlanID)
-
 	if err != nil {
+		log.C(ctx).Errorf("Could not validate the plan %s as a reference, error: %s", instance.ServicePlanID, err)
 		return nil, err
 	}
+
 	if !isReferencePlan {
 		return next.Handle(req)
 	}

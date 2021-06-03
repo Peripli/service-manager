@@ -48,6 +48,7 @@ func (sf *sharedInstanceUpdateFilter) Run(req *web.Request, next web.Handler) (*
 	var reqServiceInstance types.ServiceInstance
 	err := util.BytesToObjectNoLabels(req.Body, &reqServiceInstance)
 	if err != nil {
+		log.C(req.Context()).Errorf("Failed to parse the request body to an instance object: %s", err)
 		return nil, err
 	}
 
@@ -74,6 +75,7 @@ func (*sharedInstanceUpdateFilter) FilterMatchers() []web.FilterMatcher {
 func (sf *sharedInstanceUpdateFilter) handleProvision(req *web.Request, reqServiceInstance types.ServiceInstance, next web.Handler) (*web.Response, error) {
 	// we don't allow setting the shared property while provisioning the instance - supported by the patch instance only.
 	if reqServiceInstance.Shared != nil {
+		log.C(req.Context()).Errorf("Failed to provision the instance, request body should not contain a 'shared' property")
 		return nil, util.HandleInstanceSharingError(util.ErrInvalidProvisionRequestWithSharedProperty, "")
 	}
 	return next.Handle(req)
@@ -117,17 +119,20 @@ func (sf *sharedInstanceUpdateFilter) handleServiceUpdate(req *web.Request, reqS
 	// we cannot use reqServiceInstance in this validation because the struct has default values (like "" for string type properties)
 	err = validateRequestContainsSingleProperty(logger, req.Body, instanceID)
 	if err != nil {
+		log.C(ctx).Errorf("Failed to validate the request, request body should contain a single property: %s", err)
 		return nil, err
 	}
 
 	// Get plan object from database, on service_instance patch flow
 	dbPlanObject, err := storage.GetObjectByField(ctx, sf.storageRepository, types.ServicePlanType, "id", persistedInstance.ServicePlanID)
 	if err != nil {
+		log.C(ctx).Errorf("Failed to retrieve %s with id: %s, err: %s", types.ServicePlanType, persistedInstance.ServicePlanID, err)
 		return nil, err
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
 
 	if !plan.SupportInstanceSharing() {
+		log.C(ctx).Errorf("The plan: %s does not support instance sharing", plan.ID)
 		return nil, util.HandleInstanceSharingError(util.ErrPlanDoesNotSupportInstanceSharing, plan.ID)
 	}
 
@@ -142,7 +147,9 @@ func (sf *sharedInstanceUpdateFilter) handleServiceUpdate(req *web.Request, reqS
 			logger.Errorf("Could not retrieve references of the service instance (%s): %v", instanceID, err)
 		}
 		if referencesList != nil && referencesList.Len() > 0 {
-			return nil, util.HandleReferencesError(util.ErrUnsharingInstanceWithReferences, types.ObjectListIDsToStringArray(referencesList))
+			referencesArray := types.ObjectListIDsToStringArray(referencesList)
+			log.C(req.Context()).Errorf("Failed to unshare the instance: %s due to existing references: %s", persistedInstance.ID, referencesArray)
+			return nil, util.HandleReferencesError(util.ErrUnsharingInstanceWithReferences, referencesArray)
 		}
 	}
 
