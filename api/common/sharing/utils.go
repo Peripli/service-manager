@@ -143,23 +143,22 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 	}
 
 	for i := 0; i < instances.Len(); i++ {
-		shouldAdd := true
 
 		// "*" for any shared instance of the tenant, if parameter not passed, set true for any shared instance
 		selectorVal, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
 		if exists && selectorVal.String() != "*" {
-			shouldAdd = false
+			continue
 		}
 
 		instance := instances.ItemAt(i).(*types.ServiceInstance)
 
 		selectorVal, exists = parameters[instance_sharing.ReferenceInstanceNameSelector]
 		if exists && len(selectorVal.String()) > 0 && !(instance.Name == selectorVal.String()) {
-			shouldAdd = false
+			continue
 		}
 
 		if planSelectorExists && (selectorPlan == nil || instance.ServicePlanID != selectorPlan.ID) {
-			shouldAdd = false
+			continue
 		}
 
 		selectorVal, exists = parameters[instance_sharing.ReferenceLabelSelector]
@@ -169,17 +168,15 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 				return types.ServiceInstances{}, err
 			}
 			if !match {
-				shouldAdd = false
+				continue
 			}
 		}
 
+		filteredInstances.Add(instance)
 		// only single result is accepted for selectors:
-		if shouldAdd && filteredInstances.Len() >= 1 {
+		if filteredInstances.Len() > 1 {
 			log.C(ctx).Errorf("%s", util.ErrMultipleReferenceSelectorResults)
 			return types.ServiceInstances{}, util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
-		}
-		if shouldAdd {
-			filteredInstances.Add(instance)
 		}
 	}
 	if filteredInstances.Len() == 0 {
