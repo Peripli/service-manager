@@ -241,8 +241,8 @@ var _ = DescribeTestsFor(TestCase{
 				Expect(brokerServer.LastRequest.RequestURI).To(ContainSubstring(pointsToInstanceID))
 			}
 
-			preparePrerequisitesWithMaxPollingDuration := func(maxPollingDuration int, supportInstanceSharing bool) {
-				if supportInstanceSharing == true {
+			preparePrerequisitesWithMaxPollingDuration := func(maxPollingDuration int, supportsInstanceSharing bool) {
+				if supportsInstanceSharing == true {
 					brokerID, brokerServer, servicePlanID, servicePlanCatalogID, serviceCatalogID = newShareableServicePlanWithMaxPollingDuration(ctx, true, maxPollingDuration)
 				} else {
 					brokerID, brokerServer, servicePlanID, servicePlanCatalogID, serviceCatalogID = newServicePlanWithMaxPollingDuration(ctx, true, maxPollingDuration)

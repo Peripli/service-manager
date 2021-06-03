@@ -6,4 +6,4 @@ const ReferencePlanName = "reference-instance"
 
 const ReferencedInstanceIDKey = "referenced_instance_id"
 
-const SupportInstanceSharingKey = "supportInstanceSharing"
+const SupportsInstanceSharingKey = "supportsInstanceSharing"

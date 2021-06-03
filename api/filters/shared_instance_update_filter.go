@@ -99,7 +99,7 @@ func (sf *sharedInstanceUpdateFilter) handleServiceUpdate(req *web.Request, reqS
 			return nil, util.HandleStorageError(err, types.ServicePlanType.String())
 		}
 		newPlan := dbNewPlanObject.(*types.ServicePlan)
-		if !newPlan.SupportInstanceSharing() {
+		if !newPlan.SupportsInstanceSharing() {
 			return nil, util.HandleInstanceSharingError(util.ErrNewPlanDoesNotSupportInstanceSharing, "")
 		}
 	}
@@ -131,7 +131,7 @@ func (sf *sharedInstanceUpdateFilter) handleServiceUpdate(req *web.Request, reqS
 	}
 	plan := dbPlanObject.(*types.ServicePlan)
 
-	if !plan.SupportInstanceSharing() {
+	if !plan.SupportsInstanceSharing() {
 		log.C(ctx).Errorf("The plan: %s does not support instance sharing", plan.ID)
 		return nil, util.HandleInstanceSharingError(util.ErrPlanDoesNotSupportInstanceSharing, plan.ID)
 	}

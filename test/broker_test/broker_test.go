@@ -2405,7 +2405,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect(strings.Contains(string(brokerServer.Catalog), instance_sharing.ReferencePlanName)).To(Equal(false))
 						})
 					})
-					When("changing the supportInstanceSharing property of an existing plan", func() {
+					When("changing the supportsInstanceSharing property of an existing plan", func() {
 						var plan1, plan2, plan3 string
 						var shareableValue bool
 						var testContext *BrokerUtils
@@ -2419,7 +2419,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							var referencePlan1, referencePlan2 *types.ServicePlan
 							BeforeEach(func() {
 								// validate plans has shareable status
-								path := fmt.Sprintf("metadata.%s", instance_sharing.SupportInstanceSharingKey)
+								path := fmt.Sprintf("metadata.%s", instance_sharing.SupportsInstanceSharingKey)
 								shareableValue = gjson.Get(plan1, path).Bool()
 								Expect(shareableValue).To(Equal(true))
 								shareableValue = gjson.Get(plan2, path).Bool()
@@ -2437,10 +2437,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect(referencePlan2).NotTo(Equal(nil))
 
 								// set catalog as support instance sharing false
-								metadataPathPlan1 := fmt.Sprintf("services.0.plans.0.metadata.%s", instance_sharing.SupportInstanceSharingKey)
+								metadataPathPlan1 := fmt.Sprintf("services.0.plans.0.metadata.%s", instance_sharing.SupportsInstanceSharingKey)
 								newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), metadataPathPlan1, false)
-								newCatalogBytes, _ = sjson.SetBytes(newCatalogBytes, fmt.Sprintf("services.0.plans.1.metadata.%s", instance_sharing.SupportInstanceSharingKey), false)
-								newCatalogBytes, _ = sjson.SetBytes(newCatalogBytes, fmt.Sprintf("services.1.plans.0.metadata.%s", instance_sharing.SupportInstanceSharingKey), false)
+								newCatalogBytes, _ = sjson.SetBytes(newCatalogBytes, fmt.Sprintf("services.0.plans.1.metadata.%s", instance_sharing.SupportsInstanceSharingKey), false)
+								newCatalogBytes, _ = sjson.SetBytes(newCatalogBytes, fmt.Sprintf("services.1.plans.0.metadata.%s", instance_sharing.SupportsInstanceSharingKey), false)
 								brokerServer.Catalog = SBCatalog(newCatalogBytes)
 							})
 							AfterEach(func() {
@@ -2455,7 +2455,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect(referencePlan2).To(BeNil())
 
 							})
-							It("removes the reference plan when changing the supportInstanceSharing to 'false'", func() {
+							It("removes the reference plan when changing the supportsInstanceSharing to 'false'", func() {
 
 								// update broker
 								location := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+testContext.Broker.ID).
@@ -2479,7 +2479,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							var referenceInstance *types.ServiceInstance
 							BeforeEach(func() {
 								// validate plans has shareable status
-								path := fmt.Sprintf("metadata.%s", instance_sharing.SupportInstanceSharingKey)
+								path := fmt.Sprintf("metadata.%s", instance_sharing.SupportsInstanceSharingKey)
 								shareableValue = gjson.Get(plan1, path).Bool()
 								Expect(shareableValue).To(Equal(true))
 								// validate reference plan exists
@@ -2492,7 +2492,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								sharedInstance = CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, sharedPlan.ID, true)
 								referenceInstance = CreateReferenceInstanceInPlatform(ctx, ctx.TestPlatform.ID, referencePlan1.ID, sharedInstance.ID)
 								//set catalog as support instance sharing false
-								newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), fmt.Sprintf("services.0.plans.0.metadata.%s", instance_sharing.SupportInstanceSharingKey), false)
+								newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), fmt.Sprintf("services.0.plans.0.metadata.%s", instance_sharing.SupportsInstanceSharingKey), false)
 								brokerServer.Catalog = SBCatalog(newCatalogBytes)
 							})
 							AfterEach(func() {
@@ -2505,7 +2505,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								DeleteInstance(ctx, referenceInstance.ID, referenceInstance.ServicePlanID)
 								DeleteInstance(ctx, sharedInstance.ID, sharedInstance.ServicePlanID)
 							})
-							It("fails removing the reference plan after changing the supportInstanceSharing to 'false' (for planID1) due to existing shared instance of a plan", func() {
+							It("fails removing the reference plan after changing the supportsInstanceSharing to 'false' (for planID1) due to existing shared instance of a plan", func() {
 								// update broker
 								location := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+testContext.Broker.ID).
 									WithQuery(web.QueryParamAsync, "true").
@@ -2524,7 +2524,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							var sharedInstance *types.ServiceInstance
 							BeforeEach(func() {
 								// validate plans has shareable status
-								path := fmt.Sprintf("metadata.%s", instance_sharing.SupportInstanceSharingKey)
+								path := fmt.Sprintf("metadata.%s", instance_sharing.SupportsInstanceSharingKey)
 								shareableValue = gjson.Get(plan1, path).Bool()
 								Expect(shareableValue).To(Equal(true))
 								// validate reference plan exists
@@ -2536,7 +2536,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								sharedPlan := GetPlanByKey(ctx, "catalog_id", planID1)
 								sharedInstance = CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, sharedPlan.ID, true)
 								//set catalog as support instance sharing false
-								newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), fmt.Sprintf("services.0.plans.0.metadata.%s", instance_sharing.SupportInstanceSharingKey), false)
+								newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), fmt.Sprintf("services.0.plans.0.metadata.%s", instance_sharing.SupportsInstanceSharingKey), false)
 								brokerServer.Catalog = SBCatalog(newCatalogBytes)
 							})
 							AfterEach(func() {
@@ -2548,7 +2548,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect(referencePlan1).NotTo(BeNil())
 								DeleteInstance(ctx, sharedInstance.ID, sharedInstance.ServicePlanID)
 							})
-							It("fails removing the reference plan after changing the supportInstanceSharing to 'false' (for planID1) due to existing shared instance of a plan", func() {
+							It("fails removing the reference plan after changing the supportsInstanceSharing to 'false' (for planID1) due to existing shared instance of a plan", func() {
 								// update broker
 								location := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+testContext.Broker.ID).
 									WithQuery(web.QueryParamAsync, "true").
@@ -2570,7 +2570,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							brokerServer = testContext.Broker.BrokerServer
 							brokerID = testContext.Broker.ID
 							// set catalog as support instance sharing true
-							metadataPathPlan1 := fmt.Sprintf("services.0.plans.0.metadata.%s", instance_sharing.SupportInstanceSharingKey)
+							metadataPathPlan1 := fmt.Sprintf("services.0.plans.0.metadata.%s", instance_sharing.SupportsInstanceSharingKey)
 							newCatalogBytes, _ := sjson.SetBytes([]byte(brokerServer.Catalog), metadataPathPlan1, true)
 							brokerServer.Catalog = SBCatalog(newCatalogBytes)
 						})
