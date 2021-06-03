@@ -69,7 +69,7 @@ var testShareableFreePlan = `
 	  "free": true,
 	  "bindable": true,
       "metadata": {
-		"supportInstanceSharing": true,
+		"supportsInstanceSharing": true,
         "max_storage_tb": 5,
         "costs":[
             {
@@ -102,7 +102,7 @@ var testShareablePaidPlan = `
       "metadata": {
         "max_storage_tb": 5,
 		"supportedPlatforms": [],
-		"supportInstanceSharing": true,
+		"supportsInstanceSharing": true,
         "costs":[
             {
                "amount":{
@@ -134,7 +134,7 @@ var testShareableNonBindablePlan = `
       "metadata": {
         "max_storage_tb": 5,
 		"supportedPlatforms": [],
-		"supportInstanceSharing": true,
+		"supportsInstanceSharing": true,
         "costs":[
             {
                "amount":{

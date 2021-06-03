@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -318,7 +319,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrSharedPlanHasReferences:
-		errorMessage := fmt.Sprintf("Couldn't update the service plan. Before you can set it as supportInstanceSharing=false, you first need to unshare the instances of the plan: %s.", entityName)
+		errorMessage := fmt.Sprintf("Couldn't update the service plan. Before you can set it as %s=false, you first need to unshare the instances of the plan: %s.", instance_sharing.SupportsInstanceSharingKey, entityName)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
