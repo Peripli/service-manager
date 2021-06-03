@@ -1,5 +1,6 @@
 package schemas
-const ReferencePlan =`{
+
+const ReferencePlan = `{
   "metadata": {
     "supportedPlatforms": [],
     "translations": {
