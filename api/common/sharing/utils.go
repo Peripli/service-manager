@@ -102,10 +102,14 @@ func validateParameters(parameters map[string]gjson.Result) error {
 	// don't allow combination of id with selectors.
 	// parameters should not be empty, but the values of each parameter can be ""
 	id := parameters[instance_sharing.ReferencedInstanceIDKey].String()
-	label := parameters[instance_sharing.ReferenceLabelSelector].Raw
 	name := parameters[instance_sharing.ReferenceInstanceNameSelector].String()
 	plan := parameters[instance_sharing.ReferencePlanNameSelector].String()
-	hasAtLeastOneSelector := len(label) > 0 || len(name) > 0 || len(plan) > 0
+	labels := parameters[instance_sharing.ReferenceLabelSelector].Raw
+	var selectorLabels types.Labels
+	if err := util.BytesToObject([]byte(labels), &selectorLabels); err != nil {
+		return err
+	}
+	hasAtLeastOneSelector := len(selectorLabels) > 0 || len(name) > 0 || len(plan) > 0
 	if len(id) > 0 && hasAtLeastOneSelector {
 		return util.HandleInstanceSharingError(util.ErrInvalidReferenceSelectors, "")
 	}
