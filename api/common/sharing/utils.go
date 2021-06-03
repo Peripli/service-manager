@@ -232,13 +232,14 @@ func matchLabels(instanceLabels types.Labels, selectorLabels types.Labels) (bool
 }
 
 func isSameServiceOffering(ctx context.Context, repository storage.Repository, offeringID string, planID string) (bool, error) {
-	byID := query.ByField(query.EqualsOperator, "id", planID)
-	servicePlanObj, err := repository.Get(ctx, types.ServicePlanType, byID)
+	count, err := repository.Count(ctx, types.ServicePlanType,
+		query.ByField(query.EqualsOperator, "service_offering_id", offeringID),
+		query.ByField(query.EqualsOperator, "id", planID),
+	)
 	if err != nil {
 		return false, util.HandleStorageError(err, types.ServicePlanType.String())
 	}
-	servicePlan := servicePlanObj.(*types.ServicePlan)
-	return offeringID == servicePlan.ServiceOfferingID, nil
+	return count > 0, nil
 }
 
 func contains(s []string, e string) bool {
