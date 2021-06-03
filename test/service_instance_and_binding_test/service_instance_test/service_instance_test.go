@@ -4022,8 +4022,11 @@ var _ = DescribeTestsFor(TestCase{
 							})
 							When("tenant has many shared instances", func() {
 								var sharedGuids []string
+								var resp *httpexpect.Response
+								var expectToSucceed bool
 								BeforeEach(func() {
 									sharedGuids = nil
+									expectToSucceed = true
 									EnsurePublicPlanVisibility(ctx.SMRepository, anotherServicePlanID)
 									for i := 0; i < 5; i++ {
 										ID, _ := uuid.NewV4()
@@ -4037,7 +4040,6 @@ var _ = DescribeTestsFor(TestCase{
 										sharedGuids = append(sharedGuids, sharedGuid)
 									}
 								})
-								var resp *httpexpect.Response
 								AfterEach(func() {
 									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.CREATE,
@@ -4051,7 +4053,9 @@ var _ = DescribeTestsFor(TestCase{
 										Type:  types.ServiceInstanceType,
 										Ready: true,
 									})
-									cleanupInstances(instanceID)
+									if expectToSucceed {
+										cleanupInstances(instanceID)
+									}
 									cleanupInstances(sharedGuids...)
 								})
 								It("creates reference instance by plan selector", func() {
@@ -4105,6 +4109,27 @@ var _ = DescribeTestsFor(TestCase{
 										WithJSON(requestBody).
 										Expect().
 										Status(http.StatusCreated)
+								})
+								It("should fail to create reference with labels selector if one of the labels does not match", func() {
+									expectToSucceed = false
+									randomUUID, _ := uuid.NewV4()
+									requestBody := Object{
+										"name":             "reference-instance-" + randomUUID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
+										"parameters": map[string]map[string][]string{
+											instance_sharing.ReferenceLabelSelector: {
+												TenantIdentifier: {TenantIDValue},
+												"origin":         {"11"},
+											},
+										},
+									}
+									resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusNotFound)
+									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
 								})
 							})
 							When("the selectors have more than one result", func() {

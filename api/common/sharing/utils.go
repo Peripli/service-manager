@@ -143,44 +143,42 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 	}
 
 	for i := 0; i < instances.Len(); i++ {
-		// selectors: true or false -> the entire map should be true in order to pass
-		selectors := make(map[string]bool)
-		selectorVal, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
+		shouldAdd := true
 
 		// "*" for any shared instance of the tenant, if parameter not passed, set true for any shared instance
-		if !exists || selectorVal.String() == "*" {
-			selectors["id"] = true
+		selectorVal, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
+		if exists && selectorVal.String() != "*" {
+			shouldAdd = false
 		}
 
 		instance := instances.ItemAt(i).(*types.ServiceInstance)
 
 		selectorVal, exists = parameters[instance_sharing.ReferenceInstanceNameSelector]
-		if exists {
-			selectors["name"] = instance.Name == selectorVal.String()
+		if exists && len(selectorVal.String()) > 0 && !(instance.Name == selectorVal.String()) {
+			shouldAdd = false
 		}
 
-		if planSelectorExists && selectorPlan != nil {
-			selectors["service_plan_id"] = compareInstanceWithPlanSelector(selectorPlan, planSelectorVal.String(), smaap)
+		if planSelectorExists && (selectorPlan == nil || instance.ServicePlanID != selectorPlan.ID) {
+			shouldAdd = false
 		}
 
 		selectorVal, exists = parameters[instance_sharing.ReferenceLabelSelector]
-		if exists {
-			selectors["label"], err = compareInstanceLabelsWithSelector(instance.Labels, []byte(selectorVal.Raw))
+		if exists && len(selectorVal.String()) > 0 {
+			match, err := matchLabels(instance.Labels, []byte(selectorVal.Raw))
 			if err != nil {
 				return types.ServiceInstances{}, err
 			}
+			if !match {
+				shouldAdd = false
+			}
 		}
 
-		// add the instance if the selectors are true:
-		shouldAdd := true
-		for _, isValid := range selectors {
-			shouldAdd = shouldAdd && isValid
-		}
 		// only single result is accepted for selectors:
 		if shouldAdd && filteredInstances.Len() >= 1 {
 			log.C(ctx).Errorf("%s", util.ErrMultipleReferenceSelectorResults)
 			return types.ServiceInstances{}, util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
-		} else if shouldAdd {
+		}
+		if shouldAdd {
 			filteredInstances.Add(instance)
 		}
 	}
@@ -189,16 +187,6 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 		return types.ServiceInstances{}, util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
 	}
 	return filteredInstances, nil
-}
-
-func compareInstanceWithPlanSelector(selectorPlan *types.ServicePlan, selectorValue string, smaap bool) bool {
-	var selectorPlanName string
-	if smaap {
-		selectorPlanName = selectorPlan.Name
-	} else {
-		selectorPlanName = selectorPlan.CatalogName
-	}
-	return selectorPlanName == selectorValue
 }
 
 func getSelectorPlan(ctx context.Context, repository storage.Repository, smaap bool, offeringID, selectorValue string) (*types.ServicePlan, error) {
@@ -220,7 +208,7 @@ func getSelectorPlan(ctx context.Context, repository storage.Repository, smaap b
 	return selectorPlan, nil
 }
 
-func compareInstanceLabelsWithSelector(instanceLabels types.Labels, labels []byte) (bool, error) {
+func matchLabels(instanceLabels types.Labels, labels []byte) (bool, error) {
 	var selectorLabels types.Labels
 	if err := util.BytesToObject(labels, &selectorLabels); err != nil {
 		return false, err
@@ -238,26 +226,23 @@ func compareInstanceLabelsWithSelector(instanceLabels types.Labels, labels []byt
 				"region": ["us", "eu", "jp"]
 			}
 	*/
-	selectorValidation := make(map[string]bool)
+
 	for selectorLabelKey, selectorLabelArray := range selectorLabels {
 		instanceLabelVal, exists := instanceLabels[selectorLabelKey]
 		if exists && instanceLabels != nil {
-			validLabel := true
+			match := true
 			for _, selectorLabelVal := range selectorLabelArray {
-				validLabel = validLabel && contains(instanceLabelVal, selectorLabelVal)
-				selectorValidation[selectorLabelKey] = validLabel
+				match = match && contains(instanceLabelVal, selectorLabelVal)
+				if !match {
+					return false, nil
+				}
 			}
 		} else {
-			selectorValidation[selectorLabelKey] = false
+			return false, nil
 		}
 	}
 
-	foundSharedInstance := true
-	for _, isValid := range selectorValidation {
-		foundSharedInstance = foundSharedInstance && isValid
-	}
-
-	return foundSharedInstance, nil
+	return true, nil
 }
 
 func isSameServiceOffering(ctx context.Context, repository storage.Repository, offeringID string, planID string) (bool, error) {
