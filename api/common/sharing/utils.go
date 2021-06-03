@@ -101,16 +101,16 @@ func validateParameters(parameters map[string]gjson.Result) error {
 	}
 	// don't allow combination of id with selectors.
 	// parameters should not be empty, but the values of each parameter can be ""
-	id := parameters[instance_sharing.ReferencedInstanceIDKey].String()
-	name := parameters[instance_sharing.ReferenceInstanceNameSelector].String()
-	plan := parameters[instance_sharing.ReferencePlanNameSelector].String()
-	labels := parameters[instance_sharing.ReferenceLabelSelector].Raw
+	ID, IDExists := parameters[instance_sharing.ReferencedInstanceIDKey]
+	name, nameExists := parameters[instance_sharing.ReferenceInstanceNameSelector]
+	plan, planExists := parameters[instance_sharing.ReferencePlanNameSelector]
+	labels, labelsExists := parameters[instance_sharing.ReferenceLabelSelector]
 	var selectorLabels types.Labels
-	if err := util.BytesToObject([]byte(labels), &selectorLabels); err != nil {
+	if err := util.BytesToObject([]byte(labels.Raw), &selectorLabels); labelsExists && err != nil {
 		return err
 	}
-	hasAtLeastOneSelector := len(selectorLabels) > 0 || len(name) > 0 || len(plan) > 0
-	if len(id) > 0 && hasAtLeastOneSelector {
+	hasAtLeastOneSelector := selectorLabels != nil && len(selectorLabels) > 0 || nameExists && len(name.String()) > 0 || planExists && len(plan.String()) > 0
+	if IDExists && len(ID.String()) > 0 && hasAtLeastOneSelector {
 		return util.HandleInstanceSharingError(util.ErrInvalidReferenceSelectors, "")
 	}
 	return nil
