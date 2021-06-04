@@ -34,7 +34,6 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 	if exists && len(referencedInstanceID.String()) > 0 && referencedInstanceID.String() != "*" {
 		referencedInstance, err = getInstanceByID(ctx, repository, referencedInstanceID.String(), referencePlan.ServiceOfferingID, tenantIdentifier, getTenantId())
 		if err != nil {
-			log.C(ctx).Errorf("Failed to retrieve the instance %s, error: %s", referencedInstanceID.String(), err)
 			return "", err
 		}
 	} else {
@@ -183,12 +182,10 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 		filteredInstances.Add(instance)
 		// only single result is accepted for selectors:
 		if filteredInstances.Len() > 1 {
-			log.C(ctx).Errorf("%s", util.ErrMultipleReferenceSelectorResults)
 			return nil, util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
 		}
 	}
 	if filteredInstances.Len() == 0 {
-		log.C(ctx).Errorf("%s", util.ErrNoResultsForReferenceSelector)
 		return nil, util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
 	}
 	return filteredInstances.ItemAt(0).(*types.ServiceInstance), nil

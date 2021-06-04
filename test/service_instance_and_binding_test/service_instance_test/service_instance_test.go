@@ -4011,19 +4011,6 @@ var _ = DescribeTestsFor(TestCase{
 										Expect().
 										Status(http.StatusCreated)
 								})
-								It("should fail to create reference instance with empty parameters", func() {
-									randomUUID, _ := uuid.NewV4()
-									requestBody := Object{
-										"name":             "reference-instance-" + randomUUID.String(),
-										"service_plan_id":  referencePlan.ID,
-										"maintenance_info": "{}",
-									}
-									resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
-										WithQuery("async", false).
-										WithJSON(requestBody).
-										Expect().
-										Status(http.StatusBadRequest)
-								})
 							})
 							When("tenant has many shared instances", func() {
 								var sharedGuids []string
@@ -4335,6 +4322,19 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 							When("selectors are invalid", func() {
+								It("fails to provision due to empty parameters", func() {
+									randomUUID, _ := uuid.NewV4()
+									requestBody := Object{
+										"name":             "reference-instance-" + randomUUID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
+									}
+									ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusBadRequest)
+								})
 								It("fails to provision due to unknown selector", func() {
 									randomUUID, _ := uuid.NewV4()
 									requestBody := Object{
@@ -4355,7 +4355,7 @@ var _ = DescribeTestsFor(TestCase{
 										Status(http.StatusNotFound)
 									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
 								})
-								It("fails to provision due to empty selectors", func() {
+								It("fails to provision due to empty selectors values", func() {
 									randomUUID, _ := uuid.NewV4()
 
 									parameters := make(map[string]interface{})
