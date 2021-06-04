@@ -145,15 +145,9 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 	}
 
 	for i := 0; i < instances.Len(); i++ {
-		// "*" for any shared instance of the tenant, if parameter not passed, set true for any shared instance
-		selectorVal, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
-		if exists && len(selectorVal.String()) > 0 && selectorVal.String() != "*" {
-			continue
-		}
-
 		instance := instances.ItemAt(i).(*types.ServiceInstance)
 
-		selectorVal, exists = parameters[instance_sharing.ReferenceInstanceNameSelector]
+		selectorVal, exists := parameters[instance_sharing.ReferenceInstanceNameSelector]
 		if exists && len(selectorVal.String()) > 0 && !(instance.Name == selectorVal.String()) {
 			continue
 		}
