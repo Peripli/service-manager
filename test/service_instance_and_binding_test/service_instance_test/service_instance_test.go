@@ -4167,6 +4167,42 @@ var _ = DescribeTestsFor(TestCase{
 										Expect().
 										Status(http.StatusCreated)
 								})
+								It("creates a reference to an instance by label selector if the instance has at least one selector label value", func() {
+									randomUUID, _ := uuid.NewV4()
+									requestBody := Object{
+										"name":             "reference-instance-" + randomUUID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
+										"parameters": map[string]map[string][]string{
+											instance_sharing.ReferenceLabelSelector: {
+												"origin": {"1"},
+											},
+										},
+									}
+									resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusCreated)
+								})
+								It("creates a reference to an instance by label selector if the instance has at least one selector label (with its all values)", func() {
+									randomUUID, _ := uuid.NewV4()
+									requestBody := Object{
+										"name":             "reference-instance-" + randomUUID.String(),
+										"service_plan_id":  referencePlan.ID,
+										"maintenance_info": "{}",
+										"parameters": map[string]map[string][]string{
+											instance_sharing.ReferenceLabelSelector: {
+												"origin": {"eu", "1"},
+											},
+										},
+									}
+									resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+										WithQuery("async", false).
+										WithJSON(requestBody).
+										Expect().
+										Status(http.StatusCreated)
+								})
 								It("should fail to create reference with labels selector if one of the labels does not match", func() {
 									expectToSucceed = false
 									randomUUID, _ := uuid.NewV4()
