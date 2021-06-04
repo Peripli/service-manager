@@ -4148,25 +4148,6 @@ var _ = DescribeTestsFor(TestCase{
 										Expect().
 										Status(http.StatusCreated)
 								})
-								It("creates a reference to an instance by label selector", func() {
-									randomUUID, _ := uuid.NewV4()
-									requestBody := Object{
-										"name":             "reference-instance-" + randomUUID.String(),
-										"service_plan_id":  referencePlan.ID,
-										"maintenance_info": "{}",
-										"parameters": map[string]map[string][]string{
-											instance_sharing.ReferenceLabelSelector: {
-												TenantIdentifier: {TenantIDValue},
-												"origin":         {"1"},
-											},
-										},
-									}
-									resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
-										WithQuery("async", false).
-										WithJSON(requestBody).
-										Expect().
-										Status(http.StatusCreated)
-								})
 								It("creates a reference to an instance by label selector if the instance has at least one selector label value", func() {
 									randomUUID, _ := uuid.NewV4()
 									requestBody := Object{
