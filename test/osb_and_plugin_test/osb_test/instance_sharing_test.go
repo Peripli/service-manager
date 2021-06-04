@@ -261,22 +261,22 @@ var _ = Describe("Instance Sharing", func() {
 				})
 				deleteInstance(referenceInstanceID, http.StatusOK)
 			})
-			It("creates reference instance by plan selector", func() {
+			It("succeeds with plan selector", func() {
 				shareablePlan := GetPlanByKey(ctx, "catalog_id", shareablePlanCatalogID)
 				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencePlanNameSelector, shareablePlan.CatalogName, false)
 			})
-			It("creates reference instance by name selector", func() {
+			It("succeeds with name selector", func() {
 				sharedInstance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
 				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferenceInstanceNameSelector, sharedInstance.Name, false)
 			})
-			It("creates reference instance by global (*) pointer to a shared instance", func() {
+			It("succeeds with global (*) pointer to a shared instance", func() {
 				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencedInstanceIDKey, "*", false)
 			})
-			It("creates reference instance by label selector", func() {
+			It("succeeds with label selector", func() {
 				labelSelector := Object{TenantIdentifier: Array{TenantValue}}
 				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferenceLabelSelector, labelSelector, false)
 			})
-			It("creates reference instance by combination of selectors", func() {
+			It("succeeds with combination of selectors", func() {
 				sharedInstance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
 				shareablePlan := GetPlanByKey(ctx, "catalog_id", shareablePlanCatalogID)
 
@@ -331,7 +331,7 @@ var _ = Describe("Instance Sharing", func() {
 						ExternalID:   "",
 					})
 				})
-				It("creates reference instance by combination of selectors", func() {
+				It("succeeds with combination of selectors", func() {
 					sharedInstance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
 					shareablePlan := GetPlanByKey(ctx, "catalog_id", shareablePlanCatalogID)
 

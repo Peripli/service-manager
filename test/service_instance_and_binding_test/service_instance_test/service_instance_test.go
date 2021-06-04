@@ -3995,7 +3995,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 									cleanupInstances(instanceID)
 								})
-								It("creates reference instance by global (*) pointer to a shared instance", func() {
+								It("succeeds with global (*) pointer to a shared instance", func() {
 									randomUUID, _ := uuid.NewV4()
 									requestBody := Object{
 										"name":             "reference-instance-" + randomUUID.String(),
