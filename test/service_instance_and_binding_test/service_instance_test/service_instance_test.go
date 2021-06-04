@@ -4329,11 +4329,12 @@ var _ = DescribeTestsFor(TestCase{
 										"service_plan_id":  referencePlan.ID,
 										"maintenance_info": "{}",
 									}
-									ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+									resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 										WithQuery("async", false).
 										WithJSON(requestBody).
 										Expect().
 										Status(http.StatusBadRequest)
+									resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey))
 								})
 								It("fails to provision due to unknown selector", func() {
 									randomUUID, _ := uuid.NewV4()
