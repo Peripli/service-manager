@@ -85,22 +85,21 @@ var namedQueries = map[NamedQuery]string{
 		AND NOT EXISTS(SELECT vl.visibility_id FROM visibility_labels vl WHERE vl.visibility_id = v.id) 
 		AND sp.catalog_name = :service_plan_name AND so.catalog_name = :service_offering_name)`,
 	QueryForSharedInstances: `
-	select service_instances.*,
+	SELECT service_instances.*,
 	service_instance_labels.id         "service_instance_labels.id",
 	service_instance_labels.key        "service_instance_labels.key",
 	service_instance_labels.val        "service_instance_labels.val",
 	service_instance_labels.created_at "service_instance_labels.created_at",
 	service_instance_labels.updated_at "service_instance_labels.updated_at"
-	from service_instances
-	inner join service_plans on service_plans.id = service_instances.service_plan_id
-	inner join service_instance_labels on service_instances.id = service_instance_labels.service_instance_id
-	where service_instances.shared=true and
-		  service_plans.service_offering_id = :offering_id and
-		  exists (
+	FROM service_instances
+	INNER JOIN service_plans ON service_plans.id = service_instances.service_plan_id
+	INNER JOIN service_instance_labels ON service_instances.id = service_instance_labels.service_instance_id
+	WHERE service_instances.shared=true AND
+		  service_plans.service_offering_id = :offering_id AND
+		  EXISTS (
 			SELECT * FROM service_instance_labels 
-			WHERE 	service_instance_labels.key = :tenant_identifier and 
-					service_instance_labels.val = :tenant_id and
- 					service_instance_labels.service_instance_id = service_instances.id
+			WHERE service_instance_labels.key = :tenant_identifier AND service_instance_labels.val = :tenant_id AND
+				  service_instance_labels.service_instance_id = service_instances.id
 		  )`,
 }
 

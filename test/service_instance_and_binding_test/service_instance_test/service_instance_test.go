@@ -3978,7 +3978,7 @@ var _ = DescribeTestsFor(TestCase{
 							BeforeEach(func() {
 								sharedInstance, _ = GetInstanceObjectByID(ctx, sharedInstanceID)
 							})
-							When("tenant has single shared instance", func() {
+							When("the tenant has single shared instance", func() {
 								var resp *httpexpect.Response
 								AfterEach(func() {
 									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -4012,7 +4012,7 @@ var _ = DescribeTestsFor(TestCase{
 										Status(http.StatusCreated)
 								})
 							})
-							When("tenant has many shared instances", func() {
+							When("the tenant has many shared instances", func() {
 								var sharedGuids []string
 								var resp *httpexpect.Response
 								var expectToSucceed bool
@@ -4050,7 +4050,7 @@ var _ = DescribeTestsFor(TestCase{
 									}
 									cleanupInstances(sharedGuids...)
 								})
-								It("creates reference instance by plan name selector", func() {
+								It("creates a reference to an instance by plan name selector", func() {
 									randomUUID, _ := uuid.NewV4()
 									sharedPlan := GetPlanByKey(ctx, "id", sharedInstance.ServicePlanID)
 									requestBody := Object{
@@ -4067,7 +4067,7 @@ var _ = DescribeTestsFor(TestCase{
 										Expect().
 										Status(http.StatusCreated)
 								})
-								It("creates reference instance by instance name selector", func() {
+								It("creates a reference to an instance by instance name selector", func() {
 									randomUUID, _ := uuid.NewV4()
 									requestBody := Object{
 										"name":             "reference-instance-" + randomUUID.String(),
@@ -4083,7 +4083,7 @@ var _ = DescribeTestsFor(TestCase{
 										Expect().
 										Status(http.StatusCreated)
 								})
-								It("creates reference instance by instance name selector with other empty selectors", func() {
+								It("creates a reference to an instance by instance name selector with other empty selectors", func() {
 									randomUUID, _ := uuid.NewV4()
 
 									parameters := make(map[string]interface{})
@@ -4104,7 +4104,7 @@ var _ = DescribeTestsFor(TestCase{
 										Expect().
 										Status(http.StatusCreated)
 								})
-								It("creates reference instance by plan name selector with other empty selectors", func() {
+								It("creates a reference to an instance by plan name selector with other empty selectors", func() {
 									randomUUID, _ := uuid.NewV4()
 									sharedPlan := GetPlanByKey(ctx, "id", sharedInstance.ServicePlanID)
 
@@ -4126,7 +4126,7 @@ var _ = DescribeTestsFor(TestCase{
 										Expect().
 										Status(http.StatusCreated)
 								})
-								It("creates reference instance with combination of name and plan selector with other empty selectors", func() {
+								It("creates a reference to an instance with combination of name and plan selector with other empty selectors", func() {
 									randomUUID, _ := uuid.NewV4()
 									sharedPlan := GetPlanByKey(ctx, "id", sharedInstance.ServicePlanID)
 
@@ -4148,7 +4148,7 @@ var _ = DescribeTestsFor(TestCase{
 										Expect().
 										Status(http.StatusCreated)
 								})
-								It("creates reference instance by label selector", func() {
+								It("creates a reference to an instance by label selector", func() {
 									randomUUID, _ := uuid.NewV4()
 									requestBody := Object{
 										"name":             "reference-instance-" + randomUUID.String(),
