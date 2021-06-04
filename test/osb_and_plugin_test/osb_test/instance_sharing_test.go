@@ -227,9 +227,6 @@ var _ = Describe("Instance Sharing", func() {
 			When("provisioning reference instance with selectors", func() {
 				var resp *httpexpect.Response
 				var sharedInstanceID, referenceInstanceID string
-				//var sharedInstance *types.ServiceInstance
-				//var referencePlan *types.ServicePlan
-				//var sharedPlan *types.ServicePlan
 				BeforeEach(func() {
 					platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 					instanceSharingBrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
@@ -249,9 +246,6 @@ var _ = Describe("Instance Sharing", func() {
 						ResourceType: "/v1/service_instances",
 						ExternalID:   "",
 					})
-					//sharedInstance, _ = GetInstanceObjectByID(ctx, sharedInstanceID)
-					//referencePlan = GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareablePlanCatalogID)
-					//sharedPlan = GetPlanByKey(ctx, "catalog_id", shareablePlanCatalogID)
 				})
 				JustAfterEach(func() {
 					referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
