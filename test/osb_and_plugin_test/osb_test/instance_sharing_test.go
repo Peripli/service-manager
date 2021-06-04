@@ -223,59 +223,113 @@ var _ = Describe("Instance Sharing", func() {
 
 			})
 		})
-		Context("selectors", func() {
-			When("provisioning reference instance with selectors", func() {
-				var resp *httpexpect.Response
-				var sharedInstanceID, referenceInstanceID string
-				BeforeEach(func() {
-					platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
-					instanceSharingBrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
-					instanceSharingUtils.BrokerWithTLS.BrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
+		Context("provision with selectors", func() {
+			var resp *httpexpect.Response
+			var sharedInstanceID, referenceInstanceID string
+			BeforeEach(func() {
+				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
+				instanceSharingBrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
+				instanceSharingUtils.BrokerWithTLS.BrokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			})
+			JustBeforeEach(func() {
+				_, sharedInstanceID = createAndShareInstance(false)
+				VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:    sharedInstanceID,
+					Type:  types.ServiceInstanceType,
+					Ready: true,
 				})
+				verifyOperationExists(operationExpectations{
+					Type:         types.CREATE,
+					State:        types.SUCCEEDED,
+					ResourceID:   sharedInstanceID,
+					ResourceType: "/v1/service_instances",
+					ExternalID:   "",
+				})
+			})
+			JustAfterEach(func() {
+				referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+					Category:          types.CREATE,
+					State:             types.SUCCEEDED,
+					ResourceType:      types.ServiceInstanceType,
+					Reschedulable:     false,
+					DeletionScheduled: false,
+				})
+				VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+					ID:    referenceInstanceID,
+					Type:  types.ServiceInstanceType,
+					Ready: true,
+				})
+				deleteInstance(referenceInstanceID, http.StatusOK)
+			})
+			It("creates reference instance by plan selector", func() {
+				shareablePlan := GetPlanByKey(ctx, "catalog_id", shareablePlanCatalogID)
+				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencePlanNameSelector, shareablePlan.CatalogName, false)
+			})
+			It("creates reference instance by name selector", func() {
+				sharedInstance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
+				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferenceInstanceNameSelector, sharedInstance.Name, false)
+			})
+			It("creates reference instance by global (*) pointer to a shared instance", func() {
+				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencedInstanceIDKey, "*", false)
+			})
+			It("creates reference instance by label selector", func() {
+				labelSelector := Object{TenantIdentifier: Array{TenantValue}}
+				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferenceLabelSelector, labelSelector, false)
+			})
+			It("creates reference instance by combination of selectors", func() {
+				sharedInstance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
+				shareablePlan := GetPlanByKey(ctx, "catalog_id", shareablePlanCatalogID)
+
+				UUID, err := uuid.NewV4()
+				if err != nil {
+					panic(err)
+				}
+				instanceID := UUID.String()
+
+				referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareablePlanCatalogID)
+				referenceProvisionBody := buildReferenceProvisionBody(referencePlan.CatalogID, platform.ID)
+				referenceProvisionBody["parameters"] = Object{
+					TenantIdentifier: Array{TenantValue},
+					instance_sharing.ReferenceInstanceNameSelector: sharedInstance.Name,
+					instance_sharing.ReferencePlanNameSelector:     shareablePlan.CatalogName,
+				}
+				utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(referencePlan.CatalogID, platform.ID, organizationGUID)
+				resp = ctx.SMWithBasic.PUT(instanceSharingBrokerPath+"/v2/service_instances/"+instanceID).
+					WithQuery(acceptsIncompleteKey, false).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithJSON(referenceProvisionBody).
+					Expect().Status(http.StatusCreated)
+				resp.Body().Contains("{}")
+			})
+			When("the tenant has many shared instances", func() {
 				JustBeforeEach(func() {
-					_, sharedInstanceID = createAndShareInstance(false)
+					_, sharedInstanceID2 := createAndShareInstance(false)
+					// rename instance to avoid multiple results:
+					sharedInstance2, _ := GetInstanceObjectByID(ctx, sharedInstanceID2)
+					sharedInstance2.Name = "shared-instance-2"
+					ctx.SMRepository.Update(context.TODO(), sharedInstance2, types.LabelChanges{})
+
+					_, sharedInstanceID3 := createAndShareInstance(false)
+					// rename instance to avoid multiple results:
+					sharedInstance3, _ := GetInstanceObjectByID(ctx, sharedInstanceID3)
+					sharedInstance3.Name = "shared-instance-2"
+					sharedInstance3.SetLabels(types.Labels{
+						TenantIdentifier: {TenantValue},
+						"type":           {"dev"},
+					})
+					ctx.SMRepository.Update(context.TODO(), sharedInstance3, types.LabelChanges{})
 					VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-						ID:    sharedInstanceID,
+						ID:    sharedInstanceID2,
 						Type:  types.ServiceInstanceType,
 						Ready: true,
 					})
 					verifyOperationExists(operationExpectations{
 						Type:         types.CREATE,
 						State:        types.SUCCEEDED,
-						ResourceID:   sharedInstanceID,
+						ResourceID:   sharedInstanceID2,
 						ResourceType: "/v1/service_instances",
 						ExternalID:   "",
 					})
-				})
-				JustAfterEach(func() {
-					referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-						Category:          types.CREATE,
-						State:             types.SUCCEEDED,
-						ResourceType:      types.ServiceInstanceType,
-						Reschedulable:     false,
-						DeletionScheduled: false,
-					})
-					VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-						ID:    referenceInstanceID,
-						Type:  types.ServiceInstanceType,
-						Ready: true,
-					})
-					deleteInstance(referenceInstanceID, http.StatusOK)
-				})
-				It("creates reference instance by plan selector", func() {
-					shareablePlan := GetPlanByKey(ctx, "catalog_id", shareablePlanCatalogID)
-					resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencePlanNameSelector, shareablePlan.CatalogName, false)
-				})
-				It("creates reference instance by name selector", func() {
-					sharedInstance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
-					resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferenceInstanceNameSelector, sharedInstance.Name, false)
-				})
-				It("creates reference instance by global (*) pointer to a shared instance", func() {
-					resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencedInstanceIDKey, "*", false)
-				})
-				It("creates reference instance by label selector", func() {
-					labelSelector := Object{TenantIdentifier: Array{TenantValue}}
-					resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferenceLabelSelector, labelSelector, false)
 				})
 				It("creates reference instance by combination of selectors", func() {
 					sharedInstance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
@@ -301,62 +355,6 @@ var _ = Describe("Instance Sharing", func() {
 						WithJSON(referenceProvisionBody).
 						Expect().Status(http.StatusCreated)
 					resp.Body().Contains("{}")
-				})
-				When("has more than one shared instance but only 1 is qualified by the selectors", func() {
-					JustBeforeEach(func() {
-						_, sharedInstanceID2 := createAndShareInstance(false)
-						// rename instance to avoid multiple results:
-						sharedInstance2, _ := GetInstanceObjectByID(ctx, sharedInstanceID2)
-						sharedInstance2.Name = "shared-instance-2"
-						ctx.SMRepository.Update(context.TODO(), sharedInstance2, types.LabelChanges{})
-
-						_, sharedInstanceID3 := createAndShareInstance(false)
-						// rename instance to avoid multiple results:
-						sharedInstance3, _ := GetInstanceObjectByID(ctx, sharedInstanceID3)
-						sharedInstance3.Name = "shared-instance-2"
-						sharedInstance3.SetLabels(types.Labels{
-							TenantIdentifier: {TenantValue},
-							"type":           {"dev"},
-						})
-						ctx.SMRepository.Update(context.TODO(), sharedInstance3, types.LabelChanges{})
-						VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-							ID:    sharedInstanceID2,
-							Type:  types.ServiceInstanceType,
-							Ready: true,
-						})
-						verifyOperationExists(operationExpectations{
-							Type:         types.CREATE,
-							State:        types.SUCCEEDED,
-							ResourceID:   sharedInstanceID2,
-							ResourceType: "/v1/service_instances",
-							ExternalID:   "",
-						})
-					})
-					It("creates reference instance by combination of selectors", func() {
-						sharedInstance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
-						shareablePlan := GetPlanByKey(ctx, "catalog_id", shareablePlanCatalogID)
-
-						UUID, err := uuid.NewV4()
-						if err != nil {
-							panic(err)
-						}
-						instanceID := UUID.String()
-
-						referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareablePlanCatalogID)
-						referenceProvisionBody := buildReferenceProvisionBody(referencePlan.CatalogID, platform.ID)
-						referenceProvisionBody["parameters"] = Object{
-							TenantIdentifier: Array{TenantValue},
-							instance_sharing.ReferenceInstanceNameSelector: sharedInstance.Name,
-							instance_sharing.ReferencePlanNameSelector:     shareablePlan.CatalogName,
-						}
-						utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(referencePlan.CatalogID, platform.ID, organizationGUID)
-						resp = ctx.SMWithBasic.PUT(instanceSharingBrokerPath+"/v2/service_instances/"+instanceID).
-							WithQuery(acceptsIncompleteKey, false).
-							WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-							WithJSON(referenceProvisionBody).
-							Expect().Status(http.StatusCreated)
-						resp.Body().Contains("{}")
-					})
 				})
 			})
 		})
