@@ -139,7 +139,6 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 	if planSelectorExists && len(planSelectorVal.String()) > 0 {
 		selectorPlan, err = getSelectorPlan(ctx, repository, smaap, offeringID, planSelectorVal.String())
 		if err != nil {
-			log.C(ctx).Errorf("Failed to retrieve the plan %s with the offering %s via the selector provided: %s", planSelectorVal.String(), offeringID, err)
 			return nil, err
 		}
 	}
