@@ -107,7 +107,7 @@ func validateParameters(parameters map[string]gjson.Result) error {
 	name, nameExists := parameters[instance_sharing.ReferenceInstanceNameSelector]
 	plan, planExists := parameters[instance_sharing.ReferencePlanNameSelector]
 	labels, labelsExists := parameters[instance_sharing.ReferenceLabelSelector]
-	var selectorLabels types.Labels
+	selectorLabels := types.Labels{}
 	if err := util.BytesToObject([]byte(labels.Raw), &selectorLabels); labelsExists && err != nil {
 		return err
 	}
@@ -157,7 +157,7 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 
 		selectorVal, exists = parameters[instance_sharing.ReferenceLabelSelector]
 		if exists {
-			var selectorLabels types.Labels
+			selectorLabels := types.Labels{}
 			if err := util.BytesToObject([]byte(selectorVal.Raw), &selectorLabels); err != nil {
 				return nil, err
 			}
