@@ -4281,12 +4281,31 @@ var _ = DescribeTestsFor(TestCase{
 											Status(http.StatusBadRequest)
 										resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrInvalidReferenceSelectors, ""))
 									})
-									It("fails to provision due to invalid label input type", func() {
+									It("fails to provision due to invalid label input type (empty string)", func() {
 										parameters := make(map[string]interface{})
 										parameters[instance_sharing.ReferencedInstanceIDKey] = ""
 										parameters[instance_sharing.ReferenceInstanceNameSelector] = ""
 										parameters[instance_sharing.ReferencePlanNameSelector] = ""
 										parameters[instance_sharing.ReferenceLabelSelector] = ""
+										requestBody["parameters"] = parameters
+
+										resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+											WithQuery("async", false).
+											WithJSON(requestBody).
+											Expect().
+											Status(http.StatusBadRequest)
+										resp.JSON().Object().Equal(&util.HTTPError{
+											ErrorType:   "BadRequest",
+											Description: "Failed to decode request body",
+											StatusCode:  http.StatusBadRequest,
+										})
+									})
+									It("fails to provision due to invalid label input type (empty object as string)", func() {
+										parameters := make(map[string]interface{})
+										parameters[instance_sharing.ReferencedInstanceIDKey] = ""
+										parameters[instance_sharing.ReferenceInstanceNameSelector] = ""
+										parameters[instance_sharing.ReferencePlanNameSelector] = ""
+										parameters[instance_sharing.ReferenceLabelSelector] = "{}"
 										requestBody["parameters"] = parameters
 
 										resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).

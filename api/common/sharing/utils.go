@@ -108,8 +108,10 @@ func validateParameters(parameters map[string]gjson.Result) error {
 	plan, planExists := parameters[instance_sharing.ReferencePlanNameSelector]
 	labels, labelsExists := parameters[instance_sharing.ReferenceLabelSelector]
 	selectorLabels := types.Labels{}
-	if err := util.BytesToObject([]byte(labels.Raw), &selectorLabels); labelsExists && err != nil {
-		return err
+	if labelsExists {
+		if err := util.BytesToObject([]byte(labels.Raw), &selectorLabels); err != nil {
+			return err
+		}
 	}
 	hasAtLeastOneSelector := selectorLabels != nil && len(selectorLabels) > 0 || nameExists && len(name.String()) > 0 || planExists && len(plan.String()) > 0
 	selectorsAndID := IDExists && len(ID.String()) > 0 && hasAtLeastOneSelector
