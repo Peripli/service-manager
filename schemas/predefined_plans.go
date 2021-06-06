@@ -10,7 +10,7 @@ import (
 )
 
 func BuildReferencePlanSchema() string {
-	sr:=fmt.Sprintf(`{
+	sr := fmt.Sprintf(`{
   "name": "%[1]s",
   "catalog_name": "%[1]s",
   "description": "%[2]s",
@@ -49,7 +49,7 @@ func BuildReferencePlanSchema() string {
     }
   }
 }`, instance_sharing.ReferencePlanName, instance_sharing.ReferencePlanDescription, instance_sharing.ReferencedInstanceIDKey)
-return sr
+	return sr
 }
 
 func CreatePlanOutOfSchema(schema string, serviceOfferingId string) (*types.ServicePlan, error) {
