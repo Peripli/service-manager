@@ -163,7 +163,7 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 			if err := util.BytesToObject([]byte(selectorVal.Raw), &selectorLabels); err != nil {
 				return nil, err
 			}
-			if len(selectorLabels) > 0 {
+			if len(selectorLabels) > 0 && instance.Labels != nil {
 				match, err := matchLabels(instance.Labels, selectorLabels)
 				if err != nil {
 					return nil, err
@@ -208,7 +208,7 @@ func getSelectorPlan(ctx context.Context, repository storage.Repository, smaap b
 func matchLabels(instanceLabels types.Labels, selectorLabels types.Labels) (bool, error) {
 	for selectorLabelKey, selectorLabelArray := range selectorLabels {
 		instanceLabelArray, exists := instanceLabels[selectorLabelKey]
-		if exists && instanceLabels != nil {
+		if exists && len(instanceLabelArray) > 0 {
 			for _, selectorLabelVal := range selectorLabelArray {
 				if !contains(instanceLabelArray, selectorLabelVal) {
 					return false, nil
