@@ -270,7 +270,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrReferencedInstanceNotShared:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("Failed to create the reference. The instance %s, for which you want to create the reference, belongs to a different service.", entityName),
+			Description: fmt.Sprintf("Failed to create the reference. The instance %s, for which you want to create the reference, must be shared first.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrReferencedInstanceNotFound:
@@ -282,7 +282,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrReferenceWithWrongServiceOffering:
 		return &HTTPError{
 			ErrorType:   "NotFound",
-			Description: fmt.Sprintf("Failed to create the reference. The instance %s, for which you want to create the reference, does not match the service offering.", entityName),
+			Description: fmt.Sprintf("Failed to create the reference. The instance %s, for which you want to create the reference, belongs to a different service.", entityName),
 			StatusCode:  http.StatusNotFound,
 		}
 	case ErrMultipleReferenceSelectorResults:
