@@ -3,25 +3,25 @@ package schemas
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gofrs/uuid"
 	"time"
 )
 
-const ReferencePlan = `{
- "name": "reference-instance",
-  "catalog_name": "reference-instance",
-  "description": "Allows to create a reference to a shared service instance from any environment in a subaccount and manage service bindings to that service instance.",
+func BuildReferencePlanSchema() string {
+	sr:=fmt.Sprintf(`{
+  "name": "%[1]s",
+  "catalog_name": "%[1]s",
+  "description": "%[2]s",
   "bindable": true,
   "ready": true,
- "metadata": {
-    "supportedPlatforms": [
-      
-    ],
+  "metadata": {
+    "supportedPlatforms": [],
     "translations": {
       "en-US": {
-        "displayName": "reference-instance",
-        "description": "Allows to create a reference to a shared service instance from any environment in a subaccount and manage service bindings to that service instance."
+        "displayName": "%[1]s",
+        "description": "%[2]s"
       }
     }
   },
@@ -34,9 +34,9 @@ const ReferencePlan = `{
           "additionalProperties": false,
           "_show_form_view": true,
           "properties": {
-            "referenced_instance_id": {
+            "%[3]s": {
               "title": "Referenced Instance ID",
-              "description": "Referenced instance ID is the instance_id of the shared instance from the other platform.",
+              "description": "%[2]s",
               "_title": "TITLE_XTIT",
               "_description": "DESCRIPTION_XMSG",
               "type": "string",
@@ -48,7 +48,9 @@ const ReferencePlan = `{
       }
     }
   }
-}`
+}`, instance_sharing.ReferencePlanName, instance_sharing.ReferencePlanDescription, instance_sharing.ReferencedInstanceIDKey)
+return sr
+}
 
 func CreatePlanOutOfSchema(schema string, serviceOfferingId string) (*types.ServicePlan, error) {
 	var plan types.ServicePlan

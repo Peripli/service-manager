@@ -156,7 +156,7 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 			}
 		}
 		if sharedPlanFound {
-			referencePlan, err := schemas.CreatePlanOutOfSchema(schemas.ReferencePlan, service.ID)
+			referencePlan, err := schemas.CreatePlanOutOfSchema(schemas.BuildReferencePlanSchema(),service.ID)
 			if err != nil {
 				err := fmt.Errorf("error setting reference schema for the reference plan: %s", err)
 				log.C(ctx).WithError(err)
