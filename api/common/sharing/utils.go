@@ -206,7 +206,7 @@ func getSelectorPlan(ctx context.Context, repository storage.Repository, smaap b
 }
 
 func matchLabels(instanceLabels types.Labels, selectorLabels types.Labels) (bool, error) {
-	if instanceLabels == nil || len(instanceLabels) == 0 {
+	if instanceLabels == nil {
 		return false, nil
 	}
 	for selectorLabelKey, selectorLabelArray := range selectorLabels {
