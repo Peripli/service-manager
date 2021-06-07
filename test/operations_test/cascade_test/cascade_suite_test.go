@@ -226,7 +226,7 @@ func initTenantResources(createInstances bool, createSharedInstances bool) {
 			err := ShareInstanceOnDB(ctx, sharedInstanceID)
 			Expect(err).NotTo(HaveOccurred())
 			referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", "plan-service")
-			resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated, sharedInstanceID, referencePlan.ID)
+			resp := CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated, instance_sharing.ReferencedInstanceIDKey, sharedInstanceID, referencePlan.ID)
 			referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 				Category:          types.CREATE,
 				State:             types.SUCCEEDED,

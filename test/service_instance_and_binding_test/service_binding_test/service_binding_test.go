@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"net/http"
 	"strconv"
 	"sync/atomic"
@@ -303,7 +304,7 @@ var _ = DescribeTestsFor(TestCase{
 					// Create reference service instance
 					referencePlan := GetReferencePlanOfExistingPlan(ctx, "id", servicePlanID)
 					EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, referencePlan.ID, TenantIDValue)
-					resp = CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated, sharedInstanceID, referencePlan.ID)
+					resp = CreateReferenceInstance(ctx.SMWithOAuthForTenant, "false", http.StatusCreated, instance_sharing.ReferencedInstanceIDKey, sharedInstanceID, referencePlan.ID)
 					referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 						Category:          types.CREATE,
 						State:             types.SUCCEEDED,
