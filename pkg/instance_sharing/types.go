@@ -20,5 +20,5 @@ const (
 
 	ReferenceLabelSelectorKey         = "instance_labels_selector"
 	ReferenceLabelSelectorTitle       = "Instance Label"
-	ReferenceLabelSelectorDescription = "Find a reference instance by the provided label and its value. For example: \\\"origin\\\": [\\\"eu\\\"] returns an instance whose origin is in the EU"
+	ReferenceLabelSelectorDescription = "Find a reference instance by the provided label and its value. For example: \"origin\": [\"eu\"] returns an instance whose origin is in the EU"
 )
