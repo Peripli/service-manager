@@ -10,7 +10,7 @@ import (
 )
 
 func BuildReferencePlanSchema() string {
-	sr := fmt.Sprintf(`{
+	return fmt.Sprintf(`{
   "name": "%[1]s",
   "catalog_name": "%[1]s",
   "description": "%[2]s",
@@ -32,36 +32,36 @@ func BuildReferencePlanSchema() string {
               "title": "%[4]s",
               "description": "%[5]s",
               "type": "string",
-              "minLength": 1,
+              "minLength": 0,
               "maxLength": 100
             },
             "%[6]s": {
               "title": "%[7]s",
               "description": "%[8]s",
               "type": "string",
-              "minLength": 1,
+              "minLength": 0,
               "maxLength": 100
             },
             "%[9]s": {
               "title": "%[10]s",
               "description": "%[11]s",
               "type": "string",
-              "minLength": 1,
+              "minLength": 0,
               "maxLength": 100
             },
             "%[12]s": {
               "title": "%[13]s",
               "description": "%[14]s",
               "type": "string",
-              "minLength": 1,
+              "minLength": 0,
               "maxLength": 100
             },
             "%[15]s": {
               "title": "%[16]s",
               "description": "%[17]s",
               "type": "string",
-              "minLength": 1,
-              "maxLength": 100
+              "minLength": 0,
+              "maxLength": 300
             }
           }
         }
@@ -87,7 +87,6 @@ func BuildReferencePlanSchema() string {
 		instance_sharing.ReferenceLabelSelectorTitle,              // 16
 		instance_sharing.ReferenceLabelSelectorDescription,        // 17
 	)
-	return sr
 }
 
 func CreatePlanOutOfSchema(schema string, serviceOfferingId string) (*types.ServicePlan, error) {
