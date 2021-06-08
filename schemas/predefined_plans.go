@@ -55,13 +55,6 @@ func BuildReferencePlanSchema() string {
               "type": "string",
               "minLength": 0,
               "maxLength": 100
-            },
-            "%[15]s": {
-              "title": "%[16]s",
-              "description": "%[17]s",
-              "type": "string",
-              "minLength": 0,
-              "maxLength": 300
             }
           }
         }
@@ -74,18 +67,15 @@ func BuildReferencePlanSchema() string {
 		instance_sharing.ReferencedInstanceIDKey,                  // 3
 		instance_sharing.ReferencedInstanceIDTitle,                // 4
 		instance_sharing.ReferencedInstanceIDDescription,          // 5
-		instance_sharing.ReferencePlanNameSelector,                // 6
-		instance_sharing.ReferencePlanNameSelectorTitle,           // 7
-		instance_sharing.ReferencePlanNameSelectorDescription,     // 8
-		instance_sharing.ReferenceInstanceNameSelector,            // 9
-		instance_sharing.ReferenceInstanceNameSelectorTitle,       // 10
-		instance_sharing.ReferenceInstanceNameSelectorDescription, // 11
-		instance_sharing.ReferencePlanNameSelector,                // 12
-		instance_sharing.ReferencePlanNameSelectorTitle,           // 13
-		instance_sharing.ReferencePlanNameSelectorDescription,     // 14
-		instance_sharing.ReferenceLabelSelector,                   // 15
-		instance_sharing.ReferenceLabelSelectorTitle,              // 16
-		instance_sharing.ReferenceLabelSelectorDescription,        // 17
+		instance_sharing.ReferenceInstanceNameSelector,            // 6
+		instance_sharing.ReferenceInstanceNameSelectorTitle,       // 7
+		instance_sharing.ReferenceInstanceNameSelectorDescription, // 8
+		instance_sharing.ReferencePlanNameSelector,                // 9
+		instance_sharing.ReferencePlanNameSelectorTitle,           // 10
+		instance_sharing.ReferencePlanNameSelectorDescription,     // 11
+		instance_sharing.ReferenceLabelSelector,                   // 12
+		instance_sharing.ReferenceLabelSelectorTitle,              // 13
+		instance_sharing.ReferenceLabelSelectorDescription,        // 14
 	)
 }
 
