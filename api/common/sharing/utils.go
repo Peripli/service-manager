@@ -104,9 +104,9 @@ func validateParameters(parameters map[string]gjson.Result) error {
 		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
 	}
 	ID, IDExists := parameters[instance_sharing.ReferencedInstanceIDKey]
-	name, nameExists := parameters[instance_sharing.ReferenceInstanceNameSelector]
-	plan, planExists := parameters[instance_sharing.ReferencePlanNameSelector]
-	labels, labelsExists := parameters[instance_sharing.ReferenceLabelSelector]
+	name, nameExists := parameters[instance_sharing.ReferenceInstanceNameSelectorKey]
+	plan, planExists := parameters[instance_sharing.ReferencePlanNameSelectorKey]
+	labels, labelsExists := parameters[instance_sharing.ReferenceLabelSelectorKey]
 	selectorLabels := types.Labels{}
 	if labelsExists {
 		if err := util.BytesToObject([]byte(labels.Raw), &selectorLabels); err != nil {
@@ -136,7 +136,7 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 	var err error
 	var filteredInstances types.ServiceInstances
 
-	planSelectorVal, planSelectorExists := parameters[instance_sharing.ReferencePlanNameSelector]
+	planSelectorVal, planSelectorExists := parameters[instance_sharing.ReferencePlanNameSelectorKey]
 	var selectorPlan *types.ServicePlan
 	if planSelectorExists && len(planSelectorVal.String()) > 0 {
 		selectorPlan, err = getSelectorPlan(ctx, repository, smaap, offeringID, planSelectorVal.String())
@@ -148,7 +148,7 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 	for i := 0; i < instances.Len(); i++ {
 		instance := instances.ItemAt(i).(*types.ServiceInstance)
 
-		selectorVal, exists := parameters[instance_sharing.ReferenceInstanceNameSelector]
+		selectorVal, exists := parameters[instance_sharing.ReferenceInstanceNameSelectorKey]
 		if exists && len(selectorVal.String()) > 0 && !(instance.Name == selectorVal.String()) {
 			continue
 		}
@@ -157,7 +157,7 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 			continue
 		}
 
-		selectorVal, exists = parameters[instance_sharing.ReferenceLabelSelector]
+		selectorVal, exists = parameters[instance_sharing.ReferenceLabelSelectorKey]
 		if exists {
 			selectorLabels := types.Labels{}
 			if err := util.BytesToObject([]byte(selectorVal.Raw), &selectorLabels); err != nil {

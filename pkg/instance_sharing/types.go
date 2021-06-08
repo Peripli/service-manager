@@ -10,15 +10,15 @@ const (
 	ReferencedInstanceIDTitle       = "Reference Instance ID"
 	ReferencedInstanceIDDescription = "Find a reference instance by the provided instance ID."
 
-	ReferenceInstanceNameSelector            = "instance_name_selector"
+	ReferenceInstanceNameSelectorKey         = "instance_name_selector"
 	ReferenceInstanceNameSelectorTitle       = "Instance Name"
 	ReferenceInstanceNameSelectorDescription = "Find a reference instance by the provided instance name."
 
-	ReferencePlanNameSelector            = "plan_name_selector"
+	ReferencePlanNameSelectorKey         = "plan_name_selector"
 	ReferencePlanNameSelectorTitle       = "Plan Name"
 	ReferencePlanNameSelectorDescription = "Find a reference instance by the provided plan name."
 
-	ReferenceLabelSelector            = "instance_labels_selector"
+	ReferenceLabelSelectorKey         = "instance_labels_selector"
 	ReferenceLabelSelectorTitle       = "Instance Label"
 	ReferenceLabelSelectorDescription = "Find a reference instance by the provided label and its value. For example: \\\"origin\\\": [\\\"eu\\\"] returns an instance whose origin is in the EU"
 )
