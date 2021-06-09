@@ -226,17 +226,17 @@ func (s *Scheduler) getResourceLastOperation(ctx context.Context, operation *typ
 	lastOperation := lastOperationObj.(*types.Operation)
 	log.C(ctx).Infof("Last operation for resource with id %s of type %s is %+v", lastOperation.ResourceID, lastOperation.ResourceType, lastOperation)
 
-	currentOpExists := false
+	currentOperationExists := false
 	if checkForExistingOperation {
 		byID := query.ByField(query.EqualsOperator, "id", operation.GetID())
 		existingOperationsByID, err := s.repository.List(ctx, types.OperationType, byID)
 		if err != nil {
 			return nil, false, false, util.HandleStorageError(err, types.OperationType.String())
 		}
-		currentOpExists = existingOperationsByID.Len() > 0
+		currentOperationExists = existingOperationsByID.Len() > 0
 	}
 
-	return lastOperation, true, currentOpExists, nil
+	return lastOperation, true, currentOperationExists, nil
 }
 
 func (s *Scheduler) checkForConcurrentOperations(ctx context.Context, operation *types.Operation, lastOperation *types.Operation) error {
