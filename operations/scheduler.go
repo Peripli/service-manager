@@ -212,15 +212,20 @@ func (s *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *t
 }
 
 func (s *Scheduler) getResourceLastOperation(ctx context.Context, operation *types.Operation, checkForExistingOperation bool) (*types.Operation, bool, bool, error) {
-	byResourceID := query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID)
-	byResourceType := query.ByField(query.EqualsOperator, "resource_type", string(operation.ResourceType))
-	orderDesc := query.OrderResultBy("paging_sequence", query.DescOrder)
-	limit := query.LimitResultBy(2)
-	operationsForResourceID, err := s.repository.List(ctx, types.OperationType, byResourceID, byResourceType, orderDesc, limit)
+	queryParams := map[string]interface{}{
+		"id_list":       []string{operation.ResourceID},
+		"resource_type": string(operation.ResourceType),
+	}
+	resourceLastOps, err := s.repository.QueryForList(
+		ctx,
+		types.OperationType,
+		storage.QueryForLastOperationsPerResource,
+		queryParams)
+
 	if err != nil {
 		return nil, false, false, util.HandleStorageError(err, types.OperationType.String())
 	}
-	if operationsForResourceID.Len() == 0 {
+	if resourceLastOps.Len() == 0 {
 		log.C(ctx).Debugf("Could not find last operation for resource with id %s and type %s in SMDB. Ignoring missing operation", operation.ResourceID, operation.ResourceType)
 		return nil, false, false, nil
 	}
@@ -234,7 +239,7 @@ func (s *Scheduler) getResourceLastOperation(ctx context.Context, operation *typ
 		}
 		currentOperationExists = count > 0
 	}
-	lastOperation := operationsForResourceID.ItemAt(0).(*types.Operation)
+	lastOperation := resourceLastOps.ItemAt(0).(*types.Operation)
 	log.C(ctx).Infof("Last operation for resource with id %s of type %s is %+v", lastOperation.ResourceID, lastOperation.ResourceType, lastOperation)
 
 	return lastOperation, true, currentOperationExists, nil
