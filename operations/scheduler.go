@@ -215,7 +215,7 @@ func (s *Scheduler) getResourceLastOperation(ctx context.Context, operation *typ
 	byResourceID := query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID)
 	byResourceType := query.ByField(query.EqualsOperator, "resource_type", string(operation.ResourceType))
 	orderDesc := query.OrderResultBy("paging_sequence", query.DescOrder)
-	limit := query.LimitResultBy(1)
+	limit := query.LimitResultBy(2)
 	operationsForResourceID, err := s.repository.List(ctx, types.OperationType, byResourceID, byResourceType, orderDesc, limit)
 	if err != nil {
 		return nil, false, false, util.HandleStorageError(err, types.OperationType.String())
@@ -224,18 +224,18 @@ func (s *Scheduler) getResourceLastOperation(ctx context.Context, operation *typ
 		log.C(ctx).Debugf("Could not find last operation for resource with id %s and type %s in SMDB. Ignoring missing operation", operation.ResourceID, operation.ResourceType)
 		return nil, false, false, nil
 	}
-	lastOperation := operationsForResourceID.ItemAt(0).(*types.Operation)
-	log.C(ctx).Infof("Last operation for resource with id %s of type %s is %+v", lastOperation.ResourceID, lastOperation.ResourceType, lastOperation)
 
 	currentOperationExists := false
 	if checkForExistingOperation {
 		byID := query.ByField(query.EqualsOperator, "id", operation.GetID())
-		existingOperationsByID, err := s.repository.List(ctx, types.OperationType, byID)
+		count, err := s.repository.Count(ctx, types.OperationType, byID)
 		if err != nil {
 			return nil, false, false, util.HandleStorageError(err, types.OperationType.String())
 		}
-		currentOperationExists = existingOperationsByID.Len() > 0
+		currentOperationExists = count > 0
 	}
+	lastOperation := operationsForResourceID.ItemAt(0).(*types.Operation)
+	log.C(ctx).Infof("Last operation for resource with id %s of type %s is %+v", lastOperation.ResourceID, lastOperation.ResourceType, lastOperation)
 
 	return lastOperation, true, currentOperationExists, nil
 }
