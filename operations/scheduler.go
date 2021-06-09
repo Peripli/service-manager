@@ -75,7 +75,7 @@ func (s *Scheduler) ScheduleStorageAction(ctx context.Context, operation *types.
 			return nil, false, err
 		}
 
-		lastOperation, _, _, err := s.getResourceLastOperation(ctx, operation)
+		lastOperation, _, _, err := s.getResourceLastOperation(ctx, operation, false)
 		if err != nil {
 			return nil, false, err
 		}
@@ -211,30 +211,32 @@ func (s *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *t
 	return nil
 }
 
-func (s *Scheduler) getResourceLastOperation(ctx context.Context, operation *types.Operation) (*types.Operation, bool, bool, error) {
+func (s *Scheduler) getResourceLastOperation(ctx context.Context, operation *types.Operation, checkForExistingOperation bool) (*types.Operation, bool, bool, error) {
 	byResourceID := query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID)
 	byResourceType := query.ByField(query.EqualsOperator, "resource_type", string(operation.ResourceType))
 	orderDesc := query.OrderResultBy("paging_sequence", query.DescOrder)
-	operationsForResourceID, err := s.repository.List(ctx, types.OperationType, byResourceID, byResourceType, orderDesc)
+	lastOperationObj, err := s.repository.Get(ctx, types.OperationType, byResourceID, byResourceType, orderDesc)
 	if err != nil {
+		if err == util.ErrNotFoundInStorage {
+			log.C(ctx).Debugf("Could not find last operation for resource with id %s and type %s in SMDB. Ignoring missing operation", operation.ResourceID, operation.ResourceType)
+			return nil, false, false, nil
+		}
 		return nil, false, false, util.HandleStorageError(err, types.OperationType.String())
 	}
-	if operationsForResourceID.Len() == 0 {
-		log.C(ctx).Debugf("Could not find last operation for resource with id %s and type %s in SMDB. Ignoring missing operation", operation.ResourceID, operation.ResourceType)
-		return nil, false, false, nil
-	}
-
-	currentOperationExists := false
-	for i := 0; i < operationsForResourceID.Len(); i++ {
-		operationObject := operationsForResourceID.ItemAt(i)
-		if operationObject.GetID() == operation.GetID() {
-			currentOperationExists = true
-		}
-	}
-	lastOperation := operationsForResourceID.ItemAt(0).(*types.Operation)
+	lastOperation := lastOperationObj.(*types.Operation)
 	log.C(ctx).Infof("Last operation for resource with id %s of type %s is %+v", lastOperation.ResourceID, lastOperation.ResourceType, lastOperation)
 
-	return lastOperation, true, currentOperationExists, nil
+	currentOpExists := false
+	if checkForExistingOperation {
+		byID := query.ByField(query.EqualsOperator, "id", operation.GetID())
+		existingOperationsByID, err := s.repository.List(ctx, types.OperationType, byID)
+		if err != nil {
+			return nil, false, false, util.HandleStorageError(err, types.OperationType.String())
+		}
+		currentOpExists = existingOperationsByID.Len() > 0
+	}
+
+	return lastOperation, true, currentOpExists, nil
 }
 
 func (s *Scheduler) checkForConcurrentOperations(ctx context.Context, operation *types.Operation, lastOperation *types.Operation) error {
@@ -666,7 +668,7 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 		return fmt.Errorf("scheduled operation is not valid: %s", err)
 	}
 
-	lastOperation, lastOpFound, currentOpExists, err := s.getResourceLastOperation(ctx, operation)
+	lastOperation, lastOpFound, currentOpExists, err := s.getResourceLastOperation(ctx, operation, true)
 	if err != nil {
 		return err
 	}
