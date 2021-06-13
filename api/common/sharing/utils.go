@@ -105,7 +105,7 @@ func validateParameters(parameters map[string]gjson.Result) error {
 	 * parameters should not be empty, but the values of each parameter can be "" (empty string/object)
 	 */
 	if len(parameters) == 0 {
-		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey)
+		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, "")
 	}
 	ID, IDExists := parameters[instance_sharing.ReferencedInstanceIDKey]
 	name, nameExists := parameters[instance_sharing.ReferenceInstanceNameSelector]
