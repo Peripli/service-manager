@@ -8,17 +8,17 @@ const (
 
 	ReferencedInstanceIDKey         = "referenced_instance_id"
 	ReferencedInstanceIDTitle       = "Reference Instance ID"
-	ReferencedInstanceIDDescription = "Find a reference instance by the provided instance ID."
+	ReferencedInstanceIDDescription = "Specify the ID of the instance to which you want to refer."
 
 	ReferenceInstanceNameSelectorKey         = "instance_name_selector"
-	ReferenceInstanceNameSelectorTitle       = "Instance Name"
-	ReferenceInstanceNameSelectorDescription = "Find a reference instance by the provided instance name."
+	ReferenceInstanceNameSelectorTitle       = "Find by instance name"
+	ReferenceInstanceNameSelectorDescription = "You can use various search criteria to find shared instances to which you want to create a reference."
 
 	ReferencePlanNameSelectorKey         = "plan_name_selector"
-	ReferencePlanNameSelectorTitle       = "Plan Name"
-	ReferencePlanNameSelectorDescription = "Find a reference instance by the provided plan name."
+	ReferencePlanNameSelectorTitle       = "Find by plan name"
+	ReferencePlanNameSelectorDescription = "You can use various search criteria to find shared instances to which you want to create a reference."
 
 	ReferenceLabelSelectorKey         = "instance_labels_selector"
-	ReferenceLabelSelectorTitle       = "Instance Label"
-	ReferenceLabelSelectorDescription = "Find a reference instance by the provided label and its value. For example: \"origin\": [\"eu\"] returns an instance whose origin is in the EU"
+	ReferenceLabelSelectorTitle       = "Find by instance label"
+	ReferenceLabelSelectorDescription = "You can use labels query to find shared instances to which you want to create a reference. For example: \"origin\": [\"eu\"] returns an instance whose origin is in the EU"
 )
