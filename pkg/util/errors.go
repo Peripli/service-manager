@@ -257,7 +257,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrCatalogUsesReservedPlanName:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("The plan name \"%s\" is a reserved name; you must choose a different plan name.", entityName),
+			Description: fmt.Sprintf("Catalog registration failed. The plan name \"%s\" is a reserved name; you must choose a different plan name.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrPlanMustBeBindable:
@@ -269,25 +269,25 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrReferencedInstanceNotShared:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("Failed to create the instance. The referebced instance %s, must be shared first.", entityName),
+			Description: fmt.Sprintf("Failed to create the instance. The instance %s, to which you want to refer, must be shared first.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrReferencedInstanceNotFound:
 		return &HTTPError{
 			ErrorType:   "NotFound",
-			Description: fmt.Sprintf("Failed to create the instance. The referenced instance %s, not found.", entityName),
+			Description: fmt.Sprintf("Failed to create the instance. The instance %s, to which you want to refer, was not found.", entityName),
 			StatusCode:  http.StatusNotFound,
 		}
 	case ErrReferenceWithWrongServiceOffering:
 		return &HTTPError{
 			ErrorType:   "NotFound",
-			Description: fmt.Sprintf("Failed to create the instance. The referenced instance %s, not found for this service offering.", entityName),
+			Description: fmt.Sprintf("Failed to create the instance. The instance %s, to which you want to refer, does not belong to the specified service offering.", entityName),
 			StatusCode:  http.StatusNotFound,
 		}
 	case ErrMultipleReferenceSelectorResults:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: "Failed to create the instance. There are multiple shared instances that match your criteria. Refine the search criteria or specify an instance ID.",
+			Description: "Failed to create the instance. There are multiple shared instances that match your criteria. Refine your search criteria or specify the instance ID.",
 			StatusCode:  http.StatusNotFound,
 		}
 	case ErrInvalidReferenceSelectors:
@@ -299,13 +299,13 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrNoResultsForReferenceSelector:
 		return &HTTPError{
 			ErrorType:   "NotFound",
-			Description: "Failed to create the instance. Could not find a shared instance that matches your criteria. Refine the search criteria or specify an instance ID.",
+			Description: "Failed to create the instance. Could not find a shared instance that matches your criteria. Refine your search criteria or specify the instance ID.",
 			StatusCode:  http.StatusNotFound,
 		}
 	case ErrChangingPlanOfReferenceInstance:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("Failed to update the instance %s. It isn't allowed to change the plan of reference instances.", entityName), // updateable false. we should use the same error message.
+			Description: fmt.Sprintf("Failed to update the instance %s. It is not allowed to change the plan of a reference instance.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrNewPlanDoesNotSupportInstanceSharing:
@@ -323,7 +323,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrChangingParametersOfReferenceInstance:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("Failed to update the instance %s. It isn't allowed to change the parameters of reference instance.", entityName),
+			Description: fmt.Sprintf("Failed to update the instance %s. It is not allowed to change the parameters of a reference instance.", entityName),
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrMissingOrInvalidReferenceParameter:
@@ -333,21 +333,21 @@ func HandleInstanceSharingError(err error, entityName string) error {
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrSharedPlanHasReferences:
-		errorMessage := fmt.Sprintf("Could not update the service plan %s. Before you can set it as %s=false, you first need to unshare its shared instances.", instance_sharing.SupportsInstanceSharingKey, entityName)
+		errorMessage := fmt.Sprintf("Failed to update the service plan %s. Before you can set %s to false, you first need to unshare its shared instances.", entityName, instance_sharing.SupportsInstanceSharingKey)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrInvalidShareRequest:
-		errorMessage := fmt.Sprintf("Could not update the instance %s. It is not allowed to modify the \"shared\" property on the same request with any other properties.", entityName)
+		errorMessage := fmt.Sprintf("Failed to update the instance %s. It is not allowed to modify the \"shared\" property in the request that modifies also other properties.", entityName)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrInvalidProvisionRequestWithSharedProperty:
-		errorMessage := "Failed provisioning the instance. Setting the instance as \"shared\" is only possible after the instance is created."
+		errorMessage := "Failed to create the instance. Setting the instance as \"shared\" is only possible after the instance has been created."
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
