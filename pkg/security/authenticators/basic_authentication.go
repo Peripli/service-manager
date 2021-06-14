@@ -133,6 +133,7 @@ func BasicOSBAuthenticator(request *web.Request, repository storage.Repository, 
 	}
 
 	if err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil {
+		log.C(ctx).Debugf("failed authenticating broker platform credentials for broker with ID %s and username %s", brokerID, username)
 		return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
 	}
 
