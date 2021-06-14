@@ -57,7 +57,7 @@ func DefaultSettings() *Settings {
 		CleanupInterval:                1 * time.Hour,
 		MaintainerRetryInterval:        10 * time.Minute,
 		Lifespan:                       7 * 24 * time.Hour,
-		ReschedulingInterval:           10 * time.Second,
+		ReschedulingInterval:           1 * time.Hour,
 		PollingInterval:                4 * time.Second,
 		PollCascadeInterval:            4 * time.Second,
 		DefaultPoolSize:                20,
