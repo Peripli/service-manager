@@ -592,7 +592,7 @@ func (smb *ServiceManagerBuilder) calculateIntegrity() error {
 				query.ByField(query.EqualsOrNilOperator, "integrity", ""),
 			}
 			if objectType == types.ServiceBindingType {
-				criteria = append(criteria, query.ByField(query.NotEqualsOperator, "credentials", ""))
+				criteria = append(criteria, query.ByField(query.NotEqualsOperator, "credentials", "\\x"))
 			}
 			objects, err := storage.List(ctx, objectType, criteria...)
 
