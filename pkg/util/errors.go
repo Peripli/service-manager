@@ -329,7 +329,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrMissingOrInvalidReferenceParameter:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: "Failed to create the instance. Specify an instance ID or use search criteria.", // consider to mention the help.sap documentation on the plan's description.
+			Description: "Failed to create the instance. Check your parameter specifications for the instance to which you want to refer and try again.",
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrSharedPlanHasReferences:
@@ -340,7 +340,7 @@ func HandleInstanceSharingError(err error, entityName string) error {
 			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrInvalidShareRequest:
-		errorMessage := fmt.Sprintf("Failed to update the instance %s. It is not allowed to modify the \"shared\" property in the request that modifies also other properties.", entityName)
+		errorMessage := fmt.Sprintf("Failed to update the instance %s. It is not allowed to modify the \"shared\" property in the request that also modifies other properties.", entityName)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: errorMessage,
