@@ -18,7 +18,5 @@ const (
 	ReferencePlanNameSelectorTitle       = "Find by Plan Name"
 	ReferencePlanNameSelectorDescription = "You can use the plan name to find the shared instance to which you want to create a reference."
 
-	ReferenceLabelSelectorKey         = "instance_labels_selector"
-	ReferenceLabelSelectorTitle       = "Find by Instance Label"
-	ReferenceLabelSelectorDescription = "You can use the labels query to find the shared instance to which you want to create a reference. For example: \\\"origin\\\": [\\\"eu\\\"] returns an instance whose origin is in the EU."
+	ReferenceLabelSelectorKey = "instance_labels_selector"
 )

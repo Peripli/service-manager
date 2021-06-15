@@ -27,7 +27,7 @@ func BuildReferencePlanSchema() string {
           "type": "object",
           "additionalProperties": false,
           "_show_form_view": true,
-		  "_controlsOrder": ["%[3]s", "%[6]s", "%[9]s", "%[12]s"]
+		  "_controlsOrder": ["%[3]s", "%[6]s", "%[9]s"],
           "properties": {
             "%[3]s": {
               "title": "%[4]s",
@@ -49,11 +49,6 @@ func BuildReferencePlanSchema() string {
               "type": "string",
               "minLength": 0,
               "maxLength": 100
-            },
-            "%[12]s": {
-              "title": "%[13]s",
-              "description": "%[14]s",
-              "type": "object"
             }
           }
         }
@@ -72,9 +67,6 @@ func BuildReferencePlanSchema() string {
 		instance_sharing.ReferencePlanNameSelectorKey,             // 9
 		instance_sharing.ReferencePlanNameSelectorTitle,           // 10
 		instance_sharing.ReferencePlanNameSelectorDescription,     // 11
-		instance_sharing.ReferenceLabelSelectorKey,                // 12
-		instance_sharing.ReferenceLabelSelectorTitle,              // 13
-		instance_sharing.ReferenceLabelSelectorDescription,        // 14
 	)
 }
 
