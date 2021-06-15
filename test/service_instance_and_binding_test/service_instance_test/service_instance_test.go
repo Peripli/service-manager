@@ -4386,7 +4386,7 @@ var _ = DescribeTestsFor(TestCase{
 											WithQuery("async", false).
 											WithJSON(requestBody).
 											Expect().
-											Status(http.StatusBadRequest)
+											Status(http.StatusNotFound)
 										resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, ""))
 									})
 									It("fails to provision due to multiple results with instance name selector ", func() {
@@ -4411,7 +4411,7 @@ var _ = DescribeTestsFor(TestCase{
 											WithQuery("async", false).
 											WithJSON(requestBody).
 											Expect().
-											Status(http.StatusBadRequest)
+											Status(http.StatusNotFound)
 										resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, ""))
 									})
 									It("fails to provision due to multiple results with label selector", func() {
@@ -4438,7 +4438,7 @@ var _ = DescribeTestsFor(TestCase{
 											WithQuery("async", false).
 											WithJSON(requestBody).
 											Expect().
-											Status(http.StatusBadRequest)
+											Status(http.StatusNotFound)
 										resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, ""))
 									})
 									It("fails to provision using global (*) pointer due to multiple shared instances owned by the same sub-account", func() {
@@ -4455,7 +4455,7 @@ var _ = DescribeTestsFor(TestCase{
 											WithQuery("async", false).
 											WithJSON(requestBody).
 											Expect().
-											Status(http.StatusBadRequest)
+											Status(http.StatusNotFound)
 										resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, ""))
 									})
 								})
