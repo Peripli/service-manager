@@ -28,6 +28,10 @@ func (c *Controller) Routes() []web.Route {
 func (c *Controller) profile(req *web.Request) (*web.Response, error) {
 	profileName := req.PathParams[profileNameParam]
 	resp := req.HijackResponseWriter()
-	pprof.Handler(profileName).ServeHTTP(resp, req.Request)
+	if profileName == "profile" {
+		pprof.Profile(resp, req.Request)
+	} else {
+		pprof.Handler(profileName).ServeHTTP(resp, req.Request)
+	}
 	return &web.Response{}, nil
 }

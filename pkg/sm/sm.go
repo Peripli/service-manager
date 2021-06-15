@@ -165,13 +165,13 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	API.SetIndicator(storageHealthIndicator)
-	if cfg.Health.EnablePlatformIndicator {
-		API.SetIndicator(healthcheck.NewPlatformIndicator(ctx, interceptableRepository, func(p *types.Platform) bool {
-			hours := time.Since(p.LastActive).Hours()
-			return hours > cfg.Health.PlatformMaxInactive.Hours()
-		}))
-	}
-	API.SetIndicator(healthcheck.NewMonitoredPlatformsIndicator(ctx, interceptableRepository, cfg.Health.MonitoredPlatformsThreshold))
+	//if cfg.Health.EnablePlatformIndicator {
+	//	API.SetIndicator(healthcheck.NewPlatformIndicator(ctx, interceptableRepository, func(p *types.Platform) bool {
+	//		hours := time.Since(p.LastActive).Hours()
+	//		return hours > cfg.Health.PlatformMaxInactive.Hours()
+	//	}))
+	//}
+	//API.SetIndicator(healthcheck.NewMonitoredPlatformsIndicator(ctx, interceptableRepository, cfg.Health.MonitoredPlatformsThreshold))
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,
@@ -588,8 +588,13 @@ func (smb *ServiceManagerBuilder) calculateIntegrity() error {
 	return smb.encryptingRepository.InTransaction(smb.ctx, func(ctx context.Context, storage storage.Repository) error {
 		objectTypesWithIntegrity := []types.ObjectType{types.PlatformType, types.ServiceBrokerType, types.ServiceBindingType, types.BrokerPlatformCredentialType}
 		for _, objectType := range objectTypesWithIntegrity {
-			emptyIntegrityCriteria := query.ByField(query.EqualsOrNilOperator, "integrity", "")
-			objects, err := storage.List(ctx, objectType, emptyIntegrityCriteria)
+			criteria := []query.Criterion{
+				query.ByField(query.EqualsOrNilOperator, "integrity", ""),
+			}
+			if objectType == types.ServiceBindingType {
+				criteria = append(criteria, query.ByField(query.NotEqualsOperator, "credentials", "\\x"))
+			}
+			objects, err := storage.List(ctx, objectType, criteria...)
 			if err != nil {
 				return err
 			}
