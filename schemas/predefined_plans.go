@@ -53,9 +53,7 @@ func BuildReferencePlanSchema() string {
             "%[12]s": {
               "title": "%[13]s",
               "description": "%[14]s",
-              "type": "string",
-              "minLength": 0,
-              "maxLength": 100
+              "type": "object"
             }
           }
         }
