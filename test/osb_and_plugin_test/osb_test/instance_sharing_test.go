@@ -263,18 +263,18 @@ var _ = Describe("Instance Sharing", func() {
 			})
 			It("succeeds with plan selector", func() {
 				shareablePlan := GetPlanByKey(ctx, "catalog_id", shareablePlanCatalogID)
-				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencePlanNameSelector, shareablePlan.CatalogName, false)
+				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencePlanNameSelectorKey, shareablePlan.CatalogName, false)
 			})
 			It("succeeds with name selector", func() {
 				sharedInstance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
-				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferenceInstanceNameSelector, sharedInstance.Name, false)
+				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferenceInstanceNameSelectorKey, sharedInstance.Name, false)
 			})
 			It("succeeds with global (*) pointer to a shared instance", func() {
 				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencedInstanceIDKey, "*", false)
 			})
 			It("succeeds with label selector", func() {
 				labelSelector := Object{TenantIdentifier: Array{TenantValue}}
-				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferenceLabelSelector, labelSelector, false)
+				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferenceLabelSelectorKey, labelSelector, false)
 			})
 			It("succeeds with combination of selectors", func() {
 				sharedInstance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
@@ -290,8 +290,8 @@ var _ = Describe("Instance Sharing", func() {
 				referenceProvisionBody := buildReferenceProvisionBody(referencePlan.CatalogID, platform.ID)
 				referenceProvisionBody["parameters"] = Object{
 					TenantIdentifier: Array{TenantValue},
-					instance_sharing.ReferenceInstanceNameSelector: sharedInstance.Name,
-					instance_sharing.ReferencePlanNameSelector:     shareablePlan.CatalogName,
+					instance_sharing.ReferenceInstanceNameSelectorKey: sharedInstance.Name,
+					instance_sharing.ReferencePlanNameSelectorKey:     shareablePlan.CatalogName,
 				}
 				utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(referencePlan.CatalogID, platform.ID, organizationGUID)
 				resp = ctx.SMWithBasic.PUT(instanceSharingBrokerPath+"/v2/service_instances/"+instanceID).
@@ -345,8 +345,8 @@ var _ = Describe("Instance Sharing", func() {
 					referenceProvisionBody := buildReferenceProvisionBody(referencePlan.CatalogID, platform.ID)
 					referenceProvisionBody["parameters"] = Object{
 						TenantIdentifier: Array{TenantValue},
-						instance_sharing.ReferenceInstanceNameSelector: sharedInstance.Name,
-						instance_sharing.ReferencePlanNameSelector:     shareablePlan.CatalogName,
+						instance_sharing.ReferenceInstanceNameSelectorKey: sharedInstance.Name,
+						instance_sharing.ReferencePlanNameSelectorKey:     shareablePlan.CatalogName,
 					}
 					utils.SetAuthContext(ctx.SMWithOAuth).AddPlanVisibilityForPlatform(referencePlan.CatalogID, platform.ID, organizationGUID)
 					resp = ctx.SMWithBasic.PUT(instanceSharingBrokerPath+"/v2/service_instances/"+instanceID).

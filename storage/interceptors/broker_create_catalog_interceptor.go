@@ -23,11 +23,11 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/schemas"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
 	"github.com/tidwall/sjson"
 	"net/http"
-	"time"
 )
 
 const BrokerCreateCatalogInterceptorName = "BrokerCreateCatalogInterceptor"
@@ -156,7 +156,12 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 			}
 		}
 		if sharedPlanFound {
-			referencePlan := generateReferencePlanObject(service.ID)
+			referencePlan, err := schemas.CreatePlanOutOfSchema(schemas.BuildReferencePlanSchema(), service.ID)
+			if err != nil {
+				err := fmt.Errorf("error setting reference schema for the reference plan: %s", err)
+				log.C(ctx).WithError(err)
+				return err
+			}
 			service.Plans = append(service.Plans, referencePlan)
 			// Adds OSB spec properties only
 			referencePlanOSBObj := convertReferencePlanObjectToOSBPlan(referencePlan)
@@ -181,29 +186,9 @@ func convertReferencePlanObjectToOSBPlan(plan *types.ServicePlan) interface{} {
 		"name":        plan.Name,
 		"description": plan.Description,
 		"bindable":    plan.Bindable,
+		"metadata":    plan.Metadata,
+		"schemas":     plan.Schemas,
 	}
-}
-
-func generateReferencePlanObject(serviceOfferingId string) *types.ServicePlan {
-	referencePlan := new(types.ServicePlan)
-
-	UUID, err := uuid.NewV4()
-	if err != nil {
-		panic(fmt.Errorf("could not generate GUID for ServicePlan: %s", err))
-	}
-
-	referencePlan.ID = UUID.String()
-	referencePlan.CatalogID = UUID.String()
-	referencePlan.CatalogName = instance_sharing.ReferencePlanName
-	referencePlan.Name = instance_sharing.ReferencePlanName
-	referencePlan.Description = instance_sharing.ReferencePlanDescription
-	referencePlan.ServiceOfferingID = serviceOfferingId
-	referencePlan.Bindable = newTrue()
-	referencePlan.Ready = true
-	referencePlan.CreatedAt = time.Now()
-	referencePlan.UpdatedAt = time.Now()
-
-	return referencePlan
 }
 
 func isBindablePlan(service *types.ServiceOffering, plan *types.ServicePlan) bool {
@@ -215,9 +200,4 @@ func isBindablePlan(service *types.ServiceOffering, plan *types.ServicePlan) boo
 
 func servicePlanUsesReservedNameForReferencePlan(servicePlan *types.ServicePlan) bool {
 	return servicePlan.Name == instance_sharing.ReferencePlanName || servicePlan.CatalogName == instance_sharing.ReferencePlanName
-}
-
-func newTrue() *bool {
-	b := true
-	return &b
 }
