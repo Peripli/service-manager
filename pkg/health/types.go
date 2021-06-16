@@ -50,10 +50,11 @@ var indicatorNames = [...]string{
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	Indicators                  map[string]*IndicatorSettings `mapstructure:"indicators"`
-	PlatformMaxInactive         time.Duration                 `mapstructure:"platform_max_inactive"`
-	MonitoredPlatformsThreshold int                           `mapstructure:"monitored_platforms_threshold"`
-	EnablePlatformIndicator     bool                          `mapstructure:"enable_platforms_indicator"`
+	Indicators                      map[string]*IndicatorSettings `mapstructure:"indicators"`
+	PlatformMaxInactive             time.Duration                 `mapstructure:"platform_max_inactive"`
+	MonitoredPlatformsThreshold     int                           `mapstructure:"monitored_platforms_threshold"`
+	EnablePlatformIndicator         bool                          `mapstructure:"enable_platforms_indicator"`
+	EnableMonitorPlatformsIndicator bool                          `mapstructure:"enable_monitor_platforms_indicator"`
 }
 
 // DefaultSettings returns default values for health settings
@@ -63,10 +64,11 @@ func DefaultSettings() *Settings {
 		defaultIndicatorSettings[name] = DefaultIndicatorSettings()
 	}
 	return &Settings{
-		Indicators:                  defaultIndicatorSettings,
-		PlatformMaxInactive:         60 * 24 * time.Hour,
-		MonitoredPlatformsThreshold: 10,
-		EnablePlatformIndicator:     false,
+		Indicators:                      defaultIndicatorSettings,
+		PlatformMaxInactive:             60 * 24 * time.Hour,
+		MonitoredPlatformsThreshold:     10,
+		EnablePlatformIndicator:         false,
+		EnableMonitorPlatformsIndicator: false,
 	}
 }
 
