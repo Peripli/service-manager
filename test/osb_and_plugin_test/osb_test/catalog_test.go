@@ -469,12 +469,10 @@ var _ = Describe("Catalog", func() {
 					k8sOSBClient.GET(osbURL + "/v2/catalog").
 						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 
-					newUsername, newPassword = test.RegisterBrokerPlatformCredentials(k8sPlatformClient, prefixedBrokerID)
+					newUsername, newPassword = test.RegisterBrokerPlatformCredentialsExpect(k8sPlatformClient, prefixedBrokerID, http.StatusConflict)
 					k8sOSBClient.SetBasicCredentials(ctx, newUsername, newPassword)
+					assertCredentialsNotChanged(oldSMWithBasic, k8sOSBClient)
 
-					By("rotation of K8S credentials broker platform credentials should work")
-					k8sOSBClient.GET(osbURL + "/v2/catalog").
-						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 				})
 			})
 		})
