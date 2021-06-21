@@ -292,6 +292,28 @@ func RegisterBrokerPlatformCredentialsWithNotificationID(SMBasicPlatform *common
 }
 
 func RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMBasicPlatform *common.SMExpect, brokerID, notificationID string, expectedStatusCode int) (string, string) {
+	username, password, payload := getBrokerPlatformCredentialsPayload(brokerID, notificationID)
+
+	res := SMBasicPlatform.Request(http.MethodPut, web.BrokerPlatformCredentialsURL).
+		WithJSON(payload).Expect().Status(expectedStatusCode).JSON().Object()
+
+	if expectedStatusCode == http.StatusOK {
+		SMBasicPlatform.Request(http.MethodPut, fmt.Sprintf("%s/%s/activate", web.BrokerPlatformCredentialsURL, res.Value("id").String().Raw())).
+			WithJSON(common.Object{}).Expect().Status(http.StatusOK)
+	}
+	return username, password
+}
+
+func RegisterBrokerPlatformCredentialsWithNotificationIDNoActivateExpect(SMBasicPlatform *common.SMExpect, brokerID, notificationID string, expectedStatusCode int) (string, string) {
+	username, password, payload := getBrokerPlatformCredentialsPayload(brokerID, notificationID)
+
+	SMBasicPlatform.Request(http.MethodPut, web.BrokerPlatformCredentialsURL).
+		WithJSON(payload).Expect().Status(expectedStatusCode)
+
+	return username, password
+}
+
+func getBrokerPlatformCredentialsPayload(brokerID string, notificationID string) (string, string, map[string]interface{}) {
 	username, err := util.GenerateCredential()
 	Expect(err).ToNot(HaveOccurred())
 	password, err := util.GenerateCredential()
@@ -308,13 +330,5 @@ func RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMBasicPlatform *
 		"password_hash":   string(passwordHash),
 		"notification_id": notificationID,
 	}
-
-	res := SMBasicPlatform.Request(http.MethodPut, web.BrokerPlatformCredentialsURL).
-		WithJSON(payload).Expect().Status(expectedStatusCode).JSON().Object()
-
-	if expectedStatusCode == http.StatusOK {
-		SMBasicPlatform.Request(http.MethodPut, fmt.Sprintf("%s/%s/activate", web.BrokerPlatformCredentialsURL, res.Value("id").String().Raw())).
-			WithJSON(common.Object{}).Expect().Status(http.StatusOK)
-	}
-	return username, password
+	return username, password, payload
 }

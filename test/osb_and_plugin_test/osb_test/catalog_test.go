@@ -378,7 +378,7 @@ var _ = Describe("Catalog", func() {
 								query.OrderResultBy("created_at", query.DescOrder))
 							Expect(err).ToNot(HaveOccurred())
 
-							newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationID(SMWithBasicPlatform, prefixedBrokerID, notifications.ItemAt(0).GetID())
+							newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationIDNoActivateExpect(SMWithBasicPlatform, prefixedBrokerID, notifications.ItemAt(0).GetID(), http.StatusOK)
 							ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
 
 							By("new credentials not yet used")
