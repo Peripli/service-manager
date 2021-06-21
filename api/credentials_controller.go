@@ -118,7 +118,7 @@ func (c *credentialsController) setCredentials(r *web.Request) (*web.Response, e
 		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
 	}
 
-	if body.NotificationID == "" {
+	if body.NotificationID == "" && objFromDB.(*types.BrokerPlatformCredential).Active {
 		log.C(ctx).Error("Notification id not provided and broker platform credentials already exists...")
 		return nil, &util.HTTPError{
 			ErrorType:   "CredentialsError",
