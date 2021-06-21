@@ -309,8 +309,12 @@ func RegisterBrokerPlatformCredentialsWithNotificationIDExpect(SMBasicPlatform *
 		"notification_id": notificationID,
 	}
 
-	SMBasicPlatform.Request(http.MethodPut, web.BrokerPlatformCredentialsURL).
-		WithJSON(payload).Expect().Status(expectedStatusCode)
+	res := SMBasicPlatform.Request(http.MethodPut, web.BrokerPlatformCredentialsURL).
+		WithJSON(payload).Expect().Status(expectedStatusCode).JSON().Object()
 
+	if expectedStatusCode == http.StatusOK {
+		SMBasicPlatform.Request(http.MethodPut, fmt.Sprintf("%s/%s/activate", web.BrokerPlatformCredentialsURL, res.Value("id").String().Raw())).
+			WithJSON(common.Object{}).Expect().Status(http.StatusOK)
+	}
 	return username, password
 }
