@@ -378,7 +378,7 @@ var _ = Describe("Catalog", func() {
 								query.OrderResultBy("created_at", query.DescOrder))
 							Expect(err).ToNot(HaveOccurred())
 
-							newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationID(SMWithBasicPlatform, prefixedBrokerID, notifications.ItemAt(0).GetID())
+							newUsername, newPassword := test.RegisterBrokerPlatformCredentialsWithNotificationIDNoActivateExpect(SMWithBasicPlatform, prefixedBrokerID, notifications.ItemAt(0).GetID(), http.StatusOK)
 							ctx.SMWithBasic.SetBasicCredentials(ctx, newUsername, newPassword)
 
 							By("new credentials not yet used")
@@ -469,12 +469,10 @@ var _ = Describe("Catalog", func() {
 					k8sOSBClient.GET(osbURL + "/v2/catalog").
 						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 
-					newUsername, newPassword = test.RegisterBrokerPlatformCredentials(k8sPlatformClient, prefixedBrokerID)
+					newUsername, newPassword = test.RegisterBrokerPlatformCredentialsExpect(k8sPlatformClient, prefixedBrokerID, http.StatusConflict)
 					k8sOSBClient.SetBasicCredentials(ctx, newUsername, newPassword)
+					assertCredentialsNotChanged(oldSMWithBasic, k8sOSBClient)
 
-					By("rotation of K8S credentials broker platform credentials should work")
-					k8sOSBClient.GET(osbURL + "/v2/catalog").
-						Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
 				})
 			})
 		})
