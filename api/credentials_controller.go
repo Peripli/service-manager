@@ -60,7 +60,7 @@ func (c *credentialsController) Routes() []web.Route {
 }
 func (c *credentialsController) setCredentials(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
-
+	isForce := r.URL.Query().Get(web.QueryParamForce) == "true"
 	platform, err := osb.ExtractPlatformFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func (c *credentialsController) setCredentials(r *web.Request) (*web.Response, e
 		return nil, util.HandleStorageError(err, types.BrokerPlatformCredentialType.String())
 	}
 
-	if body.NotificationID == "" && objFromDB.(*types.BrokerPlatformCredential).Active {
+	if body.NotificationID == "" && objFromDB.(*types.BrokerPlatformCredential).Active && !isForce {
 		log.C(ctx).Error("Notification id not provided and broker platform credentials already exists...")
 		return nil, &util.HTTPError{
 			ErrorType:   "CredentialsError",
