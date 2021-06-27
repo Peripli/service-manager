@@ -11,6 +11,8 @@ const (
 	QueryForVisibilityWithPlatformAndPlan
 	QueryForPlanByNameAndOfferingsWithVisibility
 	QueryForSharedInstances
+	QueryForPlanByName
+	QueryForPlanByCatalogName
 )
 
 var namedQueries = map[NamedQuery]string{
@@ -101,6 +103,14 @@ var namedQueries = map[NamedQuery]string{
 			WHERE service_instance_labels.key = :tenant_identifier AND service_instance_labels.val = :tenant_id AND
 				  service_instance_labels.service_instance_id = service_instances.id
 		  )`,
+	QueryForPlanByName: `
+	SELECT * FROM service_plans
+	WHERE name ILIKE :name AND
+		  service_offering_id = :offering_id`,
+	QueryForPlanByCatalogName: `
+	SELECT * FROM service_plans
+	WHERE catalog_name ILIKE :name  AND
+		  service_offering_id = :offering_id`,
 }
 
 func GetNamedQuery(query NamedQuery) string {

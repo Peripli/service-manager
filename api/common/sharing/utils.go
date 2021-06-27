@@ -10,6 +10,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/tidwall/gjson"
+	"strings"
 )
 
 func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository, body []byte, tenantIdentifier string, getTenantId func() string, smaap bool) (string, error) {
@@ -153,11 +154,11 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 		instance := instances.ItemAt(i).(*types.ServiceInstance)
 
 		selectorVal, exists := parameters[instance_sharing.ReferenceInstanceNameSelectorKey]
-		if exists && len(selectorVal.String()) > 0 && !(instance.Name == selectorVal.String()) {
+		if exists && len(selectorVal.String()) > 0 && !compareValues(instance.Name, selectorVal.String()) {
 			continue
 		}
 
-		if selectorPlan != nil && instance.ServicePlanID != selectorPlan.ID {
+		if selectorPlan != nil && !compareValues(instance.ServicePlanID, selectorPlan.ID) {
 			continue
 		}
 
@@ -192,19 +193,23 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 
 func getSelectorPlan(ctx context.Context, repository storage.Repository, smaap bool, offeringID, selectorValue string) (*types.ServicePlan, error) {
 	var err error
-	var key string
-	if smaap {
-		key = "name"
-	} else {
-		key = "catalog_name"
+	namedQuery := storage.QueryForPlanByName
+	if !smaap {
+		namedQuery = storage.QueryForPlanByCatalogName
 	}
-	planObject, err := repository.Get(ctx, types.ServicePlanType,
-		query.ByField(query.EqualsOperator, key, selectorValue),
-		query.ByField(query.EqualsOperator, "service_offering_id", offeringID),
-	)
-	if err != nil {
+
+	queryParams := map[string]interface{}{
+		"name":        selectorValue,
+		"offering_id": offeringID,
+	}
+	objectList, err := repository.QueryForList(ctx, types.ServicePlanType, namedQuery, queryParams)
+	if err != nil || objectList.Len() == 0 {
 		return nil, util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
 	}
+	if objectList.Len() > 1 {
+		return nil, util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
+	}
+	planObject := objectList.ItemAt(0)
 	selectorPlan := planObject.(*types.ServicePlan)
 	return selectorPlan, nil
 }
@@ -241,9 +246,13 @@ func isSameServiceOffering(ctx context.Context, repository storage.Repository, o
 
 func contains(s []string, e string) bool {
 	for _, a := range s {
-		if a == e {
+		if compareValues(a, e) {
 			return true
 		}
 	}
 	return false
+}
+
+func compareValues(a, b string) bool {
+	return strings.ToLower(a) == strings.ToLower(b)
 }
