@@ -154,11 +154,11 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 		instance := instances.ItemAt(i).(*types.ServiceInstance)
 
 		selectorVal, exists := parameters[instance_sharing.ReferenceInstanceNameSelectorKey]
-		if exists && len(selectorVal.String()) > 0 && !compareValues(instance.Name, selectorVal.String()) {
+		if exists && len(selectorVal.String()) > 0 && !equalsIgnoreCase(instance.Name, selectorVal.String()) {
 			continue
 		}
 
-		if selectorPlan != nil && !compareValues(instance.ServicePlanID, selectorPlan.ID) {
+		if selectorPlan != nil && !equalsIgnoreCase(instance.ServicePlanID, selectorPlan.ID) {
 			continue
 		}
 
@@ -193,9 +193,9 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 
 func getSelectorPlan(ctx context.Context, repository storage.Repository, smaap bool, offeringID, selectorValue string) (*types.ServicePlan, error) {
 	var err error
-	namedQuery := storage.QueryForPlanByName
+	namedQuery := storage.QueryForPlanByNameIgnoreCase
 	if !smaap {
-		namedQuery = storage.QueryForPlanByCatalogName
+		namedQuery = storage.QueryForPlanByCatalogNameIgnoreCase
 	}
 
 	queryParams := map[string]interface{}{
@@ -246,13 +246,13 @@ func isSameServiceOffering(ctx context.Context, repository storage.Repository, o
 
 func contains(s []string, e string) bool {
 	for _, a := range s {
-		if compareValues(a, e) {
+		if equalsIgnoreCase(a, e) {
 			return true
 		}
 	}
 	return false
 }
 
-func compareValues(a, b string) bool {
-	return strings.ToLower(a) == strings.ToLower(b)
+func equalsIgnoreCase(a, b string) bool {
+	return strings.EqualFold(a, b)
 }
