@@ -4177,6 +4177,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 									It("succeeds to provision by label selector if the instance has a match with the selector label", func() {
 										randomUUID, _ := uuid.NewV4()
+										// test case sensitive selectors:
 										labelUpper := strings.ToUpper("eu")
 										requestBody := Object{
 											"name":             "reference-instance-" + randomUUID.String(),
@@ -4716,38 +4717,6 @@ var _ = DescribeTestsFor(TestCase{
 							object := resp.JSON().Object()
 							object.ValueEqual("labels", expectedLabels)
 
-						})
-						It("succeeds patching with same reference id in the parameters", func() {
-							newName := "renamed"
-							patchRequestBody := Object{
-								"name":             newName,
-								"service_plan_id":  referencePlan.ID,
-								"maintenance_info": "{}",
-								"parameters": map[string]string{
-									instance_sharing.ReferencedInstanceIDKey: sharedInstanceID,
-								},
-							}
-							resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+referenceInstanceID).
-								WithQuery("async", "false").
-								WithJSON(patchRequestBody).
-								Expect().
-								Status(http.StatusOK)
-							referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
-								Category:          types.UPDATE,
-								State:             types.SUCCEEDED,
-								ResourceType:      types.ServiceInstanceType,
-								Reschedulable:     false,
-								DeletionScheduled: false,
-							})
-							objAfterOp := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
-								ID:    referenceInstanceID,
-								Type:  types.ServiceInstanceType,
-								Ready: true,
-							})
-							By("verify reference-instance plan has not changed")
-							objAfterOp.Value("service_plan_id").Equal(referencePlan.ID)
-							By("verify reference-instance-id has not changed")
-							objAfterOp.Value("referenced_instance_id").Equal(sharedInstanceID)
 						})
 						for _, testConfig := range []testConfigStruct{
 							{async: "true", status: http.StatusAccepted},
