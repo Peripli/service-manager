@@ -4177,7 +4177,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 									It("succeeds to provision by label selector if the instance has a match with the selector label", func() {
 										randomUUID, _ := uuid.NewV4()
-										// test case sensitive selectors:
+										// case sensitive test:
 										labelUpper := strings.ToUpper("eu")
 										requestBody := Object{
 											"name":             "reference-instance-" + randomUUID.String(),
