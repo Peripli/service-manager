@@ -61,11 +61,8 @@ func IsValidReferenceInstancePatchRequest(req *web.Request, instance *types.Serv
 		return util.HandleInstanceSharingError(util.ErrChangingPlanOfReferenceInstance, instance.ID)
 	}
 
-	parameters := gjson.GetBytes(req.Body, "parameters").Map()
-	referencedInstanceID, exists := parameters[instance_sharing.ReferencedInstanceIDKey]
-
-	containsSameReference := exists && referencedInstanceID.String() == instance.ReferencedInstanceID
-	if len(parameters) > 0 && !containsSameReference {
+	parametersRaw := gjson.GetBytes(req.Body, "parameters").Raw
+	if parametersRaw != "" {
 		return util.HandleInstanceSharingError(util.ErrChangingParametersOfReferenceInstance, instance.ID)
 	}
 	return nil
