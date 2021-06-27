@@ -4054,12 +4054,14 @@ var _ = DescribeTestsFor(TestCase{
 									It("succeeds to provision by plan name selector", func() {
 										randomUUID, _ := uuid.NewV4()
 										sharedPlan := GetPlanByKey(ctx, "id", sharedInstance.ServicePlanID)
+										// case sensitive test:
+										selectorVal := strings.ToUpper(sharedPlan.Name)
 										requestBody := Object{
 											"name":             "reference-instance-" + randomUUID.String(),
 											"service_plan_id":  referencePlan.ID,
 											"maintenance_info": "{}",
 											"parameters": map[string]string{
-												instance_sharing.ReferencePlanNameSelectorKey: sharedPlan.Name,
+												instance_sharing.ReferencePlanNameSelectorKey: selectorVal,
 											},
 										}
 										resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
@@ -4070,12 +4072,14 @@ var _ = DescribeTestsFor(TestCase{
 									})
 									It("succeeds to provision by instance name selector", func() {
 										randomUUID, _ := uuid.NewV4()
+										// case sensitive test:
+										selectorVal := strings.ToUpper(sharedInstance.Name)
 										requestBody := Object{
 											"name":             "reference-instance-" + randomUUID.String(),
 											"service_plan_id":  referencePlan.ID,
 											"maintenance_info": "{}",
 											"parameters": map[string]string{
-												instance_sharing.ReferenceInstanceNameSelectorKey: sharedInstance.Name,
+												instance_sharing.ReferenceInstanceNameSelectorKey: selectorVal,
 											},
 										}
 										resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
@@ -4173,13 +4177,15 @@ var _ = DescribeTestsFor(TestCase{
 									})
 									It("succeeds to provision by label selector if the instance has a match with the selector label", func() {
 										randomUUID, _ := uuid.NewV4()
+										// case sensitive test:
+										labelUpper := strings.ToUpper("eu")
 										requestBody := Object{
 											"name":             "reference-instance-" + randomUUID.String(),
 											"service_plan_id":  referencePlan.ID,
 											"maintenance_info": "{}",
 											"parameters": map[string]map[string][]string{
 												instance_sharing.ReferenceLabelSelectorKey: {
-													"origin": {"eu", "1"},
+													"origin": {labelUpper, "1"},
 												},
 											},
 										}
