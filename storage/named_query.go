@@ -105,12 +105,10 @@ var namedQueries = map[NamedQuery]string{
 		  )`,
 	QueryForPlanByName: `
 	SELECT * FROM service_plans
-	WHERE name ILIKE :name AND
-		  service_offering_id = :offering_id`,
+	WHERE service_offering_id = :offering_id AND name ILIKE :name`,
 	QueryForPlanByCatalogName: `
 	SELECT * FROM service_plans
-	WHERE catalog_name ILIKE :name  AND
-		  service_offering_id = :offering_id`,
+	WHERE service_offering_id = :offering_id AND catalog_name ILIKE :name`,
 }
 
 func GetNamedQuery(query NamedQuery) string {
