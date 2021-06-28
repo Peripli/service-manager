@@ -137,8 +137,8 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			},
 
 			&info.Controller{
-				TokenIssuer:    options.APISettings.TokenIssuerURL,
-				TokenBasicAuth: options.APISettings.TokenBasicAuth,
+				TokenIssuer:            options.APISettings.TokenIssuerURL,
+				TokenBasicAuth:         options.APISettings.TokenBasicAuth,
 				ServiceManagerTenantId: options.APISettings.ServiceManagerTenantId,
 			},
 			&osb.Controller{
