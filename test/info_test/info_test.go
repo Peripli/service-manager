@@ -35,12 +35,13 @@ func TestInfo(t *testing.T) {
 
 var _ = Describe("Info API", func() {
 	cases := []struct {
-		description     string
-		configBasicAuth bool
-		expectBasicAuth bool
+		description            string
+		configBasicAuth        bool
+		expectBasicAuth        bool
+		serviceManagerTenantId string
 	}{
-		{"Returns token_issuer_url and token_basic_auth: true", true, true},
-		{"Returns token_issuer_url and token_basic_auth: false", false, false},
+		{"Returns token_issuer_url and token_basic_auth: true", true, true, ""},
+		{"Returns token_issuer_url and token_basic_auth: false", false, false, "someId"},
 	}
 
 	for _, tc := range cases {
@@ -51,6 +52,7 @@ var _ = Describe("Info API", func() {
 
 			postHook := func(e env.Environment, servers map[string]common.FakeServer) {
 				e.Set("api.token_basic_auth", tc.configBasicAuth)
+				e.Set("api.service_manager_tenant_id", tc.serviceManagerTenantId)
 			}
 			ctx = common.NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
 
@@ -62,8 +64,9 @@ var _ = Describe("Info API", func() {
 				Expect().
 				Status(http.StatusOK).
 				JSON().Object().Equal(common.Object{
-				"token_issuer_url": ctx.Servers[common.OauthServer].URL(),
-				"token_basic_auth": tc.expectBasicAuth,
+				"token_issuer_url":          ctx.Servers[common.OauthServer].URL(),
+				"token_basic_auth":          tc.expectBasicAuth,
+				"service_manager_tenant_id": tc.serviceManagerTenantId,
 			})
 		})
 	}
