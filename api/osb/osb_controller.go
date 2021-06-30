@@ -208,7 +208,7 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 
 	if tlsConfig != nil {
 		logger.Infof("configuring broker tls for %s", broker.Name)
-		proxy.Transport = client.GetTransportWithTLS(tlsConfig,logger)
+		proxy.Transport = client.GetTransportWithTLS(tlsConfig, logger)
 	} else {
 		proxy.Transport = http.DefaultTransport.(*http.Transport)
 		logger.Infof("using default tls configuration for broker %s, has client cert? %s",

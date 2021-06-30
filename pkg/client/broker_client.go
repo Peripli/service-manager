@@ -66,7 +66,7 @@ func (bc *BrokerClient) authAndTlsDecorator(requestHandler util.DoRequestWithCli
 		if bc.tlsConfig != nil {
 			client = &http.Client{}
 			logger.Infof("configuring broker tls for %s", bc.broker.Name)
-			client.Transport = GetTransportWithTLS(bc.tlsConfig,logger)
+			client.Transport = GetTransportWithTLS(bc.tlsConfig, logger)
 			return requestHandler(req, client)
 		}
 
