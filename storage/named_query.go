@@ -54,10 +54,10 @@ var namedQueries = map[NamedQuery]string{
 		 (
 			 SELECT max({{.ENTITY_TABLE}}.paging_sequence) paging_sequence
 			 FROM {{.ENTITY_TABLE}}
+			 WHERE resource_id IN (:id_list) AND resource_type = :resource_type
 			 GROUP BY resource_id,resource_type
 		 ) LAST_OPERATIONS
-		 ON {{.ENTITY_TABLE}}.paging_sequence = LAST_OPERATIONS.paging_sequence
-	WHERE resource_id IN (:id_list) AND resource_type = :resource_type`,
+		 ON {{.ENTITY_TABLE}}.paging_sequence = LAST_OPERATIONS.paging_sequence`,
 	QueryForLabelLessVisibilities: `
 	SELECT v.* FROM visibilities v
 	WHERE (v.platform_id in (:platform_ids) OR v.platform_id IS NULL) AND
