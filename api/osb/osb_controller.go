@@ -207,9 +207,13 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 	}
 
 	if tlsConfig != nil {
-		proxy.Transport = client.GetTransportWithTLS(tlsConfig)
+		logger.Infof("configuring broker tls for %s", broker.Name)
+		proxy.Transport = client.GetTransportWithTLS(tlsConfig,logger)
 	} else {
 		proxy.Transport = http.DefaultTransport.(*http.Transport)
+		logger.Infof("using default tls configuration for broker %s, has client cert? %s",
+			broker.Name,
+			len(http.DefaultTransport.(*http.Transport).TLSClientConfig.Certificates))
 	}
 	proxy.ModifyResponse = func(response *http.Response) error {
 		logger.Infof("Service broker %s replied with status %d", broker.Name, response.StatusCode)

@@ -20,6 +20,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/log"
 	"net"
 	"net/http"
 	"time"
@@ -76,6 +77,7 @@ func (s *Settings) Validate() error {
 			return fmt.Errorf("bad certificate: %s", err)
 		}
 		s.TLSCertificates = []tls.Certificate{cert}
+		log.D().Info("client certificate configured")
 
 	}
 
