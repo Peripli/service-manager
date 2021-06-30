@@ -100,14 +100,13 @@ func Configure() {
 func ConfigureTransport(transport *http.Transport) {
 	settings := GetHttpClientGlobalSettings()
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation}
-	if settings.ServerCertificate!="" && settings.ServerCertificateKey!=""{
-		cert, _:= tls.X509KeyPair([]byte(settings.ServerCertificate), []byte(settings.ServerCertificateKey))
+	if settings.ServerCertificate != "" && settings.ServerCertificateKey != "" {
+		cert, _ := tls.X509KeyPair([]byte(settings.ServerCertificate), []byte(settings.ServerCertificateKey))
 		settings.TLSCertificates = []tls.Certificate{cert}
 		if len(settings.TLSCertificates) > 0 {
 			transport.TLSClientConfig.Certificates = settings.TLSCertificates
 		}
 	}
-
 
 	if len(settings.RootCACertificates) > 0 {
 		caCertPool, err := x509.SystemCertPool()
