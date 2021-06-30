@@ -20,6 +20,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/httpclient"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -72,7 +73,7 @@ func (bc *BrokerClient) authAndTlsDecorator(requestHandler util.DoRequestWithCli
 
 		logger.Infof("using default tls configuration for broker %s, has client cert? %d",
 			bc.broker.Name,
-			len(http.DefaultTransport.(*http.Transport).TLSClientConfig.Certificates))
+			len(httpclient.GetHttpClientGlobalSettings().TLSCertificates))
 
 		return requestHandler(req, client)
 	}

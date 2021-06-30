@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/httpclient"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -213,7 +214,7 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 		proxy.Transport = http.DefaultTransport.(*http.Transport)
 		logger.Infof("using default tls configuration for broker %s, has client cert? %d",
 			broker.Name,
-			len(http.DefaultTransport.(*http.Transport).TLSClientConfig.Certificates))
+			len(httpclient.GetHttpClientGlobalSettings().TLSCertificates))
 	}
 	proxy.ModifyResponse = func(response *http.Response) error {
 		logger.Infof("Service broker %s replied with status %d", broker.Name, response.StatusCode)
