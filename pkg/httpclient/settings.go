@@ -72,8 +72,8 @@ func (s *Settings) Validate() error {
 		return fmt.Errorf("validate httpclient settings: dial_timeout should be >= 0")
 	}
 	if s.ServerCertificate != "" && s.ServerCertificateKey != "" {
-		_,err:=s.loadCertificate()
-		if err!=nil{
+		_, err := s.loadCertificate()
+		if err != nil {
 			return err
 		}
 	}
@@ -104,16 +104,15 @@ func SetHTTPClientGlobalSettings(settings *Settings) {
 func Configure() {
 	settings := GetHttpClientGlobalSettings()
 	http.DefaultClient.Timeout = settings.Timeout
+	cert, _ := settings.loadCertificate()
+	settings.TLSCertificates = []tls.Certificate{*cert}
 	ConfigureTransport(http.DefaultTransport.(*http.Transport))
 }
 
 func ConfigureTransport(transport *http.Transport) {
 	settings := GetHttpClientGlobalSettings()
-
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation}
-	cert,_:=settings.loadCertificate()
-	if cert!=nil {
-		settings.TLSCertificates = []tls.Certificate{*cert}
+	if len(settings.TLSCertificates) > 0 {
 		transport.TLSClientConfig.Certificates = settings.TLSCertificates
 	}
 
