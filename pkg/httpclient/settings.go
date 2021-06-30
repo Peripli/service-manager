@@ -72,16 +72,24 @@ func (s *Settings) Validate() error {
 		return fmt.Errorf("validate httpclient settings: dial_timeout should be >= 0")
 	}
 	if s.ServerCertificate != "" && s.ServerCertificateKey != "" {
-		cert, err := tls.X509KeyPair([]byte(s.ServerCertificate), []byte(s.ServerCertificateKey))
-		if err != nil {
-			return fmt.Errorf("bad certificate: %s", err)
+		_,err:=s.loadCertificate()
+		if err!=nil{
+			return err
 		}
-		s.TLSCertificates = []tls.Certificate{cert}
-		log.D().Info("client certificate configured")
-
 	}
 
 	return nil
+}
+func (s *Settings) loadCertificate() (*tls.Certificate, error) {
+	if s.ServerCertificate != "" && s.ServerCertificateKey != "" {
+		cert, err := tls.X509KeyPair([]byte(s.ServerCertificate), []byte(s.ServerCertificateKey))
+		if err != nil {
+			return nil, fmt.Errorf("bad certificate: %s", err)
+		}
+		log.D().Info("client certificate is ok ")
+		return &cert, nil
+	}
+	return nil, nil
 }
 
 func GetHttpClientGlobalSettings() *Settings {
@@ -103,7 +111,9 @@ func ConfigureTransport(transport *http.Transport) {
 	settings := GetHttpClientGlobalSettings()
 
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation}
-	if len(settings.TLSCertificates) > 0 {
+	cert,_:=settings.loadCertificate()
+	if cert!=nil {
+		settings.TLSCertificates = []tls.Certificate{*cert}
 		transport.TLSClientConfig.Certificates = settings.TLSCertificates
 	}
 
