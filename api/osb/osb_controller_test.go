@@ -53,12 +53,11 @@ var _ = Describe("OSB Controller test", func() {
 	})
 
 	Describe("test osb create proxy", func() {
-		logger:= logrus.NewEntry(logrus.New())
+		logger := logrus.NewEntry(logrus.New())
 		targetBrokerURL, err := url.Parse("http://example.com/proxy/")
 		if err != nil {
 			log.Fatal(err)
 		}
-
 
 		It("create proxy with tls should return a new reverse proxy with its own tls setting", func() {
 			reverseProxy, _ := buildProxy(targetBrokerURL, logger, &brokerTLS)
