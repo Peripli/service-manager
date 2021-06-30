@@ -70,7 +70,7 @@ func (bc *BrokerClient) authAndTlsDecorator(requestHandler util.DoRequestWithCli
 			return requestHandler(req, client)
 		}
 
-		logger.Infof("using default tls configuration for broker %s, has client cert? %s",
+		logger.Infof("using default tls configuration for broker %s, has client cert? %d",
 			bc.broker.Name,
 			len(http.DefaultTransport.(*http.Transport).TLSClientConfig.Certificates))
 
