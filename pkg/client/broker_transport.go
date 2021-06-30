@@ -26,7 +26,7 @@ func GetTransportWithTLS(tlsConfig *tls.Config,logger *logrus.Entry) *http.Trans
 	transport := http.Transport{}
 	httpclient.ConfigureTransport(&transport)
 	transport.TLSClientConfig.Certificates = append(transport.TLSClientConfig.Certificates, tlsConfig.Certificates...)
-	logger.Infof("adding certificates to tls connection to  the broker, added %s certificate/s",len(transport.TLSClientConfig.Certificates))
+	logger.Infof("adding certificates to tls connection, added %s certificate/s",len(transport.TLSClientConfig.Certificates))
 	//prevents keeping idle connections when accessing to different broker hosts
 	transport.DisableKeepAlives = true
 	return &transport
