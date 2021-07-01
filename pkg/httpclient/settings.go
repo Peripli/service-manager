@@ -20,6 +20,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/log"
 	"net"
 	"net/http"
 	"time"
@@ -71,12 +72,11 @@ func (s *Settings) Validate() error {
 		return fmt.Errorf("validate httpclient settings: dial_timeout should be >= 0")
 	}
 	if s.ServerCertificate != "" && s.ServerCertificateKey != "" {
-		cert, err := tls.X509KeyPair([]byte(s.ServerCertificate), []byte(s.ServerCertificateKey))
+		_, err := tls.X509KeyPair([]byte(s.ServerCertificate), []byte(s.ServerCertificateKey))
 		if err != nil {
 			return fmt.Errorf("bad certificate: %s", err)
 		}
-		s.TLSCertificates = []tls.Certificate{cert}
-
+		log.D().Info("client certificate is ok ")
 	}
 
 	return nil
@@ -99,10 +99,13 @@ func Configure() {
 
 func ConfigureTransport(transport *http.Transport) {
 	settings := GetHttpClientGlobalSettings()
-
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation}
-	if len(settings.TLSCertificates) > 0 {
-		transport.TLSClientConfig.Certificates = settings.TLSCertificates
+	if settings.ServerCertificate != "" && settings.ServerCertificateKey != "" {
+		cert, _ := tls.X509KeyPair([]byte(settings.ServerCertificate), []byte(settings.ServerCertificateKey))
+		settings.TLSCertificates = []tls.Certificate{cert}
+		if len(settings.TLSCertificates) > 0 {
+			transport.TLSClientConfig.Certificates = settings.TLSCertificates
+		}
 	}
 
 	if len(settings.RootCACertificates) > 0 {
