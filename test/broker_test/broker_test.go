@@ -581,7 +581,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				FContext("tls", func() {
+				Context("tls", func() {
 					var settings *httpclient.Settings
 					BeforeEach(func() {
 						settings = ctx.Config.HTTPClient
