@@ -73,15 +73,15 @@ func (s *Settings) Validate() error {
 		return fmt.Errorf("validate httpclient settings: dial_timeout should be >= 0")
 	}
 	if s.ServerCertificate != "" && s.ServerCertificateKey != "" {
-		_, err := tls.X509KeyPair([]byte(s.ServerCertificate), []byte(s.ServerCertificateKey))
+		cert, err := strconv.Unquote(`"` + s.ServerCertificate + `"`)
 		if err != nil {
 			return fmt.Errorf("bad certificate: %s", err)
 		}
-		_, err = strconv.Unquote(`"` + s.ServerCertificate + `"`)
+		key, err := strconv.Unquote(`"` + s.ServerCertificateKey + `"`)
 		if err != nil {
 			return fmt.Errorf("bad certificate: %s", err)
 		}
-		_, err = strconv.Unquote(`"` + s.ServerCertificateKey + `"`)
+		_, err = tls.X509KeyPair([]byte(cert), []byte(key))
 		if err != nil {
 			return fmt.Errorf("bad certificate: %s", err)
 		}
