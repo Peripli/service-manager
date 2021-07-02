@@ -21,6 +21,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/hashicorp/hcl/hcl/strconv"
 	"net"
 	"net/http"
 	"time"
@@ -76,6 +77,14 @@ func (s *Settings) Validate() error {
 		if err != nil {
 			return fmt.Errorf("bad certificate: %s", err)
 		}
+		_, err = strconv.Unquote(`"` + s.ServerCertificate + `"`)
+		if err != nil {
+			return fmt.Errorf("bad certificate: %s", err)
+		}
+		_, err = strconv.Unquote(`"` + s.ServerCertificateKey + `"`)
+		if err != nil {
+			return fmt.Errorf("bad certificate: %s", err)
+		}
 		log.D().Info("client certificate is ok ")
 	}
 
@@ -101,7 +110,9 @@ func ConfigureTransport(transport *http.Transport) {
 	settings := GetHttpClientGlobalSettings()
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation}
 	if settings.ServerCertificate != "" && settings.ServerCertificateKey != "" {
-		cert, _ := tls.X509KeyPair([]byte(settings.ServerCertificate), []byte(settings.ServerCertificateKey))
+		intStrKey,_:= strconv.Unquote(`"` + settings.ServerCertificateKey + `"`)
+		intStrCert,_:= strconv.Unquote(`"` + settings.ServerCertificate + `"`)
+		cert, _ := tls.X509KeyPair([]byte(intStrCert), []byte(intStrKey))
 		settings.TLSCertificates = []tls.Certificate{cert}
 		if len(settings.TLSCertificates) > 0 {
 			transport.TLSClientConfig.Certificates = settings.TLSCertificates
