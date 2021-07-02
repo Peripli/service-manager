@@ -53,7 +53,7 @@ var _ = Describe("HTTPClient settings", func() {
 				settings.ServerCertificate = tls_settings.ServerManagerCertificate
 				settings.ServerCertificateKey = tls_settings.ServerManagerCertificateKey
 				Expect(settings.Validate()).ToNot(HaveOccurred())
-
+				Expect(len(settings.TLSCertificates)).To(Equal(1))
 			})
 		})
 
@@ -62,6 +62,7 @@ var _ = Describe("HTTPClient settings", func() {
 				settings.ServerCertificate = tls_settings.InvalidServerManagerCertificate
 				settings.ServerCertificateKey = tls_settings.InvalidServerManagerCertificateKey
 				Expect(settings.Validate()).To(HaveOccurred())
+				Expect(len(settings.TLSCertificates)).To(Equal(0))
 			})
 		})
 
