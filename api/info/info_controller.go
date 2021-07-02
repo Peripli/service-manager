@@ -29,8 +29,7 @@ type Controller struct {
 
 	// TokenBasicAuth specifies if client credentials should be sent in the header
 	// as basic auth (true) or in the body (false)
-	TokenBasicAuth         bool   `json:"token_basic_auth"`
-	ServiceManagerTenantId string `json:"service_manager_tenant_id"`
+	TokenBasicAuth bool `json:"token_basic_auth"`
 }
 
 var _ web.Controller = &Controller{}

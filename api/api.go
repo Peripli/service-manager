@@ -48,7 +48,6 @@ const osbVersion = "2.14"
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	ServiceManagerTenantId     string   `mapstructure:"service_manager_tenant_id" description:"tenant id of the service manager"`
 	TokenIssuerURL             string   `mapstructure:"token_issuer_url" description:"url of the token issuer which to use for validating tokens"`
 	ClientID                   string   `mapstructure:"client_id" description:"id of the client from which the token must be issued"`
 	TokenBasicAuth             bool     `mapstructure:"token_basic_auth" description:"specifies if client credentials to the authorization server should be sent in the header as basic auth (true) or in the body (false)"`
@@ -137,9 +136,8 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			},
 
 			&info.Controller{
-				TokenIssuer:            options.APISettings.TokenIssuerURL,
-				TokenBasicAuth:         options.APISettings.TokenBasicAuth,
-				ServiceManagerTenantId: options.APISettings.ServiceManagerTenantId,
+				TokenIssuer:    options.APISettings.TokenIssuerURL,
+				TokenBasicAuth: options.APISettings.TokenBasicAuth,
 			},
 			&osb.Controller{
 				BrokerFetcher: func(ctx context.Context, brokerID string) (*types.ServiceBroker, error) {
