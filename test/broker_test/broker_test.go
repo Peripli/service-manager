@@ -582,12 +582,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("tls", func() {
-					var settings *httpclient.Settings
-					BeforeEach(func() {
-						settings = ctx.Config.HTTPClient
-					})
+					var certificates []tls.Certificate
 					Context("mutual tls", func() {
 						JustBeforeEach(func() {
+							settings := ctx.Config.HTTPClient
+							settings.TLSCertificates = certificates
 							settings.SkipSSLValidation = false
 							settings.RootCACertificates = []string{tls_settings.BrokerRootCertificate}
 							httpclient.SetHTTPClientGlobalSettings(settings)
@@ -597,6 +596,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 						JustAfterEach(func() {
 							http.DefaultTransport.(*http.Transport).TLSClientConfig = nil
+							certificates = []tls.Certificate{}
+							settings := ctx.Config.HTTPClient
 							settings.TLSCertificates = []tls.Certificate{}
 							settings.ServerCertificate = ""
 							settings.ServerCertificateKey = ""
@@ -608,8 +609,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						Context("server manager certificate is valid", func() {
 							BeforeEach(func() {
-								settings.ServerCertificate = tls_settings.ServerManagerCertificate
-								settings.ServerCertificateKey = tls_settings.ServerManagerCertificateKey
+								cert, err := tls.X509KeyPair([]byte(tls_settings.ServerManagerCertificate), []byte(tls_settings.ServerManagerCertificateKey))
+								Expect(err).ShouldNot(HaveOccurred())
+								certificates = append(certificates, cert)
 
 							})
 							When("basic auth is configured", func() {
@@ -650,8 +652,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						Context("server manager certificate is expired", func() {
 							BeforeEach(func() {
-								settings.ServerCertificate = tls_settings.ExpiredServerManagerCertficate
-								settings.ServerCertificateKey = tls_settings.ExpiredServerManagerCertificateKey
+								cert, err := tls.X509KeyPair([]byte(tls_settings.ExpiredServerManagerCertficate), []byte(tls_settings.ExpiredServerManagerCertificateKey))
+								Expect(err).ShouldNot(HaveOccurred())
+								certificates = append(certificates, cert)
 							})
 
 							It("returns error", func() {

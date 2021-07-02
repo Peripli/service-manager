@@ -18,10 +18,8 @@ package interceptors
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/httpclient"
 	"github.com/tidwall/gjson"
 	"math"
 	"net"
@@ -741,12 +739,7 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 	}
 
 	if tlsConfig != nil {
-		tlsConfig.Certificates = append(tlsConfig.Certificates, httpclient.GetHttpClientGlobalSettings().TLSCertificates...)
 		osbClientConfig.TLSConfig = tlsConfig
-	} else if len(httpclient.GetHttpClientGlobalSettings().TLSCertificates) > 0 {
-		var defaultTLSConfig tls.Config
-		defaultTLSConfig.Certificates = httpclient.GetHttpClientGlobalSettings().TLSCertificates
-		osbClientConfig.TLSConfig = &defaultTLSConfig
 	}
 
 	osbClient, err := osbClientFunc(osbClientConfig)
