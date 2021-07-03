@@ -21,9 +21,10 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/hashicorp/hcl/hcl/strconv"
 	"net"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -54,6 +55,12 @@ func DefaultSettings() *Settings {
 		SkipSSLValidation:     false,
 	}
 }
+func convert(str string) (string, error) {
+	str = strconv.Quote(str)
+	replaced := strings.Replace(str, `\\`, "\\", -1)
+	newstr, err := strconv.Unquote(replaced)
+	return newstr, err
+}
 
 // Validate validates the httpclient settings
 func (s *Settings) Validate() error {
@@ -73,14 +80,15 @@ func (s *Settings) Validate() error {
 		return fmt.Errorf("validate httpclient settings: dial_timeout should be >= 0")
 	}
 	if s.ServerCertificate != "" && s.ServerCertificateKey != "" {
-		cert, err := strconv.Unquote(`"` + s.ServerCertificate + `"`)
+		cert, err := convert(s.ServerCertificate)
 		if err != nil {
 			return fmt.Errorf("bad certificate: %s", err)
 		}
-		key, err := strconv.Unquote(`"` + s.ServerCertificateKey + `"`)
+		key, err := convert(s.ServerCertificateKey)
 		if err != nil {
 			return fmt.Errorf("bad certificate: %s", err)
 		}
+
 		_, err = tls.X509KeyPair([]byte(cert), []byte(key))
 		if err != nil {
 			return fmt.Errorf("bad certificate: %s", err)
@@ -110,8 +118,13 @@ func ConfigureTransport(transport *http.Transport) {
 	settings := GetHttpClientGlobalSettings()
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation}
 	if settings.ServerCertificate != "" && settings.ServerCertificateKey != "" {
-		intStrKey, _ := strconv.Unquote(`"` + settings.ServerCertificateKey + `"`)
-		intStrCert, _ := strconv.Unquote(`"` + settings.ServerCertificate + `"`)
+		var intStrCert, intStrKey string
+		if strings.Contains(settings.ServerCertificate, `\n`) {
+			intStrCert = strings.Replace(settings.ServerCertificate, `\n`, "\n", -1)
+		}
+		if strings.Contains(settings.ServerCertificateKey, `\n`) {
+			intStrKey = strings.Replace(settings.ServerCertificateKey, `\n`, "\n", -1)
+		}
 		cert, _ := tls.X509KeyPair([]byte(intStrCert), []byte(intStrKey))
 		settings.TLSCertificates = []tls.Certificate{cert}
 		if len(settings.TLSCertificates) > 0 {

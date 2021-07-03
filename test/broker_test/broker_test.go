@@ -612,8 +612,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								settings.ServerCertificateKey = tls_settings.ServerManagerCertificateKey
 
 							})
-							When("basic auth is configured", func() {
-								It("ok", func() {
+							When("basic auth is configured", func() {It("ok", func() {
 									res := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerServerMtls).
 										Expect().
 										Status(http.StatusCreated).JSON().Object()
