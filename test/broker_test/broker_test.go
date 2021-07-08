@@ -91,7 +91,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				postBrokerRequestWithTLSandBasic                       Object
 				expectedBrokerResponseTLS                              Object
 				expectedBrokerServerWithServiceManagerMtlsAndBasicAuth Object
-				postBrokerRequestWithTLSToWrongBrokerServer			   Object
+				postBrokerRequestWithTLSToWrongBrokerServer            Object
 				postBrokerRequestWithTLSNoCert                         Object
 				labels                                                 Object
 				postBrokerServerMtls                                   Object
@@ -199,7 +199,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						},
 					},
 				}
-
 
 				postBrokerRequestWithTLSToWrongBrokerServer = Object{
 					"name":        "wrong-broker-tls",
