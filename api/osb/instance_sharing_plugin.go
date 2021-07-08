@@ -263,7 +263,7 @@ func (is *instanceSharingPlugin) handleBinding(req *web.Request, next web.Handle
 
 	instance := serviceInstanceObj.(*types.ServiceInstance)
 
-	// if instance is referecnce, switch the context of the request with the original instance context.
+	// if instance is reference, switch the context of the request with the original instance context.
 	if len(instance.ReferencedInstanceID) > 0 {
 		referencedInstanceObject, err := storage.GetObjectByField(ctx, is.repository, types.ServiceInstanceType, "id", instance.ReferencedInstanceID)
 		if err != nil {
