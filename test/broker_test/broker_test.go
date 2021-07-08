@@ -91,6 +91,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				postBrokerRequestWithTLSandBasic                       Object
 				expectedBrokerResponseTLS                              Object
 				expectedBrokerServerWithServiceManagerMtlsAndBasicAuth Object
+				postBrokerRequestWithTLSToWrongBrokerServer			   Object
 				postBrokerRequestWithTLSNoCert                         Object
 				labels                                                 Object
 				postBrokerServerMtls                                   Object
@@ -195,6 +196,19 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						"basic": Object{
 							"username": brokerServerWithSMCertficate.Username,
 							"password": brokerServerWithSMCertficate.Password,
+						},
+					},
+				}
+
+
+				postBrokerRequestWithTLSToWrongBrokerServer = Object{
+					"name":        "wrong-broker-tls",
+					"broker_url":  brokerServerWithSMCertficate.URL(),
+					"description": brokerDescription,
+					"credentials": Object{
+						"tls": Object{
+							"client_certificate": tls_settings.ClientCertificate,
+							"client_key":         tls_settings.ClientKey,
 						},
 					},
 				}
@@ -633,6 +647,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 								})
 
+							})
+							Context("broker with its own tls configuration", func() {
+								It("sends request to a broker that supports  only service manager certificate", func() {
+									//check if only one certificate is sends, otherwise the connection would fail
+									ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLSToWrongBrokerServer).
+										Expect().
+										Status(http.StatusBadGateway)
+								})
 							})
 							Context("broker client certificate and basic auth are configured", func() {
 								It("should succeed", func() {
