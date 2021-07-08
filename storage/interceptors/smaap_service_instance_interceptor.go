@@ -741,7 +741,6 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 	}
 
 	if tlsConfig != nil {
-		tlsConfig.Certificates = append(tlsConfig.Certificates, httpclient.GetHttpClientGlobalSettings().TLSCertificates...)
 		osbClientConfig.TLSConfig = tlsConfig
 	} else if len(httpclient.GetHttpClientGlobalSettings().TLSCertificates) > 0 {
 		var defaultTLSConfig tls.Config
