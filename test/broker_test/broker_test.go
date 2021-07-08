@@ -649,7 +649,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 							})
 							Context("broker with its own tls configuration", func() {
-								It("sends request to a broker that supports  only service manager certificate", func() {
+								It("sends request to a broker that supports only service manager certificate, should fail", func() {
 									//check if only one certificate is sends, otherwise the connection would fail
 									ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLSToWrongBrokerServer).
 										Expect().
