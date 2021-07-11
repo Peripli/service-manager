@@ -11,11 +11,14 @@ import (
 
 func BuildReferencePlanSchema() string {
 	return fmt.Sprintf(`{
+  "ready": true,
   "name": "%[1]s",
   "catalog_name": "%[1]s",
   "description": "%[2]s",
+  "free": true,
   "bindable": true,
-  "ready": true,
+  "plan_updateable": false,
+  "binding_rotatable": true,
   "metadata": {
     "supportedPlatforms": []
   },
