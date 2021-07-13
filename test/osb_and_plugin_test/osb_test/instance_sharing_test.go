@@ -223,7 +223,7 @@ var _ = Describe("Instance Sharing", func() {
 
 			})
 		})
-		FContext("provision with selectors", func() {
+		Context("provision with selectors", func() {
 			var resp *httpexpect.Response
 			var sharedInstanceID, referenceInstanceID string
 			BeforeEach(func() {

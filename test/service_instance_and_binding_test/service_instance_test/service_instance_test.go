@@ -3973,7 +3973,7 @@ var _ = DescribeTestsFor(TestCase{
 								resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrRequestBodyContainsReferencedInstanceID, instance_sharing.ReferencedInstanceIDKey))
 							})
 						})
-						FContext("provision with selectors", func() {
+						Context("provision with selectors", func() {
 							var sharedInstance *types.ServiceInstance
 							BeforeEach(func() {
 								sharedInstance, _ = GetInstanceObjectByID(ctx, sharedInstanceID)
