@@ -98,7 +98,7 @@ func BuildReferencePlanSchema() string {
 		instance_sharing.ReferencedInstanceIDKey,                  // 3
 		instance_sharing.ReferencedInstanceIDTitle,                // 4
 		instance_sharing.ReferencedInstanceIDDescription,          // 5
-		instance_sharing.BySelectorsKey,                           // 6
+		instance_sharing.SelectorsKey,                             // 6
 		instance_sharing.BySelectorsTitle,                         // 7
 		instance_sharing.BySelectorsDescription,                   // 8
 		instance_sharing.ReferenceInstanceNameSelectorKey,         // 9

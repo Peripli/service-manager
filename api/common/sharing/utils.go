@@ -43,7 +43,8 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 			return "", err
 		}
 
-		referencedInstance, err = filterInstancesBySelectors(ctx, repository, sharedInstances, parameters, smaap, referencePlan.ServiceOfferingID)
+		selectors := parameters[instance_sharing.SelectorsKey].Map()
+		referencedInstance, err = filterInstancesBySelectors(ctx, repository, sharedInstances, selectors, smaap, referencePlan.ServiceOfferingID)
 		if err != nil {
 			log.C(ctx).Errorf("Failed to filter instances by selectors: %s", err)
 			return "", err
@@ -106,16 +107,25 @@ func validateParameters(parameters map[string]gjson.Result) error {
 	if len(parameters) == 0 {
 		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, "")
 	}
+	hasAtLeastOneSelector := false
 	ID, IDExists := parameters[instance_sharing.ReferencedInstanceIDKey]
-	name, nameExists := parameters[instance_sharing.ReferenceInstanceNameSelectorKey]
-	plan, planExists := parameters[instance_sharing.ReferencePlanNameSelectorKey]
-	labels, labelsExists := parameters[instance_sharing.ReferenceLabelSelectorKey]
-	validLabels := labelsExists && labels.String() != "" && len(labels.Array()) > 0
-	hasAtLeastOneSelector := validLabels || nameExists && len(name.String()) > 0 || planExists && len(plan.String()) > 0
-	selectorsAndID := IDExists && len(ID.String()) > 0 && hasAtLeastOneSelector
-	emptyValues := len(ID.String()) == 0 && !hasAtLeastOneSelector
-	if selectorsAndID || emptyValues {
+	validID := IDExists && ID.Type == gjson.String && len(ID.String()) > 0
+
+	selectors, selectorsExists := parameters[instance_sharing.SelectorsKey]
+	if selectorsExists {
+		selectorsMap := selectors.Map()
+		name, nameExists := selectorsMap[instance_sharing.ReferenceInstanceNameSelectorKey]
+		plan, planExists := selectorsMap[instance_sharing.ReferencePlanNameSelectorKey]
+		labels, labelsExists := selectorsMap[instance_sharing.ReferenceLabelSelectorKey]
+		validName := nameExists && name.Type == gjson.String && len(name.String()) > 0
+		validPlan := planExists && plan.Type == gjson.String && len(plan.String()) > 0
+		validLabels := labelsExists && labels.String() != "" && len(labels.Array()) > 0
+		hasAtLeastOneSelector = validLabels || validName || validPlan
+	}
+	if validID && hasAtLeastOneSelector {
 		return util.HandleInstanceSharingError(util.ErrInvalidReferenceSelectors, "")
+	} else if !validID && !hasAtLeastOneSelector {
+		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, "")
 	}
 	return nil
 }
@@ -145,7 +155,7 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 
 	var selectorLabeledInstance *types.ServiceInstance
 	labelsSelector := parameters[instance_sharing.ReferenceLabelSelectorKey].Array()
-	if len(labelsSelector) > 0 {
+	if len(labelsSelector) > 0 && labelsSelector[0].String() != "" {
 		var criteria []query.Criterion
 		for index := 0; index < len(labelsSelector); index++ {
 			queryToParse := labelsSelector[index].String()
@@ -155,6 +165,7 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 			}
 			criteria = append(criteria, parse...)
 		}
+		criteria = append(criteria, query.ByField(query.EqualsOperator, "shared", "true"))
 		selectorLabeledInstance, err = getInstanceByLabelSelector(ctx, repository, criteria)
 		if err != nil {
 			return nil, err

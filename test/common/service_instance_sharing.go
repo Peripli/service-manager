@@ -78,13 +78,22 @@ func GetPlanByKey(ctx *TestContext, key, value string) *types.ServicePlan {
 
 func CreateReferenceInstance(smExpect *SMExpect, async string, expectedStatusCode int, selectorKey, selectorValue, referencePlanID string) *httpexpect.Response {
 	ID, _ := uuid.NewV4()
+
+	// set parameters:
+	parameters := map[string]interface{}{}
+	if selectorKey == instance_sharing.ReferencedInstanceIDKey {
+		parameters[selectorKey] = selectorValue
+	} else {
+		parameters[instance_sharing.SelectorsKey] = map[string]interface{}{
+			selectorKey: selectorValue,
+		}
+	}
+
 	requestBody := Object{
 		"name":             "reference-instance-" + ID.String(),
 		"service_plan_id":  referencePlanID,
 		"maintenance_info": "{}",
-		"parameters": map[string]string{
-			selectorKey: selectorValue,
-		},
+		"parameters":       parameters,
 	}
 	resp := smExpect.POST(web.ServiceInstancesURL).
 		WithQuery("async", async).
