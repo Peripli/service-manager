@@ -10,6 +10,10 @@ const (
 	ReferencedInstanceIDTitle       = "Reference Instance ID"
 	ReferencedInstanceIDDescription = "Specify the ID of the instance to which you want to create a reference."
 
+	BySelectorsKey         = "referenced_instance_id"
+	BySelectorsTitle       = "Reference Instance ID"
+	BySelectorsDescription = "Specify the ID of the instance to which you want to create a reference."
+
 	ReferenceInstanceNameSelectorKey         = "instance_name_selector"
 	ReferenceInstanceNameSelectorTitle       = "Find by Instance Name"
 	ReferenceInstanceNameSelectorDescription = "You can use the instance name to find the shared instance to which you want to create a reference."
@@ -18,5 +22,7 @@ const (
 	ReferencePlanNameSelectorTitle       = "Find by Plan Name"
 	ReferencePlanNameSelectorDescription = "You can use the plan name to find the shared instance to which you want to create a reference."
 
-	ReferenceLabelSelectorKey = "instance_labels_selector"
+	ReferenceLabelSelectorKey         = "instance_labels_selector"
+	ReferenceLabelSelectorTitle       = "instance_labels_selector"
+	ReferenceLabelSelectorDescription = "instance_labels_selector"
 )

@@ -110,13 +110,8 @@ func validateParameters(parameters map[string]gjson.Result) error {
 	name, nameExists := parameters[instance_sharing.ReferenceInstanceNameSelectorKey]
 	plan, planExists := parameters[instance_sharing.ReferencePlanNameSelectorKey]
 	labels, labelsExists := parameters[instance_sharing.ReferenceLabelSelectorKey]
-	selectorLabels := types.Labels{}
-	if labelsExists {
-		if err := util.BytesToObject([]byte(labels.Raw), &selectorLabels); err != nil {
-			return err
-		}
-	}
-	hasAtLeastOneSelector := selectorLabels != nil && len(selectorLabels) > 0 || nameExists && len(name.String()) > 0 || planExists && len(plan.String()) > 0
+	validLabels := labelsExists && labels.String() != "" && len(labels.Array()) > 0
+	hasAtLeastOneSelector := validLabels || nameExists && len(name.String()) > 0 || planExists && len(plan.String()) > 0
 	selectorsAndID := IDExists && len(ID.String()) > 0 && hasAtLeastOneSelector
 	emptyValues := len(ID.String()) == 0 && !hasAtLeastOneSelector
 	if selectorsAndID || emptyValues {
@@ -148,6 +143,27 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 		}
 	}
 
+	var selectorLabeledInstance *types.ServiceInstance
+	labelsSelector := parameters[instance_sharing.ReferenceLabelSelectorKey].Array()
+	if len(labelsSelector) > 0 {
+		var criteria []query.Criterion
+		for index := 0; index < len(labelsSelector); index++ {
+			queryToParse := labelsSelector[index].String()
+			parse, err := query.Parse(query.LabelQuery, queryToParse)
+			if err != nil {
+				return nil, err
+			}
+			criteria = append(criteria, parse...)
+			// need to move the query label out as the service plan selector.
+			// need to run a query for service instances with this criteria
+			// if we get single service instance that matches the criteria, we need to check if it is equal to the current instnace
+		}
+		selectorLabeledInstance, err = getInstanceByLabelSelector(ctx, repository, criteria)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	for i := 0; i < instances.Len(); i++ {
 		instance := instances.ItemAt(i).(*types.ServiceInstance)
 
@@ -160,21 +176,8 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 			continue
 		}
 
-		selectorVal, exists = parameters[instance_sharing.ReferenceLabelSelectorKey]
-		if exists {
-			selectorLabels := types.Labels{}
-			if err := util.BytesToObject([]byte(selectorVal.Raw), &selectorLabels); err != nil {
-				return nil, err
-			}
-			if len(selectorLabels) > 0 {
-				match, err := matchLabels(instance.Labels, selectorLabels)
-				if err != nil {
-					return nil, err
-				}
-				if !match {
-					continue
-				}
-			}
+		if selectorLabeledInstance != nil && instance.ID != selectorLabeledInstance.ID {
+			continue
 		}
 
 		filteredInstances.Add(instance)
@@ -206,6 +209,23 @@ func getSelectorPlan(ctx context.Context, repository storage.Repository, smaap b
 	}
 	selectorPlan := planObject.(*types.ServicePlan)
 	return selectorPlan, nil
+}
+
+func getInstanceByLabelSelector(ctx context.Context, repository storage.Repository, criteria []query.Criterion) (*types.ServiceInstance, error) {
+	var err error
+
+	instancesList, err := repository.List(ctx, types.ServiceInstanceType, criteria...)
+	if err != nil {
+		log.C(ctx).Errorf("Failed to retrieve instance by label selector: %s", err)
+		return nil, util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
+	}
+	if instancesList == nil || instancesList.Len() == 0 {
+		return nil, util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
+	}
+	if instancesList.Len() > 1 {
+		return nil, util.HandleInstanceSharingError(util.ErrMultipleReferenceSelectorResults, "")
+	}
+	return instancesList.ItemAt(0).(*types.ServiceInstance), nil
 }
 
 func matchLabels(instanceLabels types.Labels, selectorLabels types.Labels) (bool, error) {

@@ -30,7 +30,10 @@ func BuildReferencePlanSchema() string {
           "type": "object",
           "additionalProperties": false,
           "_show_form_view": true,
-		  "_controlsOrder": ["%[3]s", "%[6]s", "%[9]s"],
+          "_controlsOrder": [
+            "%[3]s",
+            "%[6]s"
+          ],
           "properties": {
             "%[3]s": {
               "title": "%[4]s",
@@ -42,18 +45,49 @@ func BuildReferencePlanSchema() string {
             "%[6]s": {
               "title": "%[7]s",
               "description": "%[8]s",
-              "type": "string",
-              "minLength": 0,
-              "maxLength": 100
-            },
-            "%[9]s": {
-              "title": "%[10]s",
-              "description": "%[11]s",
-              "type": "string",
-              "minLength": 0,
-              "maxLength": 100
+              "type": "object",
+              "_controlsOrder": [
+                "%[9]s",
+                "%[12]s",
+                "%[15]s"
+              ],
+              "properties": {
+                "%[9]s": {
+                  "title": "%[10]s",
+                  "description": "%[11]s",
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 100
+                },
+                "%[12]s": {
+                  "title": "%[13]s",
+                  "description": "%[14]s",
+                  "type": "string",
+                  "minLength": 0,
+                  "maxLength": 100
+                },
+                "%[15]s": {
+                  "title": "%[16]s",
+                  "description": "%[17]s",
+                  "type": "array",
+                  "minItems": 0,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
             }
           }
+        }
+      },
+      "update": {
+        "parameters": {
+          "$schema": "http://json-schema.org/draft-04/schema#",
+          "type": "object",
+          "_show_form_view": false,
+          "_controlsOrder": [],
+          "additionalProperties": false,
+          "properties": {}
         }
       }
     }
@@ -64,12 +98,18 @@ func BuildReferencePlanSchema() string {
 		instance_sharing.ReferencedInstanceIDKey,                  // 3
 		instance_sharing.ReferencedInstanceIDTitle,                // 4
 		instance_sharing.ReferencedInstanceIDDescription,          // 5
-		instance_sharing.ReferenceInstanceNameSelectorKey,         // 6
-		instance_sharing.ReferenceInstanceNameSelectorTitle,       // 7
-		instance_sharing.ReferenceInstanceNameSelectorDescription, // 8
-		instance_sharing.ReferencePlanNameSelectorKey,             // 9
-		instance_sharing.ReferencePlanNameSelectorTitle,           // 10
-		instance_sharing.ReferencePlanNameSelectorDescription,     // 11
+		instance_sharing.BySelectorsKey,                           // 6
+		instance_sharing.BySelectorsTitle,                         // 7
+		instance_sharing.BySelectorsDescription,                   // 8
+		instance_sharing.ReferenceInstanceNameSelectorKey,         // 9
+		instance_sharing.ReferenceInstanceNameSelectorTitle,       // 10
+		instance_sharing.ReferenceInstanceNameSelectorDescription, // 11
+		instance_sharing.ReferencePlanNameSelectorKey,             // 12
+		instance_sharing.ReferencePlanNameSelectorTitle,           // 13
+		instance_sharing.ReferencePlanNameSelectorDescription,     // 14
+		instance_sharing.ReferenceLabelSelectorKey,                // 15
+		instance_sharing.ReferenceLabelSelectorTitle,              // 16
+		instance_sharing.ReferenceLabelSelectorDescription,        // 17
 	)
 }
 

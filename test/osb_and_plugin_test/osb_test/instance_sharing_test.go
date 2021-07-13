@@ -223,7 +223,7 @@ var _ = Describe("Instance Sharing", func() {
 
 			})
 		})
-		Context("provision with selectors", func() {
+		FContext("provision with selectors", func() {
 			var resp *httpexpect.Response
 			var sharedInstanceID, referenceInstanceID string
 			BeforeEach(func() {
@@ -273,7 +273,8 @@ var _ = Describe("Instance Sharing", func() {
 				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencedInstanceIDKey, "*", false)
 			})
 			It("succeeds with label selector", func() {
-				labelSelector := Object{TenantIdentifier: Array{TenantValue}}
+				query := fmt.Sprintf("%s eq '%s'", TenantIdentifier, TenantValue)
+				labelSelector := Array{query}
 				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferenceLabelSelectorKey, labelSelector, false)
 			})
 			It("succeeds with combination of selectors", func() {
