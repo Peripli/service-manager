@@ -154,9 +154,6 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 				return nil, err
 			}
 			criteria = append(criteria, parse...)
-			// need to move the query label out as the service plan selector.
-			// need to run a query for service instances with this criteria
-			// if we get single service instance that matches the criteria, we need to check if it is equal to the current instnace
 		}
 		selectorLabeledInstance, err = getInstanceByLabelSelector(ctx, repository, criteria)
 		if err != nil {
