@@ -228,25 +228,6 @@ func getInstanceByLabelSelector(ctx context.Context, repository storage.Reposito
 	return instancesList.ItemAt(0).(*types.ServiceInstance), nil
 }
 
-func matchLabels(instanceLabels types.Labels, selectorLabels types.Labels) (bool, error) {
-	if instanceLabels == nil {
-		return false, nil
-	}
-	for selectorLabelKey, selectorLabelArray := range selectorLabels {
-		instanceLabelArray, exists := instanceLabels[selectorLabelKey]
-		if exists && len(instanceLabelArray) > 0 {
-			for _, selectorLabelVal := range selectorLabelArray {
-				if !contains(instanceLabelArray, selectorLabelVal) {
-					return false, nil
-				}
-			}
-		} else {
-			return false, nil
-		}
-	}
-	return true, nil
-}
-
 func isSameServiceOffering(ctx context.Context, repository storage.Repository, offeringID string, planID string) (bool, error) {
 	count, err := repository.Count(ctx, types.ServicePlanType,
 		query.ByField(query.EqualsOperator, "service_offering_id", offeringID),
@@ -256,13 +237,4 @@ func isSameServiceOffering(ctx context.Context, repository storage.Repository, o
 		return false, util.HandleStorageError(err, types.ServicePlanType.String())
 	}
 	return count > 0, nil
-}
-
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
 }
