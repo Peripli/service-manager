@@ -4159,133 +4159,137 @@ var _ = DescribeTestsFor(TestCase{
 									})
 								})
 								Context("label selector", func() {
-									It("succeeds to provision by label selector if the instance contains the selector labels", func() {
-										randomUUID, _ := uuid.NewV4()
-										requestBody := Object{
-											"name":             "reference-instance-" + randomUUID.String(),
-											"service_plan_id":  referencePlan.ID,
-											"maintenance_info": "{}",
-											"parameters": map[string]interface{}{
-												instance_sharing.SelectorsKey: map[string]interface{}{
-													instance_sharing.ReferenceLabelSelectorKey: Array{
-														"origin eq '1'",
-														fmt.Sprintf("%s eq '%s'", TenantIdentifier, TenantIDValue),
+									Context("positive", func() {
+										It("succeeds to provision by label selector if the instance contains the selector labels", func() {
+											randomUUID, _ := uuid.NewV4()
+											requestBody := Object{
+												"name":             "reference-instance-" + randomUUID.String(),
+												"service_plan_id":  referencePlan.ID,
+												"maintenance_info": "{}",
+												"parameters": map[string]interface{}{
+													instance_sharing.SelectorsKey: map[string]interface{}{
+														instance_sharing.ReferenceLabelSelectorKey: Array{
+															"origin eq '1'",
+															fmt.Sprintf("%s eq '%s'", TenantIdentifier, TenantIDValue),
+														},
 													},
 												},
-											},
-										}
-										resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
-											WithQuery("async", false).
-											WithJSON(requestBody).
-											Expect().
-											Status(http.StatusCreated)
+											}
+											resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+												WithQuery("async", false).
+												WithJSON(requestBody).
+												Expect().
+												Status(http.StatusCreated)
+										})
+										It("succeeds to provision by label selector if the instance has a match with the selector label", func() {
+											randomUUID, _ := uuid.NewV4()
+											requestBody := Object{
+												"name":             "reference-instance-" + randomUUID.String(),
+												"service_plan_id":  referencePlan.ID,
+												"maintenance_info": "{}",
+												"parameters": map[string]interface{}{
+													instance_sharing.SelectorsKey: map[string]interface{}{
+														instance_sharing.ReferenceLabelSelectorKey: Array{
+															"origin eq 'eu'",
+															"origin eq '1'",
+														},
+													},
+												},
+											}
+											resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+												WithQuery("async", false).
+												WithJSON(requestBody).
+												Expect().
+												Status(http.StatusCreated)
+										})
 									})
-									It("succeeds to provision by label selector if the instance has a match with the selector label", func() {
-										randomUUID, _ := uuid.NewV4()
-										requestBody := Object{
-											"name":             "reference-instance-" + randomUUID.String(),
-											"service_plan_id":  referencePlan.ID,
-											"maintenance_info": "{}",
-											"parameters": map[string]interface{}{
-												instance_sharing.SelectorsKey: map[string]interface{}{
-													instance_sharing.ReferenceLabelSelectorKey: Array{
-														"origin eq 'eu'",
-														"origin eq '1'",
+									Context("negative", func() {
+										It("fails to provision by label selector due to multiple results using the 'in' operator", func() {
+											expectToSucceed = false
+											randomUUID, _ := uuid.NewV4()
+											requestBody := Object{
+												"name":             "reference-instance-" + randomUUID.String(),
+												"service_plan_id":  referencePlan.ID,
+												"maintenance_info": "{}",
+												"parameters": map[string]interface{}{
+													instance_sharing.SelectorsKey: map[string]interface{}{
+														instance_sharing.ReferenceLabelSelectorKey: Array{
+															"origin in ('eu', '1')",
+														},
 													},
 												},
-											},
-										}
-										resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
-											WithQuery("async", false).
-											WithJSON(requestBody).
-											Expect().
-											Status(http.StatusCreated)
-									})
-									It("fails to provision by label selector due to multiple results using the 'in' operator", func() {
-										expectToSucceed = false
-										randomUUID, _ := uuid.NewV4()
-										requestBody := Object{
-											"name":             "reference-instance-" + randomUUID.String(),
-											"service_plan_id":  referencePlan.ID,
-											"maintenance_info": "{}",
-											"parameters": map[string]interface{}{
-												instance_sharing.SelectorsKey: map[string]interface{}{
-													instance_sharing.ReferenceLabelSelectorKey: Array{
-														"origin in ('eu', '1')",
+											}
+											resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+												WithQuery("async", false).
+												WithJSON(requestBody).
+												Expect().
+												Status(http.StatusNotFound)
+										})
+										It("fails to provision by label selector due to an invalid operator", func() {
+											expectToSucceed = false
+											randomUUID, _ := uuid.NewV4()
+											requestBody := Object{
+												"name":             "reference-instance-" + randomUUID.String(),
+												"service_plan_id":  referencePlan.ID,
+												"maintenance_info": "{}",
+												"parameters": map[string]interface{}{
+													instance_sharing.SelectorsKey: map[string]interface{}{
+														instance_sharing.ReferenceLabelSelectorKey: Array{
+															"origin bla ('eu', '1')",
+														},
 													},
 												},
-											},
-										}
-										resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
-											WithQuery("async", false).
-											WithJSON(requestBody).
-											Expect().
-											Status(http.StatusNotFound)
-									})
-									It("fails to provision by label selector due to an invalid operator", func() {
-										expectToSucceed = false
-										randomUUID, _ := uuid.NewV4()
-										requestBody := Object{
-											"name":             "reference-instance-" + randomUUID.String(),
-											"service_plan_id":  referencePlan.ID,
-											"maintenance_info": "{}",
-											"parameters": map[string]interface{}{
-												instance_sharing.SelectorsKey: map[string]interface{}{
-													instance_sharing.ReferenceLabelSelectorKey: Array{
-														"origin bla ('eu', '1')",
+											}
+											resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+												WithQuery("async", false).
+												WithJSON(requestBody).
+												Expect().
+												Status(http.StatusBadRequest)
+										})
+										It("fails to provision by label selector due to invalid input type", func() {
+											expectToSucceed = false
+											randomUUID, _ := uuid.NewV4()
+											requestBody := Object{
+												"name":             "reference-instance-" + randomUUID.String(),
+												"service_plan_id":  referencePlan.ID,
+												"maintenance_info": "{}",
+												"parameters": map[string]interface{}{
+													instance_sharing.SelectorsKey: map[string]map[string][]string{
+														instance_sharing.ReferenceLabelSelectorKey: {
+															"origin": {"eu", "1"},
+														},
 													},
 												},
-											},
-										}
-										resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
-											WithQuery("async", false).
-											WithJSON(requestBody).
-											Expect().
-											Status(http.StatusBadRequest)
-									})
-									It("fails to provision by label selector due to invalid input type", func() {
-										expectToSucceed = false
-										randomUUID, _ := uuid.NewV4()
-										requestBody := Object{
-											"name":             "reference-instance-" + randomUUID.String(),
-											"service_plan_id":  referencePlan.ID,
-											"maintenance_info": "{}",
-											"parameters": map[string]interface{}{
-												instance_sharing.SelectorsKey: map[string]map[string][]string{
-													instance_sharing.ReferenceLabelSelectorKey: {
-														"origin": {"eu", "1"},
+											}
+											resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+												WithQuery("async", false).
+												WithJSON(requestBody).
+												Expect().
+												Status(http.StatusBadRequest)
+										})
+										It("fails to provision if one of label value does not match", func() {
+											expectToSucceed = false
+											randomUUID, _ := uuid.NewV4()
+											requestBody := Object{
+												"name":             "reference-instance-" + randomUUID.String(),
+												"service_plan_id":  referencePlan.ID,
+												"maintenance_info": "{}",
+												"parameters": map[string]interface{}{
+													instance_sharing.SelectorsKey: map[string]interface{}{
+														instance_sharing.ReferenceLabelSelectorKey: Array{
+															fmt.Sprintf("%s eq '%s'", TenantIdentifier, TenantIDValue),
+															"origin eq '11'",
+														},
 													},
 												},
-											},
-										}
-										resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
-											WithQuery("async", false).
-											WithJSON(requestBody).
-											Expect().
-											Status(http.StatusBadRequest)
-									})
-									It("fails to provision if one of label value does not match", func() {
-										expectToSucceed = false
-										randomUUID, _ := uuid.NewV4()
-										requestBody := Object{
-											"name":             "reference-instance-" + randomUUID.String(),
-											"service_plan_id":  referencePlan.ID,
-											"maintenance_info": "{}",
-											"parameters": map[string]interface{}{
-												instance_sharing.SelectorsKey: map[string]interface{}{
-													instance_sharing.ReferenceLabelSelectorKey: Array{
-														fmt.Sprintf("%s eq '%s'", TenantIdentifier, TenantIDValue),
-														"origin eq '11'",
-													},
-												},
-											},
-										}
-										resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
-											WithQuery("async", false).
-											WithJSON(requestBody).
-											Expect().
-											Status(http.StatusNotFound)
-										resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
+											}
+											resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+												WithQuery("async", false).
+												WithJSON(requestBody).
+												Expect().
+												Status(http.StatusNotFound)
+											resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, ""))
+										})
 									})
 								})
 							})
