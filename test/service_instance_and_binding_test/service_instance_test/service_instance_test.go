@@ -4222,9 +4222,27 @@ var _ = DescribeTestsFor(TestCase{
 												Expect().
 												Status(http.StatusCreated)
 										})
+										It("succeeds to provision by label selector with label selector as string", func() {
+											randomUUID, _ := uuid.NewV4()
+											requestBody := Object{
+												"name":             "reference-instance-" + randomUUID.String(),
+												"service_plan_id":  referencePlan.ID,
+												"maintenance_info": "{}",
+												"parameters": map[string]interface{}{
+													instance_sharing.SelectorsKey: map[string]interface{}{
+														instance_sharing.ReferenceLabelSelectorKey: "origin eq '1'",
+													},
+												},
+											}
+											resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+												WithQuery("async", false).
+												WithJSON(requestBody).
+												Expect().
+												Status(http.StatusCreated)
+										})
 									})
 									Context("negative", func() {
-										It("fails to provision by label selector due to multiple results using the 'in' operator", func() {
+										It("fails to provision due to multiple results using the 'in' operator", func() {
 											expectToSucceed = false
 											randomUUID, _ := uuid.NewV4()
 											requestBody := Object{
@@ -4245,7 +4263,7 @@ var _ = DescribeTestsFor(TestCase{
 												Expect().
 												Status(http.StatusNotFound)
 										})
-										It("fails to provision by label selector due to an invalid operator", func() {
+										It("fails to provision due to an invalid operator", func() {
 											expectToSucceed = false
 											randomUUID, _ := uuid.NewV4()
 											requestBody := Object{
@@ -4266,7 +4284,7 @@ var _ = DescribeTestsFor(TestCase{
 												Expect().
 												Status(http.StatusBadRequest)
 										})
-										It("fails to provision by label selector due to invalid input type", func() {
+										It("fails to provision due to invalid input type", func() {
 											expectToSucceed = false
 											randomUUID, _ := uuid.NewV4()
 											requestBody := Object{
