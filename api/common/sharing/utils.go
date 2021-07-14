@@ -137,21 +137,20 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 	var filteredInstances types.ServiceInstances
 
 	var sharedInstances types.ObjectList
-	var allowedPlans types.ObjectList
 
 	// Filter by label query:
 	labelsSelector, labelExists := selectors[instance_sharing.ReferenceLabelSelectorKey]
 	labelsSelectorArray := labelsSelector.Array()
-	withLabelsSelectors := labelExists && len(labelsSelectorArray) > 0 && labelsSelectorArray[0].String() != ""
-	if withLabelsSelectors {
+	hasLabelsSelectors := labelExists && len(labelsSelectorArray) > 0 && labelsSelectorArray[0].String() != ""
+	if hasLabelsSelectors {
 		var criteria []query.Criterion
 		for index := 0; index < len(labelsSelectorArray); index++ {
 			queryToParse := labelsSelectorArray[index].String()
-			parse, err := query.Parse(query.LabelQuery, queryToParse)
+			criterion, err := query.Parse(query.LabelQuery, queryToParse)
 			if err != nil {
 				return nil, err
 			}
-			criteria = append(criteria, parse...)
+			criteria = append(criteria, criterion...)
 		}
 		criteria = append(criteria, query.ByLabel(query.EqualsOperator, tenantIdentifier, tenantValue))
 		criteria = append(criteria, query.ByField(query.EqualsOperator, "shared", "true"))
@@ -159,7 +158,7 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 		if err != nil {
 			return nil, err
 		}
-		allowedPlans, err = getPlansOfServiceOffering(ctx, repository, offeringID)
+		allowedPlans, err := getPlansOfServiceOffering(ctx, repository, offeringID)
 		if err != nil {
 			return nil, err
 		}
