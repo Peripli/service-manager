@@ -230,7 +230,6 @@ var (
 	ErrReferencedInstanceNotShared               = errors.New("referenced-instance should be shared first")
 	ErrReferencedInstanceNotFound                = errors.New("referenced-instance not found")
 	ErrMultipleReferenceSelectorResults          = errors.New("multiple selector results")
-	ErrInvalidReferenceSelectors                 = errors.New("invalid selectors")
 	ErrNoResultsForReferenceSelector             = errors.New("no results for reference selector")
 	ErrReferenceWithWrongServiceOffering         = errors.New("referenced-instance not matches the service offering")
 	ErrChangingPlanOfReferenceInstance           = errors.New("changing plan of reference instance")
@@ -287,19 +286,13 @@ func HandleInstanceSharingError(err error, entityName string) error {
 	case ErrMultipleReferenceSelectorResults:
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: "Failed to create the instance. There are multiple shared instances that match your criteria. Refine your search criteria or specify the instance ID.",
+			Description: "Failed to create the instance. There are multiple shared instances that match your criteria. Refine your search criteria or specify the shared instance ID.",
 			StatusCode:  http.StatusNotFound,
-		}
-	case ErrInvalidReferenceSelectors:
-		return &HTTPError{
-			ErrorType:   "BadRequest",
-			Description: "Failed to create the instance. Your search parameters are invalid.",
-			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrNoResultsForReferenceSelector:
 		return &HTTPError{
 			ErrorType:   "NotFound",
-			Description: "Failed to create the instance. Could not find a shared instance that matches your criteria. Refine your search criteria or specify the instance ID.",
+			Description: "Failed to create the instance. Could not find a shared instance that matches your criteria. Refine your search criteria or specify the shared instance ID.",
 			StatusCode:  http.StatusNotFound,
 		}
 	case ErrChangingPlanOfReferenceInstance:

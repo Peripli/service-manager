@@ -37,15 +37,10 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 			return "", err
 		}
 	} else {
-		sharedInstances, err := getSharedInstances(ctx, repository, referencePlan.ServiceOfferingID, tenantIdentifier, getTenantId())
+		selectors := parameters[instance_sharing.SelectorsKey].Map()
+		referencedInstance, err = filterInstancesBySelectors(ctx, repository, referencePlan.ServiceOfferingID, tenantIdentifier, getTenantId(), selectors, smaap)
 		if err != nil {
-			log.C(ctx).Errorf("Failed to retrieve shared instances: %s", err)
-			return "", err
-		}
-
-		referencedInstance, err = filterInstancesBySelectors(ctx, repository, sharedInstances, parameters, smaap, referencePlan.ServiceOfferingID)
-		if err != nil {
-			log.C(ctx).Errorf("Failed to filter instances by selectors: %s", err)
+			log.C(ctx).Errorf("Failed to filter instances by selectors: %s", err.Error())
 			return "", err
 		}
 
@@ -106,21 +101,23 @@ func validateParameters(parameters map[string]gjson.Result) error {
 	if len(parameters) == 0 {
 		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, "")
 	}
+	hasAtLeastOneSelector := false
 	ID, IDExists := parameters[instance_sharing.ReferencedInstanceIDKey]
-	name, nameExists := parameters[instance_sharing.ReferenceInstanceNameSelectorKey]
-	plan, planExists := parameters[instance_sharing.ReferencePlanNameSelectorKey]
-	labels, labelsExists := parameters[instance_sharing.ReferenceLabelSelectorKey]
-	selectorLabels := types.Labels{}
-	if labelsExists {
-		if err := util.BytesToObject([]byte(labels.Raw), &selectorLabels); err != nil {
-			return err
-		}
+	validID := IDExists && ID.Type == gjson.String && len(ID.String()) > 0
+
+	selectors, selectorsExists := parameters[instance_sharing.SelectorsKey]
+	if selectorsExists {
+		selectorsMap := selectors.Map()
+		name, nameExists := selectorsMap[instance_sharing.ReferenceInstanceNameSelectorKey]
+		plan, planExists := selectorsMap[instance_sharing.ReferencePlanNameSelectorKey]
+		labels, labelsExists := selectorsMap[instance_sharing.ReferenceLabelSelectorKey]
+		validName := nameExists && name.Type == gjson.String && len(name.String()) > 0
+		validPlan := planExists && plan.Type == gjson.String && len(plan.String()) > 0
+		validLabels := labelsExists && labels.String() != "" && len(labels.Array()) > 0
+		hasAtLeastOneSelector = validLabels || validName || validPlan
 	}
-	hasAtLeastOneSelector := selectorLabels != nil && len(selectorLabels) > 0 || nameExists && len(name.String()) > 0 || planExists && len(plan.String()) > 0
-	selectorsAndID := IDExists && len(ID.String()) > 0 && hasAtLeastOneSelector
-	emptyValues := len(ID.String()) == 0 && !hasAtLeastOneSelector
-	if selectorsAndID || emptyValues {
-		return util.HandleInstanceSharingError(util.ErrInvalidReferenceSelectors, "")
+	if (validID && hasAtLeastOneSelector) || (!validID && !hasAtLeastOneSelector) {
+		return util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, "")
 	}
 	return nil
 }
@@ -135,11 +132,46 @@ func getSharedInstances(ctx context.Context, repository storage.Repository, offe
 	return objectList, err
 }
 
-func filterInstancesBySelectors(ctx context.Context, repository storage.Repository, instances types.ObjectList, parameters map[string]gjson.Result, smaap bool, offeringID string) (*types.ServiceInstance, error) {
+func filterInstancesBySelectors(ctx context.Context, repository storage.Repository, offeringID, tenantIdentifier, tenantValue string, selectors map[string]gjson.Result, smaap bool) (*types.ServiceInstance, error) {
 	var err error
 	var filteredInstances types.ServiceInstances
 
-	planSelectorVal, planSelectorExists := parameters[instance_sharing.ReferencePlanNameSelectorKey]
+	var sharedInstances types.ObjectList
+
+	// Filter by label query:
+	labelsSelector, labelExists := selectors[instance_sharing.ReferenceLabelSelectorKey]
+	if labelExists && len(labelsSelector.Array()) > 0 && labelsSelector.Array()[0].String() != "" {
+		labelsSelectorArray := labelsSelector.Array()
+		var criteria []query.Criterion
+		for index := 0; index < len(labelsSelectorArray); index++ {
+			queryToParse := labelsSelectorArray[index].String()
+			criterion, err := query.Parse(query.LabelQuery, queryToParse)
+			if err != nil {
+				return nil, err
+			}
+			criteria = append(criteria, criterion...)
+		}
+		criteria = append(criteria, query.ByLabel(query.EqualsOperator, tenantIdentifier, tenantValue))
+		criteria = append(criteria, query.ByField(query.EqualsOperator, "shared", "true"))
+		sharedInstancesByLabels, err := getInstanceByLabelSelector(ctx, repository, criteria)
+		if err != nil {
+			return nil, err
+		}
+		allowedPlans, err := getPlansOfServiceOffering(ctx, repository, offeringID)
+		if err != nil {
+			return nil, err
+		}
+		sharedInstances = filterInstancesByAllowedPlans(sharedInstancesByLabels, allowedPlans)
+	} else {
+		sharedInstances, err = getSharedInstances(ctx, repository, offeringID, tenantIdentifier, tenantValue)
+		if err != nil {
+			log.C(ctx).Errorf("Failed to retrieve shared instances: %s", err)
+			return nil, err
+		}
+	}
+
+	// Filter by plan name:
+	planSelectorVal, planSelectorExists := selectors[instance_sharing.ReferencePlanNameSelectorKey]
 	var selectorPlan *types.ServicePlan
 	if planSelectorExists && len(planSelectorVal.String()) > 0 {
 		selectorPlan, err = getSelectorPlan(ctx, repository, smaap, offeringID, planSelectorVal.String())
@@ -148,33 +180,16 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 		}
 	}
 
-	for i := 0; i < instances.Len(); i++ {
-		instance := instances.ItemAt(i).(*types.ServiceInstance)
+	for i := 0; i < sharedInstances.Len(); i++ {
+		instance := sharedInstances.ItemAt(i).(*types.ServiceInstance)
 
-		selectorVal, exists := parameters[instance_sharing.ReferenceInstanceNameSelectorKey]
+		selectorVal, exists := selectors[instance_sharing.ReferenceInstanceNameSelectorKey]
 		if exists && len(selectorVal.String()) > 0 && !(instance.Name == selectorVal.String()) {
 			continue
 		}
 
 		if selectorPlan != nil && instance.ServicePlanID != selectorPlan.ID {
 			continue
-		}
-
-		selectorVal, exists = parameters[instance_sharing.ReferenceLabelSelectorKey]
-		if exists {
-			selectorLabels := types.Labels{}
-			if err := util.BytesToObject([]byte(selectorVal.Raw), &selectorLabels); err != nil {
-				return nil, err
-			}
-			if len(selectorLabels) > 0 {
-				match, err := matchLabels(instance.Labels, selectorLabels)
-				if err != nil {
-					return nil, err
-				}
-				if !match {
-					continue
-				}
-			}
 		}
 
 		filteredInstances.Add(instance)
@@ -187,6 +202,40 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 		return nil, util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
 	}
 	return filteredInstances.ItemAt(0).(*types.ServiceInstance), nil
+}
+
+func filterInstancesByAllowedPlans(instances types.ObjectList, plans types.ObjectList) types.ObjectList {
+	filteredInstances := &types.ServiceInstances{
+		ServiceInstances: make([]*types.ServiceInstance, 0),
+	}
+	for i := 0; i < instances.Len(); i++ {
+		instance := instances.ItemAt(i).(*types.ServiceInstance)
+		if !isInAllowedPlans(instance, plans) {
+			continue
+		}
+		filteredInstances.Add(instance)
+	}
+	return filteredInstances
+}
+
+func isInAllowedPlans(instance *types.ServiceInstance, plans types.ObjectList) bool {
+	for i := 0; i < plans.Len(); i++ {
+		plan := plans.ItemAt(i).(*types.ServicePlan)
+		if instance.ServicePlanID == plan.ID {
+			return true
+		}
+	}
+	return false
+}
+
+func getPlansOfServiceOffering(ctx context.Context, repository storage.Repository, offeringID string) (types.ObjectList, error) {
+	plans, err := repository.List(ctx, types.ServicePlanType,
+		query.ByField(query.EqualsOperator, "service_offering_id", offeringID),
+	)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServicePlanType.String())
+	}
+	return plans, nil
 }
 
 func getSelectorPlan(ctx context.Context, repository storage.Repository, smaap bool, offeringID, selectorValue string) (*types.ServicePlan, error) {
@@ -208,23 +257,18 @@ func getSelectorPlan(ctx context.Context, repository storage.Repository, smaap b
 	return selectorPlan, nil
 }
 
-func matchLabels(instanceLabels types.Labels, selectorLabels types.Labels) (bool, error) {
-	if instanceLabels == nil {
-		return false, nil
+func getInstanceByLabelSelector(ctx context.Context, repository storage.Repository, criteria []query.Criterion) (types.ObjectList, error) {
+	var err error
+
+	instancesList, err := repository.List(ctx, types.ServiceInstanceType, criteria...)
+	if err != nil {
+		log.C(ctx).Errorf("Failed to retrieve instance by label selector: %s", err)
+		return nil, util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
 	}
-	for selectorLabelKey, selectorLabelArray := range selectorLabels {
-		instanceLabelArray, exists := instanceLabels[selectorLabelKey]
-		if exists && len(instanceLabelArray) > 0 {
-			for _, selectorLabelVal := range selectorLabelArray {
-				if !contains(instanceLabelArray, selectorLabelVal) {
-					return false, nil
-				}
-			}
-		} else {
-			return false, nil
-		}
+	if instancesList == nil || instancesList.Len() == 0 {
+		return nil, util.HandleInstanceSharingError(util.ErrNoResultsForReferenceSelector, "")
 	}
-	return true, nil
+	return instancesList, nil
 }
 
 func isSameServiceOffering(ctx context.Context, repository storage.Repository, offeringID string, planID string) (bool, error) {
@@ -236,13 +280,4 @@ func isSameServiceOffering(ctx context.Context, repository storage.Repository, o
 		return false, util.HandleStorageError(err, types.ServicePlanType.String())
 	}
 	return count > 0, nil
-}
-
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
 }

@@ -7,16 +7,22 @@ const (
 	SupportsInstanceSharingKey = "supportsInstanceSharing"
 
 	ReferencedInstanceIDKey         = "referenced_instance_id"
-	ReferencedInstanceIDTitle       = "Reference Instance ID"
-	ReferencedInstanceIDDescription = "Specify the ID of the instance to which you want to create a reference."
+	ReferencedInstanceIDTitle       = "Shared Instance ID"
+	ReferencedInstanceIDDescription = "Specify the ID of the instance to which you want to create the reference."
+
+	SelectorsKey           = "selectors"
+	BySelectorsTitle       = "Find by"
+	BySelectorsDescription = "You can create a reference to a shared service instance without providing its ID. Use instead various attributes, such as plan, instance name, or labels to find a matching shared instance to which to create the reference."
 
 	ReferenceInstanceNameSelectorKey         = "instance_name_selector"
-	ReferenceInstanceNameSelectorTitle       = "Find by Instance Name"
-	ReferenceInstanceNameSelectorDescription = "You can use the instance name to find the shared instance to which you want to create a reference."
+	ReferenceInstanceNameSelectorTitle       = "Instance Name"
+	ReferenceInstanceNameSelectorDescription = "Specify the instance name of the shared instance to which you want to create the reference."
 
 	ReferencePlanNameSelectorKey         = "plan_name_selector"
-	ReferencePlanNameSelectorTitle       = "Find by Plan Name"
-	ReferencePlanNameSelectorDescription = "You can use the plan name to find the shared instance to which you want to create a reference."
+	ReferencePlanNameSelectorTitle       = "Plan Name"
+	ReferencePlanNameSelectorDescription = "Specify the plan name of the shared instance to which you want to create the reference."
 
-	ReferenceLabelSelectorKey = "instance_labels_selector"
+	ReferenceLabelSelectorKey         = "instance_label_selector"
+	ReferenceLabelSelectorTitle       = "Labels"
+	ReferenceLabelSelectorDescription = "Use label query to find the shared instance to which you want to create the reference. For example: “origin eq ‘eu’” returns an instance whose origin is in the EU. You can add multiple label queries to a single search."
 )
