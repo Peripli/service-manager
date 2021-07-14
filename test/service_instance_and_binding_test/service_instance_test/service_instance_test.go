@@ -4134,8 +4134,26 @@ var _ = DescribeTestsFor(TestCase{
 											Status(http.StatusCreated)
 									})
 								})
+								Context("empty selectors object", func() {
+									It("succeeds to provision by referenced_instance_id", func() {
+										randomUUID, _ := uuid.NewV4()
+										requestBody := Object{
+											"name":             "reference-instance-" + randomUUID.String(),
+											"service_plan_id":  referencePlan.ID,
+											"maintenance_info": "{}",
+											"parameters": map[string]interface{}{
+												instance_sharing.ReferencedInstanceIDKey: sharedInstanceID,
+												instance_sharing.SelectorsKey:            map[string]interface{}{},
+											}}
+										resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+											WithQuery("async", false).
+											WithJSON(requestBody).
+											Expect().
+											Status(http.StatusCreated)
+									})
+								})
 								Context("combinations of selectors", func() {
-									It("succeeds to provision using a combination of name and plan selector", func() {
+									It("succeeds to provision", func() {
 										randomUUID, _ := uuid.NewV4()
 										sharedPlan := GetPlanByKey(ctx, "id", sharedInstance.ServicePlanID)
 
@@ -4148,7 +4166,9 @@ var _ = DescribeTestsFor(TestCase{
 												instance_sharing.SelectorsKey: map[string]interface{}{
 													instance_sharing.ReferenceInstanceNameSelectorKey: sharedInstance.Name,
 													instance_sharing.ReferencePlanNameSelectorKey:     sharedPlan.Name,
-													instance_sharing.ReferenceLabelSelectorKey:        Array{},
+													instance_sharing.ReferenceLabelSelectorKey: Array{
+														fmt.Sprintf("%s eq '%s'", TenantIdentifier, TenantIDValue),
+													},
 												},
 											}}
 										resp = ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
@@ -4448,7 +4468,7 @@ var _ = DescribeTestsFor(TestCase{
 											WithJSON(requestBody).
 											Expect().
 											Status(http.StatusBadRequest)
-										resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrInvalidReferenceSelectors, instance_sharing.ReferencedInstanceIDKey))
+										resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrMissingOrInvalidReferenceParameter, instance_sharing.ReferencedInstanceIDKey))
 									})
 								})
 								When("the selectors have more than one result", func() {
