@@ -15,14 +15,14 @@ const (
 	BySelectorsDescription = "Find the instance to which you want to create a reference by using various search attributes, such as instance name, plan name, or labels."
 
 	ReferenceInstanceNameSelectorKey         = "instance_name_selector"
-	ReferenceInstanceNameSelectorTitle       = "Find by Instance Name"
+	ReferenceInstanceNameSelectorTitle       = "Instance Name"
 	ReferenceInstanceNameSelectorDescription = "Specify the instance name of the shared instance to which you want to create a reference."
 
 	ReferencePlanNameSelectorKey         = "plan_name_selector"
-	ReferencePlanNameSelectorTitle       = "Find by Plan Name"
+	ReferencePlanNameSelectorTitle       = "Plan Name"
 	ReferencePlanNameSelectorDescription = "Specify the plan name of the shared instance to which you want to create a reference."
 
 	ReferenceLabelSelectorKey         = "instance_label_selector"
-	ReferenceLabelSelectorTitle       = "Find by Label Query"
-	ReferenceLabelSelectorDescription = "You can use the labels query to find the shared instance to which you want to create a reference. For example: \\\"origin\\\": [\\\"eu\\\"] returns an instance whose origin is in the EU."
+	ReferenceLabelSelectorTitle       = "Label"
+	ReferenceLabelSelectorDescription = "Specify the labels to find the shared instance to which you want to create a reference. For example: “origin eq ‘eu’” returns an instance whose origin is in the EU. You can add multiple label queries to a single search."
 )
