@@ -40,7 +40,7 @@ func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository
 		selectors := parameters[instance_sharing.SelectorsKey].Map()
 		referencedInstance, err = filterInstancesBySelectors(ctx, repository, referencePlan.ServiceOfferingID, tenantIdentifier, getTenantId(), selectors, smaap)
 		if err != nil {
-			log.C(ctx).Errorf("Failed to filter instances by selectors: %s", err)
+			log.C(ctx).Errorf("Failed to filter instances by selectors: %s", err.Error())
 			return "", err
 		}
 
@@ -140,9 +140,8 @@ func filterInstancesBySelectors(ctx context.Context, repository storage.Reposito
 
 	// Filter by label query:
 	labelsSelector, labelExists := selectors[instance_sharing.ReferenceLabelSelectorKey]
-	labelsSelectorArray := labelsSelector.Array()
-	hasLabelsSelectors := labelExists && len(labelsSelectorArray) > 0 && labelsSelectorArray[0].String() != ""
-	if hasLabelsSelectors {
+	if labelExists && len(labelsSelector.Array()) > 0 && labelsSelector.Array()[0].String() != "" {
+		labelsSelectorArray := labelsSelector.Array()
 		var criteria []query.Criterion
 		for index := 0; index < len(labelsSelectorArray); index++ {
 			queryToParse := labelsSelectorArray[index].String()
