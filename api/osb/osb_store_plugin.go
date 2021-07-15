@@ -390,22 +390,15 @@ func (sp *storePlugin) Unbind(request *web.Request, next web.Handler) (*web.Resp
 
 func (sp *storePlugin) Provision(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
-	requestPayload := &provisionRequest{}
-	if err := decodeRequestBody(request, requestPayload); err != nil {
-		return nil, err
-	}
 
 	response, err := next.Handle(request)
 	if err != nil {
 		return nil, err
 	}
 
-	referencedInstanceID := gjson.GetBytes(request.Body, fmt.Sprintf("parameters.%s", instance_sharing.ReferencedInstanceIDKey)).String()
-	if len(referencedInstanceID) > 0 {
-		requestPayload.RawParameters, err = sjson.SetBytes(requestPayload.RawParameters, instance_sharing.ReferencedInstanceIDKey, referencedInstanceID)
-		if err != nil {
-			return nil, err
-		}
+	requestPayload := &provisionRequest{}
+	if err := decodeRequestBody(request, requestPayload); err != nil {
+		return nil, err
 	}
 
 	responsePayload := provisionResponse{
