@@ -4197,7 +4197,7 @@ var _ = DescribeTestsFor(TestCase{
 											})
 											s := referenceInstance.ContainsKey(instance_sharing.ReferencedInstanceIDKey).
 												Value(instance_sharing.ReferencedInstanceIDKey).String()
-											Expect(s).NotTo(BeEmpty())
+											Expect(s).NotTo(Equal(""))
 
 										})
 										It("succeeds to provision by label selector if the instance contains the selector labels", func() {
