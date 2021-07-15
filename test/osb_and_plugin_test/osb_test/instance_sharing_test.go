@@ -949,12 +949,12 @@ func createAndShareInstance(accepts_incomplete bool) (*httpexpect.Response, stri
 	}
 	sharedInstanceID := UUID.String()
 
-	json := provisionRequestBodyMapWith("plan_id", shareablePlanCatalogID)()
-	json = provisionRequestBodyMapWith("service_id", service2CatalogID)()
+	provisionBody := provisionRequestBodyMapWith("plan_id", shareablePlanCatalogID)()
+	provisionBody = provisionRequestBodyMapWith("service_id", service2CatalogID)()
 	resp := ctx.SMWithBasic.PUT(instanceSharingBrokerPath+"/v2/service_instances/"+sharedInstanceID).
 		WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 		WithQuery(acceptsIncompleteKey, accepts_incomplete).
-		WithJSON(json).
+		WithJSON(provisionBody).
 		Expect().Status(http.StatusCreated)
 	resp.Body().Contains("{}")
 	err = ShareInstanceOnDB(ctx, sharedInstanceID)
