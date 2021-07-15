@@ -116,7 +116,7 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 	ctx := r.Context()
 	log.C(ctx).Debugf("getting %s with id %s", c.objectType, serviceInstanceId)
 
-	service, err := storage.GetServiceOfferingByServiceInstanceId(c.repository, ctx, serviceInstanceId)
+	service, plan, err := storage.GetServiceOfferingAndPlanByServiceInstanceId(c.repository, ctx, serviceInstanceId)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 
 	serviceInstanceBytes, err := osb.Get(util.ClientRequest, c.osbVersion, ctx,
 		broker,
-		fmt.Sprintf(serviceInstanceOSBURL, broker.BrokerURL, serviceInstanceId),
+		fmt.Sprintf("%s?service_id=%s&plan_id=%s", fmt.Sprintf(serviceInstanceOSBURL, broker.BrokerURL, serviceInstanceId), service.CatalogID, plan.CatalogID),
 		types.ServiceInstanceType.String())
 
 	if err != nil {

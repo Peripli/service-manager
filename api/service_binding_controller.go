@@ -121,7 +121,7 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 		serviceBinding.ServiceInstanceID = instance.ReferencedInstanceID
 	}
 
-	service, err := storage.GetServiceOfferingByServiceInstanceId(c.repository, ctx, serviceBinding.ServiceInstanceID)
+	service, _, err := storage.GetServiceOfferingAndPlanByServiceInstanceId(c.repository, ctx, serviceBinding.ServiceInstanceID)
 	if err != nil {
 		return nil, err
 	}
