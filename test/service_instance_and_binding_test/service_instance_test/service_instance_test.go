@@ -4040,12 +4040,14 @@ var _ = DescribeTestsFor(TestCase{
 										Reschedulable:     false,
 										DeletionScheduled: false,
 									})
-									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+									instance := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 										ID:    instanceID,
 										Type:  types.ServiceInstanceType,
 										Ready: true,
 									})
 									if expectToSucceed {
+										s := instance.Value(instance_sharing.ReferencedInstanceIDKey).String()
+										Expect(s).NotTo(Equal(""))
 										cleanupInstances(instanceID)
 									}
 									cleanupInstances(sharedGuids...)
@@ -4180,6 +4182,24 @@ var _ = DescribeTestsFor(TestCase{
 								})
 								Context("label selector", func() {
 									Context("positive", func() {
+										AfterEach(func() {
+											referenceInstanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.CREATE,
+												State:             types.SUCCEEDED,
+												ResourceType:      types.ServiceInstanceType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+											referenceInstance := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
+												ID:    referenceInstanceID,
+												Type:  types.ServiceInstanceType,
+												Ready: true,
+											})
+											s := referenceInstance.ContainsKey(instance_sharing.ReferencedInstanceIDKey).
+												Value(instance_sharing.ReferencedInstanceIDKey).String()
+											Expect(s).NotTo(BeEmpty())
+
+										})
 										It("succeeds to provision by label selector if the instance contains the selector labels", func() {
 											randomUUID, _ := uuid.NewV4()
 											requestBody := Object{

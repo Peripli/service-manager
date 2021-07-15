@@ -94,7 +94,7 @@ var namedQueries = map[NamedQuery]string{
 	FROM service_instances
 	INNER JOIN service_plans ON service_plans.id = service_instances.service_plan_id
 	INNER JOIN service_instance_labels ON service_instances.id = service_instance_labels.service_instance_id
-	WHERE service_instances.shared=true AND
+	WHERE service_instances.shared = true AND
 		  service_plans.service_offering_id = :offering_id AND
 		  EXISTS (
 			SELECT * FROM service_instance_labels 

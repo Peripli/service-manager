@@ -110,10 +110,10 @@ var _ = Describe("Instance Sharing", func() {
 					ValueEqual(instance_sharing.ReferencedInstanceIDKey, sharedInstanceID)
 			})
 			It("returns 201", func() {
-				_, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencedInstanceIDKey, sharedInstanceID, false)
+				_, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencedInstanceIDKey, sharedInstanceID, sharedInstanceID, false)
 			})
 			It("returns 202", func() {
-				_, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencedInstanceIDKey, sharedInstanceID, true)
+				_, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencedInstanceIDKey, sharedInstanceID, sharedInstanceID, true)
 			})
 		})
 		When("provisioning a reference instance in K8S platform", func() {
@@ -263,19 +263,19 @@ var _ = Describe("Instance Sharing", func() {
 			})
 			It("succeeds with plan selector", func() {
 				shareablePlan := GetPlanByKey(ctx, "catalog_id", shareablePlanCatalogID)
-				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencePlanNameSelectorKey, shareablePlan.CatalogName, false)
+				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencePlanNameSelectorKey, shareablePlan.CatalogName, sharedInstanceID, false)
 			})
 			It("succeeds with name selector", func() {
 				sharedInstance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
-				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferenceInstanceNameSelectorKey, sharedInstance.Name, false)
+				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferenceInstanceNameSelectorKey, sharedInstance.Name, sharedInstanceID, false)
 			})
 			It("succeeds with global (*) pointer to a shared instance", func() {
-				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencedInstanceIDKey, "*", false)
+				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencedInstanceIDKey, "*", sharedInstanceID, false)
 			})
 			It("succeeds with label selector", func() {
 				query := fmt.Sprintf("%s eq '%s'", TenantIdentifier, TenantValue)
 				labelSelector := Array{query}
-				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferenceLabelSelectorKey, labelSelector, false)
+				resp, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferenceLabelSelectorKey, labelSelector, sharedInstanceID, false)
 			})
 			It("succeeds with combination of selectors", func() {
 				sharedInstance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
@@ -410,7 +410,7 @@ var _ = Describe("Instance Sharing", func() {
 			When("a shared instance has existing references", func() {
 				var referenceInstanceID string
 				JustBeforeEach(func() {
-					_, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencedInstanceIDKey, sharedInstanceID, false)
+					_, referenceInstanceID = createReferenceInstance(platform.ID, instance_sharing.ReferencedInstanceIDKey, sharedInstanceID, sharedInstanceID, false)
 					VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 						ID:    referenceInstanceID,
 						Type:  types.ServiceInstanceType,
@@ -676,7 +676,7 @@ var _ = Describe("Instance Sharing", func() {
 				})
 				JustBeforeEach(func() {
 					_, cfSharedInstanceID = createAndShareInstance(false)
-					_, k8sReferenceInstanceID = createReferenceInstance(k8sPlatform.ID, instance_sharing.ReferencedInstanceIDKey, cfSharedInstanceID, false)
+					_, k8sReferenceInstanceID = createReferenceInstance(k8sPlatform.ID, instance_sharing.ReferencedInstanceIDKey, cfSharedInstanceID, cfSharedInstanceID, false)
 				})
 				AfterEach(func() {
 					ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + k8sPlatform.ID).Expect().Status(http.StatusOK)
@@ -892,7 +892,7 @@ func createSharedInstanceAndReference(platform *types.Platform, async bool) (str
 		Type:  types.ServiceInstanceType,
 		Ready: true,
 	})
-	_, referenceInstanceID := createReferenceInstance(platform.ID, instance_sharing.ReferencedInstanceIDKey, sharedInstanceID, async)
+	_, referenceInstanceID := createReferenceInstance(platform.ID, instance_sharing.ReferencedInstanceIDKey, sharedInstanceID, sharedInstanceID, async)
 	obj := VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 		ID:    referenceInstanceID,
 		Type:  types.ServiceInstanceType,
@@ -903,7 +903,7 @@ func createSharedInstanceAndReference(platform *types.Platform, async bool) (str
 	return sharedInstanceID, referenceInstanceID
 }
 
-func createReferenceInstance(platformID, selectorKey string, selectorValue interface{}, accepts_incomplete bool) (*httpexpect.Response, string) {
+func createReferenceInstance(platformID, selectorKey string, selectorValue interface{}, sharedInstanceID string, accepts_incomplete bool) (*httpexpect.Response, string) {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
@@ -936,10 +936,8 @@ func createReferenceInstance(platformID, selectorKey string, selectorValue inter
 	}
 	Expect(instanceSharingBrokerServer.LastRequest.Method).To(ContainSubstring("PUT"))
 
-	if selectorKey == instance_sharing.ReferencedInstanceIDKey {
-		referenceInstance, _ := GetInstanceObjectByID(ctx, instanceID)
-		Expect(referenceInstance.ReferencedInstanceID).To(Equal(selectorValue))
-	}
+	referenceInstance, _ := GetInstanceObjectByID(ctx, instanceID)
+	Expect(referenceInstance.ReferencedInstanceID).To(Equal(sharedInstanceID))
 
 	return resp, instanceID
 }
