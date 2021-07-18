@@ -135,9 +135,11 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 
 	}
 
+	osbUrl := fmt.Sprintf("%s?service_id=%s&plan_id=%s", fmt.Sprintf(serviceInstanceOSBURL, broker.BrokerURL, serviceInstanceId), service.CatalogID, plan.CatalogID)
+	log.C(ctx).Infof("fetch instance request: %s", osbUrl)
 	serviceInstanceBytes, err := osb.Get(util.ClientRequest, c.osbVersion, ctx,
 		broker,
-		fmt.Sprintf("%s?service_id=%s&plan_id=%s", fmt.Sprintf(serviceInstanceOSBURL, broker.BrokerURL, serviceInstanceId), service.CatalogID, plan.CatalogID),
+		osbUrl,
 		types.ServiceInstanceType.String())
 
 	if err != nil {
