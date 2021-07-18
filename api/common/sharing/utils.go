@@ -12,10 +12,10 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository, body []byte, tenantIdentifier string, getTenantId func() string, smaap bool) (string, error) {
+func ExtractReferencedInstanceID(req *web.Request, repository storage.Repository, tenantIdentifier string, getTenantId func() string, smaap bool) (string, error) {
 	var err error
 	ctx := req.Context()
-	parameters := gjson.GetBytes(body, "parameters").Map()
+	parameters := gjson.GetBytes(req.Body, "parameters").Map()
 
 	err = validateParameters(parameters)
 	if err != nil {
