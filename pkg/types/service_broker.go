@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/httpclient"
 	"reflect"
 	"strconv"
 	"strings"
@@ -127,7 +128,8 @@ func (e *ServiceBroker) Validate() error {
 	if err := e.Labels.Validate(); err != nil {
 		return err
 	}
-	if e.Credentials == nil {
+	httpSettings := httpclient.GetHttpClientGlobalSettings()
+	if e.Credentials == nil && len(httpSettings.ServerCertificate) == 0 {
 		return errors.New("missing credentials")
 	}
 	return e.Credentials.Validate()
