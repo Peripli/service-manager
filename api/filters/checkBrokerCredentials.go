@@ -2,7 +2,6 @@ package filters
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/httpclient"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -40,8 +39,7 @@ func (*CheckBrokerCredentialsFilter) Run(req *web.Request, next web.Handler) (*w
 }
 
 func credentialsMissing(basicFields []gjson.Result, tlsFields []gjson.Result) bool {
-	httpSettings:=httpclient.GetHttpClientGlobalSettings()
-	if (basicFields[0].Exists() && basicFields[1].Exists()) || (tlsFields[0].Exists() && tlsFields[1].Exists() || len(httpSettings.ServerCertificate)>0) {
+	if (basicFields[0].Exists() && basicFields[1].Exists()) || (tlsFields[0].Exists() && tlsFields[1].Exists()) {
 		return false
 	}
 	return true
