@@ -59,7 +59,7 @@ func (*CheckPlatformSuspendedFilter) FilterMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Path(web.OSBURL + "/**"),
-				web.Methods(http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete),
+				web.Methods(http.MethodPost, http.MethodPut, http.MethodPatch),
 			},
 		},
 	}
