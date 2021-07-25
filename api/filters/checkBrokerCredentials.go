@@ -2,6 +2,7 @@ package filters
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/httpclient"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -25,10 +26,16 @@ func (*CheckBrokerCredentialsFilter) Name() string {
 
 func (*CheckBrokerCredentialsFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	brokerUrl := gjson.GetBytes(req.Body, "broker_url")
-	basicFields := gjson.GetManyBytes(req.Body, fmt.Sprintf(basicCredentialsPath, "username"), fmt.Sprintf(basicCredentialsPath, "password"))
-	tlsFields := gjson.GetManyBytes(req.Body, fmt.Sprintf(tlsCredentialsPath, "client_certificate"), fmt.Sprintf(tlsCredentialsPath, "client_key"))
+	credentials:= gjson.GetBytes(req.Body,"credentials")
+	noProvidedCredentials:=false
 
-	if brokerUrl.Exists() && credentialsMissing(basicFields, tlsFields) {
+	if credentials.Exists() {
+		basicFields := gjson.GetManyBytes(req.Body, fmt.Sprintf(basicCredentialsPath, "username"), fmt.Sprintf(basicCredentialsPath, "password"))
+		tlsFields := gjson.GetManyBytes(req.Body, fmt.Sprintf(tlsCredentialsPath, "client_certificate"), fmt.Sprintf(tlsCredentialsPath, "client_key"))
+		noProvidedCredentials=credentialsMissing(basicFields, tlsFields)
+	}
+	httpSettings:=httpclient.GetHttpClientGlobalSettings()
+	if brokerUrl.Exists() && ( len(httpSettings.ServerCertificate)==0 && noProvidedCredentials ) {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
 			Description: "Updating a URL of a broker requires its credentials",
