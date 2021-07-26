@@ -22,17 +22,18 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/Peripli/service-manager/pkg/httpclient"
 )
 
 // Basic basic credentials
 type Basic struct {
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 type TLS struct {
-	Certificate string `json:"client_certificate,omitempty"`
-	Key         string `json:"client_key,omitempty"`
+	Certificate string `json:"client_certificate"`
+	Key         string `json:"client_key"`
 }
 
 // Credentials credentials
@@ -57,24 +58,53 @@ func (c *Credentials) MarshalJSON() ([]byte, error) {
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (c *Credentials) Validate() error {
-	if c.Basic != nil {
-		if c.Basic.Username == "" {
-			return errors.New("missing broker username")
+	hasCertificate := len(httpclient.GetHttpClientGlobalSettings().ServerCertificate) > 0
+	if hasCertificate {
+		if c.Basic != nil {
+			//when there is tls, its ok to username and password will be empty
+			//throw an error only if there are incomplete credentials
+			if c.Basic.Username != "" && c.Basic.Password == "" {
+				return errors.New("missing broker password")
+			}
+			if c.Basic.Password != "" && c.Basic.Username == "" {
+				return errors.New("missing broker username")
+			}
 		}
-		if c.Basic.Password == "" {
-			return errors.New("missing broker password")
-		}
-	}
+		if c.TLS != nil {
+			if c.TLS.Certificate != "" && c.TLS.Key == "" {
+				return errors.New("missing certificate")
+			}
+			if c.TLS.Key != "" && c.TLS.Certificate == "" {
+				return errors.New("missing certificate key")
+			}
+			if c.TLS.Key != "" && c.TLS.Certificate != "" {
+				_, err := tls.X509KeyPair([]byte(c.TLS.Certificate), []byte(c.TLS.Key))
+				if err != nil {
+					return errors.New("invalidate TLS configuration: " + err.Error())
+				}
+			}
 
-	if c.TLS != nil {
-		_, err := tls.X509KeyPair([]byte(c.TLS.Certificate), []byte(c.TLS.Key))
-		if err != nil {
-			return errors.New("invalidate TLS configuration: " + err.Error())
 		}
-	}
+	} else {
+		if c.Basic != nil {
+			if c.Basic.Username == "" {
+				return errors.New("missing broker username")
+			}
+			if c.Basic.Password == "" {
+				return errors.New("missing broker password")
+			}
+		}
 
-	if c.TLS == nil && c.Basic == nil {
-		return errors.New("missing broker credentials, basic or tls credentials are required")
+		if c.TLS != nil {
+			_, err := tls.X509KeyPair([]byte(c.TLS.Certificate), []byte(c.TLS.Key))
+			if err != nil {
+				return errors.New("invalidate TLS configuration: " + err.Error())
+			}
+		}
+
+		if c.TLS == nil && c.Basic == nil {
+			return errors.New("missing broker credentials, basic or tls credentials are required")
+		}
 	}
 
 	return nil

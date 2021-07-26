@@ -26,16 +26,11 @@ func (*CheckBrokerCredentialsFilter) Name() string {
 
 func (*CheckBrokerCredentialsFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	brokerUrl := gjson.GetBytes(req.Body, "broker_url")
-	credentials := gjson.GetBytes(req.Body, "credentials")
-	noProvidedCredentials := false
+	basicFields := gjson.GetManyBytes(req.Body, fmt.Sprintf(basicCredentialsPath, "username"), fmt.Sprintf(basicCredentialsPath, "password"))
+	tlsFields := gjson.GetManyBytes(req.Body, fmt.Sprintf(tlsCredentialsPath, "client_certificate"), fmt.Sprintf(tlsCredentialsPath, "client_key"))
 
-	if credentials.Exists() {
-		basicFields := gjson.GetManyBytes(req.Body, fmt.Sprintf(basicCredentialsPath, "username"), fmt.Sprintf(basicCredentialsPath, "password"))
-		tlsFields := gjson.GetManyBytes(req.Body, fmt.Sprintf(tlsCredentialsPath, "client_certificate"), fmt.Sprintf(tlsCredentialsPath, "client_key"))
-		noProvidedCredentials = credentialsMissing(basicFields, tlsFields)
-	}
 	httpSettings := httpclient.GetHttpClientGlobalSettings()
-	if brokerUrl.Exists() && (len(httpSettings.ServerCertificate) == 0 && noProvidedCredentials) {
+	if brokerUrl.Exists() && (len(httpSettings.ServerCertificate) == 0 && credentialsMissing(basicFields, tlsFields)) {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
 			Description: "Updating a URL of a broker requires its credentials",

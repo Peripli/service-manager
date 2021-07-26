@@ -1222,6 +1222,69 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Status(http.StatusOK)
 							assertInvocationCount(brokerServerWithBrokerCertificate.CatalogEndpointRequests, 1)
 						})
+
+						Context("default mTLS", func() {
+							var settings *httpclient.Settings
+							var brokerIDWithMTLS string
+							BeforeEach(func() {
+								settings = ctx.Config.HTTPClient
+								settings.SkipSSLValidation = false
+								settings.RootCACertificates = []string{tls_settings.BrokerRootCertificate}
+								settings.ServerCertificate = tls_settings.ServerManagerCertificate
+								settings.ServerCertificateKey = tls_settings.ServerManagerCertificateKey
+								httpclient.SetHTTPClientGlobalSettings(settings)
+								httpclient.Configure()
+								http.DefaultTransport.(*http.Transport).TLSClientConfig.ServerName = "localhost"
+							})
+							AfterEach(func() {
+								http.DefaultTransport.(*http.Transport).TLSClientConfig = nil
+								settings.TLSCertificates = []tls.Certificate{}
+								settings.ServerCertificate = ""
+								settings.ServerCertificateKey = ""
+								settings.SkipSSLValidation = true
+								settings.RootCACertificates = []string{}
+								httpclient.SetHTTPClientGlobalSettings(settings)
+								httpclient.Configure()
+							})
+
+							Context("update to empty credentials", func() {
+								BeforeEach(func() {
+									replyWithMTLS := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerServerMtls).
+										Expect().
+										Status(http.StatusCreated).
+										JSON().Object()
+
+									brokerIDWithMTLS = replyWithMTLS.Value("id").String().Raw()
+									assertInvocationCount(brokerServerWithSMCertficate.CatalogEndpointRequests, 1)
+									brokerServer.ResetCallHistory()
+									brokerServerWithSMCertficate.ResetCallHistory()
+
+								})
+								It("should succeed", func() {
+									updatedBrokerJSON := Object{
+										"name":        "updated_name",
+										"description": "updated_description",
+										"credentials": Object{
+											"basic": Object{
+												"username": "",
+												"password": "",
+											},
+										},
+									}
+									reply := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithMTLS).WithJSON(updatedBrokerJSON).
+										Expect()
+									reply.Status(http.StatusOK)
+									assertInvocationCount(brokerServerWithSMCertficate.CatalogEndpointRequests, 1)
+									byID := query.ByField(query.EqualsOperator, "id", brokerIDWithMTLS)
+									dbObj, err := repository.Get(context.TODO(), types.ServiceBrokerType, byID)
+									Expect(err).ToNot(HaveOccurred())
+									brokerFromDB := dbObj.(*types.ServiceBroker)
+									Expect(brokerFromDB.Credentials.Basic.Username).To(BeEmpty())
+									Expect(brokerFromDB.Credentials.Basic.Password).To(BeEmpty())
+								})
+
+							})
+						})
 					})
 
 					It("returns 200", func() {
