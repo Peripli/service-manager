@@ -43,11 +43,11 @@ type ServiceBroker struct {
 	Credentials *Credentials       `json:"credentials,omitempty"`
 	Catalog     json.RawMessage    `json:"-"`
 	Services    []*ServiceOffering `json:"-"`
-	Integrity []byte `json:"-"`
+	Integrity   []byte             `json:"-"`
 }
 
 func (e *ServiceBroker) GetTLSConfig() (*tls.Config, error) {
-	if e.Credentials!=nil && e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
+	if e.Credentials != nil && e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
 		var tlsConfig tls.Config
 		cert, err := tls.X509KeyPair([]byte(e.Credentials.TLS.Certificate), []byte(e.Credentials.TLS.Key))
 		if err != nil {
@@ -74,7 +74,7 @@ func (e *ServiceBroker) Decrypt(ctx context.Context, decryptionFunc func(context
 
 func (e *ServiceBroker) IntegralData() []byte {
 	var integrity []string
-	if e.Credentials!=nil {
+	if e.Credentials != nil {
 		if e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
 			integrity = append(integrity, e.Credentials.TLS.Certificate, e.Credentials.TLS.Key)
 		}
@@ -128,11 +128,11 @@ func (e *ServiceBroker) Validate() error {
 	if err := e.Labels.Validate(); err != nil {
 		return err
 	}
-	httpSettings:=httpclient.GetHttpClientGlobalSettings()
-	if e.Credentials == nil &&  len(httpSettings.ServerCertificate)==0{
+	httpSettings := httpclient.GetHttpClientGlobalSettings()
+	if e.Credentials == nil && len(httpSettings.ServerCertificate) == 0 {
 		return errors.New("missing credentials")
 	}
-	if e.Credentials!=nil{
+	if e.Credentials != nil {
 		return e.Credentials.Validate()
 	}
 	return nil

@@ -79,12 +79,12 @@ func (e *Broker) ToObject() (types.Object, error) {
 		Description: e.Description.String,
 		BrokerURL:   e.BrokerURL,
 		Credentials: &types.Credentials{
-			Basic:     basic,
-			TLS:       tls,
+			Basic: basic,
+			TLS:   tls,
 		},
 		Integrity: e.Integrity,
-		Catalog:  getJSONRawMessage(e.Catalog),
-		Services: services,
+		Catalog:   getJSONRawMessage(e.Catalog),
+		Services:  services,
 	}
 	return broker, nil
 }

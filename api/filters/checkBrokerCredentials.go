@@ -26,16 +26,16 @@ func (*CheckBrokerCredentialsFilter) Name() string {
 
 func (*CheckBrokerCredentialsFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	brokerUrl := gjson.GetBytes(req.Body, "broker_url")
-	credentials:= gjson.GetBytes(req.Body,"credentials")
-	noProvidedCredentials:=false
+	credentials := gjson.GetBytes(req.Body, "credentials")
+	noProvidedCredentials := false
 
 	if credentials.Exists() {
 		basicFields := gjson.GetManyBytes(req.Body, fmt.Sprintf(basicCredentialsPath, "username"), fmt.Sprintf(basicCredentialsPath, "password"))
 		tlsFields := gjson.GetManyBytes(req.Body, fmt.Sprintf(tlsCredentialsPath, "client_certificate"), fmt.Sprintf(tlsCredentialsPath, "client_key"))
-		noProvidedCredentials=credentialsMissing(basicFields, tlsFields)
+		noProvidedCredentials = credentialsMissing(basicFields, tlsFields)
 	}
-	httpSettings:=httpclient.GetHttpClientGlobalSettings()
-	if brokerUrl.Exists() && ( len(httpSettings.ServerCertificate)==0 && noProvidedCredentials ) {
+	httpSettings := httpclient.GetHttpClientGlobalSettings()
+	if brokerUrl.Exists() && (len(httpSettings.ServerCertificate) == 0 && noProvidedCredentials) {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
 			Description: "Updating a URL of a broker requires its credentials",

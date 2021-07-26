@@ -37,9 +37,8 @@ type TLS struct {
 
 // Credentials credentials
 type Credentials struct {
-	Basic     *Basic `json:"basic,omitempty"`
-	TLS       *TLS   `json:"tls,omitempty"`
-
+	Basic *Basic `json:"basic,omitempty"`
+	TLS   *TLS   `json:"tls,omitempty"`
 }
 
 func (c *Credentials) MarshalJSON() ([]byte, error) {

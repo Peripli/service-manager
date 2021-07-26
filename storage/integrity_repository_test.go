@@ -269,7 +269,7 @@ var _ = Describe("Integrity Repository", func() {
 			})
 			It("sets a new integrity", func() {
 				broker := object.(*types.ServiceBroker)
-				oldIntegrity := broker.Credentials.Integrity
+				oldIntegrity := broker.Integrity
 				Expect(newIntegrity).ToNot(Equal(oldIntegrity))
 				updatedObject, err := repository.Update(ctx, broker, types.LabelChanges{})
 				Expect(err).ToNot(HaveOccurred())
