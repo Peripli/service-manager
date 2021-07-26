@@ -636,13 +636,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								})
 							})
 
-							When("basic auth is not configured", func() {
-								It("should fail", func() {
+							When("broker registration with no cred", func() {
+								It("should succeed, default service manager certificate exist", func() {
 									req := CopyObject(postBrokerServerMtls)
 									delete(req, "credentials")
 									ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(req).
 										Expect().
-										Status(http.StatusBadRequest).JSON().Object()
+										Status(http.StatusCreated).JSON().Object()
 
 								})
 

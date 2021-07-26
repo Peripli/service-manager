@@ -81,8 +81,8 @@ func (e *Broker) ToObject() (types.Object, error) {
 		Credentials: &types.Credentials{
 			Basic:     basic,
 			TLS:       tls,
-			Integrity: e.Integrity,
 		},
+		Integrity: e.Integrity,
 		Catalog:  getJSONRawMessage(e.Catalog),
 		Services: services,
 	}
@@ -118,9 +118,8 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, error) {
 		Catalog:     getJSONText(broker.Catalog),
 		Services:    services,
 	}
+	b.Integrity = broker.Integrity
 	if broker.Credentials != nil {
-		b.Integrity = broker.Credentials.Integrity
-
 		if broker.Credentials.Basic != nil {
 			b.Username = broker.Credentials.Basic.Username
 			b.Password = broker.Credentials.Basic.Password

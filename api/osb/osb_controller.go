@@ -114,7 +114,7 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 	}
 
 	modifiedRequest := r.Request.WithContext(ctx)
-	if broker.Credentials.Basic != nil {
+	if broker.Credentials!=nil && broker.Credentials.Basic != nil {
 		modifiedRequest.SetBasicAuth(broker.Credentials.Basic.Username, broker.Credentials.Basic.Password)
 	}
 

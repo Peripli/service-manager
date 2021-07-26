@@ -43,10 +43,11 @@ type ServiceBroker struct {
 	Credentials *Credentials       `json:"credentials,omitempty"`
 	Catalog     json.RawMessage    `json:"-"`
 	Services    []*ServiceOffering `json:"-"`
+	Integrity []byte `json:"-"`
 }
 
 func (e *ServiceBroker) GetTLSConfig() (*tls.Config, error) {
-	if e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
+	if e.Credentials!=nil && e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
 		var tlsConfig tls.Config
 		cert, err := tls.X509KeyPair([]byte(e.Credentials.TLS.Certificate), []byte(e.Credentials.TLS.Key))
 		if err != nil {
@@ -73,25 +74,24 @@ func (e *ServiceBroker) Decrypt(ctx context.Context, decryptionFunc func(context
 
 func (e *ServiceBroker) IntegralData() []byte {
 	var integrity []string
+	if e.Credentials!=nil {
+		if e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
+			integrity = append(integrity, e.Credentials.TLS.Certificate, e.Credentials.TLS.Key)
+		}
 
-	if e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
-		integrity = append(integrity, e.Credentials.TLS.Certificate, e.Credentials.TLS.Key)
+		if e.Credentials.Basic != nil && e.Credentials.Basic.Username != "" && e.Credentials.Basic.Password != "" {
+			integrity = append(integrity, e.Credentials.Basic.Username, e.Credentials.Basic.Password)
+		}
 	}
-
-	if e.Credentials.Basic != nil && e.Credentials.Basic.Username != "" && e.Credentials.Basic.Password != "" {
-		integrity = append(integrity, e.Credentials.Basic.Username, e.Credentials.Basic.Password)
-	}
-
 	integrity = append(integrity, e.BrokerURL)
 	return []byte(strings.Join(integrity, ":"))
 }
 
 func (e *ServiceBroker) SetIntegrity(integrity []byte) {
-	e.Credentials.Integrity = integrity
+	e.Integrity = integrity
 }
-
 func (e *ServiceBroker) GetIntegrity() []byte {
-	return e.Credentials.Integrity
+	return e.Integrity
 }
 
 func (e *ServiceBroker) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {

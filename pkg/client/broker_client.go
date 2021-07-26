@@ -60,7 +60,7 @@ func (bc *BrokerClient) authAndTlsDecorator(requestHandler util.DoRequestWithCli
 		client := http.DefaultClient
 		ctx := req.Context()
 		logger := log.C(ctx)
-		if bc.broker.Credentials.Basic != nil && bc.broker.Credentials.Basic.Username != "" && bc.broker.Credentials.Basic.Password != "" {
+		if bc.broker.Credentials!=nil &&  bc.broker.Credentials.Basic != nil && bc.broker.Credentials.Basic.Username != "" && bc.broker.Credentials.Basic.Password != "" {
 			bc.addBasicAuth(req)
 		}
 
