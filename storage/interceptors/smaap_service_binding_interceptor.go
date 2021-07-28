@@ -111,17 +111,23 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			log.C(ctx).Debugf("platform is not %s. Skipping interceptor %s", types.SMPlatform, ServiceBindingDeleteInterceptorProviderName)
 			return f(ctx, obj)
 		}
+
+		if smaapOperated {
+			log.C(ctx).Infof("binding %s is not part of %s platform but will be handled as well", binding.ID, types.SMPlatform)
+		}
+
 		operation, found := opcontext.Get(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
 		}
 
-		if len(instance.ReferencedInstanceID) > 0 {
+		referencedInstanceID := instance.ReferencedInstanceID
+		if len(referencedInstanceID) > 0 {
 			isReferenceInstance = true
 			log.C(ctx).Infof("Creating a reference-binding. Switching the reference-instance context of \"%s\", with the shared instance: \"%s\"", instance.ID, instance.ReferencedInstanceID)
 			instance, err = getInstanceByID(ctx, instance.ReferencedInstanceID, i.repository)
 			if err != nil {
-				log.C(ctx).Errorf("Failed to retrieve the instance %s. Error: %s", instance.ReferencedInstanceID, err)
+				log.C(ctx).Errorf("Failed to retrieve the instance %s. Error: %s", referencedInstanceID, err)
 				return nil, err
 			}
 			binding.Context = instance.Context
