@@ -130,6 +130,10 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			return f(ctx, obj)
 		}
 
+		if smaapOperated {
+			log.C(ctx).Infof("instance %s is not part of %s platform but will be handled as well", instance.ID, types.SMPlatform)
+		}
+
 		operation, found := opcontext.Get(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
@@ -259,6 +263,9 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			return f(ctx, updatedObj, labelChanges...)
 		}
 
+		if smaapOperated {
+			log.C(ctx).Infof("instance %s is not part of %s platform but will be handled as well", updatedInstance.ID, types.SMPlatform)
+		}
 		operation, found := opcontext.Get(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
