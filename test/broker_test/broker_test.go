@@ -628,7 +628,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									res := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerBasicServerMtls).
 										Expect().
 										Status(http.StatusCreated).JSON().Object()
-									expectedResponse:=Object{
+									expectedResponse := Object{
 										"name":        postBrokerBasicServerMtls["name"],
 										"broker_url":  brokerServerWithSMCertficate.URL(),
 										"description": postBrokerBasicServerMtls["description"],
@@ -643,12 +643,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							})
 							When("mtls with basic", func() {
 								It("should  succeed", func() {
-									req:= CopyObject(postBrokerBasicServerMtls)
-									req["credentials"].(Object)["basic"]=Object{
+									req := CopyObject(postBrokerBasicServerMtls)
+									req["credentials"].(Object)["basic"] = Object{
 										"username": brokerServerWithSMCertficate.Username,
 										"password": brokerServerWithSMCertficate.Password,
 									}
-									res:=ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(req).
+									res := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(req).
 										Expect().Status(http.StatusCreated).JSON().Object()
 									res.ContainsMap(expectedBrokerServerWithServiceManagerMtlsAndBasicAuth)
 									assertInvocationCount(brokerServerWithSMCertficate.CatalogEndpointRequests, 1)
@@ -1249,10 +1249,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 										"client_certificate": tls_settings.ClientCertificate,
 										"client_key":         tls_settings.ClientKey,
 									},
-									"sm_provided_credentials" : true,
+									"sm_provided_credentials": true,
 								},
 							}
-							reply:=ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).
+							reply := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).
 								Expect()
 							reply.Status(http.StatusBadRequest)
 							reply.Body().Contains("only one of the options could be set, SM provided credentials or tls")
@@ -1264,12 +1264,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								"credentials": Object{
 									"tls": Object{
 										"client_certificate": "",
-										"client_key":        "",
+										"client_key":         "",
 									},
-									"sm_provided_credentials" : true,
+									"sm_provided_credentials": true,
 								},
 							}
-							reply:=ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).
+							reply := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).
 								Expect()
 							reply.Status(http.StatusBadRequest)
 							reply.Body().Contains("SM provided credentials are not supported in this region")
@@ -1355,7 +1355,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 												"username": "",
 												"password": "",
 											},
-											"sm_provided_credentials":true,
+											"sm_provided_credentials": true,
 										},
 									}
 									reply := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithMTLS).WithJSON(updatedBrokerJSON).
@@ -1381,7 +1381,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							"credentials": Object{
 								"basic": Object{
 									"username": brokerServer.Username,
-
 								},
 							},
 						}

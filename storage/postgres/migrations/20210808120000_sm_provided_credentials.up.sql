@@ -1,6 +1,2 @@
-BEGIN;
-
 ALTER TABLE brokers
 ADD COLUMN IF NOT EXISTS sm_provided_credentials BOOLEAN NOT NULL DEFAULT '0';
-
-COMMIT;

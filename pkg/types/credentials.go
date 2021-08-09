@@ -60,11 +60,11 @@ func (c *Credentials) MarshalJSON() ([]byte, error) {
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (c *Credentials) Validate() error {
-	httpSettings:= httpclient.GetHttpClientGlobalSettings()
-	isMTLSEnabled:=len(httpSettings.ServerCertificate) > 0
-	isBasicMissingCredentials :=c.Basic != nil && (c.Basic.Username =="" ||  c.Basic.Password == "")
-	isTLSMissingCredentials :=c.TLS != nil && (c.TLS.Certificate=="" || c.TLS.Key=="")
-	if c.TLS == nil && c.Basic == nil && c.SMProvidedCredentials == false{
+	httpSettings := httpclient.GetHttpClientGlobalSettings()
+	isMTLSEnabled := len(httpSettings.ServerCertificate) > 0
+	isBasicMissingCredentials := c.Basic != nil && (c.Basic.Username == "" || c.Basic.Password == "")
+	isTLSMissingCredentials := c.TLS != nil && (c.TLS.Certificate == "" || c.TLS.Key == "")
+	if c.TLS == nil && c.Basic == nil && c.SMProvidedCredentials == false {
 		return errors.New("missing broker credentials: SM provided, basic or tls credentials are required")
 	}
 	if c.SMProvidedCredentials == false && c.TLS == nil && isBasicMissingCredentials {
@@ -78,15 +78,15 @@ func (c *Credentials) Validate() error {
 	if c.SMProvidedCredentials == false && c.Basic == nil && isTLSMissingCredentials {
 		return errors.New("tls public certificate and key should be provided")
 	}
-	if c.TLS!=nil && !isTLSMissingCredentials && c.SMProvidedCredentials == true {
+	if c.TLS != nil && !isTLSMissingCredentials && c.SMProvidedCredentials == true {
 		return errors.New("only one of the options could be set, SM provided credentials or tls")
 	}
-	if c.SMProvidedCredentials && !isMTLSEnabled{
+	if c.SMProvidedCredentials && !isMTLSEnabled {
 		return errors.New("SM provided credentials are not supported in this region, set another type of credentials")
 	}
-	if c.TLS != nil && c.TLS.Certificate!="" &&  c.TLS.Key!="" {
+	if c.TLS != nil && c.TLS.Certificate != "" && c.TLS.Key != "" {
 		_, err := tls.X509KeyPair([]byte(c.TLS.Certificate), []byte(c.TLS.Key))
-		if err!=nil{
+		if err != nil {
 			return errors.New("invalidate TLS configuration: " + err.Error())
 		}
 	}

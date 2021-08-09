@@ -27,11 +27,11 @@ func (*CheckBrokerCredentialsFilter) Name() string {
 
 func (*CheckBrokerCredentialsFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	brokerUrl := gjson.GetBytes(req.Body, "broker_url")
-	smBrokerCredentials:= gjson.GetBytes(req.Body,  "sm_provided_credentials")
+	smBrokerCredentials := gjson.GetBytes(req.Body, "sm_provided_credentials")
 	basicFields := gjson.GetManyBytes(req.Body, fmt.Sprintf(basicCredentialsPath, "username"), fmt.Sprintf(basicCredentialsPath, "password"))
 	tlsFields := gjson.GetManyBytes(req.Body, fmt.Sprintf(tlsCredentialsPath, "client_certificate"), fmt.Sprintf(tlsCredentialsPath, "client_key"))
-    err:=credentialsMissing(smBrokerCredentials,basicFields, tlsFields)
-	if brokerUrl.Exists() && err!=nil {
+	err := credentialsMissing(smBrokerCredentials, basicFields, tlsFields)
+	if brokerUrl.Exists() && err != nil {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
 			Description: err.Error(),
@@ -46,7 +46,7 @@ func credentialsMissing(smBrokerCredentials gjson.Result, basicFields []gjson.Re
 	if smBrokerCredentials.Exists() && smBrokerCredentials.Bool() == true && len(httpSettings.ServerCertificate) == 0 {
 		return errors.New("No SM provided credentials available, provide another type of credentials")
 	}
-	if ( smBrokerCredentials.Exists() == true && smBrokerCredentials.Bool() == true ||  basicFields[0].Exists() && basicFields[1].Exists()) || (tlsFields[0].Exists() && tlsFields[1].Exists()) {
+	if (smBrokerCredentials.Exists() == true && smBrokerCredentials.Bool() == true || basicFields[0].Exists() && basicFields[1].Exists()) || (tlsFields[0].Exists() && tlsFields[1].Exists()) {
 		return nil
 	}
 	return errors.New("Updating a URL of a broker requires its credentials")

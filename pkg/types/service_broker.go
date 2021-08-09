@@ -54,7 +54,7 @@ func (e *ServiceBroker) GetTLSConfig() (*tls.Config, error) {
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
 		return &tlsConfig, nil
-	}else if e.Credentials.SMProvidedCredentials == true {
+	} else if e.Credentials.SMProvidedCredentials == true {
 		tlsConfig.Certificates = httpclient.GetHttpClientGlobalSettings().TLSCertificates
 		return &tlsConfig, nil
 	}
