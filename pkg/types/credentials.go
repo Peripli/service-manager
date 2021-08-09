@@ -64,7 +64,7 @@ func (c *Credentials) Validate() error {
 	isMTLSEnabled := len(httpSettings.ServerCertificate) > 0
 	isBasicMissingCredentials := c.Basic != nil && (c.Basic.Username == "" || c.Basic.Password == "")
 	isTLSMissingCredentials := c.TLS != nil && (c.TLS.Certificate == "" || c.TLS.Key == "")
-	if c.TLS == nil && c.Basic == nil && c.SMProvidedCredentials == false {
+	if c.TLS == nil && c.Basic == nil && !c.SMProvidedCredentials {
 		return errors.New("missing broker credentials: SM provided, basic or tls credentials are required")
 	}
 	if !c.SMProvidedCredentials && c.TLS == nil && isBasicMissingCredentials {
