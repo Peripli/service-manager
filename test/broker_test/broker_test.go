@@ -1325,12 +1325,32 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								httpclient.Configure()
 							})
 
-							Context("no credentials provided", func() {
+							Context("empty  basic credentials, provided credentials still exist", func() {
 								It("should fail", func() {
 									updatedBrokerJSON := Object{
 										"name":        "updated_name",
 										"description": "updated_description",
 										"credentials": Object{
+											"basic": Object{
+												"username": "",
+												"password": "",
+											},
+										},
+									}
+									reply := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithMTLS).WithJSON(updatedBrokerJSON).
+										Expect()
+									reply.Status(http.StatusOK)
+									assertInvocationCount(brokerServerWithSMCertficate.CatalogEndpointRequests, 1)
+
+								})
+							})
+							Context("empty all credentials" , func() {
+								It("should fail", func() {
+									updatedBrokerJSON := Object{
+										"name":        "updated_name",
+										"description": "updated_description",
+										"credentials": Object{
+											"sm_provided_credentials":false,
 											"basic": Object{
 												"username": "",
 												"password": "",

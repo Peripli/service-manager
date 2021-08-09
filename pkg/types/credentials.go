@@ -67,7 +67,7 @@ func (c *Credentials) Validate() error {
 	if c.TLS == nil && c.Basic == nil && c.SMProvidedCredentials == false {
 		return errors.New("missing broker credentials: SM provided, basic or tls credentials are required")
 	}
-	if c.SMProvidedCredentials == false && c.TLS == nil && isBasicMissingCredentials {
+	if !c.SMProvidedCredentials && c.TLS == nil && isBasicMissingCredentials {
 		if c.Basic.Username == "" {
 			return errors.New("missing broker username")
 		}
@@ -75,10 +75,10 @@ func (c *Credentials) Validate() error {
 			return errors.New("missing broker password")
 		}
 	}
-	if c.SMProvidedCredentials == false && c.Basic == nil && isTLSMissingCredentials {
+	if !c.SMProvidedCredentials && c.Basic == nil && isTLSMissingCredentials {
 		return errors.New("tls public certificate and key should be provided")
 	}
-	if c.TLS != nil && !isTLSMissingCredentials && c.SMProvidedCredentials == true {
+	if c.TLS != nil && !isTLSMissingCredentials && c.SMProvidedCredentials {
 		return errors.New("only one of the options could be set, SM provided credentials or tls")
 	}
 	if c.SMProvidedCredentials && !isMTLSEnabled {
