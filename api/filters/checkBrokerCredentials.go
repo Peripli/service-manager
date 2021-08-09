@@ -43,7 +43,7 @@ func (*CheckBrokerCredentialsFilter) Run(req *web.Request, next web.Handler) (*w
 
 func credentialsMissing(smBrokerCredentials gjson.Result, basicFields []gjson.Result, tlsFields []gjson.Result) error {
 	httpSettings := httpclient.GetHttpClientGlobalSettings()
-	if smBrokerCredentials.Exists() && smBrokerCredentials.Bool()  && len(httpSettings.ServerCertificate) == 0 {
+	if smBrokerCredentials.Exists() && smBrokerCredentials.Bool() && len(httpSettings.ServerCertificate) == 0 {
 		return errors.New("no sm provided credentials available, provide another type of credentials")
 	}
 	if (smBrokerCredentials.Exists() && smBrokerCredentials.Bool() || basicFields[0].Exists() && basicFields[1].Exists()) || (tlsFields[0].Exists() && tlsFields[1].Exists()) {

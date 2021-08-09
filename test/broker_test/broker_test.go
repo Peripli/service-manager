@@ -1344,13 +1344,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 								})
 							})
-							Context("empty all credentials" , func() {
+							Context("empty all credentials", func() {
 								It("should fail", func() {
 									updatedBrokerJSON := Object{
 										"name":        "updated_name",
 										"description": "updated_description",
 										"credentials": Object{
-											"sm_provided_credentials":false,
+											"sm_provided_credentials": false,
 											"basic": Object{
 												"username": "",
 												"password": "",
