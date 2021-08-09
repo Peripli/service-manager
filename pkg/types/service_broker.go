@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/httpclient"
 	"reflect"
 	"strconv"
 	"strings"
@@ -45,13 +46,16 @@ type ServiceBroker struct {
 }
 
 func (e *ServiceBroker) GetTLSConfig() (*tls.Config, error) {
+	var tlsConfig tls.Config
 	if e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
-		var tlsConfig tls.Config
 		cert, err := tls.X509KeyPair([]byte(e.Credentials.TLS.Certificate), []byte(e.Credentials.TLS.Key))
 		if err != nil {
 			return nil, err
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
+		return &tlsConfig, nil
+	}else if e.Credentials.SMProvidedCredentials == true {
+		tlsConfig.Certificates = httpclient.GetHttpClientGlobalSettings().TLSCertificates
 		return &tlsConfig, nil
 	}
 
