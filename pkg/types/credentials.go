@@ -59,14 +59,55 @@ func (c *Credentials) MarshalJSON() ([]byte, error) {
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (c *Credentials) Validate() error {
-	httpSettings := httpclient.GetHttpClientGlobalSettings()
-	isMTLSEnabled := len(httpSettings.ServerCertificate) > 0
-	isBasicMissingCredentials := c.Basic != nil && (c.Basic.Username == "" || c.Basic.Password == "")
-	isTLSMissingCredentials := c.TLS != nil && (c.TLS.Certificate == "" || c.TLS.Key == "")
 	if c.TLS == nil && c.Basic == nil && !c.SMProvidedTLSCredentials {
 		return errors.New("missing broker credentials: SM provided, basic or tls credentials are required")
 	}
-	if !c.SMProvidedTLSCredentials && c.TLS == nil && isBasicMissingCredentials {
+	if c.Basic != nil {
+		err := c.validateBasic()
+		if err != nil {
+			return err
+		}
+	}
+	if c.TLS != nil {
+		err := c.validateTLS()
+		if err != nil {
+			return err
+		}
+	}
+	if err := c.validateSMProvidedCredentials(); err != nil {
+		return err
+	}
+	return nil
+}
+func (c *Credentials) validateSMProvidedCredentials() error {
+	httpSettings := httpclient.GetHttpClientGlobalSettings()
+	isMTLSEnabled := len(httpSettings.ServerCertificate) > 0
+	if c.SMProvidedTLSCredentials && !isMTLSEnabled {
+		return errors.New("SM provided credentials are not supported in this region, set another type of credentials")
+	}
+	return nil
+}
+
+func (c *Credentials) validateTLS() error {
+	if !c.SMProvidedTLSCredentials && c.Basic == nil && (c.TLS.Certificate == "" || c.TLS.Key == "") {
+		return errors.New("tls public certificate and key should be provided")
+	}
+
+	if c.TLS.Certificate != "" && c.TLS.Key != "" {
+		if c.SMProvidedTLSCredentials {
+			return errors.New("only one of the options could be set, SM provided credentials or tls")
+		}
+		_, err := tls.X509KeyPair([]byte(c.TLS.Certificate), []byte(c.TLS.Key))
+		if err != nil {
+			return errors.New("invalidate TLS configuration: " + err.Error())
+		}
+	}
+
+	return nil
+}
+
+func (c *Credentials) validateBasic() error {
+	if !c.SMProvidedTLSCredentials && c.TLS == nil && (c.Basic.Username == "" || c.Basic.Password == "") {
 		if c.Basic.Username == "" {
 			return errors.New("missing broker username")
 		}
@@ -74,22 +115,6 @@ func (c *Credentials) Validate() error {
 			return errors.New("missing broker password")
 		}
 	}
-	if !c.SMProvidedTLSCredentials && c.Basic == nil && isTLSMissingCredentials {
-		return errors.New("tls public certificate and key should be provided")
-	}
-	if c.TLS != nil && !isTLSMissingCredentials && c.SMProvidedTLSCredentials {
-		return errors.New("only one of the options could be set, SM provided credentials or tls")
-	}
-	if c.SMProvidedTLSCredentials && !isMTLSEnabled {
-		return errors.New("SM provided credentials are not supported in this region, set another type of credentials")
-	}
-	if c.TLS != nil && c.TLS.Certificate != "" && c.TLS.Key != "" {
-		_, err := tls.X509KeyPair([]byte(c.TLS.Certificate), []byte(c.TLS.Key))
-		if err != nil {
-			return errors.New("invalidate TLS configuration: " + err.Error())
-		}
-	}
-
 	return nil
 }
 

@@ -46,7 +46,10 @@ func credentialsMissing(smBrokerCredentials gjson.Result, basicFields []gjson.Re
 	if smBrokerCredentials.Exists() && smBrokerCredentials.Bool() && len(httpSettings.ServerCertificate) == 0 {
 		return errors.New("no sm provided credentials available, provide another type of credentials")
 	}
-	if (smBrokerCredentials.Exists() && smBrokerCredentials.Bool() || basicFields[0].Exists() && basicFields[1].Exists()) || (tlsFields[0].Exists() && tlsFields[1].Exists()) {
+	smProvided := smBrokerCredentials.Exists() && smBrokerCredentials.Bool()
+	basic := basicFields[0].Exists() && basicFields[1].Exists()
+	tls := tlsFields[0].Exists() && tlsFields[1].Exists()
+	if tls || basic || smProvided {
 		return nil
 	}
 	return errors.New("updating a url of a broker requires its credentials")
