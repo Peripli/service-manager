@@ -769,6 +769,10 @@ func (sp *storePlugin) storeOperation(ctx context.Context, storage storage.Repos
 		ExternalID:    operationData,
 	}
 
+	if operationContextFromContext := web.OperationContextFromContext(ctx); operationContextFromContext != nil {
+		operation.Context = operationContextFromContext.(*types.OperationContext)
+	}
+
 	if _, err := storage.Create(ctx, operation); err != nil {
 		return util.HandleStorageError(err, string(operation.GetType()))
 	}
