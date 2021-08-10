@@ -14,7 +14,7 @@ import (
 func Get(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion string, ctx context.Context, broker *types.ServiceBroker, url string, resourceType string) ([]byte, error) {
 
 	log.C(ctx).Debugf("attempting to fetch %s from URL %s and broker with name %s", resourceType, url, broker.Name)
-	brokerClient, err := client.NewBrokerClient(broker, doRequestWithClient)
+	brokerClient, err := client.NewBrokerClient(broker, doRequestWithClient,ctx)
 	if err != nil {
 		return nil, err
 	}
