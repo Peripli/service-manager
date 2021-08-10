@@ -50,6 +50,7 @@ func (c *Credentials) MarshalJSON() ([]byte, error) {
 	if toMarshal.Basic == nil || toMarshal.Basic.Username == "" || toMarshal.Basic.Password == "" {
 		toMarshal.Basic = nil
 	}
+
 	if toMarshal.TLS == nil || toMarshal.TLS.Certificate == "" || toMarshal.TLS.Key == "" {
 		toMarshal.TLS = nil
 	}
