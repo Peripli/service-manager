@@ -24,10 +24,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/httpclient"
+	"github.com/Peripli/service-manager/pkg/log"
 	"reflect"
 	"strconv"
 	"strings"
-	"github.com/Peripli/service-manager/pkg/log"
 )
 
 const maxNameLength = 255
@@ -46,7 +46,7 @@ type ServiceBroker struct {
 	Services    []*ServiceOffering `json:"-"`
 }
 
-func (e *ServiceBroker) GetTLSConfig( ctx context.Context) (*tls.Config, error) {
+func (e *ServiceBroker) GetTLSConfig(ctx context.Context) (*tls.Config, error) {
 	var tlsConfig tls.Config
 	logger := log.C(ctx)
 	if e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {

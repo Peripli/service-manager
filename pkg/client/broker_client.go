@@ -32,7 +32,7 @@ type BrokerClient struct {
 	requestHandlerDecorated util.DoRequestFunc
 }
 
-func NewBrokerClient(broker *types.ServiceBroker, requestHandler util.DoRequestWithClientFunc,  ctx context.Context) (*BrokerClient, error) {
+func NewBrokerClient(broker *types.ServiceBroker, requestHandler util.DoRequestWithClientFunc, ctx context.Context) (*BrokerClient, error) {
 	tlsConfig, err := broker.GetTLSConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get client for broker %s: %v", broker.Name, err)
