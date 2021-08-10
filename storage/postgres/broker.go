@@ -39,7 +39,7 @@ type Broker struct {
 	TlsClientKey          string             `db:"tls_client_key"`
 	TlsClientCertificate  string             `db:"tls_client_certificate"`
 	Catalog               sqlxtypes.JSONText `db:"catalog"`
-	SMProvidedCredentials bool               `db:"sm_provided_credentials"`
+	SMProvidedCredentials bool               `db:"sm_provided_tls_credentials"`
 	Services              []*ServiceOffering `db:"-"`
 }
 

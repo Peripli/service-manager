@@ -27,7 +27,7 @@ func (*CheckBrokerCredentialsFilter) Name() string {
 
 func (*CheckBrokerCredentialsFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	brokerUrl := gjson.GetBytes(req.Body, "broker_url")
-	smBrokerCredentials := gjson.GetBytes(req.Body, "sm_provided_credentials")
+	smBrokerCredentials := gjson.GetBytes(req.Body, "sm_provided_tls_credentials")
 	basicFields := gjson.GetManyBytes(req.Body, fmt.Sprintf(basicCredentialsPath, "username"), fmt.Sprintf(basicCredentialsPath, "password"))
 	tlsFields := gjson.GetManyBytes(req.Body, fmt.Sprintf(tlsCredentialsPath, "client_certificate"), fmt.Sprintf(tlsCredentialsPath, "client_key"))
 	err := credentialsMissing(smBrokerCredentials, basicFields, tlsFields)

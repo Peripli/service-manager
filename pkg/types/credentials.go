@@ -40,7 +40,7 @@ type TLS struct {
 type Credentials struct {
 	Basic                 *Basic `json:"basic,omitempty"`
 	TLS                   *TLS   `json:"tls,omitempty"`
-	SMProvidedCredentials bool   `json:"sm_provided_credentials,omitempty"`
+	SMProvidedCredentials bool   `json:"sm_provided_tls_credentials,omitempty"`
 	Integrity             []byte `json:"-"`
 }
 
