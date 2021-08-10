@@ -1378,6 +1378,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 											"sm_provided_tls_credentials": true,
 										},
 									}
+
 									reply := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithMTLS).WithJSON(updatedBrokerJSON).
 										Expect()
 									reply.Status(http.StatusOK)
