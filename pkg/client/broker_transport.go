@@ -27,7 +27,7 @@ func GetTransportWithTLS(tlsConfig *tls.Config, logger *logrus.Entry) *http.Tran
 	transport := http.Transport{}
 	httpclient.ConfigureTransport(&transport)
 	transport.TLSClientConfig.Certificates = tlsConfig.Certificates
-	if len(tlsConfig.Certificates)>0 {
+	if len(tlsConfig.Certificates) > 0 {
 		cert, err := x509.ParseCertificate(tlsConfig.Certificates[0].Certificate[0])
 		if err == nil {
 			logger.Infof("sending certificate with the subject %+v,", cert.Subject.ToRDNSequence())
