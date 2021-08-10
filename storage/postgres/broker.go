@@ -79,10 +79,10 @@ func (e *Broker) ToObject() (types.Object, error) {
 		Description: e.Description.String,
 		BrokerURL:   e.BrokerURL,
 		Credentials: &types.Credentials{
-			Basic:                 basic,
-			TLS:                   tls,
-			Integrity:             e.Integrity,
-			SMProvidedCredentials: e.SMProvidedCredentials,
+			Basic:                    basic,
+			TLS:                      tls,
+			Integrity:                e.Integrity,
+			SMProvidedTLSCredentials: e.SMProvidedCredentials,
 		},
 		Catalog:  getJSONRawMessage(e.Catalog),
 		Services: services,
@@ -121,7 +121,7 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, error) {
 	}
 	if broker.Credentials != nil {
 		b.Integrity = broker.Credentials.Integrity
-		b.SMProvidedCredentials = broker.Credentials.SMProvidedCredentials
+		b.SMProvidedCredentials = broker.Credentials.SMProvidedTLSCredentials
 
 		if broker.Credentials.Basic != nil {
 			b.Username = broker.Credentials.Basic.Username

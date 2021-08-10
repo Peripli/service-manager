@@ -38,10 +38,10 @@ type TLS struct {
 
 // Credentials credentials
 type Credentials struct {
-	Basic                 *Basic `json:"basic,omitempty"`
-	TLS                   *TLS   `json:"tls,omitempty"`
-	SMProvidedCredentials bool   `json:"sm_provided_tls_credentials,omitempty"`
-	Integrity             []byte `json:"-"`
+	Basic                    *Basic `json:"basic,omitempty"`
+	TLS                      *TLS   `json:"tls,omitempty"`
+	SMProvidedTLSCredentials bool   `json:"sm_provided_tls_credentials,omitempty"`
+	Integrity                []byte `json:"-"`
 }
 
 func (c *Credentials) MarshalJSON() ([]byte, error) {
@@ -64,10 +64,10 @@ func (c *Credentials) Validate() error {
 	isMTLSEnabled := len(httpSettings.ServerCertificate) > 0
 	isBasicMissingCredentials := c.Basic != nil && (c.Basic.Username == "" || c.Basic.Password == "")
 	isTLSMissingCredentials := c.TLS != nil && (c.TLS.Certificate == "" || c.TLS.Key == "")
-	if c.TLS == nil && c.Basic == nil && !c.SMProvidedCredentials {
+	if c.TLS == nil && c.Basic == nil && !c.SMProvidedTLSCredentials {
 		return errors.New("missing broker credentials: SM provided, basic or tls credentials are required")
 	}
-	if !c.SMProvidedCredentials && c.TLS == nil && isBasicMissingCredentials {
+	if !c.SMProvidedTLSCredentials && c.TLS == nil && isBasicMissingCredentials {
 		if c.Basic.Username == "" {
 			return errors.New("missing broker username")
 		}
@@ -75,13 +75,13 @@ func (c *Credentials) Validate() error {
 			return errors.New("missing broker password")
 		}
 	}
-	if !c.SMProvidedCredentials && c.Basic == nil && isTLSMissingCredentials {
+	if !c.SMProvidedTLSCredentials && c.Basic == nil && isTLSMissingCredentials {
 		return errors.New("tls public certificate and key should be provided")
 	}
-	if c.TLS != nil && !isTLSMissingCredentials && c.SMProvidedCredentials {
+	if c.TLS != nil && !isTLSMissingCredentials && c.SMProvidedTLSCredentials {
 		return errors.New("only one of the options could be set, SM provided credentials or tls")
 	}
-	if c.SMProvidedCredentials && !isMTLSEnabled {
+	if c.SMProvidedTLSCredentials && !isMTLSEnabled {
 		return errors.New("SM provided credentials are not supported in this region, set another type of credentials")
 	}
 	if c.TLS != nil && c.TLS.Certificate != "" && c.TLS.Key != "" {
