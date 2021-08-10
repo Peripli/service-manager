@@ -1360,7 +1360,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									reply := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithMTLS).WithJSON(updatedBrokerJSON).
 										Expect()
 									reply.Status(http.StatusBadRequest)
-									reply.Body().Contains("missing broker username")
+									reply.Body().Contains("missing broker credentials: SM provided mtls , basic or tls credentials are required")
 									assertInvocationCount(brokerServerWithSMCertficate.CatalogEndpointRequests, 0)
 
 								})

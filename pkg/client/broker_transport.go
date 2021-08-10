@@ -17,23 +17,14 @@ package client
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"github.com/Peripli/service-manager/pkg/httpclient"
-	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
-func GetTransportWithTLS(tlsConfig *tls.Config, logger *logrus.Entry) *http.Transport {
+func GetTransportWithTLS(tlsConfig *tls.Config) *http.Transport {
 	transport := http.Transport{}
 	httpclient.ConfigureTransport(&transport)
 	transport.TLSClientConfig.Certificates = tlsConfig.Certificates
-	if len(tlsConfig.Certificates) > 0 {
-		cert, err := x509.ParseCertificate(tlsConfig.Certificates[0].Certificate[0])
-		if err == nil {
-			logger.Infof("sending certificate with the subject %+v,", cert.Subject.ToRDNSequence())
-		}
-	}
-
 	//prevents keeping idle connections when accessing to different broker hosts
 	transport.DisableKeepAlives = true
 	return &transport

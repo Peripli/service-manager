@@ -60,7 +60,7 @@ func (c *Credentials) MarshalJSON() ([]byte, error) {
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (c *Credentials) Validate() error {
 	if !c.TLSExists() && !c.BasicExists() && !c.SMProvidedTLSCredentials {
-		return errors.New("missing broker credentials: SM provided, basic or tls credentials are required")
+		return errors.New("missing broker credentials: SM provided mtls , basic or tls credentials are required")
 	}
 	if c.BasicExists() {
 		err := c.validateBasic()
