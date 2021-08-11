@@ -171,9 +171,13 @@ func (om *Maintainer) processOperations(functor func(), functorName string, inte
 				log.C(om.smCtx).Debugf("Finished execution of maintainer functor (%s)", functorName)
 			}()
 		case <-om.smCtx.Done():
-			ticker.Stop()
-			log.C(om.smCtx).Info("Server is shutting down. Stopping operations maintainer...")
-			return
+			func() {
+				om.wg.Add(1)
+				defer om.wg.Done()
+				ticker.Stop()
+				log.C(om.smCtx).Info("Server is shutting down. Stopping operations maintainer...")
+				return
+			}()
 		}
 	}
 }
