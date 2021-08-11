@@ -37,7 +37,7 @@ require (
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/moul/http2curl v1.0.0 // indirect
 	github.com/nxadm/tail v1.4.6 // indirect
-	github.com/onrik/logrus v0.4.1
+	github.com/onrik/logrus v0.9.0
 	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.3
 	github.com/pquerna/cachecontrol v0.0.0-20201205024021-ac21108117ac // indirect
