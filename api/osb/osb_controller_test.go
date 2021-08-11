@@ -19,7 +19,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/test/tls_settings"
 
-	"context"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
@@ -54,8 +53,7 @@ var _ = Describe("OSB Controller test", func() {
 	})
 
 	Describe("test osb create proxy", func() {
-		ctx:=context.Background()
-		logger := logrus.WithContext(ctx)
+		logger := logrus.NewEntry(logrus.New())
 		targetBrokerURL, err := url.Parse("http://example.com/proxy/")
 		if err != nil {
 			log.Fatal(err)

@@ -201,7 +201,7 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 		logger.Infof("Forwarded OSB request to service broker %s at %s", broker.Name, request.URL)
 	}
 
-	tlsConfig, err := broker.GetTLSConfig(logger.Context)
+	tlsConfig, err := broker.GetTLSConfig(context.Background())
 	if err != nil {
 		return nil, err
 	}
