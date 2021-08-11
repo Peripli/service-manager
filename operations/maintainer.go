@@ -172,9 +172,11 @@ func (om *Maintainer) processOperations(functor func(), functorName string, inte
 			}()
 		case <-om.smCtx.Done():
 			ticker.Stop()
-			om.wg.Add(1)
-			log.C(om.smCtx).Info("Server is shutting down. Stopping operations maintainer...")
-			om.wg.Done()
+			func() {
+				om.wg.Add(1)
+				log.C(om.smCtx).Info("Server is shutting down. Stopping operations maintainer...")
+				defer om.wg.Done()
+			}()
 			return
 		}
 	}
