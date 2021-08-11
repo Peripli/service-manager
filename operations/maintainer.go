@@ -174,8 +174,8 @@ func (om *Maintainer) processOperations(functor func(), functorName string, inte
 			ticker.Stop()
 			func() {
 				om.wg.Add(1)
-				log.C(om.smCtx).Info("Server is shutting down. Stopping operations maintainer...")
 				defer om.wg.Done()
+				log.C(om.smCtx).Info("Server is shutting down. Stopping operations maintainer...")
 			}()
 			return
 		}
