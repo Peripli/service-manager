@@ -33,7 +33,7 @@ type BrokerClient struct {
 }
 
 func NewBrokerClient(broker *types.ServiceBroker, requestHandler util.DoRequestWithClientFunc, ctx context.Context) (*BrokerClient, error) {
-	tlsConfig, err := broker.GetTLSConfig(ctx)
+	tlsConfig, err := broker.GetTLSConfig(log.C(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("unable to get client for broker %s: %v", broker.Name, err)
 	}
@@ -66,7 +66,7 @@ func (bc *BrokerClient) authAndTlsDecorator(requestHandler util.DoRequestWithCli
 		if bc.tlsConfig != nil {
 			client = &http.Client{}
 			logger.Infof("configuring broker tls for %s", bc.broker.Name)
-			client.Transport = GetTransportWithTLS(bc.tlsConfig)
+			client.Transport = GetTransportWithTLS(bc.tlsConfig, logger)
 			return requestHandler(req, client)
 		}
 

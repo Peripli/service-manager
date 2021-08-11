@@ -24,7 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/httpclient"
-	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/sirupsen/logrus"
 	"reflect"
 	"strconv"
 	"strings"
@@ -46,9 +46,8 @@ type ServiceBroker struct {
 	Services    []*ServiceOffering `json:"-"`
 }
 
-func (e *ServiceBroker) GetTLSConfig(ctx context.Context) (*tls.Config, error) {
+func (e *ServiceBroker) GetTLSConfig(logger *logrus.Entry) (*tls.Config, error) {
 	var tlsConfig tls.Config
-	logger := log.C(ctx)
 	if e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
 		cert, err := tls.X509KeyPair([]byte(e.Credentials.TLS.Certificate), []byte(e.Credentials.TLS.Key))
 		if err != nil {
