@@ -23,6 +23,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/httpclient"
+	"github.com/sirupsen/logrus"
 	"reflect"
 	"strconv"
 	"strings"
@@ -44,14 +46,19 @@ type ServiceBroker struct {
 	Services    []*ServiceOffering `json:"-"`
 }
 
-func (e *ServiceBroker) GetTLSConfig() (*tls.Config, error) {
+func (e *ServiceBroker) GetTLSConfig(logger *logrus.Entry) (*tls.Config, error) {
+	var tlsConfig tls.Config
 	if e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
-		var tlsConfig tls.Config
 		cert, err := tls.X509KeyPair([]byte(e.Credentials.TLS.Certificate), []byte(e.Credentials.TLS.Key))
 		if err != nil {
 			return nil, err
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
+		logger.Infof("using mtls custom broker certificate  for the broker with name %s", e.Name)
+		return &tlsConfig, nil
+	} else if e.Credentials.SMProvidedTLSCredentials {
+		tlsConfig.Certificates = httpclient.GetHttpClientGlobalSettings().TLSCertificates
+		logger.Infof("using sm provided mtls certificate for the broker with name %s", e.Name)
 		return &tlsConfig, nil
 	}
 

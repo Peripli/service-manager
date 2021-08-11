@@ -30,17 +30,17 @@ import (
 //go:generate smgen storage broker github.com/Peripli/service-manager/pkg/types:ServiceBroker
 type Broker struct {
 	BaseEntity
-	Name                 string             `db:"name"`
-	Description          sql.NullString     `db:"description"`
-	BrokerURL            string             `db:"broker_url"`
-	Username             string             `db:"username"`
-	Password             string             `db:"password"`
-	Integrity            []byte             `db:"integrity"`
-	TlsClientKey         string             `db:"tls_client_key"`
-	TlsClientCertificate string             `db:"tls_client_certificate"`
-	Catalog              sqlxtypes.JSONText `db:"catalog"`
-
-	Services []*ServiceOffering `db:"-"`
+	Name                  string             `db:"name"`
+	Description           sql.NullString     `db:"description"`
+	BrokerURL             string             `db:"broker_url"`
+	Username              string             `db:"username"`
+	Password              string             `db:"password"`
+	Integrity             []byte             `db:"integrity"`
+	TlsClientKey          string             `db:"tls_client_key"`
+	TlsClientCertificate  string             `db:"tls_client_certificate"`
+	Catalog               sqlxtypes.JSONText `db:"catalog"`
+	SMProvidedCredentials bool               `db:"sm_provided_tls_credentials"`
+	Services              []*ServiceOffering `db:"-"`
 }
 
 func (e *Broker) ToObject() (types.Object, error) {
@@ -79,9 +79,10 @@ func (e *Broker) ToObject() (types.Object, error) {
 		Description: e.Description.String,
 		BrokerURL:   e.BrokerURL,
 		Credentials: &types.Credentials{
-			Basic:     basic,
-			TLS:       tls,
-			Integrity: e.Integrity,
+			Basic:                    basic,
+			TLS:                      tls,
+			Integrity:                e.Integrity,
+			SMProvidedTLSCredentials: e.SMProvidedCredentials,
 		},
 		Catalog:  getJSONRawMessage(e.Catalog),
 		Services: services,
@@ -120,6 +121,7 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, error) {
 	}
 	if broker.Credentials != nil {
 		b.Integrity = broker.Credentials.Integrity
+		b.SMProvidedCredentials = broker.Credentials.SMProvidedTLSCredentials
 
 		if broker.Credentials.Basic != nil {
 			b.Username = broker.Credentials.Basic.Username
@@ -130,6 +132,7 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, error) {
 			b.TlsClientCertificate = broker.Credentials.TLS.Certificate
 			b.TlsClientKey = broker.Credentials.TLS.Key
 		}
+
 	}
 	return b, nil
 }
