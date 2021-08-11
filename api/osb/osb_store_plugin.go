@@ -389,12 +389,12 @@ func (sp *storePlugin) Unbind(request *web.Request, next web.Handler) (*web.Resp
 }
 
 func (sp *storePlugin) Provision(request *web.Request, next web.Handler) (*web.Response, error) {
-	ctx := request.Context()
-
 	response, err := next.Handle(request)
 	if err != nil {
 		return nil, err
 	}
+
+	ctx := request.Context()
 
 	requestPayload := &provisionRequest{}
 	if err := decodeRequestBody(request, requestPayload); err != nil {
