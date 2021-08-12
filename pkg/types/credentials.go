@@ -143,7 +143,7 @@ func GenerateCredentials() (*Credentials, error) {
 }
 
 func (c *Credentials) TLSExists() bool {
-	return c.TLS != nil && (c.TLS.Certificate != "" && c.TLS.Key != "")
+	return c.TLS != nil && !(c.TLS.Certificate == "" && c.TLS.Key == "")
 }
 
 func (c *Credentials) BasicExists() bool {
