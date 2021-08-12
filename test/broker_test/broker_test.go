@@ -180,7 +180,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					"broker_url":  brokerServerWithSMCertficate.URL(),
 					"description": brokerDescription,
 					"credentials": Object{
-						"sm_provided_tls_credentials": true,
+						"tls": Object{
+							"sm_provided_tls_credentials": true,
+						},
 					},
 					"labels": labels,
 				}
@@ -190,7 +192,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					"broker_url":  brokerServerWithSMCertficate.URL(),
 					"description": brokerDescription,
 					"credentials": Object{
-						"sm_provided_tls_credentials": true,
+						"tls": Object{
+							"sm_provided_tls_credentials": true,
+						},
 						"basic": Object{
 							"username": brokerServerWithSMCertficate.Username,
 							"password": brokerServerWithSMCertficate.Password,
@@ -633,7 +637,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 										"broker_url":  brokerServerWithSMCertficate.URL(),
 										"description": postBrokerBasicServerMtls["description"],
 										"credentials": Object{
-											"sm_provided_tls_credentials": true,
+											"tls": Object{
+												"sm_provided_tls_credentials": true,
+											},
 										},
 									}
 									res.ContainsMap(expectedResponse)
@@ -1246,10 +1252,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							updatedCredentials := Object{
 								"credentials": Object{
 									"tls": Object{
-										"client_certificate": tls_settings.ClientCertificate,
-										"client_key":         tls_settings.ClientKey,
+										"client_certificate":          tls_settings.ClientCertificate,
+										"client_key":                  tls_settings.ClientKey,
+										"sm_provided_tls_credentials": true,
 									},
-									"sm_provided_tls_credentials": true,
 								},
 							}
 							reply := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).
@@ -1263,10 +1269,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							updatedCredentials := Object{
 								"credentials": Object{
 									"tls": Object{
-										"client_certificate": "",
-										"client_key":         "",
+										"client_certificate":          "",
+										"client_key":                  "",
+										"sm_provided_tls_credentials": true,
 									},
-									"sm_provided_tls_credentials": true,
 								},
 							}
 							reply := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).WithJSON(updatedCredentials).
@@ -1350,7 +1356,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 										"name":        "updated_name",
 										"description": "updated_description",
 										"credentials": Object{
-											"sm_provided_tls_credentials": false,
+											"tls": Object{
+												"sm_provided_tls_credentials": false,
+											},
 											"basic": Object{
 												"username": "",
 												"password": "",
@@ -1371,11 +1379,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 										"name":        "updated_name",
 										"description": "updated_description",
 										"credentials": Object{
+											"tls": Object{
+												"sm_provided_tls_credentials": true,
+											},
 											"basic": Object{
 												"username": "",
 												"password": "",
 											},
-											"sm_provided_tls_credentials": true,
 										},
 									}
 

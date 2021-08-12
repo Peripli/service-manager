@@ -32,16 +32,16 @@ type Basic struct {
 }
 
 type TLS struct {
-	Certificate string `json:"client_certificate,omitempty"`
-	Key         string `json:"client_key,omitempty"`
+	Certificate      string `json:"client_certificate,omitempty"`
+	Key              string `json:"client_key,omitempty"`
+	UseSMCertificate bool   `json:"sm_provided_tls_credentials,omitempty"`
 }
 
 // Credentials credentials
 type Credentials struct {
-	Basic                    *Basic `json:"basic,omitempty"`
-	TLS                      *TLS   `json:"tls,omitempty"`
-	SMProvidedTLSCredentials bool   `json:"sm_provided_tls_credentials,omitempty"`
-	Integrity                []byte `json:"-"`
+	Basic     *Basic `json:"basic,omitempty"`
+	TLS       *TLS   `json:"tls,omitempty"`
+	Integrity []byte `json:"-"`
 }
 
 func (c *Credentials) MarshalJSON() ([]byte, error) {
@@ -59,7 +59,7 @@ func (c *Credentials) MarshalJSON() ([]byte, error) {
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (c *Credentials) Validate() error {
-	if !c.TLSExists() && !c.BasicExists() && !c.SMProvidedTLSCredentials {
+	if !c.BasicExists() && (*c.TLS == TLS{}) {
 		return errors.New("missing broker credentials: SM provided mtls , basic or tls credentials are required")
 	}
 	if c.BasicExists() {
@@ -74,7 +74,7 @@ func (c *Credentials) Validate() error {
 			return err
 		}
 	}
-	if c.SMProvidedTLSCredentials {
+	if c.TLS != nil && c.TLS.UseSMCertificate {
 		err := c.validateSMProvidedCredentials()
 		if err != nil {
 			return err
@@ -97,7 +97,7 @@ func (c *Credentials) validateTLS() error {
 		return errors.New("tls public certificate and key should be provided")
 	}
 
-	if c.SMProvidedTLSCredentials {
+	if c.TLS.UseSMCertificate {
 		return errors.New("only one of the options could be set, SM provided credentials or tls")
 	}
 	_, err := tls.X509KeyPair([]byte(c.TLS.Certificate), []byte(c.TLS.Key))
@@ -146,7 +146,7 @@ func GenerateCredentials() (*Credentials, error) {
 }
 
 func (c *Credentials) TLSExists() bool {
-	return c.TLS != nil && *c.TLS != TLS{}
+	return c.TLS != nil && (c.TLS.Certificate != "" && c.TLS.Key != "")
 }
 
 func (c *Credentials) BasicExists() bool {
