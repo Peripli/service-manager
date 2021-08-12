@@ -106,14 +106,13 @@ func (c *Credentials) validateTLS() error {
 }
 
 func (c *Credentials) validateBasic() error {
-	if c.Basic.Username == "" || c.Basic.Password == "" {
-		if c.Basic.Username == "" {
-			return errors.New("missing broker username")
-		}
-		if c.Basic.Password == "" {
-			return errors.New("missing broker password")
-		}
+	if c.Basic.Username == "" {
+		return errors.New("missing broker username")
 	}
+	if c.Basic.Password == "" {
+		return errors.New("missing broker password")
+	}
+
 	return nil
 }
 
