@@ -530,7 +530,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						response := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postRequest).
 							Expect()
 						response.Status(http.StatusBadRequest)
-						response.Body().Contains("missing broker credentials: SM provided mtls , basic or tls credentials are required")
+						response.Body().Contains("missing broker credentials: set SM provided credentials to true, or configure basic or tls")
 
 					})
 				})
@@ -1388,7 +1388,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									reply := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithMTLS).WithJSON(updatedBrokerJSON).
 										Expect()
 									reply.Status(http.StatusBadRequest)
-									reply.Body().Contains("missing broker credentials: SM provided mtls , basic or tls credentials are required")
+									reply.Body().Contains("missing broker credentials: set SM provided credentials to true, or configure basic or tls")
 									assertInvocationCount(brokerServerWithSMCertficate.CatalogEndpointRequests, 0)
 
 								})
