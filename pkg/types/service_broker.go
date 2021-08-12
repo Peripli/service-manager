@@ -112,7 +112,7 @@ func (e *ServiceBroker) transform(ctx context.Context, transformationFunc func(c
 		e.Credentials.Basic.Password = string(transformedPassword)
 	}
 
-	if e.Credentials != nil && e.Credentials.TLS != nil {
+	if e.Credentials != nil && e.Credentials.TLS != nil && e.Credentials.TLS.Key != "" {
 		transformedPrivateKey, err := transformationFunc(ctx, []byte(e.Credentials.TLS.Key))
 		if err != nil {
 			return err
