@@ -146,9 +146,8 @@ func (c *Credentials) CertificateExists() bool {
 	return c.TLS != nil && !(c.TLS.Certificate == "" && c.TLS.Key == "")
 }
 func (c *Credentials) TLSExists() bool {
-	return c.TLS != nil && *c.TLS!= TLS{}
+	return c.TLS != nil && *c.TLS != TLS{}
 }
-
 
 func (c *Credentials) BasicExists() bool {
 	return c.Basic != nil && *c.Basic != Basic{}

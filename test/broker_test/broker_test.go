@@ -513,7 +513,27 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						assertPOSTReturns201WhenFieldIsMissing("description")
 					})
 				})
+				Context("when no credentials provided", func() {
+					It("should fail", func() {
+						postRequest := Object{
+							"name":        "brokertest",
+							"broker_url":  brokerWithLabelsServer.URL(),
+							"description": "dsecr",
+							"credentials": Object{
+								"wrongcred": Object{
+									"username": brokerWithLabelsServer.Username,
+									"password": brokerWithLabelsServer.Password,
+								},
+							},
+						}
 
+						response := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postRequest).
+							Expect()
+						response.Status(http.StatusBadRequest)
+						response.Body().Contains("missing broker credentials: SM provided mtls , basic or tls credentials are required")
+
+					})
+				})
 				Context("when request body has invalid field", func() {
 					Context("when name field is too long", func() {
 						BeforeEach(func() {
