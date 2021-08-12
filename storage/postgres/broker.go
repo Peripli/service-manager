@@ -53,11 +53,11 @@ func (e *Broker) ToObject() (types.Object, error) {
 		services = append(services, serviceObject.(*types.ServiceOffering))
 	}
 
-	var tls *types.TLS
+	tls := &types.TLS{UseSMCertificate: e.SMProvidedCredentials}
 	if e.TlsClientCertificate != "" || e.TlsClientKey != "" {
-		tls = &types.TLS{Certificate: e.TlsClientCertificate, Key: e.TlsClientKey}
+		tls.Key = e.TlsClientKey
+		tls.Certificate = e.TlsClientCertificate
 	}
-	tls.UseSMCertificate = e.SMProvidedCredentials
 
 	var basic *types.Basic
 	if e.Username != "" || e.Password != "" {
