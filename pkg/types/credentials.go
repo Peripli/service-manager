@@ -109,6 +109,7 @@ func (c *Credentials) validateBasic() error {
 	if c.Basic.Username == "" {
 		return errors.New("missing broker username")
 	}
+
 	if c.Basic.Password == "" {
 		return errors.New("missing broker password")
 	}
