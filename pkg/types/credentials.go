@@ -32,9 +32,9 @@ type Basic struct {
 }
 
 type TLS struct {
-	Certificate      string `json:"client_certificate,omitempty"`
-	Key              string `json:"client_key,omitempty"`
-	UseSMCertificate bool   `json:"sm_provided_tls_credentials,omitempty"`
+	Certificate           string `json:"client_certificate,omitempty"`
+	Key                   string `json:"client_key,omitempty"`
+	SMProvidedCredentials bool   `json:"sm_provided_tls_credentials,omitempty"`
 }
 
 // Credentials credentials
@@ -57,7 +57,7 @@ func (c *Credentials) MarshalJSON() ([]byte, error) {
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (c *Credentials) Validate() error {
 	if !c.BasicExists() && (!c.TLSExists()) {
-		return errors.New("missing broker credentials: SM provided mtls , basic or tls credentials are required")
+		return errors.New("missing broker credentials: set SM provided credentials to true, or configure basic or tls credentials")
 	}
 	if c.BasicExists() {
 		err := c.validateBasic()
@@ -71,7 +71,7 @@ func (c *Credentials) Validate() error {
 			return err
 		}
 	}
-	if c.TLS != nil && c.TLS.UseSMCertificate {
+	if c.TLS != nil && c.TLS.SMProvidedCredentials {
 		err := c.validateSMProvidedCredentials()
 		if err != nil {
 			return err
@@ -94,7 +94,7 @@ func (c *Credentials) validateTLS() error {
 		return errors.New("tls public certificate and key should be provided")
 	}
 
-	if c.TLS.UseSMCertificate {
+	if c.TLS.SMProvidedCredentials {
 		return errors.New("only one of the options could be set, SM provided credentials or tls")
 	}
 	_, err := tls.X509KeyPair([]byte(c.TLS.Certificate), []byte(c.TLS.Key))

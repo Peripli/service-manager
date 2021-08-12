@@ -53,7 +53,7 @@ func (e *Broker) ToObject() (types.Object, error) {
 		services = append(services, serviceObject.(*types.ServiceOffering))
 	}
 
-	tls := &types.TLS{UseSMCertificate: e.SMProvidedCredentials}
+	tls := &types.TLS{SMProvidedCredentials: e.SMProvidedCredentials}
 	if e.TlsClientCertificate != "" || e.TlsClientKey != "" {
 		tls.Key = e.TlsClientKey
 		tls.Certificate = e.TlsClientCertificate
@@ -129,7 +129,7 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, error) {
 		if broker.Credentials.TLS != nil {
 			b.TlsClientCertificate = broker.Credentials.TLS.Certificate
 			b.TlsClientKey = broker.Credentials.TLS.Key
-			b.SMProvidedCredentials = broker.Credentials.TLS.UseSMCertificate
+			b.SMProvidedCredentials = broker.Credentials.TLS.SMProvidedCredentials
 		}
 
 	}

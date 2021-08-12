@@ -58,7 +58,7 @@ func (e *ServiceBroker) GetTLSConfig(logger *logrus.Entry) (*tls.Config, error) 
 			logger.Infof("using mtls custom broker certificate  for the broker with name %s", e.Name)
 			return &tlsConfig, nil
 		}
-		if e.Credentials.TLS.UseSMCertificate {
+		if e.Credentials.TLS.SMProvidedCredentials {
 			tlsConfig.Certificates = httpclient.GetHttpClientGlobalSettings().TLSCertificates
 			logger.Infof("using sm provided mtls certificate for the broker with name %s", e.Name)
 			return &tlsConfig, nil
