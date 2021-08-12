@@ -65,7 +65,7 @@ func (c *Credentials) Validate() error {
 			return err
 		}
 	}
-	if c.TLSExists() {
+	if c.CertificateExists() {
 		err := c.validateTLS()
 		if err != nil {
 			return err
@@ -141,7 +141,7 @@ func GenerateCredentials() (*Credentials, error) {
 	}, nil
 }
 
-func (c *Credentials) TLSExists() bool {
+func (c *Credentials) CertificateExists() bool {
 	return c.TLS != nil && !(c.TLS.Certificate == "" && c.TLS.Key == "")
 }
 
