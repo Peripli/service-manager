@@ -53,9 +53,10 @@ func (e *Broker) ToObject() (types.Object, error) {
 		services = append(services, serviceObject.(*types.ServiceOffering))
 	}
 
-	var tls *types.TLS
+	tls := &types.TLS{SMProvidedCredentials: e.SMProvidedCredentials}
 	if e.TlsClientCertificate != "" || e.TlsClientKey != "" {
-		tls = &types.TLS{Certificate: e.TlsClientCertificate, Key: e.TlsClientKey}
+		tls.Key = e.TlsClientKey
+		tls.Certificate = e.TlsClientCertificate
 	}
 
 	var basic *types.Basic
@@ -79,10 +80,9 @@ func (e *Broker) ToObject() (types.Object, error) {
 		Description: e.Description.String,
 		BrokerURL:   e.BrokerURL,
 		Credentials: &types.Credentials{
-			Basic:                    basic,
-			TLS:                      tls,
-			Integrity:                e.Integrity,
-			SMProvidedTLSCredentials: e.SMProvidedCredentials,
+			Basic:     basic,
+			TLS:       tls,
+			Integrity: e.Integrity,
 		},
 		Catalog:  getJSONRawMessage(e.Catalog),
 		Services: services,
@@ -121,8 +121,6 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, error) {
 	}
 	if broker.Credentials != nil {
 		b.Integrity = broker.Credentials.Integrity
-		b.SMProvidedCredentials = broker.Credentials.SMProvidedTLSCredentials
-
 		if broker.Credentials.Basic != nil {
 			b.Username = broker.Credentials.Basic.Username
 			b.Password = broker.Credentials.Basic.Password
@@ -131,6 +129,7 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, error) {
 		if broker.Credentials.TLS != nil {
 			b.TlsClientCertificate = broker.Credentials.TLS.Certificate
 			b.TlsClientKey = broker.Credentials.TLS.Key
+			b.SMProvidedCredentials = broker.Credentials.TLS.SMProvidedCredentials
 		}
 
 	}
