@@ -66,7 +66,6 @@ func (c *Credentials) Validate() error {
 			return err
 		}
 	}
-
 	return nil
 }
 func (c *Credentials) validateSMProvidedCredentials() error {
