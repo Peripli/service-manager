@@ -20,7 +20,6 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"github.com/Peripli/service-manager/pkg/httpclient"
 )
@@ -34,7 +33,7 @@ type Basic struct {
 type TLS struct {
 	Certificate           string `json:"client_certificate,omitempty"`
 	Key                   string `json:"client_key,omitempty"`
-	SMProvidedCredentials bool   `json:"sm_provided_tls_credentials,omitempty"`
+	SMProvidedCredentials bool   `json:"sm_provided_tls_credentials"`
 }
 
 // Credentials credentials
@@ -42,16 +41,6 @@ type Credentials struct {
 	Basic     *Basic `json:"basic,omitempty"`
 	TLS       *TLS   `json:"tls,omitempty"`
 	Integrity []byte `json:"-"`
-}
-
-func (c *Credentials) MarshalJSON() ([]byte, error) {
-	type C Credentials
-	toMarshal := (*C)(c)
-	if toMarshal.Basic == nil || toMarshal.Basic.Username == "" || toMarshal.Basic.Password == "" {
-		toMarshal.Basic = nil
-	}
-
-	return json.Marshal(toMarshal)
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
@@ -77,7 +66,6 @@ func (c *Credentials) Validate() error {
 			return err
 		}
 	}
-
 	return nil
 }
 func (c *Credentials) validateSMProvidedCredentials() error {
