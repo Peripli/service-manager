@@ -17,6 +17,8 @@ import (
 	"github.com/tidwall/sjson"
 )
 
+const ContextSignaturePluginName = "ContextSignaturePlugin"
+
 type ContextSignaturePlugin struct {
 	CtxPrivateKey string
 	CtxPublicKey  string
@@ -30,7 +32,7 @@ func NewCtxSignaturePlugin(publicKey, privateKey string) *ContextSignaturePlugin
 }
 
 func (s *ContextSignaturePlugin) Name() string {
-	return "ContextSignaturePlugin"
+	return ContextSignaturePluginName
 }
 
 func (s *ContextSignaturePlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {

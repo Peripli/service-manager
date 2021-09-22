@@ -793,6 +793,13 @@ func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 	}
 
 	referencedInstanceID := gjson.GetBytes(req.RawParameters, instance_sharing.ReferencedInstanceIDKey).String()
+	reqCtx := req.RawContext
+	if req.RawContext != nil {
+		reqCtx, err = removeSignatureFromContext(ctx, req.RawContext)
+		if err != nil {
+			return err
+		}
+	}
 	instance := &types.ServiceInstance{
 		Base: types.Base{
 			ID:        req.InstanceID,
@@ -806,7 +813,7 @@ func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 		PlatformID:           req.PlatformID,
 		DashboardURL:         resp.DashboardURL,
 		MaintenanceInfo:      req.RawMaintenanceInfo,
-		Context:              req.RawContext,
+		Context:              reqCtx,
 		Usable:               true,
 		ReferencedInstanceID: referencedInstanceID,
 	}
@@ -816,11 +823,37 @@ func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 	return nil
 }
 
+func removeSignatureFromContext(ctx context.Context, rawContext json.RawMessage) (json.RawMessage, error) {
+	var ctxMap map[string]json.RawMessage
+	if err := json.Unmarshal(rawContext, &ctxMap); err != nil {
+		log.C(ctx).Errorf("failed to unmarshal context: %v", err)
+		return nil, err
+	}
+	if _, exists := ctxMap["signature"]; exists {
+		delete(ctxMap, "signature")
+		outputData, err := json.Marshal(ctxMap)
+		if err != nil {
+			log.C(ctx).Errorf("failed to marshal context: %v", err)
+			return nil, err
+		}
+		rawContext = outputData
+	}
+	return rawContext, nil
+}
+
 func (sp *storePlugin) storeBinding(ctx context.Context, repository storage.Repository, req *bindRequest, resp *bindResponse, ready bool) error {
 	bindingName := gjson.GetBytes(req.RawContext, "binding_name").String()
 	if len(bindingName) == 0 {
 		log.C(ctx).Debugf("Binding name missing. Defaulting to id %s", req.BindingID)
 		bindingName = req.BindingID
+	}
+	reqCtx := req.RawContext
+	if req.RawContext != nil {
+		var err error
+		reqCtx, err = removeSignatureFromContext(ctx, req.RawContext)
+		if err != nil {
+			return err
+		}
 	}
 	binding := &types.ServiceBinding{
 		Base: types.Base{
@@ -836,7 +869,7 @@ func (sp *storePlugin) storeBinding(ctx context.Context, repository storage.Repo
 		RouteServiceURL:   resp.RouteServiceUrl,
 		VolumeMounts:      resp.VolumeMounts,
 		Endpoints:         resp.Endpoints,
-		Context:           req.RawContext,
+		Context:           reqCtx,
 		BindResource:      req.BindResource,
 		Parameters:        req.Parameters,
 		Credentials:       nil,

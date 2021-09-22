@@ -1,6 +1,7 @@
 package plugin_test
 
 import (
+	"context"
 	"crypto"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -10,6 +11,8 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
@@ -94,13 +97,26 @@ var _ = Describe("osb", func() {
 		}
 	}
 
+	verifySignatureNotPersisted := func(objType types.ObjectType, id string) {
+		obj, err := ctx.SMRepository.Get(context.TODO(), objType, query.ByField(query.EqualsOperator, "id", id))
+		Expect(err).ToNot(HaveOccurred())
+		var ctx json.RawMessage
+		var ctxMap map[string]json.RawMessage
+		switch objType {
+		case types.ServiceInstanceType:
+			ctx = obj.(*types.ServiceInstance).Context
+		case types.ServiceBindingType:
+			ctx = obj.(*types.ServiceBinding).Context
+		}
+		err = json.Unmarshal(ctx, &ctxMap)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ctxMap).ShouldNot(HaveKey("signature"))
+	}
+
 	osbProvision := func(instanceID string) *httpexpect.Response {
 		response := ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/" + instanceID).
 			WithJSON(common.JSONToMap(fmt.Sprintf(CFContext, serviceID, planID))).
 			Expect()
-
-		a := response.Body().Raw()
-		println(a)
 
 		if response.Raw().StatusCode == http.StatusAccepted {
 			Eventually(func() bool {
@@ -117,9 +133,6 @@ var _ = Describe("osb", func() {
 		response := ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/" + instanceID + "/service_bindings/" + bindingID).
 			WithJSON(common.JSONToMap(fmt.Sprintf(CFContext, serviceID, planID))).
 			Expect()
-
-		a := response.Body().Raw()
-		println(a)
 
 		if response.Raw().StatusCode == http.StatusAccepted {
 			Eventually(func() bool {
@@ -172,27 +185,38 @@ var _ = Describe("osb", func() {
 		It("should have a valid context signature on the request body", func() {
 			brokerServer.ServiceInstanceHandler = verifyContextHandler
 
-			response := osbProvision("signed-ctx-instance")
+			instanceID := "signed-ctx-instance"
+			response := osbProvision(instanceID)
 			response.Status(http.StatusCreated)
+
+			verifySignatureNotPersisted(types.ServiceInstanceType, instanceID)
+
+			ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID).
+				Expect().Status(http.StatusOK).
+				JSON().
+				Object().Value("context").Object().NotContainsKey("signature")
 		})
 	})
 	When("binding a service instance", func() {
 		It("should have a context signature on the request body", func() {
 			brokerServer.ServiceInstanceHandler = verifyContextHandler
 
-			response := osbProvision("signed-ctx-instance")
+			instanceID := "signed-ctx-instance"
+			response := osbProvision(instanceID)
 			response.Status(http.StatusCreated)
 
 			brokerServer.BindingHandler = verifyContextHandler
-			response = osbBind("signed-ctx-instance", "signed-ctx-instance-binding-id")
+			bindingID := "signed-ctx-instance-binding-id"
+			response = osbBind(instanceID, bindingID)
 			response.Status(http.StatusCreated)
+
+			verifySignatureNotPersisted(types.ServiceBindingType, bindingID)
 		})
 	})
 	When("sm environment variable context_rsa_public_key is set", func() {
 		It("should return it in /info API", func() {
-			a := ctx.SM.GET(web.InfoURL).Expect().
-				Status(http.StatusOK)
-			a.
+			ctx.SM.GET(web.InfoURL).Expect().
+				Status(http.StatusOK).
 				JSON().Object().Value("context_rsa_public_key").Equal(publicKeyStr)
 		})
 	})
