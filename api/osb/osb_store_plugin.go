@@ -795,7 +795,7 @@ func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 	referencedInstanceID := gjson.GetBytes(req.RawParameters, instance_sharing.ReferencedInstanceIDKey).String()
 	reqCtx := req.RawContext
 	if req.RawContext != nil {
-		reqCtx, err = removeSignatureFromContext(ctx, req.RawContext)
+		reqCtx, err = sjson.DeleteBytes(reqCtx, "signature")
 		if err != nil {
 			return err
 		}
@@ -823,24 +823,6 @@ func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 	return nil
 }
 
-func removeSignatureFromContext(ctx context.Context, rawContext json.RawMessage) (json.RawMessage, error) {
-	var ctxMap map[string]json.RawMessage
-	if err := json.Unmarshal(rawContext, &ctxMap); err != nil {
-		log.C(ctx).Errorf("failed to unmarshal context: %v", err)
-		return nil, err
-	}
-	if _, exists := ctxMap["signature"]; exists {
-		delete(ctxMap, "signature")
-		outputData, err := json.Marshal(ctxMap)
-		if err != nil {
-			log.C(ctx).Errorf("failed to marshal context: %v", err)
-			return nil, err
-		}
-		rawContext = outputData
-	}
-	return rawContext, nil
-}
-
 func (sp *storePlugin) storeBinding(ctx context.Context, repository storage.Repository, req *bindRequest, resp *bindResponse, ready bool) error {
 	bindingName := gjson.GetBytes(req.RawContext, "binding_name").String()
 	if len(bindingName) == 0 {
@@ -850,7 +832,7 @@ func (sp *storePlugin) storeBinding(ctx context.Context, repository storage.Repo
 	reqCtx := req.RawContext
 	if req.RawContext != nil {
 		var err error
-		reqCtx, err = removeSignatureFromContext(ctx, req.RawContext)
+		reqCtx, err = sjson.DeleteBytes(reqCtx, "signature")
 		if err != nil {
 			return err
 		}

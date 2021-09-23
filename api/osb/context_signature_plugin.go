@@ -43,6 +43,10 @@ func (s *ContextSignaturePlugin) Bind(req *web.Request, next web.Handler) (*web.
 	return s.sign(req, next)
 }
 
+func (s *ContextSignaturePlugin) UpdateService(req *web.Request, next web.Handler) (*web.Response, error) {
+	return s.sign(req, next)
+}
+
 func (s *ContextSignaturePlugin) sign(req *web.Request, next web.Handler) (*web.Response, error) {
 	if s.CtxPrivateKey == "" || s.CtxPublicKey == "" {
 		log.C(req.Context()).Infof("ctx private key or ctx public key is missing. signature will not be added to context")

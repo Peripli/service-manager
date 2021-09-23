@@ -21,8 +21,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"net/http"
-	"time"
 )
 
 var _ = Describe("osb", func() {
@@ -44,7 +44,7 @@ var _ = Describe("osb", func() {
 				"platform":"cloudfoundry",
 				"organization_guid":"1113aa0-124e-4af2-1526-6bfacf61b111",
 				"space_guid":"aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
-				"instance_name":"instance-name",
+				"instance_name":"%s",
 				"extra_metadata":{
 					"key1":"value1",
 					"key2":"value2"
@@ -76,12 +76,7 @@ var _ = Describe("osb", func() {
 
 		//read and hash context
 		ctxStr := gjson.GetBytes(bytes, "context").String()
-		var ctxMap map[string]interface{}
-		if err := json.Unmarshal([]byte(ctxStr), &ctxMap); err != nil {
-			Expect(err).ToNot(HaveOccurred())
-		}
-		delete(ctxMap, "signature")
-		ctxByte, err := json.Marshal(ctxMap)
+		ctxByte, err := sjson.DeleteBytes([]byte(ctxStr), "signature")
 		ctxStr = string(ctxByte)
 		hashedCtx := sha256.Sum256([]byte(ctxStr))
 
@@ -89,7 +84,11 @@ var _ = Describe("osb", func() {
 		err = rsa.VerifyPKCS1v15(publicKey.(*rsa.PublicKey), crypto.SHA256, hashedCtx[:], signature)
 		Expect(err).ToNot(HaveOccurred())
 
-		if err := util.WriteJSON(rw, http.StatusCreated, common.Object{}); err != nil {
+		responseStatus := http.StatusCreated
+		if r.Method == http.MethodGet || r.Method == http.MethodPatch {
+			responseStatus = http.StatusOK
+		}
+		if err := util.WriteJSON(rw, responseStatus, common.Object{}); err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
 			if _, errWrite := rw.Write([]byte(err.Error())); errWrite != nil {
 				Expect(errWrite).ToNot(HaveOccurred())
@@ -114,35 +113,30 @@ var _ = Describe("osb", func() {
 	}
 
 	osbProvision := func(instanceID string) *httpexpect.Response {
-		response := ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/" + instanceID).
-			WithJSON(common.JSONToMap(fmt.Sprintf(CFContext, serviceID, planID))).
-			Expect()
-
-		if response.Raw().StatusCode == http.StatusAccepted {
-			Eventually(func() bool {
-				response = ctx.SMWithBasic.GET(osbURL + "/v2/service_instances/" + instanceID + "/last_operation").Expect()
-				state := gjson.Get(response.Body().Raw(), "state").Str
-				return state != "in progress"
-			}, 10*time.Second, 1*time.Second).Should(Equal(true))
-		}
-
-		return response
+		return ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/" + instanceID).
+			WithJSON(common.JSONToMap(fmt.Sprintf(CFContext, serviceID, planID, "instance-name"))).
+			Expect().
+			Status(http.StatusCreated)
 	}
 
 	osbBind := func(instanceID, bindingID string) *httpexpect.Response {
-		response := ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/" + instanceID + "/service_bindings/" + bindingID).
-			WithJSON(common.JSONToMap(fmt.Sprintf(CFContext, serviceID, planID))).
-			Expect()
+		return ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/" + instanceID + "/service_bindings/" + bindingID).
+			WithJSON(common.JSONToMap(fmt.Sprintf(CFContext, serviceID, planID, "instance-name"))).
+			Expect().
+			Status(http.StatusCreated)
+	}
 
-		if response.Raw().StatusCode == http.StatusAccepted {
-			Eventually(func() bool {
-				response = ctx.SMWithBasic.GET(osbURL + "/v2/service_instances/" + instanceID + "/last_operation").Expect()
-				state := gjson.Get(response.Body().Raw(), "state").Str
-				return state != "in progress"
-			}, 10*time.Second, 1*time.Second).Should(Equal(true))
-		}
+	provisionInstanceAndVerifySignature := func(instanceID string) {
+		brokerServer.ServiceInstanceHandler = verifyContextHandler
 
-		return response
+		osbProvision(instanceID)
+
+		verifySignatureNotPersisted(types.ServiceInstanceType, instanceID)
+
+		ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID).
+			Expect().Status(http.StatusOK).
+			JSON().
+			Object().Value("context").Object().NotContainsKey("signature")
 	}
 
 	BeforeEach(func() {
@@ -183,32 +177,28 @@ var _ = Describe("osb", func() {
 
 	When("provisioning a service instance", func() {
 		It("should have a valid context signature on the request body", func() {
-			brokerServer.ServiceInstanceHandler = verifyContextHandler
-
+			provisionInstanceAndVerifySignature("signed-ctx-instance")
+		})
+	})
+	When("updating a service instance", func() {
+		It("should have a valid context signature on the request body", func() {
 			instanceID := "signed-ctx-instance"
-			response := osbProvision(instanceID)
-			response.Status(http.StatusCreated)
-
+			provisionInstanceAndVerifySignature(instanceID)
+			ctx.SMWithBasic.PATCH(osbURL + "/v2/service_instances/" + instanceID).
+				WithJSON(common.JSONToMap(fmt.Sprintf(CFContext, serviceID, planID, "updated-instance-name"))).
+				Expect().
+				Status(http.StatusOK)
 			verifySignatureNotPersisted(types.ServiceInstanceType, instanceID)
-
-			ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID).
-				Expect().Status(http.StatusOK).
-				JSON().
-				Object().Value("context").Object().NotContainsKey("signature")
 		})
 	})
 	When("binding a service instance", func() {
 		It("should have a context signature on the request body", func() {
-			brokerServer.ServiceInstanceHandler = verifyContextHandler
-
 			instanceID := "signed-ctx-instance"
-			response := osbProvision(instanceID)
-			response.Status(http.StatusCreated)
+			provisionInstanceAndVerifySignature(instanceID)
 
 			brokerServer.BindingHandler = verifyContextHandler
 			bindingID := "signed-ctx-instance-binding-id"
-			response = osbBind(instanceID, bindingID)
-			response.Status(http.StatusCreated)
+			osbBind(instanceID, bindingID)
 
 			verifySignatureNotPersisted(types.ServiceBindingType, bindingID)
 		})
