@@ -8,7 +8,6 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
@@ -79,19 +78,6 @@ func CalculateSignature(ctx context.Context, ctxStr, privateKeyStr string) (stri
 	if err != nil {
 		return "", err
 	}
-
-	//unmarshal and marshal the context so the fields will be ordered lexicographically
-	var ctxMap map[string]interface{}
-	if err := json.Unmarshal([]byte(ctxStr), &ctxMap); err != nil {
-		log.C(ctx).Errorf("failed to unmarshal context: %v", err)
-		return "", err
-	}
-	ctxByte, err := json.Marshal(ctxMap)
-	if err != nil {
-		log.C(ctx).Errorf("failed to marshal context: %v", err)
-		return "", err
-	}
-	ctxStr = string(ctxByte)
 
 	hashedCtx := sha256.Sum256([]byte(ctxStr))
 
