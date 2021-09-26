@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/tidwall/gjson"
 	"math"
 	"net/http"
 	"time"
@@ -59,6 +60,7 @@ func (p *ServiceBindingCreateInterceptorProvider) Provide() storage.CreateAround
 		repository:          p.Repository,
 		tenantKey:           p.TenantKey,
 		pollingInterval:     p.PollingInterval,
+		ctxPrivateKey:       p.CtxPrivateKey,
 	}
 }
 
@@ -91,6 +93,7 @@ type ServiceBindingInterceptor struct {
 	repository          *storage.InterceptableTransactionalRepository
 	tenantKey           string
 	pollingInterval     time.Duration
+	ctxPrivateKey       string
 }
 
 func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
@@ -177,7 +180,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		var bindResponse *osbc.BindResponse
 		if !operation.Reschedule {
 			operation.Context.ServiceInstanceID = binding.ServiceInstanceID
-			bindRequest, err := i.prepareBindRequest(instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable, operation.GetUserInfo())
+			bindRequest, err := i.prepareBindRequest(ctx, instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable, operation.GetUserInfo())
 			if err != nil {
 				return nil, fmt.Errorf("failed to prepare bind request: %s", err)
 			}
@@ -252,6 +255,14 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			if isReferenceInstance {
 				// we revert the binding context using the original instance context before saving in the database
 				binding.Context = instanceContext
+			}
+			// remove signature field from context before persisting it
+			if gjson.GetBytes(binding.Context, "signature").Exists() {
+				//binding.Context is a pointer to obj.Context
+				binding.Context, err = sjson.DeleteBytes(binding.Context, "signature")
+				if err != nil {
+					log.C(ctx).Errorf("failed to delete signature from binding ctx: %v", err)
+				}
 			}
 			object, err := f(ctx, obj)
 			if err != nil {
@@ -473,7 +484,7 @@ func getInstanceByID(ctx context.Context, instanceID string, repository storage.
 	return instanceObject.(*types.ServiceInstance), nil
 }
 
-func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool, userInfo *types.UserInfo) (*osbc.BindRequest, error) {
+func (i *ServiceBindingInterceptor) prepareBindRequest(ctx context.Context, instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool, userInfo *types.UserInfo) (*osbc.BindRequest, error) {
 	context := make(map[string]interface{})
 	if len(binding.Context) != 0 {
 		var err error
@@ -503,6 +514,8 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceIn
 		}
 		binding.Context = contextBytes
 	}
+
+	context = signContext(ctx, context, i.ctxPrivateKey)
 
 	bindRequest := &osbc.BindRequest{
 		BindingID:           binding.ID,

@@ -52,31 +52,14 @@ func (s *ContextSignaturePlugin) sign(req *web.Request, next web.Handler) (*web.
 		log.C(req.Context()).Infof("ctx private key or ctx public key is missing. signature will not be added to context")
 		return next.Handle(req)
 	}
-	privateKey, err := parseRsaPrivateKey(req.Context(), s.CtxPrivateKey)
-	if err != nil {
-		return next.Handle(req)
-	}
 
 	ctx := gjson.GetBytes(req.Body, "context")
 	if !ctx.Exists() {
 		log.C(req.Context()).Error("could not find context on the request body")
 		return next.Handle(req)
 	}
-	ctxStr := ctx.String()
-	//unmarshal and marshal the context so the fields will be ordered lexicographically
-	var ctxMap map[string]interface{}
-	if err := json.Unmarshal([]byte(ctxStr), &ctxMap); err != nil {
-		log.C(req.Context()).Errorf("failed to unmarshal context: %v", err)
-		return next.Handle(req)
-	}
-	ctxByte, err := json.Marshal(ctxMap)
-	if err != nil {
-		log.C(req.Context()).Errorf("failed to marshal context: %v", err)
-		return next.Handle(req)
-	}
-	ctxStr = string(ctxByte)
 
-	signedCtx, err := getSignature(req.Context(), ctxStr, privateKey)
+	signedCtx, err := CalculateSignature(req.Context(), ctx.String(), s.CtxPrivateKey)
 	if err != nil {
 		return next.Handle(req)
 	}
@@ -91,10 +74,28 @@ func (s *ContextSignaturePlugin) sign(req *web.Request, next web.Handler) (*web.
 	return next.Handle(req)
 }
 
-func getSignature(ctx context.Context, ctxStr string, key *rsa.PrivateKey) (string, error) {
+func CalculateSignature(ctx context.Context, ctxStr, privateKeyStr string) (string, error) {
+	privateKey, err := parseRsaPrivateKey(ctx, privateKeyStr)
+	if err != nil {
+		return "", err
+	}
+
+	//unmarshal and marshal the context so the fields will be ordered lexicographically
+	var ctxMap map[string]interface{}
+	if err := json.Unmarshal([]byte(ctxStr), &ctxMap); err != nil {
+		log.C(ctx).Errorf("failed to unmarshal context: %v", err)
+		return "", err
+	}
+	ctxByte, err := json.Marshal(ctxMap)
+	if err != nil {
+		log.C(ctx).Errorf("failed to marshal context: %v", err)
+		return "", err
+	}
+	ctxStr = string(ctxByte)
+
 	hashedCtx := sha256.Sum256([]byte(ctxStr))
 
-	signature, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, hashedCtx[:])
+	signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, crypto.SHA256, hashedCtx[:])
 	if err != nil {
 		log.C(ctx).Errorf("failed to encrypt context %v", err)
 		return "", err

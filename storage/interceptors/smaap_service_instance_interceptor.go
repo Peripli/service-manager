@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/api/osb"
 	"github.com/tidwall/gjson"
 	"math"
 	"net"
@@ -52,6 +53,7 @@ type BaseSMAAPInterceptorProvider struct {
 	Repository          *storage.InterceptableTransactionalRepository
 	TenantKey           string
 	PollingInterval     time.Duration
+	CtxPrivateKey       string
 }
 
 // ServiceInstanceCreateInterceptorProvider provides an interceptor that notifies the actual broker about instance creation
@@ -65,6 +67,7 @@ func (p *ServiceInstanceCreateInterceptorProvider) Provide() storage.CreateAroun
 		repository:          p.Repository,
 		tenantKey:           p.TenantKey,
 		pollingInterval:     p.PollingInterval,
+		ctxPrivateKey:       p.CtxPrivateKey,
 	}
 }
 
@@ -85,6 +88,7 @@ func (p *ServiceInstanceUpdateInterceptorProvider) Provide() storage.UpdateAroun
 		repository:          p.Repository,
 		tenantKey:           p.TenantKey,
 		pollingInterval:     p.PollingInterval,
+		ctxPrivateKey:       p.CtxPrivateKey,
 	}
 }
 
@@ -117,6 +121,7 @@ type ServiceInstanceInterceptor struct {
 	repository          *storage.InterceptableTransactionalRepository
 	tenantKey           string
 	pollingInterval     time.Duration
+	ctxPrivateKey       string
 }
 
 func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
@@ -170,7 +175,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		var provisionResponse *osbc.ProvisionResponse
 		if !operation.Reschedule {
 			operation.Context.ServicePlanID = instance.ServicePlanID
-			provisionRequest, err := i.prepareProvisionRequest(instance, service.CatalogID, plan.CatalogID, operation.GetUserInfo())
+			provisionRequest, err := i.prepareProvisionRequest(ctx, instance, service.CatalogID, plan.CatalogID, operation.GetUserInfo())
 			if err != nil {
 				return nil, fmt.Errorf("failed to prepare provision request: %s", err)
 			}
@@ -321,7 +326,7 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			}
 			oldServicePlan := oldServicePlanObj.(*types.ServicePlan)
 			var updateInstanceResponse *osbc.UpdateInstanceResponse
-			updateInstanceRequest, err := i.prepareUpdateInstanceRequest(updatedInstance, service.CatalogID, plan.CatalogID, oldServicePlan.CatalogID, operation.GetUserInfo())
+			updateInstanceRequest, err := i.prepareUpdateInstanceRequest(ctx, updatedInstance, service.CatalogID, plan.CatalogID, oldServicePlan.CatalogID, operation.GetUserInfo())
 			if err != nil {
 				return nil, fmt.Errorf("faied to prepare update instance request: %s", err)
 			}
@@ -756,11 +761,13 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 	return osbClient, broker, service, plan, nil
 }
 
-func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID string, userInfo *types.UserInfo) (*osbc.ProvisionRequest, error) {
+func (i *ServiceInstanceInterceptor) prepareProvisionRequest(ctx context.Context, instance *types.ServiceInstance, serviceCatalogID, planCatalogID string, userInfo *types.UserInfo) (*osbc.ProvisionRequest, error) {
 	instanceContext, err := i.generateInstanceContext(instance)
 	if err != nil {
 		return nil, err
 	}
+
+	instanceContext = signContext(ctx, instanceContext, i.ctxPrivateKey)
 
 	provisionRequest := &osbc.ProvisionRequest{
 		InstanceID:          instance.GetID(),
@@ -775,6 +782,22 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.Ser
 	}
 
 	return provisionRequest, nil
+}
+
+func signContext(ctx context.Context, contextMap map[string]interface{}, privateKey string) map[string]interface{} {
+	ctxByte, err := json.Marshal(contextMap)
+	if err != nil {
+		log.C(ctx).Errorf("failed to marshal context: %v", err)
+		return contextMap
+	}
+	signedCtx, err := osb.CalculateSignature(ctx, string(ctxByte), privateKey)
+	if err != nil {
+		log.C(ctx).Errorf("failed to sign instance context: %v", err)
+		return contextMap
+	}
+
+	contextMap["signature"] = signedCtx
+	return contextMap
 }
 
 func (i *ServiceInstanceInterceptor) generateInstanceContext(instance *types.ServiceInstance) (map[string]interface{}, error) {
@@ -831,7 +854,7 @@ func getOriginIdentity(userInfo *types.UserInfo, instance *types.ServiceInstance
 	}
 }
 
-func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(instance *types.ServiceInstance, serviceCatalogID, planCatalogID, oldCatalogPlanID string, userInfo *types.UserInfo) (*osbc.UpdateInstanceRequest, error) {
+func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(ctx context.Context, instance *types.ServiceInstance, serviceCatalogID, planCatalogID, oldCatalogPlanID string, userInfo *types.UserInfo) (*osbc.UpdateInstanceRequest, error) {
 	instanceContext := make(map[string]interface{})
 	if len(instance.Context) != 0 {
 		if err := json.Unmarshal(instance.Context, &instanceContext); err != nil {
@@ -855,6 +878,8 @@ func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(instance *type
 		}
 		instance.Context = contextBytes
 	}
+
+	instanceContext = signContext(ctx, instanceContext, i.ctxPrivateKey)
 
 	return &osbc.UpdateInstanceRequest{
 		InstanceID:        instance.GetID(),

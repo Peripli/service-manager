@@ -1,4 +1,4 @@
-package plugin_test
+package context_signature
 
 import (
 	"context"
@@ -23,20 +23,28 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"net/http"
+	"testing"
 )
 
-var _ = Describe("osb", func() {
+func TestContextSignature(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Context Signature Tests Suite")
+}
+
+var _ = Describe("context signature verification tests", func() {
 
 	var (
-		ctx           *common.TestContext
-		brokerServer  *common.BrokerServer
-		osbURL        string
-		brokerID      string
-		serviceID     string
-		planID        string
-		privateKeyStr string
-		publicKeyStr  string
-		CFContext     = `{
+		ctx              *common.TestContext
+		brokerServer     *common.BrokerServer
+		osbURL           string
+		brokerID         string
+		catalogServiceID string
+		catalogPlanID    string
+		serviceID        string
+		planID           string
+		privateKeyStr    string
+		publicKeyStr     string
+		CFContext        = `{
 			"service_id": "%s",
 			"plan_id": "%s",
 			"parameters":{},
@@ -62,7 +70,7 @@ var _ = Describe("osb", func() {
 
 		//decode the signature
 		signatureBytes := gjson.GetBytes(bytes, "context.signature")
-		Expect(signatureBytes.Exists()).To(Equal(true))
+		Expect(signatureBytes.Exists()).To(Equal(true), "context should have a signature field")
 		signature, err := base64.StdEncoding.DecodeString(signatureBytes.String())
 		Expect(err).ToNot(HaveOccurred())
 
@@ -112,24 +120,59 @@ var _ = Describe("osb", func() {
 		Expect(ctxMap).ShouldNot(HaveKey("signature"))
 	}
 
-	osbProvision := func(instanceID string) *httpexpect.Response {
-		return ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/" + instanceID).
-			WithJSON(common.JSONToMap(fmt.Sprintf(CFContext, serviceID, planID, "instance-name"))).
-			Expect().
-			Status(http.StatusCreated)
+	getOsbProvisionFunc := func(instanceID string) func() string {
+		return func() string {
+			ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/" + instanceID).
+				WithJSON(common.JSONToMap(fmt.Sprintf(CFContext, catalogServiceID, catalogPlanID, "instance-name"))).
+				Expect().
+				Status(http.StatusCreated)
+			return instanceID
+		}
+	}
+
+	getSMAAPProvisionInstanceFunc := func(async string) func() string {
+		return func() string {
+			provisionRequestBody := common.Object{
+				"name":             "test-instance",
+				"service_plan_id":  planID,
+				"maintenance_info": "{}",
+			}
+			resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+				WithQuery("async", async).
+				WithJSON(provisionRequestBody).
+				Expect().
+				Status(http.StatusCreated)
+
+			return resp.JSON().Object().Value("id").String().Raw()
+		}
 	}
 
 	osbBind := func(instanceID, bindingID string) *httpexpect.Response {
 		return ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/" + instanceID + "/service_bindings/" + bindingID).
-			WithJSON(common.JSONToMap(fmt.Sprintf(CFContext, serviceID, planID, "instance-name"))).
+			WithJSON(common.JSONToMap(fmt.Sprintf(CFContext, catalogServiceID, catalogPlanID, "instance-name"))).
 			Expect().
 			Status(http.StatusCreated)
 	}
 
-	provisionInstanceAndVerifySignature := func(instanceID string) {
+	saapBindFunc := func(async, instanceID string) string {
+
+		bindingRequestBody := common.Object{
+			"name":                "test-instance-binding",
+			"service_instance_id": instanceID,
+		}
+		resp := ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+			WithQuery("async", async).
+			WithJSON(bindingRequestBody).
+			Expect().
+			Status(http.StatusCreated)
+
+		return resp.JSON().Object().Value("id").String().Raw()
+	}
+
+	provisionInstanceAndVerifySignature := func(provisionFunc func() string) string {
 		brokerServer.ServiceInstanceHandler = verifyContextHandler
 
-		osbProvision(instanceID)
+		instanceID := provisionFunc()
 
 		verifySignatureNotPersisted(types.ServiceInstanceType, instanceID)
 
@@ -137,6 +180,8 @@ var _ = Describe("osb", func() {
 			Expect().Status(http.StatusOK).
 			JSON().
 			Object().Value("context").Object().NotContainsKey("signature")
+
+		return instanceID
 	}
 
 	BeforeEach(func() {
@@ -155,12 +200,12 @@ var _ = Describe("osb", func() {
 		}).Build()
 		UUID, err := uuid.NewV4()
 		Expect(err).ToNot(HaveOccurred())
-		planID = UUID.String()
-		plan1 := common.GenerateTestPlanWithID(planID)
+		catalogPlanID = UUID.String()
+		plan1 := common.GenerateTestPlanWithID(catalogPlanID)
 		UUID, err = uuid.NewV4()
 		Expect(err).ToNot(HaveOccurred())
-		serviceID = UUID.String()
-		service1 := common.GenerateTestServiceWithPlansWithID(serviceID, plan1)
+		catalogServiceID = UUID.String()
+		service1 := common.GenerateTestServiceWithPlansWithID(catalogServiceID, plan1)
 		catalog := common.NewEmptySBCatalog()
 		catalog.AddService(service1)
 
@@ -168,6 +213,11 @@ var _ = Describe("osb", func() {
 		brokerServer.ShouldRecordRequests(true)
 		common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
 		osbURL = "/v1/osb/" + brokerID
+
+		serviceOfferings := ctx.SMWithBasic.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
+		serviceID = serviceOfferings.Object().Value("id").String().Raw()
+		servicePlans := ctx.SMWithBasic.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", serviceID))
+		planID = servicePlans.Element(0).Object().Value("id").String().Raw()
 	})
 
 	AfterEach(func() {
@@ -175,39 +225,78 @@ var _ = Describe("osb", func() {
 		ctx.Cleanup()
 	})
 
-	When("provisioning a service instance", func() {
-		It("should have a valid context signature on the request body", func() {
-			provisionInstanceAndVerifySignature("signed-ctx-instance")
-		})
-	})
-	When("updating a service instance", func() {
-		It("should have a valid context signature on the request body", func() {
-			instanceID := "signed-ctx-instance"
-			provisionInstanceAndVerifySignature(instanceID)
-			ctx.SMWithBasic.PATCH(osbURL + "/v2/service_instances/" + instanceID).
-				WithJSON(common.JSONToMap(fmt.Sprintf(CFContext, serviceID, planID, "updated-instance-name"))).
-				Expect().
-				Status(http.StatusOK)
-			verifySignatureNotPersisted(types.ServiceInstanceType, instanceID)
-		})
-	})
-	When("binding a service instance", func() {
-		It("should have a context signature on the request body", func() {
-			instanceID := "signed-ctx-instance"
-			provisionInstanceAndVerifySignature(instanceID)
+	Context("OSB", func() {
 
-			brokerServer.BindingHandler = verifyContextHandler
-			bindingID := "signed-ctx-instance-binding-id"
-			osbBind(instanceID, bindingID)
+		When("provisioning a service instance", func() {
+			It("should have a valid context signature on the request body", func() {
+				provisionInstanceAndVerifySignature(getOsbProvisionFunc("signed-ctx-instance"))
+			})
+		})
+		When("updating a service instance", func() {
+			It("should have a valid context signature on the request body", func() {
+				instanceID := "signed-ctx-instance"
+				provisionInstanceAndVerifySignature(getOsbProvisionFunc("signed-ctx-instance"))
+				ctx.SMWithBasic.PATCH(osbURL + "/v2/service_instances/" + instanceID).
+					WithJSON(common.JSONToMap(fmt.Sprintf(CFContext, catalogServiceID, catalogPlanID, "updated-instance-name"))).
+					Expect().
+					Status(http.StatusOK)
+				verifySignatureNotPersisted(types.ServiceInstanceType, instanceID)
+			})
+		})
+		When("binding a service instance", func() {
+			It("should have a context signature on the request body", func() {
+				instanceID := "signed-ctx-instance"
+				provisionInstanceAndVerifySignature(getOsbProvisionFunc("signed-ctx-instance"))
 
-			verifySignatureNotPersisted(types.ServiceBindingType, bindingID)
+				brokerServer.BindingHandler = verifyContextHandler
+				bindingID := "signed-ctx-instance-binding-id"
+				osbBind(instanceID, bindingID)
+
+				verifySignatureNotPersisted(types.ServiceBindingType, bindingID)
+			})
+		})
+		When("sm environment variable context_rsa_public_key is set", func() {
+			It("should return it in /info API", func() {
+				ctx.SM.GET(web.InfoURL).Expect().
+					Status(http.StatusOK).
+					JSON().Object().Value("context_rsa_public_key").Equal(publicKeyStr)
+			})
 		})
 	})
-	When("sm environment variable context_rsa_public_key is set", func() {
-		It("should return it in /info API", func() {
-			ctx.SM.GET(web.InfoURL).Expect().
-				Status(http.StatusOK).
-				JSON().Object().Value("context_rsa_public_key").Equal(publicKeyStr)
+
+	Context("SMAAP", func() {
+		When("provisioning a service instance", func() {
+			It("should have a valid context signature on the request body", func() {
+				provisionInstanceAndVerifySignature(getSMAAPProvisionInstanceFunc("false"))
+			})
+		})
+		When("updating a service instance", func() {
+			It("should have a valid context signature on the request body", func() {
+				instanceID := provisionInstanceAndVerifySignature(getSMAAPProvisionInstanceFunc("false"))
+				patchRequestBody := common.Object{
+					"name": "updated-test-instance",
+				}
+				ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
+					WithJSON(patchRequestBody).
+					Expect().
+					Status(http.StatusOK)
+				verifySignatureNotPersisted(types.ServiceInstanceType, instanceID)
+
+				ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID).
+					Expect().Status(http.StatusOK).
+					JSON().
+					Object().Value("context").Object().NotContainsKey("signature")
+			})
+		})
+		When("binding a service instance", func() {
+			It("should have a context signature on the request body", func() {
+				instanceID := provisionInstanceAndVerifySignature(getSMAAPProvisionInstanceFunc("false"))
+
+				brokerServer.BindingHandler = verifyContextHandler
+				bindingID := saapBindFunc("false", instanceID)
+
+				verifySignatureNotPersisted(types.ServiceBindingType, bindingID)
+			})
 		})
 	})
 })
