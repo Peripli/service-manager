@@ -102,7 +102,6 @@ func VerifySignatureNotPersisted(ctx *TestContext, objType types.ObjectType, id 
 }
 
 func GetOsbProvisionFunc(ctx *TestContext, instanceID, osbURL, catalogServiceID, catalogPlanID string) func() string {
-	//todo - move to common.service_instance
 	return func() string {
 		ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/" + instanceID).
 			WithJSON(JSONToMap(fmt.Sprintf(CFContext, catalogServiceID, catalogPlanID, "instance-name"))).
@@ -113,7 +112,6 @@ func GetOsbProvisionFunc(ctx *TestContext, instanceID, osbURL, catalogServiceID,
 }
 
 func GetSMAAPProvisionInstanceFunc(ctx *TestContext, async, planID string) func() string {
-	//todo - move to common.service_instance
 	return func() string {
 		provisionRequestBody := Object{
 			"name":             "test-instance",
@@ -130,7 +128,6 @@ func GetSMAAPProvisionInstanceFunc(ctx *TestContext, async, planID string) func(
 	}
 }
 
-//todo - move to common.service_binding
 func OsbBind(ctx *TestContext, instanceID, bindingID, osbURL, catalogServiceID, catalogPlanID string) *httpexpect.Response {
 	return ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/" + instanceID + "/service_bindings/" + bindingID).
 		WithJSON(JSONToMap(fmt.Sprintf(CFContext, catalogServiceID, catalogPlanID, "instance-name"))).
@@ -138,7 +135,6 @@ func OsbBind(ctx *TestContext, instanceID, bindingID, osbURL, catalogServiceID, 
 		Status(http.StatusCreated)
 }
 
-//todo - move to common.service_binding
 func SmaapBind(ctx *TestContext, async, instanceID string) string {
 
 	bindingRequestBody := Object{
