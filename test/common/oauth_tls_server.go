@@ -18,6 +18,8 @@ package common
 
 import (
 	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -42,7 +44,7 @@ type OAuthTLSServer struct {
 	tokenKeysRequestCallCount int
 }
 
-func NewOAuthTLSServer() *OAuthTLSServer {
+func NewOAuthTLSServer(serverCertificate, serverCertificateKey []byte, clientCertificates ...[]byte) *OAuthTLSServer {
 	privateKey := generatePrivateKey()
 
 	os := &OAuthTLSServer{
@@ -55,17 +57,28 @@ func NewOAuthTLSServer() *OAuthTLSServer {
 	os.Router.HandleFunc("/.well-known/openid-configuration", os.getOpenIDConfig)
 	os.Router.HandleFunc("/oauth/token", os.getToken)
 	os.Router.HandleFunc("/token_keys", os.getTokenKeys)
-	os.Start()
+
+	os.Server = httptest.NewTLSServer(os.Router)
+	uServer := httptest.NewUnstartedServer(os.Router)
+	uServer.TLS = &tls.Config{}
+	caCertPool := x509.NewCertPool()
+	for _, certificate := range clientCertificates {
+		caCertPool.AppendCertsFromPEM(certificate)
+	}
+
+	uServer.TLS.ClientCAs = caCertPool
+	uServer.TLS.ClientAuth = tls.RequireAndVerifyClientCert
+
+	cert, err := tls.X509KeyPair(serverCertificate, serverCertificateKey)
+	if err != nil {
+		panic(err)
+	}
+	uServer.TLS.Certificates = []tls.Certificate{cert}
+
+	uServer.TLS.ServerName = "localhost"
+	os.BaseURL = os.Server.URL
 
 	return os
-}
-
-func (os *OAuthTLSServer) Start() {
-	if os.Server != nil {
-		panic("OAuth server already started")
-	}
-	os.Server = httptest.NewTLSServer(os.Router)
-	os.BaseURL = os.Server.URL
 }
 
 func (os *OAuthTLSServer) Close() {
