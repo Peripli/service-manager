@@ -67,7 +67,7 @@ func NewOAuthTLSServer(serverCertificate, serverCertificateKey []byte, clientCer
 	}
 
 	uServer.TLS.ClientCAs = caCertPool
-	uServer.TLS.ClientAuth = tls.RequireAndVerifyClientCert
+	//uServer.TLS.ClientAuth = tls.RequireAndVerifyClientCert
 
 	cert, err := tls.X509KeyPair(serverCertificate, serverCertificateKey)
 	if err != nil {
