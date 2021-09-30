@@ -52,7 +52,6 @@ func NewOAuthTLSServer() *OAuthTLSServer {
 		Router:     mux.NewRouter(),
 		mutex:      &sync.RWMutex{},
 	}
-	os.Server.StartTLS()
 	os.Router.HandleFunc("/.well-known/openid-configuration", os.getOpenIDConfig)
 	os.Router.HandleFunc("/oauth/token", os.getToken)
 	os.Router.HandleFunc("/token_keys", os.getTokenKeys)
