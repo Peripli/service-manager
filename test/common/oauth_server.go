@@ -33,7 +33,7 @@ import (
 type OAuthServer struct {
 	BaseURL string
 
-	server     *httptest.Server
+	Server     *httptest.Server
 	Router     *mux.Router
 	privateKey *rsa.PrivateKey // public key privateKey.PublicKey
 	signer     jwt.Signer
@@ -62,17 +62,17 @@ func NewOAuthServer() *OAuthServer {
 }
 
 func (os *OAuthServer) Start() {
-	if os.server != nil {
+	if os.Server != nil {
 		panic("OAuth server already started")
 	}
-	os.server = httptest.NewServer(os.Router)
-	os.BaseURL = os.server.URL
+	os.Server = httptest.NewServer(os.Router)
+	os.BaseURL = os.Server.URL
 }
 
 func (os *OAuthServer) Close() {
-	if os != nil && os.server != nil {
-		os.server.Close()
-		os.server = nil
+	if os != nil && os.Server != nil {
+		os.Server.Close()
+		os.Server = nil
 	}
 }
 
