@@ -44,7 +44,7 @@ type OAuthTLSServer struct {
 	tokenKeysRequestCallCount int
 }
 
-func NewOAuthTLSServer(serverCertificate, serverCertificateKey []byte, clientCertificates ...[]byte) *OAuthTLSServer {
+func NewOAuthTLSServer(serverCertificate, serverCertificateKey []byte, requireAndVerifyClientCert bool, clientCertificates ...[]byte) *OAuthTLSServer {
 	privateKey := generatePrivateKey()
 
 	os := &OAuthTLSServer{
@@ -67,7 +67,9 @@ func NewOAuthTLSServer(serverCertificate, serverCertificateKey []byte, clientCer
 	}
 
 	uServer.TLS.ClientCAs = caCertPool
-	//uServer.TLS.ClientAuth = tls.RequireAndVerifyClientCert
+	if requireAndVerifyClientCert {
+		uServer.TLS.ClientAuth = tls.RequireAndVerifyClientCert
+	}
 
 	cert, err := tls.X509KeyPair(serverCertificate, serverCertificateKey)
 	if err != nil {
