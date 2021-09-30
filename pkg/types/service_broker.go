@@ -23,6 +23,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/httpclient"
+	"github.com/sirupsen/logrus"
 	"reflect"
 	"strconv"
 	"strings"
@@ -44,15 +46,23 @@ type ServiceBroker struct {
 	Services    []*ServiceOffering `json:"-"`
 }
 
-func (e *ServiceBroker) GetTLSConfig() (*tls.Config, error) {
-	if e.Credentials.TLS != nil && e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
-		var tlsConfig tls.Config
-		cert, err := tls.X509KeyPair([]byte(e.Credentials.TLS.Certificate), []byte(e.Credentials.TLS.Key))
-		if err != nil {
-			return nil, err
+func (e *ServiceBroker) GetTLSConfig(logger *logrus.Entry) (*tls.Config, error) {
+	var tlsConfig tls.Config
+	if e.Credentials.TLS != nil {
+		if e.Credentials.TLS.Certificate != "" && e.Credentials.TLS.Key != "" {
+			cert, err := tls.X509KeyPair([]byte(e.Credentials.TLS.Certificate), []byte(e.Credentials.TLS.Key))
+			if err != nil {
+				return nil, err
+			}
+			tlsConfig.Certificates = []tls.Certificate{cert}
+			logger.Infof("using mtls custom broker certificate  for the broker with name %s", e.Name)
+			return &tlsConfig, nil
 		}
-		tlsConfig.Certificates = []tls.Certificate{cert}
-		return &tlsConfig, nil
+		if e.Credentials.TLS.SMProvidedCredentials {
+			tlsConfig.Certificates = httpclient.GetHttpClientGlobalSettings().TLSCertificates
+			logger.Infof("using sm provided mtls certificate for the broker with name %s", e.Name)
+			return &tlsConfig, nil
+		}
 	}
 
 	return nil, nil
@@ -102,7 +112,7 @@ func (e *ServiceBroker) transform(ctx context.Context, transformationFunc func(c
 		e.Credentials.Basic.Password = string(transformedPassword)
 	}
 
-	if e.Credentials != nil && e.Credentials.TLS != nil {
+	if e.Credentials != nil && e.Credentials.TLS != nil && e.Credentials.TLS.Key != "" {
 		transformedPrivateKey, err := transformationFunc(ctx, []byte(e.Credentials.TLS.Key))
 		if err != nil {
 			return err
@@ -127,7 +137,6 @@ func (e *ServiceBroker) Validate() error {
 	if err := e.Labels.Validate(); err != nil {
 		return err
 	}
-
 	if e.Credentials == nil {
 		return errors.New("missing credentials")
 	}

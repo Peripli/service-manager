@@ -389,12 +389,12 @@ func (sp *storePlugin) Unbind(request *web.Request, next web.Handler) (*web.Resp
 }
 
 func (sp *storePlugin) Provision(request *web.Request, next web.Handler) (*web.Response, error) {
-	ctx := request.Context()
-
 	response, err := next.Handle(request)
 	if err != nil {
 		return nil, err
 	}
+
+	ctx := request.Context()
 
 	requestPayload := &provisionRequest{}
 	if err := decodeRequestBody(request, requestPayload); err != nil {
@@ -767,6 +767,10 @@ func (sp *storePlugin) storeOperation(ctx context.Context, storage storage.Repos
 		PlatformID:    req.GetPlatformID(),
 		CorrelationID: correlationID,
 		ExternalID:    operationData,
+	}
+
+	if operationContextFromContext := web.OperationContextFromContext(ctx); operationContextFromContext != nil {
+		operation.Context = operationContextFromContext.(*types.OperationContext)
 	}
 
 	if _, err := storage.Create(ctx, operation); err != nil {

@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Peripli/service-manager/api/osb"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
@@ -121,7 +122,7 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 		serviceBinding.ServiceInstanceID = instance.ReferencedInstanceID
 	}
 
-	service, err := storage.GetServiceOfferingByServiceInstanceId(c.repository, ctx, serviceBinding.ServiceInstanceID)
+	service, plan, err := storage.GetServiceOfferingAndPlanByServiceInstanceId(c.repository, ctx, serviceBinding.ServiceInstanceID)
 	if err != nil {
 		return nil, err
 	}
@@ -138,9 +139,11 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 		}
 	}
 
+	osbUrl := fmt.Sprintf("%s?service_id=%s&plan_id=%s", fmt.Sprintf(serviceBindingOSBURL, broker.BrokerURL, serviceBinding.ServiceInstanceID, serviceBindingId), service.CatalogID, plan.CatalogID)
+	log.C(ctx).Infof("fetch binding request: %s", osbUrl)
 	serviceBindingBytes, err := osb.Get(util.ClientRequest, c.osbVersion, ctx,
 		broker,
-		fmt.Sprintf(serviceBindingOSBURL, broker.BrokerURL, serviceBinding.ServiceInstanceID, serviceBindingId),
+		osbUrl,
 		types.ServiceBindingType.String())
 	if err != nil {
 		return nil, err

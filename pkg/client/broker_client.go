@@ -20,7 +20,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/httpclient"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -33,8 +32,8 @@ type BrokerClient struct {
 	requestHandlerDecorated util.DoRequestFunc
 }
 
-func NewBrokerClient(broker *types.ServiceBroker, requestHandler util.DoRequestWithClientFunc) (*BrokerClient, error) {
-	tlsConfig, err := broker.GetTLSConfig()
+func NewBrokerClient(broker *types.ServiceBroker, requestHandler util.DoRequestWithClientFunc, ctx context.Context) (*BrokerClient, error) {
+	tlsConfig, err := broker.GetTLSConfig(log.C(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("unable to get client for broker %s: %v", broker.Name, err)
 	}
@@ -70,10 +69,6 @@ func (bc *BrokerClient) authAndTlsDecorator(requestHandler util.DoRequestWithCli
 			client.Transport = GetTransportWithTLS(bc.tlsConfig, logger)
 			return requestHandler(req, client)
 		}
-
-		logger.Infof("using default tls configuration for broker %s, has client cert? %d",
-			bc.broker.Name,
-			len(httpclient.GetHttpClientGlobalSettings().TLSCertificates))
 
 		return requestHandler(req, client)
 	}

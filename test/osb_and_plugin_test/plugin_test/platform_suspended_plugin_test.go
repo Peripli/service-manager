@@ -85,10 +85,9 @@ var _ = Describe("Platform Suspension OSB plugin", func() {
 			res.Value("description").Equal("platform suspended")
 		})
 
-		It("should not allow deprovision request", func() {
-			res := ctx.SMWithBasic.DELETE(osbURL + "/v2/service_instances/12345").
-				Expect().Status(http.StatusBadRequest).JSON().Object()
-			res.Value("description").Equal("platform suspended")
+		It("should allow deprovision request", func() {
+			ctx.SMWithBasic.DELETE(osbURL + "/v2/service_instances/12345").
+				Expect().Status(http.StatusOK).JSON().Object()
 		})
 
 		It("should allow fetch instance", func() {
@@ -103,10 +102,9 @@ var _ = Describe("Platform Suspension OSB plugin", func() {
 			res.Value("description").Equal("platform suspended")
 		})
 
-		It("should not allow unbind request", func() {
-			res := ctx.SMWithBasic.DELETE(osbURL + "/v2/service_instances/12345/service_bindings/5678").
-				Expect().Status(http.StatusBadRequest).JSON().Object()
-			res.Value("description").Equal("platform suspended")
+		It("should allow unbind request", func() {
+			ctx.SMWithBasic.DELETE(osbURL + "/v2/service_instances/12345/service_bindings/5678").
+				Expect().Status(http.StatusOK)
 		})
 
 		It("should allow fetch binding request", func() {

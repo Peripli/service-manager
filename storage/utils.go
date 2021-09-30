@@ -10,28 +10,28 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-func GetServiceOfferingByServiceInstanceId(repository Repository, ctx context.Context, serviceInstanceId string) (*types.ServiceOffering, error) {
+func GetServiceOfferingAndPlanByServiceInstanceId(repository Repository, ctx context.Context, serviceInstanceId string) (*types.ServiceOffering, *types.ServicePlan, error) {
 	byID := query.ByField(query.EqualsOperator, "id", serviceInstanceId)
 	criteria := query.CriteriaForContext(ctx)
 	obj, err := repository.Get(ctx, types.ServiceInstanceType, append(criteria, byID)...)
 	if err != nil {
 		log.C(ctx).Errorf("Failed retrieving the service instance by ID: %s", serviceInstanceId)
-		return nil, util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
+		return nil, nil, util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
 	}
 	serviceInstance := obj.(*types.ServiceInstance)
 	planObject, err := repository.Get(ctx, types.ServicePlanType, query.ByField(query.EqualsOperator, "id", serviceInstance.ServicePlanID))
 	if err != nil {
 		log.C(ctx).Errorf("Failed retrieving the service plan by ID: %s", serviceInstance.ServicePlanID)
-		return nil, util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
+		return nil, nil, util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
 	}
 	plan := planObject.(*types.ServicePlan)
 	serviceObject, err := repository.Get(ctx, types.ServiceOfferingType, query.ByField(query.EqualsOperator, "id", plan.ServiceOfferingID))
 	if err != nil {
 		log.C(ctx).Errorf("Failed retrieving the service offering by ID: %s", plan.ServiceOfferingID)
-		return nil, util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
+		return nil, nil, util.HandleStorageError(util.ErrNotFoundInStorage, types.ServiceInstanceType.String())
 	}
 	service := serviceObject.(*types.ServiceOffering)
-	return service, nil
+	return service, plan, nil
 }
 
 func GetObjectByField(ctx context.Context, repository Repository, objectType types.ObjectType, byKey, byValue string, additionalQueries ...query.Criterion) (types.Object, error) {

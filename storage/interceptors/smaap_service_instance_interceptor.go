@@ -18,10 +18,8 @@ package interceptors
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/httpclient"
 	"github.com/tidwall/gjson"
 	"math"
 	"net"
@@ -128,6 +126,10 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		smaapOperated := isOperatedBySmaaP(instance)
 		if instance.PlatformID != types.SMPlatform && !smaapOperated {
 			return f(ctx, obj)
+		}
+
+		if smaapOperated {
+			log.C(ctx).Infof("instance %s is not part of %s platform but will be handled as well", instance.ID, types.SMPlatform)
 		}
 
 		operation, found := opcontext.Get(ctx)
@@ -259,6 +261,9 @@ func (i *ServiceInstanceInterceptor) AroundTxUpdate(f storage.InterceptUpdateAro
 			return f(ctx, updatedObj, labelChanges...)
 		}
 
+		if smaapOperated {
+			log.C(ctx).Infof("instance %s is not part of %s platform but will be handled as well", updatedInstance.ID, types.SMPlatform)
+		}
 		operation, found := opcontext.Get(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
@@ -719,7 +724,7 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 	}
 	broker := brokerObject.(*types.ServiceBroker)
 
-	tlsConfig, err := broker.GetTLSConfig()
+	tlsConfig, err := broker.GetTLSConfig(log.C(ctx))
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -742,12 +747,7 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 
 	if tlsConfig != nil {
 		osbClientConfig.TLSConfig = tlsConfig
-	} else if len(httpclient.GetHttpClientGlobalSettings().TLSCertificates) > 0 {
-		var defaultTLSConfig tls.Config
-		defaultTLSConfig.Certificates = httpclient.GetHttpClientGlobalSettings().TLSCertificates
-		osbClientConfig.TLSConfig = &defaultTLSConfig
 	}
-
 	osbClient, err := osbClientFunc(osbClientConfig)
 	if err != nil {
 		return nil, nil, nil, nil, err

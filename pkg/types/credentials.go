@@ -20,8 +20,8 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
+	"github.com/Peripli/service-manager/pkg/httpclient"
 )
 
 // Basic basic credentials
@@ -31,8 +31,9 @@ type Basic struct {
 }
 
 type TLS struct {
-	Certificate string `json:"client_certificate,omitempty"`
-	Key         string `json:"client_key,omitempty"`
+	Certificate           string `json:"client_certificate,omitempty"`
+	Key                   string `json:"client_key,omitempty"`
+	SMProvidedCredentials bool   `json:"sm_provided_tls_credentials"`
 }
 
 // Credentials credentials
@@ -42,40 +43,63 @@ type Credentials struct {
 	Integrity []byte `json:"-"`
 }
 
-func (c *Credentials) MarshalJSON() ([]byte, error) {
-	type C Credentials
-	toMarshal := (*C)(c)
-	if toMarshal.Basic == nil || toMarshal.Basic.Username == "" || toMarshal.Basic.Password == "" {
-		toMarshal.Basic = nil
-	}
-
-	if toMarshal.TLS == nil || toMarshal.TLS.Certificate == "" || toMarshal.TLS.Key == "" {
-		toMarshal.TLS = nil
-	}
-
-	return json.Marshal(toMarshal)
-}
-
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (c *Credentials) Validate() error {
-	if c.Basic != nil {
-		if c.Basic.Username == "" {
-			return errors.New("missing broker username")
-		}
-		if c.Basic.Password == "" {
-			return errors.New("missing broker password")
-		}
+	if !c.BasicExists() && (!c.TLSExists()) {
+		return errors.New("missing broker credentials: set SM provided credentials to true, or configure basic or tls credentials")
 	}
-
-	if c.TLS != nil {
-		_, err := tls.X509KeyPair([]byte(c.TLS.Certificate), []byte(c.TLS.Key))
+	if c.BasicExists() {
+		err := c.validateBasic()
 		if err != nil {
-			return errors.New("invalidate TLS configuration: " + err.Error())
+			return err
 		}
 	}
+	if c.CertificateExists() {
+		err := c.validateTLS()
+		if err != nil {
+			return err
+		}
+	}
+	if c.TLS != nil && c.TLS.SMProvidedCredentials {
+		err := c.validateSMProvidedCredentials()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (c *Credentials) validateSMProvidedCredentials() error {
+	httpSettings := httpclient.GetHttpClientGlobalSettings()
+	isMTLSEnabled := len(httpSettings.ServerCertificate) > 0
+	if !isMTLSEnabled {
+		return errors.New("SM provided credentials are not supported in this region, set another type of credentials")
+	}
+	return nil
+}
 
-	if c.TLS == nil && c.Basic == nil {
-		return errors.New("missing broker credentials, basic or tls credentials are required")
+func (c *Credentials) validateTLS() error {
+	if c.TLS.Certificate == "" || c.TLS.Key == "" {
+		return errors.New("tls public certificate and key should be provided")
+	}
+
+	if c.TLS.SMProvidedCredentials {
+		return errors.New("only one of the options could be set, SM provided credentials or tls")
+	}
+	_, err := tls.X509KeyPair([]byte(c.TLS.Certificate), []byte(c.TLS.Key))
+	if err != nil {
+		return errors.New("invalidate TLS configuration: " + err.Error())
+	}
+
+	return nil
+}
+
+func (c *Credentials) validateBasic() error {
+	if c.Basic.Username == "" {
+		return errors.New("missing broker username")
+	}
+
+	if c.Basic.Password == "" {
+		return errors.New("missing broker password")
 	}
 
 	return nil
@@ -104,4 +128,15 @@ func GenerateCredentials() (*Credentials, error) {
 			Password: encodedPass,
 		},
 	}, nil
+}
+
+func (c *Credentials) CertificateExists() bool {
+	return c.TLS != nil && !(c.TLS.Certificate == "" && c.TLS.Key == "")
+}
+func (c *Credentials) TLSExists() bool {
+	return c.TLS != nil && *c.TLS != TLS{}
+}
+
+func (c *Credentials) BasicExists() bool {
+	return c.Basic != nil && *c.Basic != Basic{}
 }

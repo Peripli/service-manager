@@ -95,12 +95,13 @@ type UserInfo struct {
 }
 
 type OperationContext struct {
-	Async             bool      `json:"async"`
-	IsAsyncNotDefined bool      `json:"is_async_not_defined"`
-	Cascade           bool      `json:"-"`
-	ServicePlanID     string    `json:"service_plan_id"`
-	ServiceInstanceID string    `json:"service_instance_id"`
-	UserInfo          *UserInfo `json:"user_info"`
+	Async             bool              `json:"async"`
+	IsAsyncNotDefined bool              `json:"is_async_not_defined"`
+	Cascade           bool              `json:"-"`
+	ServicePlanID     string            `json:"service_plan_id"`
+	ServiceInstanceID string            `json:"service_instance_id"`
+	UserInfo          *UserInfo         `json:"user_info"`
+	Params            map[string]string `json:"params"`
 }
 
 func (e *Operation) Equals(obj Object) bool {
