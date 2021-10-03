@@ -10,7 +10,7 @@ import (
 
 // HandleInterrupts handles process signal interrupts
 func HandleInterrupts(ctx context.Context, cancel context.CancelFunc) {
-	term := make(chan os.Signal)
+	term := make(chan os.Signal,1)
 	signal.Notify(term, os.Interrupt)
 	go func() {
 		select {
