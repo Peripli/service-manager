@@ -535,6 +535,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 			username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
 			req.WithBasicAuth(username, password).WithClient(tcb.HttpClient)
 		})
+
 		testContext.SMWithBasic = &SMExpect{SMWithBasic}
 		testContext.TestPlatform = platform
 	}
