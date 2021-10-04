@@ -32,8 +32,6 @@ import (
 )
 
 type OAuthTLSServer struct {
-	*httptest.Server
-
 	Server     *httptest.Server
 	Router     *mux.Router
 	privateKey *rsa.PrivateKey // public key privateKey.PublicKey
@@ -77,7 +75,7 @@ func NewOAuthTLSServer(serverCertificate, serverCertificateKey []byte, requireAn
 
 	uServer.TLS.ServerName = "localhost"
 	os.Server = uServer
-	os.StartTLS()
+	os.Server.StartTLS()
 	return os
 }
 
@@ -91,6 +89,7 @@ func (os *OAuthTLSServer) Close() {
 func (os *OAuthTLSServer) URL() string {
 	return os.Server.URL
 }
+
 func (os *OAuthTLSServer) TokenKeysRequestCallCount() int {
 	return os.tokenKeysRequestCallCount
 }
@@ -98,8 +97,8 @@ func (os *OAuthTLSServer) TokenKeysRequestCallCount() int {
 func (os *OAuthTLSServer) getOpenIDConfig(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{
-		 "issuer": "` + os.BaseURL + `/oauth/token",
-		 "jwks_uri": "` + os.BaseURL + `/token_keys"
+		 "issuer": "` + os.URL() + `/oauth/token",
+		 "jwks_uri": "` + os.URL() + `/token_keys"
 	 }`))
 }
 
@@ -123,7 +122,7 @@ func (os *OAuthTLSServer) CreateToken(payload map[string]interface{}) string {
 	if iss, ok := payload["iss"]; ok {
 		issuerURL = iss.(string)
 	} else {
-		issuerURL = os.BaseURL + "/oauth/token"
+		issuerURL = os.URL() + "/oauth/token"
 	}
 	nextYear := time.Now().Add(365 * 24 * time.Hour)
 	token, err := jwt.Sign(os.signer, &jwt.Options{
