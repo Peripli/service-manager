@@ -32,7 +32,7 @@ import (
 )
 
 type OAuthTLSServer struct {
-	BaseURL string
+	*httptest.Server
 
 	Server     *httptest.Server
 	Router     *mux.Router
@@ -77,8 +77,7 @@ func NewOAuthTLSServer(serverCertificate, serverCertificateKey []byte, requireAn
 
 	uServer.TLS.ServerName = "localhost"
 	os.Server = uServer
-	os.BaseURL = os.Server.URL
-
+	os.StartTLS()
 	return os
 }
 
@@ -90,9 +89,8 @@ func (os *OAuthTLSServer) Close() {
 }
 
 func (os *OAuthTLSServer) URL() string {
-	return os.BaseURL
+	return os.Server.URL
 }
-
 func (os *OAuthTLSServer) TokenKeysRequestCallCount() int {
 	return os.tokenKeysRequestCallCount
 }
