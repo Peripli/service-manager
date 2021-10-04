@@ -57,8 +57,6 @@ func NewOAuthTLSServer(serverCertificate, serverCertificateKey []byte, requireAn
 	os.Router.HandleFunc("/.well-known/openid-configuration", os.getOpenIDConfig)
 	os.Router.HandleFunc("/oauth/token", os.getToken)
 	os.Router.HandleFunc("/token_keys", os.getTokenKeys)
-
-	os.Server = httptest.NewTLSServer(os.Router)
 	uServer := httptest.NewUnstartedServer(os.Router)
 	uServer.TLS = &tls.Config{}
 	caCertPool := x509.NewCertPool()
@@ -78,6 +76,7 @@ func NewOAuthTLSServer(serverCertificate, serverCertificateKey []byte, requireAn
 	uServer.TLS.Certificates = []tls.Certificate{cert}
 
 	uServer.TLS.ServerName = "localhost"
+	os.Server = uServer
 	os.BaseURL = os.Server.URL
 
 	return os
