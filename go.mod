@@ -1,6 +1,6 @@
 module github.com/Peripli/service-manager
 
-go 1.15
+go 1.14
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.3.1-0.20180720083239-852fc940e4b9
