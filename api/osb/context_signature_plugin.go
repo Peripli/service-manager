@@ -71,13 +71,18 @@ func (s *ContextSignaturePlugin) sign(req *web.Request, next web.Handler) (*web.
 		log.C(req.Context()).Errorf("failed to marshal context: %v", err)
 		return next.Handle(req)
 	}
+	reqBody, err := sjson.SetBytes(req.Body, "context", ctxByte)
+	if err != nil {
+		log.C(req.Context()).Errorf("failed to set request body context: %v", err)
+		return next.Handle(req)
+	}
 
 	signedCtx, err := CalculateSignature(req.Context(), string(ctxByte), s.CtxPrivateKey)
 	if err != nil {
 		return next.Handle(req)
 	}
 
-	reqBody, err := sjson.SetBytes(req.Body, "context.signature", signedCtx)
+	reqBody, err = sjson.SetBytes(req.Body, "context.signature", signedCtx)
 	if err != nil {
 		log.C(req.Context()).Errorf("failed to set signature bytes to request body %v", err)
 		return next.Handle(req)
