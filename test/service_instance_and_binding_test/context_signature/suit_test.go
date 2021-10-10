@@ -22,21 +22,6 @@ var (
 	planID           string
 	privateKeyStr    string
 	publicKeyStr     string
-	CFContext        = `{
-			"service_id": "%s",
-			"plan_id": "%s",
-			"parameters":{},
-			"context":{
-				"platform":"cloudfoundry",
-				"organization_guid":"1113aa0-124e-4af2-1526-6bfacf61b111",
-				"space_guid":"aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
-				"instance_name":"%s",
-				"extra_metadata":{
-					"key1":"value1",
-					"key2":"value2"
-				}
-			}
-		}`
 )
 
 func TestContextSignature(t *testing.T) {

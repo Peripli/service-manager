@@ -8,6 +8,9 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
+
+	//"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
@@ -57,8 +60,19 @@ func (s *ContextSignaturePlugin) sign(req *web.Request, next web.Handler) (*web.
 		log.C(req.Context()).Error("could not find context on the request body")
 		return next.Handle(req)
 	}
+	//unmarshal and marshal the context so the fields will be ordered lexicographically and in order to get rid of redundant spaces and "\n"
+	var ctxMap map[string]interface{}
+	if err := json.Unmarshal([]byte(ctx.String()), &ctxMap); err != nil {
+		log.C(req.Context()).Errorf("failed to unmarshal context: %v", err)
+		return next.Handle(req)
+	}
+	ctxByte, err := json.Marshal(ctxMap)
+	if err != nil {
+		log.C(req.Context()).Errorf("failed to marshal context: %v", err)
+		return next.Handle(req)
+	}
 
-	signedCtx, err := CalculateSignature(req.Context(), ctx.String(), s.CtxPrivateKey)
+	signedCtx, err := CalculateSignature(req.Context(), string(ctxByte), s.CtxPrivateKey)
 	if err != nil {
 		return next.Handle(req)
 	}
@@ -74,6 +88,7 @@ func (s *ContextSignaturePlugin) sign(req *web.Request, next web.Handler) (*web.
 }
 
 func CalculateSignature(ctx context.Context, ctxStr, privateKeyStr string) (string, error) {
+	log.C(ctx).Debugf("creating signature for ctx: %s", ctxStr)
 	privateKey, err := parseRsaPrivateKey(ctx, privateKeyStr)
 	if err != nil {
 		return "", err
