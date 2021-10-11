@@ -15,8 +15,6 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 )
 
 const ContextSignaturePluginName = "ContextSignaturePlugin"
@@ -55,25 +53,19 @@ func (s *ContextSignaturePlugin) sign(req *web.Request, next web.Handler) (*web.
 		return next.Handle(req)
 	}
 
-	ctx := gjson.GetBytes(req.Body, "context")
-	if !ctx.Exists() {
-		log.C(req.Context()).Error("could not find context on the request body")
-		return next.Handle(req)
-	}
-	//unmarshal and marshal the context so the fields will be ordered lexicographically and in order to get rid of redundant spaces and "\n"
-	var ctxMap map[string]interface{}
-	if err := json.Unmarshal([]byte(ctx.String()), &ctxMap); err != nil {
+	//unmarshal and marshal the request body so the fields within the context will be ordered lexicographically, and to get rid of redundant spaces\drop-line\tabs
+	var reqBodyMap map[string]interface{}
+	if err := json.Unmarshal(req.Body, &reqBodyMap); err != nil {
 		log.C(req.Context()).Errorf("failed to unmarshal context: %v", err)
 		return next.Handle(req)
 	}
-	ctxByte, err := json.Marshal(ctxMap)
-	if err != nil {
-		log.C(req.Context()).Errorf("failed to marshal context: %v", err)
+	if _, found := reqBodyMap["context"]; !found {
+		log.C(req.Context()).Error("context not found on request body")
 		return next.Handle(req)
 	}
-	reqBody, err := sjson.SetBytes(req.Body, "context", ctxByte)
+	ctxByte, err := json.Marshal(reqBodyMap["context"])
 	if err != nil {
-		log.C(req.Context()).Errorf("failed to set request body context: %v", err)
+		log.C(req.Context()).Errorf("failed to marshal context: %v", err)
 		return next.Handle(req)
 	}
 
@@ -81,10 +73,13 @@ func (s *ContextSignaturePlugin) sign(req *web.Request, next web.Handler) (*web.
 	if err != nil {
 		return next.Handle(req)
 	}
+	ctx := reqBodyMap["context"].(map[string]interface{})
+	ctx["signature"] = signedCtx
+	reqBodyMap["context"] = ctx
 
-	reqBody, err = sjson.SetBytes(req.Body, "context.signature", signedCtx)
+	reqBody, err := json.Marshal(reqBodyMap)
 	if err != nil {
-		log.C(req.Context()).Errorf("failed to set signature bytes to request body %v", err)
+		log.C(req.Context()).Errorf("failed to marshal request body %v", err)
 		return next.Handle(req)
 	}
 	req.Body = reqBody

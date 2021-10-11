@@ -104,7 +104,7 @@ func VerifySignatureNotPersisted(ctx *TestContext, objType types.ObjectType, id 
 func GetOsbProvisionFunc(ctx *TestContext, instanceID, osbURL, catalogServiceID, catalogPlanID string) func() string {
 	return func() string {
 		ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/" + instanceID).
-			WithJSON(JSONToMap(fmt.Sprintf(CFContext, catalogServiceID, catalogPlanID, "instance-name"))).
+			WithBytes([]byte(fmt.Sprintf(CFContext, catalogServiceID, catalogPlanID, "instance-name"))).
 			Expect().
 			Status(http.StatusCreated)
 		return instanceID

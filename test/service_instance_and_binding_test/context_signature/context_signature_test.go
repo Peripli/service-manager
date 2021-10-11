@@ -17,7 +17,7 @@ var _ = Describe("context signature verification tests", func() {
 		common.RemoveAllInstances(ctx)
 	})
 
-	FContext("OSB", func() {
+	Context("OSB", func() {
 		instanceID := "signed-ctx-instance"
 		var provisionFunc func() string
 		BeforeEach(func() {
