@@ -69,7 +69,7 @@ func (*PlatformIDInstanceValidationFilter) Run(req *web.Request, next web.Handle
 		}
 	case http.MethodPatch:
 		// we don't want to explicitly add SMPlatform criteria for patch if instance is being migrated to SM
-		if platformID != types.SMPlatform {
+		if !(util.LabelsOnly(req)) && platformID != types.SMPlatform {
 			byPlatformID := query.ByField(query.EqualsOperator, platformIDProperty, types.SMPlatform)
 			ctx, err := query.AddCriteria(req.Context(), byPlatformID)
 			if err != nil {
