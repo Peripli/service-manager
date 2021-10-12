@@ -19,6 +19,7 @@ package filters
 import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/tidwall/gjson"
 	"net/http"
 )
 
@@ -33,7 +34,10 @@ func (*PatchOnlyLabelsFilter) Name() string {
 }
 
 func (*PatchOnlyLabelsFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	if !(util.LabelsOnly(req)) {
+	jsonMap := gjson.ParseBytes(req.Body).Map()
+	delete(jsonMap, "labels")
+
+	if len(jsonMap) > 0 {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
 			Description: "Only labels can be patched for service offerings and plans",
