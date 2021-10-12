@@ -304,8 +304,10 @@ func buildOperationURL(operationID, resourceID, resourceType string) string {
 
 func LabelsOnly(req *web.Request) bool {
 	jsonMap := gjson.ParseBytes(req.Body).Map()
+	if len(jsonMap) != 1 {
+		return false
+	}
 	delete(jsonMap, "labels")
-
 	if len(jsonMap) > 0 {
 		return false
 	}
