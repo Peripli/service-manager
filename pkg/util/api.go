@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/util/slice"
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"mime"
 	"net/http"
@@ -299,4 +300,14 @@ func NewLocationResponse(operationID, resourceID, resourceBaseURL string) (*web.
 
 func buildOperationURL(operationID, resourceID, resourceType string) string {
 	return fmt.Sprintf("%s/%s%s/%s", resourceType, resourceID, web.ResourceOperationsURL, operationID)
+}
+
+func LabelsOnly(req *web.Request) bool {
+	jsonMap := gjson.ParseBytes(req.Body).Map()
+	delete(jsonMap, "labels")
+
+	if len(jsonMap) > 0 {
+		return false
+	}
+	return true
 }
