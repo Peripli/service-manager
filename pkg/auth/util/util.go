@@ -74,13 +74,13 @@ func MtlsEnabled(options *auth.Options) bool {
 	return len(options.Certificate) > 0 && len(options.Key) > 0
 }
 
-func ConvertBackSlashN(originalValue string) []byte {
+func ConvertBackSlashN(originalValue string) string {
 	lines := strings.Split(originalValue, `\n`)
 	var value string
 	for _, line := range lines {
 		value += fmt.Sprintln(line)
 	}
-	return []byte(value)
+	return value
 }
 
 func getClient() *http.Client {
