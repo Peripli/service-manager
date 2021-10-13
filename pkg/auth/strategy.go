@@ -73,3 +73,7 @@ type Authenticator interface {
 type Client interface {
 	Do(*http.Request) (*http.Response, error)
 }
+
+func (o *Options) MTLS() bool {
+	return len(o.ClientID) > 0 && len(o.Certificate) > 0 && len(o.Key) > 0
+}
