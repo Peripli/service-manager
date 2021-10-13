@@ -24,6 +24,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -71,6 +72,15 @@ func BuildHTTPClient(options *auth.Options) (*http.Client, error) {
 
 func MtlsEnabled(options *auth.Options) bool {
 	return len(options.Certificate) > 0 && len(options.Key) > 0
+}
+
+func ConvertBackSlashN(originalValue string) []byte {
+	lines := strings.Split(originalValue, `\n`)
+	var value string
+	for _, line := range lines {
+		value += fmt.Sprintln(line)
+	}
+	return []byte(value)
 }
 
 func getClient() *http.Client {
