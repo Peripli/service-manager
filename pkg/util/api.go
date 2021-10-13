@@ -308,8 +308,5 @@ func LabelsOnly(req *web.Request) bool {
 		return false
 	}
 	delete(jsonMap, "labels")
-	if len(jsonMap) > 0 {
-		return false
-	}
-	return true
+	return len(jsonMap) == 0
 }
