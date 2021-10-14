@@ -18,12 +18,12 @@ package oidc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/auth"
 	"github.com/Peripli/service-manager/pkg/auth/util"
-	"github.com/Peripli/service-manager/pkg/httputil"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -179,9 +179,22 @@ func fetchOpenidConfiguration(issuerURL string, readConfigurationFunc DoRequestF
 	}
 
 	var configuration *openIDConfiguration
-	if err = httputil.UnmarshalResponse(response, &configuration); err != nil {
+	if err = unmarshalResponse(response, &configuration); err != nil {
 		return nil, err
 	}
 
 	return configuration, nil
+}
+
+// UnmarshalResponse reads the response body and tries to parse it.
+func unmarshalResponse(response *http.Response, jsonResult interface{}) error {
+
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	return json.NewDecoder(response.Body).Decode(&jsonResult)
 }
