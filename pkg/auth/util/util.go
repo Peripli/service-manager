@@ -18,39 +18,19 @@ package util
 
 import (
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/auth"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 )
-
-// ValidateURL validates a URL
-func ValidateURL(URL string) error {
-	if URL == "" {
-		return errors.New("url not provided")
-	}
-
-	parsedURL, err := url.Parse(URL)
-	if err != nil {
-		return fmt.Errorf("url cannot be parsed: %s", err)
-	}
-
-	if !parsedURL.IsAbs() || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
-		return fmt.Errorf("url is not an HTTP URL: %s", URL)
-	}
-
-	return nil
-}
 
 // BuildHTTPClient builds custom http client with configured ssl validation / mtls
 func BuildHTTPClient(options *auth.Options) (*http.Client, error) {
 	client := getClient()
 
-	if MtlsEnabled(options) {
+	if options.MtlsEnabled() {
 		cert, err := tls.LoadX509KeyPair(options.Certificate, options.Key)
 		if err != nil {
 			return nil, err
@@ -68,10 +48,6 @@ func BuildHTTPClient(options *auth.Options) (*http.Client, error) {
 	}
 
 	return client, nil
-}
-
-func MtlsEnabled(options *auth.Options) bool {
-	return len(options.Certificate) > 0 && len(options.Key) > 0
 }
 
 func ConvertBackSlashN(originalValue string) string {
