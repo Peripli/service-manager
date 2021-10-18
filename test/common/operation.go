@@ -105,7 +105,7 @@ func VerifyResourceDoesNotExist(smClient *SMExpect, expectations ResourceExpecta
 }
 
 func VerifyOperationExists(ctx *TestContext, operationURL string, expectations OperationExpectations) (string, string) {
-	timeoutDuration := 25 * time.Second
+	timeoutDuration := 15 * time.Second
 	timeout := time.After(timeoutDuration)
 	ticker := time.Tick(100 * time.Millisecond)
 	for {
