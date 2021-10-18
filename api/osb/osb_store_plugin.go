@@ -24,6 +24,7 @@ import (
 	"github.com/Peripli/service-manager/operations/opcontext"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/tidwall/sjson"
@@ -46,9 +47,10 @@ import (
 
 const (
 	// OSBStorePluginName is the plugin name
-	OSBStorePluginName = "OSBStorePluginName"
-	smServicePlanIDKey = "sm_service_plan_id"
-	smContextKey       = "sm_context_key"
+	OSBStorePluginName  = "OSBStorePluginName"
+	smServicePlanIDKey  = "sm_service_plan_id"
+	smContextKey        = "sm_context_key"
+	PreserveInstanceKey = "preserve_service_instance_key"
 )
 
 type entityOperation string
@@ -683,11 +685,24 @@ func (sp *storePlugin) PollInstance(request *web.Request, next web.Handler) (*we
 				return err
 			}
 		case DELETE:
-			byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
-			if err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
-				if err != util.ErrNotFoundInStorage {
-					return util.HandleStorageError(err, string(types.ServiceInstanceType))
+			preserve := false
+			if operationFromDB.Type == types.CREATE && operationFromDB.Context.Params != nil {
+				if val, ok := operationFromDB.Context.Params[PreserveInstanceKey]; ok {
+					preserve, err = strconv.ParseBool(val)
+					if err != nil {
+						log.C(ctx).Errorf("failed to parse bool %v", err)
+					}
 				}
+			}
+			if !preserve {
+				byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
+				if err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
+					if err != util.ErrNotFoundInStorage {
+						return util.HandleStorageError(err, string(types.ServiceInstanceType))
+					}
+				}
+			} else {
+				log.C(ctx).Infof("instance was not deleted from SM DB because preserve-instance flag was found on ooperation ctx")
 			}
 		case ROLLBACK:
 			if err := sp.rollbackInstance(ctx, requestPayload, storage, resp.InstanceUsable); err != nil {
