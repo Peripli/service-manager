@@ -53,7 +53,7 @@ type BaseSMAAPInterceptorProvider struct {
 	Repository          *storage.InterceptableTransactionalRepository
 	TenantKey           string
 	PollingInterval     time.Duration
-	ContextPrivateKey   string
+	ContextSigner       *osb.ContextSigner
 }
 
 // ServiceInstanceCreateInterceptorProvider provides an interceptor that notifies the actual broker about instance creation
@@ -67,7 +67,7 @@ func (p *ServiceInstanceCreateInterceptorProvider) Provide() storage.CreateAroun
 		repository:          p.Repository,
 		tenantKey:           p.TenantKey,
 		pollingInterval:     p.PollingInterval,
-		contextPrivateKey:   p.ContextPrivateKey,
+		contextSigner:       p.ContextSigner,
 	}
 }
 
@@ -88,7 +88,7 @@ func (p *ServiceInstanceUpdateInterceptorProvider) Provide() storage.UpdateAroun
 		repository:          p.Repository,
 		tenantKey:           p.TenantKey,
 		pollingInterval:     p.PollingInterval,
-		contextPrivateKey:   p.ContextPrivateKey,
+		contextSigner:       p.ContextSigner,
 	}
 }
 
@@ -121,7 +121,7 @@ type ServiceInstanceInterceptor struct {
 	repository          *storage.InterceptableTransactionalRepository
 	tenantKey           string
 	pollingInterval     time.Duration
-	contextPrivateKey   string
+	contextSigner       *osb.ContextSigner
 }
 
 func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
@@ -767,7 +767,11 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(ctx context.Context
 		return nil, err
 	}
 
-	instanceContext = signContext(ctx, instanceContext, i.contextPrivateKey)
+	err = i.contextSigner.Sign(ctx, instanceContext)
+	if err != nil {
+		log.C(ctx).Errorf("failed to sign context: %v", err)
+		return nil, err
+	}
 
 	provisionRequest := &osbc.ProvisionRequest{
 		InstanceID:          instance.GetID(),
@@ -782,22 +786,6 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(ctx context.Context
 	}
 
 	return provisionRequest, nil
-}
-
-func signContext(ctx context.Context, contextMap map[string]interface{}, privateKey string) map[string]interface{} {
-	ctxByte, err := json.Marshal(contextMap)
-	if err != nil {
-		log.C(ctx).Errorf("failed to marshal context: %v", err)
-		return contextMap
-	}
-	signedCtx, err := osb.CalculateSignature(ctx, string(ctxByte), privateKey)
-	if err != nil {
-		log.C(ctx).Errorf("failed to sign instance context: %v", err)
-		return contextMap
-	}
-
-	contextMap["signature"] = signedCtx
-	return contextMap
 }
 
 func (i *ServiceInstanceInterceptor) generateInstanceContext(instance *types.ServiceInstance) (map[string]interface{}, error) {
@@ -879,7 +867,11 @@ func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(ctx context.Co
 		instance.Context = contextBytes
 	}
 
-	instanceContext = signContext(ctx, instanceContext, i.contextPrivateKey)
+	err := i.contextSigner.Sign(ctx, instanceContext)
+	if err != nil {
+		log.C(ctx).Errorf("failed to sign context: %v", err)
+		return nil, err
+	}
 
 	return &osbc.UpdateInstanceRequest{
 		InstanceID:        instance.GetID(),

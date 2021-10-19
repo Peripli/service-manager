@@ -9,7 +9,6 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
-
 	//"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -20,14 +19,17 @@ import (
 const ContextSignaturePluginName = "ContextSignaturePlugin"
 
 type ContextSignaturePlugin struct {
-	ContextPrivateKey string
-	ContextPublicKey  string
+	contextSigner *ContextSigner
 }
 
-func NewCtxSignaturePlugin(publicKey, privateKey string) *ContextSignaturePlugin {
+type ContextSigner struct {
+	ContextPrivateKey string
+	rsaPrivateKey     *rsa.PrivateKey
+}
+
+func NewCtxSignaturePlugin(contextSigner *ContextSigner) *ContextSignaturePlugin {
 	return &ContextSignaturePlugin{
-		ContextPrivateKey: privateKey,
-		ContextPublicKey:  publicKey,
+		contextSigner: contextSigner,
 	}
 }
 
@@ -36,75 +38,79 @@ func (s *ContextSignaturePlugin) Name() string {
 }
 
 func (s *ContextSignaturePlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
-	return s.sign(req, next)
+	return s.signContext(req, next)
 }
 
 func (s *ContextSignaturePlugin) Bind(req *web.Request, next web.Handler) (*web.Response, error) {
-	return s.sign(req, next)
+	return s.signContext(req, next)
 }
 
 func (s *ContextSignaturePlugin) UpdateService(req *web.Request, next web.Handler) (*web.Response, error) {
-	return s.sign(req, next)
+	return s.signContext(req, next)
 }
 
-func (s *ContextSignaturePlugin) sign(req *web.Request, next web.Handler) (*web.Response, error) {
-	if s.ContextPrivateKey == "" || s.ContextPublicKey == "" {
-		log.C(req.Context()).Errorf("ctx private key or ctx public key is missing. signature will not be added to context")
-		return next.Handle(req)
-	}
-
+func (s *ContextSignaturePlugin) signContext(req *web.Request, next web.Handler) (*web.Response, error) {
 	//unmarshal and marshal the request body so the fields within the context will be ordered lexicographically, and to get rid of redundant spaces\drop-line\tabs
 	var reqBodyMap map[string]interface{}
-	if err := json.Unmarshal(req.Body, &reqBodyMap); err != nil {
+	err := json.Unmarshal(req.Body, &reqBodyMap)
+	if err != nil {
 		log.C(req.Context()).Errorf("failed to unmarshal context: %v", err)
-		return next.Handle(req)
+		return nil, err
 	}
 	if _, found := reqBodyMap["context"]; !found {
-		log.C(req.Context()).Error("context not found on request body")
-		return next.Handle(req)
+		errorMsg := "context not found on request body"
+		log.C(req.Context()).Error(errorMsg)
+		return nil, fmt.Errorf(errorMsg)
 	}
-	ctxByte, err := json.Marshal(reqBodyMap["context"])
-	if err != nil {
-		log.C(req.Context()).Errorf("failed to marshal context: %v", err)
-		return next.Handle(req)
-	}
+	contextMap := reqBodyMap["context"].(map[string]interface{})
 
-	signedCtx, err := CalculateSignature(req.Context(), string(ctxByte), s.ContextPrivateKey)
+	err = s.contextSigner.Sign(req.Context(), contextMap)
 	if err != nil {
-		return next.Handle(req)
+		log.C(req.Context()).Errorf("failed to sign request context: %v", err)
+		return nil, err
 	}
-	ctx := reqBodyMap["context"].(map[string]interface{})
-	ctx["signature"] = signedCtx
-	reqBodyMap["context"] = ctx
 
 	reqBody, err := json.Marshal(reqBodyMap)
 	if err != nil {
-		log.C(req.Context()).Errorf("failed to marshal request body %v", err)
-		return next.Handle(req)
+		log.C(req.Context()).Errorf("failed to marshal request body: %v", err)
+		return nil, err
 	}
 	req.Body = reqBody
 
 	return next.Handle(req)
 }
 
-func CalculateSignature(ctx context.Context, ctxStr, privateKeyStr string) (string, error) {
-	log.C(ctx).Debugf("creating signature for ctx: %s", ctxStr)
-	privateKey, err := parseRsaPrivateKey(ctx, privateKeyStr)
+func (cs *ContextSigner) Sign(ctx context.Context, contextMap map[string]interface{}) error {
+	if cs.ContextPrivateKey == "" {
+		errorMsg := "context rsa private key is missing. context signature can not be calculated"
+		log.C(ctx).Errorf(errorMsg)
+		return fmt.Errorf(errorMsg)
+	}
+	ctxByte, err := json.Marshal(contextMap)
 	if err != nil {
-		return "", err
+		log.C(ctx).Errorf("failed to marshal context: %v", err)
+		return err
 	}
 
-	hashedCtx := sha256.Sum256([]byte(ctxStr))
-
-	signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, crypto.SHA256, hashedCtx[:])
-	if err != nil {
-		log.C(ctx).Errorf("failed to encrypt context %v", err)
-		return "", err
+	//on the first time the sign function is executed we should parse the rsa private key and keep it for next executions
+	if cs.rsaPrivateKey == nil {
+		cs.rsaPrivateKey, err = cs.parseRsaPrivateKey(ctx, cs.ContextPrivateKey)
+		if err != nil {
+			log.C(ctx).Errorf("failed to parse rsa private key: %v", err)
+			return err
+		}
 	}
-	return base64.StdEncoding.EncodeToString(signature), nil
+	signedCtx, err := cs.calculateSignature(ctx, string(ctxByte), cs.rsaPrivateKey)
+	if err != nil {
+		log.C(ctx).Errorf("failed to calculate the context signature: %v", err)
+		return err
+	}
+
+	contextMap["signature"] = signedCtx
+	return nil
 }
 
-func parseRsaPrivateKey(ctx context.Context, rsaPrivateKey string) (*rsa.PrivateKey, error) {
+func (cs *ContextSigner) parseRsaPrivateKey(ctx context.Context, rsaPrivateKey string) (*rsa.PrivateKey, error) {
 	key, err := base64.StdEncoding.DecodeString(rsaPrivateKey)
 	if err != nil {
 		log.C(ctx).Errorf("failed to base64 decode rsa private key: %v", err)
@@ -122,4 +128,17 @@ func parseRsaPrivateKey(ctx context.Context, rsaPrivateKey string) (*rsa.Private
 	}
 
 	return privateKey, nil
+}
+
+func (cs *ContextSigner) calculateSignature(ctx context.Context, ctxStr string, rsaPrivateKey *rsa.PrivateKey) (string, error) {
+	log.C(ctx).Debugf("creating signature for ctx: %s", ctxStr)
+
+	hashedCtx := sha256.Sum256([]byte(ctxStr))
+
+	signature, err := rsa.SignPKCS1v15(rand.Reader, rsaPrivateKey, crypto.SHA256, hashedCtx[:])
+	if err != nil {
+		log.C(ctx).Errorf("failed to encrypt context %v", err)
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(signature), nil
 }

@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/tidwall/gjson"
+	"github.com/Peripli/service-manager/api/osb"
 	"math"
 	"net/http"
 	"time"
@@ -60,7 +60,7 @@ func (p *ServiceBindingCreateInterceptorProvider) Provide() storage.CreateAround
 		repository:          p.Repository,
 		tenantKey:           p.TenantKey,
 		pollingInterval:     p.PollingInterval,
-		contextPrivateKey:   p.ContextPrivateKey,
+		contextSigner:       p.ContextSigner,
 	}
 }
 
@@ -93,7 +93,7 @@ type ServiceBindingInterceptor struct {
 	repository          *storage.InterceptableTransactionalRepository
 	tenantKey           string
 	pollingInterval     time.Duration
-	contextPrivateKey   string
+	contextSigner       *osb.ContextSigner
 }
 
 func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
@@ -257,13 +257,12 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				binding.Context = instanceContext
 			}
 			// remove signature field from context before persisting it
-			if gjson.GetBytes(binding.Context, "signature").Exists() {
-				//binding.Context is a pointer to obj.Context
-				binding.Context, err = sjson.DeleteBytes(binding.Context, "signature")
-				if err != nil {
-					log.C(ctx).Errorf("failed to delete signature from binding ctx: %v", err)
-				}
+			binding.Context, err = osb.DeleteSignatureField(binding.Context)
+			if err != nil {
+				log.C(ctx).Errorf("failed to delete signature from binding ctx: %v", err)
+				return nil, err
 			}
+
 			object, err := f(ctx, obj)
 			if err != nil {
 				return nil, err
@@ -515,7 +514,11 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(ctx context.Context, inst
 		binding.Context = contextBytes
 	}
 
-	context = signContext(ctx, context, i.contextPrivateKey)
+	err := i.contextSigner.Sign(ctx, context)
+	if err != nil {
+		log.C(ctx).Errorf("failed to sign context: %v", err)
+		return nil, err
+	}
 
 	bindRequest := &osbc.BindRequest{
 		BindingID:           binding.ID,

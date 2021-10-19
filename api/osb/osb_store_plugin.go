@@ -808,12 +808,11 @@ func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 	}
 
 	referencedInstanceID := gjson.GetBytes(req.RawParameters, instance_sharing.ReferencedInstanceIDKey).String()
-	reqCtx := req.RawContext
-	if req.RawContext != nil {
-		reqCtx, err = sjson.DeleteBytes(reqCtx, "signature")
-		if err != nil {
-			return err
-		}
+
+	reqCtx, err := DeleteSignatureField(req.RawContext)
+	if err != nil {
+		log.C(ctx).Errorf("failed to delete signature from context: %v", err)
+		return err
 	}
 	instance := &types.ServiceInstance{
 		Base: types.Base{
@@ -844,13 +843,10 @@ func (sp *storePlugin) storeBinding(ctx context.Context, repository storage.Repo
 		log.C(ctx).Debugf("Binding name missing. Defaulting to id %s", req.BindingID)
 		bindingName = req.BindingID
 	}
-	reqCtx := req.RawContext
-	if req.RawContext != nil {
-		var err error
-		reqCtx, err = sjson.DeleteBytes(reqCtx, "signature")
-		if err != nil {
-			return err
-		}
+	reqCtx, err := DeleteSignatureField(req.RawContext)
+	if err != nil {
+		log.C(ctx).Errorf("failed to delete signature from context: %v", err)
+		return err
 	}
 	binding := &types.ServiceBinding{
 		Base: types.Base{
@@ -1058,6 +1054,18 @@ func decodeRequestBody(request *web.Request, body commonOSBRequest) error {
 		return err
 	}
 	return parseRequestForm(request, body)
+}
+
+func DeleteSignatureField(rawContext json.RawMessage) ([]byte, error) {
+	if rawContext != nil {
+		updatedContext, err := sjson.DeleteBytes(rawContext, "signature")
+		if err != nil {
+			log.D().Errorf("failed to delete signature from context: %v", err)
+			return nil, err
+		}
+		return updatedContext, nil
+	}
+	return rawContext, nil
 }
 
 func (sp *storePlugin) handlePollDeleteResponse(ctx context.Context, storage storage.Repository, resp brokerError, state types.OperationState, operationFromDB *types.Operation, correlationID string) (entityOperation, error) {

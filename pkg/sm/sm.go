@@ -216,7 +216,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	smb.RegisterPlugins(osb.NewCheckPlatformIDPlugin(interceptableRepository))
 	smb.RegisterPlugins(osb.NewPlatformTerminationPlugin(interceptableRepository))
 	smb.RegisterPlugins(osb.NewInstanceSharingPlugin(transactionalRepository, cfg.Multitenancy.LabelKey))
-	smb.RegisterPlugins(osb.NewCtxSignaturePlugin(cfg.API.OSBRSAPublicKey, cfg.API.OSBRSAPrivateKey))
+	smb.RegisterPlugins(osb.NewCtxSignaturePlugin(&osb.ContextSigner{ContextPrivateKey: cfg.API.OSBRSAPrivateKey}))
 
 	// Register default interceptors that represent the core SM business logic
 	smb.
@@ -253,7 +253,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		Repository:          interceptableRepository,
 		TenantKey:           cfg.Multitenancy.LabelKey,
 		PollingInterval:     cfg.Operations.PollingInterval,
-		ContextPrivateKey:   cfg.API.OSBRSAPrivateKey,
+		ContextSigner:       &osb.ContextSigner{ContextPrivateKey: cfg.API.OSBRSAPrivateKey},
 	}
 
 	smb.
