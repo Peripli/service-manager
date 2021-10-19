@@ -53,7 +53,7 @@ type BaseSMAAPInterceptorProvider struct {
 	Repository          *storage.InterceptableTransactionalRepository
 	TenantKey           string
 	PollingInterval     time.Duration
-	CtxPrivateKey       string
+	ContextPrivateKey   string
 }
 
 // ServiceInstanceCreateInterceptorProvider provides an interceptor that notifies the actual broker about instance creation
@@ -67,7 +67,7 @@ func (p *ServiceInstanceCreateInterceptorProvider) Provide() storage.CreateAroun
 		repository:          p.Repository,
 		tenantKey:           p.TenantKey,
 		pollingInterval:     p.PollingInterval,
-		ctxPrivateKey:       p.CtxPrivateKey,
+		contextPrivateKey:   p.ContextPrivateKey,
 	}
 }
 
@@ -88,7 +88,7 @@ func (p *ServiceInstanceUpdateInterceptorProvider) Provide() storage.UpdateAroun
 		repository:          p.Repository,
 		tenantKey:           p.TenantKey,
 		pollingInterval:     p.PollingInterval,
-		ctxPrivateKey:       p.CtxPrivateKey,
+		contextPrivateKey:   p.ContextPrivateKey,
 	}
 }
 
@@ -121,7 +121,7 @@ type ServiceInstanceInterceptor struct {
 	repository          *storage.InterceptableTransactionalRepository
 	tenantKey           string
 	pollingInterval     time.Duration
-	ctxPrivateKey       string
+	contextPrivateKey   string
 }
 
 func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
@@ -767,7 +767,7 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(ctx context.Context
 		return nil, err
 	}
 
-	instanceContext = signContext(ctx, instanceContext, i.ctxPrivateKey)
+	instanceContext = signContext(ctx, instanceContext, i.contextPrivateKey)
 
 	provisionRequest := &osbc.ProvisionRequest{
 		InstanceID:          instance.GetID(),
@@ -879,7 +879,7 @@ func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(ctx context.Co
 		instance.Context = contextBytes
 	}
 
-	instanceContext = signContext(ctx, instanceContext, i.ctxPrivateKey)
+	instanceContext = signContext(ctx, instanceContext, i.contextPrivateKey)
 
 	return &osbc.UpdateInstanceRequest{
 		InstanceID:        instance.GetID(),

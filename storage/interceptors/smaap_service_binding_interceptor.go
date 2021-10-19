@@ -60,7 +60,7 @@ func (p *ServiceBindingCreateInterceptorProvider) Provide() storage.CreateAround
 		repository:          p.Repository,
 		tenantKey:           p.TenantKey,
 		pollingInterval:     p.PollingInterval,
-		ctxPrivateKey:       p.CtxPrivateKey,
+		contextPrivateKey:   p.ContextPrivateKey,
 	}
 }
 
@@ -93,7 +93,7 @@ type ServiceBindingInterceptor struct {
 	repository          *storage.InterceptableTransactionalRepository
 	tenantKey           string
 	pollingInterval     time.Duration
-	ctxPrivateKey       string
+	contextPrivateKey   string
 }
 
 func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
@@ -515,7 +515,7 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(ctx context.Context, inst
 		binding.Context = contextBytes
 	}
 
-	context = signContext(ctx, context, i.ctxPrivateKey)
+	context = signContext(ctx, context, i.contextPrivateKey)
 
 	bindRequest := &osbc.BindRequest{
 		BindingID:           binding.ID,

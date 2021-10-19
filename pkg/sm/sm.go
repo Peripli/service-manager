@@ -253,7 +253,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		Repository:          interceptableRepository,
 		TenantKey:           cfg.Multitenancy.LabelKey,
 		PollingInterval:     cfg.Operations.PollingInterval,
-		CtxPrivateKey:       cfg.API.OSBRSAPrivateKey,
+		ContextPrivateKey:   cfg.API.OSBRSAPrivateKey,
 	}
 
 	smb.

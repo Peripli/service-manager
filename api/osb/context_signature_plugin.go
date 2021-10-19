@@ -20,14 +20,14 @@ import (
 const ContextSignaturePluginName = "ContextSignaturePlugin"
 
 type ContextSignaturePlugin struct {
-	CtxPrivateKey string
-	CtxPublicKey  string
+	ContextPrivateKey string
+	ContextPublicKey  string
 }
 
 func NewCtxSignaturePlugin(publicKey, privateKey string) *ContextSignaturePlugin {
 	return &ContextSignaturePlugin{
-		CtxPrivateKey: privateKey,
-		CtxPublicKey:  publicKey,
+		ContextPrivateKey: privateKey,
+		ContextPublicKey:  publicKey,
 	}
 }
 
@@ -48,8 +48,8 @@ func (s *ContextSignaturePlugin) UpdateService(req *web.Request, next web.Handle
 }
 
 func (s *ContextSignaturePlugin) sign(req *web.Request, next web.Handler) (*web.Response, error) {
-	if s.CtxPrivateKey == "" || s.CtxPublicKey == "" {
-		log.C(req.Context()).Infof("ctx private key or ctx public key is missing. signature will not be added to context")
+	if s.ContextPrivateKey == "" || s.ContextPublicKey == "" {
+		log.C(req.Context()).Errorf("ctx private key or ctx public key is missing. signature will not be added to context")
 		return next.Handle(req)
 	}
 
@@ -69,7 +69,7 @@ func (s *ContextSignaturePlugin) sign(req *web.Request, next web.Handler) (*web.
 		return next.Handle(req)
 	}
 
-	signedCtx, err := CalculateSignature(req.Context(), string(ctxByte), s.CtxPrivateKey)
+	signedCtx, err := CalculateSignature(req.Context(), string(ctxByte), s.ContextPrivateKey)
 	if err != nil {
 		return next.Handle(req)
 	}
