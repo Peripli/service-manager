@@ -2060,6 +2060,43 @@ var _ = DescribeTestsFor(TestCase{
 										Expect().Status(http.StatusNotFound)
 								})
 							})
+							When("update labels", func() {
+								var patchLabelsBody map[string]interface{}
+								BeforeEach(func() {
+									serviceID = service1CatalogID
+									planID = plan1CatalogID
+									labels := []*types.LabelChange{
+										{
+											Operation: types.AddLabelOperation,
+											Key:       "labelKey1",
+											Values:    []string{"labelValue1"},
+										},
+										{
+											Operation: types.AddLabelOperation,
+											Key:       "labelKey2",
+											Values:    []string{"labelValue2"},
+										},
+									}
+									patchLabelsBody = make(map[string]interface{})
+									patchLabelsBody["labels"] = labels
+
+								})
+								When("only label is provided in request body", func() {
+									It("returns success", func() {
+										testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+											WithQuery("async", "false").
+											WithJSON(patchLabelsBody).Expect().Status(http.StatusOK)
+									})
+								})
+								When("name and label is provided in request body", func() {
+									It("returns 404", func() {
+										patchLabelsBody["name"] = "name"
+										testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+											WithQuery("async", testCase.async == "true").
+											WithJSON(patchLabelsBody).Expect().Status(http.StatusNotFound)
+									})
+								})
+							})
 						})
 
 						When("instance exists in service manager platform", func() {
