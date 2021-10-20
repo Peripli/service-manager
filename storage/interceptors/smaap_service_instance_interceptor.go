@@ -769,6 +769,7 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(ctx context.Context
 
 	//in case the private key is not provided we continue without adding the signature. this is useful in case we want to toggle off the feature
 	if i.contextSigner.ContextPrivateKey != "" {
+		instanceContext[osb.ServiceInstanceIDFieldName] = instance.ID
 		err = i.contextSigner.Sign(ctx, instanceContext)
 		if err != nil {
 			log.C(ctx).Errorf("failed to sign context: %v", err)
@@ -872,6 +873,7 @@ func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(ctx context.Co
 
 	//in case the private key is not provided we continue without adding the signature. this is useful in case we want to toggle off the feature
 	if i.contextSigner.ContextPrivateKey != "" {
+		instanceContext[osb.ServiceInstanceIDFieldName] = instance.ID
 		err := i.contextSigner.Sign(ctx, instanceContext)
 		if err != nil {
 			log.C(ctx).Errorf("failed to sign context: %v", err)
