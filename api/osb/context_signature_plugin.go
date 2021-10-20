@@ -16,7 +16,10 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const ContextSignaturePluginName = "ContextSignaturePlugin"
+const (
+	ContextSignaturePluginName = "ContextSignaturePlugin"
+	ServiceInstanceIDFieldName = "service_instance_id"
+)
 
 type ContextSignaturePlugin struct {
 	contextSigner *ContextSigner
@@ -68,6 +71,10 @@ func (s *ContextSignaturePlugin) signContext(req *web.Request, next web.Handler)
 		return nil, fmt.Errorf(errorMsg)
 	}
 	contextMap := reqBodyMap["context"].(map[string]interface{})
+
+	if instanceID, ok := req.PathParams[InstanceIDPathParam]; ok {
+		contextMap[ServiceInstanceIDFieldName] = instanceID
+	}
 
 	err = s.contextSigner.Sign(req.Context(), contextMap)
 	if err != nil {

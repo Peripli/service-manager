@@ -54,6 +54,10 @@ func GetVerifyContextHandlerFunc(publicKeyStr string) func(http.ResponseWriter, 
 		signature, err := base64.StdEncoding.DecodeString(signatureBytes.String())
 		Expect(err).ToNot(HaveOccurred())
 
+		//verify service_instance_id is in the context
+		instanceID := gjson.GetBytes(bytes, "context.service_instance_id")
+		Expect(instanceID.Exists()).To(Equal(true), "context should have a service_instance_id field")
+
 		//decode the public key
 		key, err := base64.StdEncoding.DecodeString(publicKeyStr)
 		Expect(err).ToNot(HaveOccurred())
