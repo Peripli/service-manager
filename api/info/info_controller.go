@@ -31,6 +31,7 @@ type Controller struct {
 	// as basic auth (true) or in the body (false)
 	TokenBasicAuth         bool   `json:"token_basic_auth"`
 	ServiceManagerTenantId string `json:"service_manager_tenant_id"`
+	ContextRSAPublicKey    string `json:"context_rsa_public_key,omitempty"`
 }
 
 var _ web.Controller = &Controller{}

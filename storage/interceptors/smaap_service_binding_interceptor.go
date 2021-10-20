@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/api/osb"
 	"math"
 	"net/http"
 	"time"
@@ -59,6 +60,7 @@ func (p *ServiceBindingCreateInterceptorProvider) Provide() storage.CreateAround
 		repository:          p.Repository,
 		tenantKey:           p.TenantKey,
 		pollingInterval:     p.PollingInterval,
+		contextSigner:       p.ContextSigner,
 	}
 }
 
@@ -91,6 +93,7 @@ type ServiceBindingInterceptor struct {
 	repository          *storage.InterceptableTransactionalRepository
 	tenantKey           string
 	pollingInterval     time.Duration
+	contextSigner       *osb.ContextSigner
 }
 
 func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
@@ -177,7 +180,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		var bindResponse *osbc.BindResponse
 		if !operation.Reschedule {
 			operation.Context.ServiceInstanceID = binding.ServiceInstanceID
-			bindRequest, err := i.prepareBindRequest(instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable, operation.GetUserInfo())
+			bindRequest, err := i.prepareBindRequest(ctx, instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable, operation.GetUserInfo())
 			if err != nil {
 				return nil, fmt.Errorf("failed to prepare bind request: %s", err)
 			}
@@ -253,6 +256,13 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				// we revert the binding context using the original instance context before saving in the database
 				binding.Context = instanceContext
 			}
+			// remove signature field from context before persisting it
+			binding.Context, err = osb.DeleteSignatureField(binding.Context)
+			if err != nil {
+				log.C(ctx).Errorf("failed to delete signature from binding ctx: %v", err)
+				return nil, err
+			}
+
 			object, err := f(ctx, obj)
 			if err != nil {
 				return nil, err
@@ -473,7 +483,7 @@ func getInstanceByID(ctx context.Context, instanceID string, repository storage.
 	return instanceObject.(*types.ServiceInstance), nil
 }
 
-func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool, userInfo *types.UserInfo) (*osbc.BindRequest, error) {
+func (i *ServiceBindingInterceptor) prepareBindRequest(ctx context.Context, instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool, userInfo *types.UserInfo) (*osbc.BindRequest, error) {
 	context := make(map[string]interface{})
 	if len(binding.Context) != 0 {
 		var err error
@@ -502,6 +512,15 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceIn
 			return nil, fmt.Errorf("failed to marshal OSB context %+v: %s", context, err)
 		}
 		binding.Context = contextBytes
+	}
+
+	//in case the private key is not provided we continue without adding the signature. this is useful in case we want to toggle off the feature
+	if i.contextSigner.ContextPrivateKey != "" {
+		err := i.contextSigner.Sign(ctx, context)
+		if err != nil {
+			log.C(ctx).Errorf("failed to sign context: %v", err)
+			return nil, err
+		}
 	}
 
 	bindRequest := &osbc.BindRequest{

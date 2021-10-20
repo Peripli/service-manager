@@ -63,6 +63,8 @@ type Settings struct {
 	RateLimitExcludePaths      []string `mapstructure:"rate_limit_exclude_paths" description:"define paths that should be excluded from the rate limiter processing"`
 	RateLimitUsageLogThreshold int64    `mapstructure:"rate_limiting_usage_log_threshold" description:"defines a threshold for log notification trigger about requests limit usage. Accepts value in range from 0 to 100 (percents)"`
 	DisabledQueryParameters    []string `mapstructure:"disabled_query_parameters" description:"which query parameters are not implemented by service manager and should be extended"`
+	OSBRSAPublicKey            string   `mapstructure:"osb_rsa_public_key"`
+	OSBRSAPrivateKey           string   `mapstructure:"osb_rsa_private_key"`
 }
 
 // DefaultSettings returns default values for API settings
@@ -140,6 +142,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 				TokenIssuer:            options.APISettings.TokenIssuerURL,
 				TokenBasicAuth:         options.APISettings.TokenBasicAuth,
 				ServiceManagerTenantId: options.APISettings.ServiceManagerTenantId,
+				ContextRSAPublicKey:    options.APISettings.OSBRSAPublicKey,
 			},
 			&osb.Controller{
 				BrokerFetcher: func(ctx context.Context, brokerID string) (*types.ServiceBroker, error) {

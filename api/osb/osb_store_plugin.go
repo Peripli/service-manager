@@ -808,6 +808,12 @@ func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 	}
 
 	referencedInstanceID := gjson.GetBytes(req.RawParameters, instance_sharing.ReferencedInstanceIDKey).String()
+
+	reqCtx, err := DeleteSignatureField(req.RawContext)
+	if err != nil {
+		log.C(ctx).Errorf("failed to delete signature from context: %v", err)
+		return err
+	}
 	instance := &types.ServiceInstance{
 		Base: types.Base{
 			ID:        req.InstanceID,
@@ -821,7 +827,7 @@ func (sp *storePlugin) storeInstance(ctx context.Context, storage storage.Reposi
 		PlatformID:           req.PlatformID,
 		DashboardURL:         resp.DashboardURL,
 		MaintenanceInfo:      req.RawMaintenanceInfo,
-		Context:              req.RawContext,
+		Context:              reqCtx,
 		Usable:               true,
 		ReferencedInstanceID: referencedInstanceID,
 	}
@@ -837,6 +843,11 @@ func (sp *storePlugin) storeBinding(ctx context.Context, repository storage.Repo
 		log.C(ctx).Debugf("Binding name missing. Defaulting to id %s", req.BindingID)
 		bindingName = req.BindingID
 	}
+	reqCtx, err := DeleteSignatureField(req.RawContext)
+	if err != nil {
+		log.C(ctx).Errorf("failed to delete signature from context: %v", err)
+		return err
+	}
 	binding := &types.ServiceBinding{
 		Base: types.Base{
 			ID:        req.BindingID,
@@ -851,7 +862,7 @@ func (sp *storePlugin) storeBinding(ctx context.Context, repository storage.Repo
 		RouteServiceURL:   resp.RouteServiceUrl,
 		VolumeMounts:      resp.VolumeMounts,
 		Endpoints:         resp.Endpoints,
-		Context:           req.RawContext,
+		Context:           reqCtx,
 		BindResource:      req.BindResource,
 		Parameters:        req.Parameters,
 		Credentials:       nil,
@@ -1043,6 +1054,18 @@ func decodeRequestBody(request *web.Request, body commonOSBRequest) error {
 		return err
 	}
 	return parseRequestForm(request, body)
+}
+
+func DeleteSignatureField(rawContext json.RawMessage) ([]byte, error) {
+	if rawContext != nil {
+		updatedContext, err := sjson.DeleteBytes(rawContext, "signature")
+		if err != nil {
+			log.D().Errorf("failed to delete signature from context: %v", err)
+			return nil, err
+		}
+		return updatedContext, nil
+	}
+	return rawContext, nil
 }
 
 func (sp *storePlugin) handlePollDeleteResponse(ctx context.Context, storage storage.Repository, resp brokerError, state types.OperationState, operationFromDB *types.Operation, correlationID string) (entityOperation, error) {
