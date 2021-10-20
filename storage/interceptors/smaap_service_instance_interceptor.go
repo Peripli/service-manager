@@ -767,10 +767,13 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(ctx context.Context
 		return nil, err
 	}
 
-	err = i.contextSigner.Sign(ctx, instanceContext)
-	if err != nil {
-		log.C(ctx).Errorf("failed to sign context: %v", err)
-		return nil, err
+	//in case the private key is not provided we continue without adding the signature. this is useful in case we want to toggle off the feature
+	if i.contextSigner.ContextPrivateKey != "" {
+		err = i.contextSigner.Sign(ctx, instanceContext)
+		if err != nil {
+			log.C(ctx).Errorf("failed to sign context: %v", err)
+			return nil, err
+		}
 	}
 
 	provisionRequest := &osbc.ProvisionRequest{
@@ -867,10 +870,13 @@ func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(ctx context.Co
 		instance.Context = contextBytes
 	}
 
-	err := i.contextSigner.Sign(ctx, instanceContext)
-	if err != nil {
-		log.C(ctx).Errorf("failed to sign context: %v", err)
-		return nil, err
+	//in case the private key is not provided we continue without adding the signature. this is useful in case we want to toggle off the feature
+	if i.contextSigner.ContextPrivateKey != "" {
+		err := i.contextSigner.Sign(ctx, instanceContext)
+		if err != nil {
+			log.C(ctx).Errorf("failed to sign context: %v", err)
+			return nil, err
+		}
 	}
 
 	return &osbc.UpdateInstanceRequest{

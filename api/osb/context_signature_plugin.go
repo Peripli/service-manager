@@ -50,6 +50,11 @@ func (s *ContextSignaturePlugin) UpdateService(req *web.Request, next web.Handle
 }
 
 func (s *ContextSignaturePlugin) signContext(req *web.Request, next web.Handler) (*web.Response, error) {
+	//in case the private key is not provided we continue without adding the signature. this is useful in case we want to toggle off the feature
+	if s.contextSigner.ContextPrivateKey == "" {
+		log.C(req.Context()).Debugf("context private key not found. context signature can not be calculated")
+		return next.Handle(req)
+	}
 	//unmarshal and marshal the request body so the fields within the context will be ordered lexicographically, and to get rid of redundant spaces\drop-line\tabs
 	var reqBodyMap map[string]interface{}
 	err := json.Unmarshal(req.Body, &reqBodyMap)

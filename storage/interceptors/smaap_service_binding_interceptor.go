@@ -514,10 +514,13 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(ctx context.Context, inst
 		binding.Context = contextBytes
 	}
 
-	err := i.contextSigner.Sign(ctx, context)
-	if err != nil {
-		log.C(ctx).Errorf("failed to sign context: %v", err)
-		return nil, err
+	//in case the private key is not provided we continue without adding the signature. this is useful in case we want to toggle off the feature
+	if i.contextSigner.ContextPrivateKey != "" {
+		err := i.contextSigner.Sign(ctx, context)
+		if err != nil {
+			log.C(ctx).Errorf("failed to sign context: %v", err)
+			return nil, err
+		}
 	}
 
 	bindRequest := &osbc.BindRequest{
