@@ -2086,6 +2086,10 @@ var _ = DescribeTestsFor(TestCase{
 										testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
 											WithQuery("async", "false").
 											WithJSON(patchLabelsBody).Expect().Status(http.StatusOK)
+										// Expect to retrieve the data from the broker of the creat instance and not of the update instance
+										// method should not be patch to the broker, but only post of the previous request
+										method := brokerServer.LastRequest.Method
+										Expect(method).To(Not(Equal("PATCH")))
 									})
 								})
 								When("name and label is provided in request body", func() {
