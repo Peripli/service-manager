@@ -20,13 +20,12 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/tidwall/sjson"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/Peripli/service-manager/operations"
-
-	"github.com/tidwall/sjson"
 
 	"github.com/gofrs/uuid"
 
@@ -498,6 +497,9 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	createdAt := objFromDB.GetCreatedAt()
 	updatedAt := objFromDB.GetUpdatedAt()
 
+	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
+	objFromDB.SetLabels(labels)
+
 	if err := util.BytesToObject(r.Body, objFromDB); err != nil {
 		return nil, err
 	}
@@ -506,9 +508,6 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	objFromDB.SetCreatedAt(createdAt)
 	objFromDB.SetUpdatedAt(updatedAt)
 	objFromDB.SetReady(true)
-
-	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
-	objFromDB.SetLabels(labels)
 
 	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
 		object, err := repository.Update(ctx, objFromDB, labelChanges, criteria...)

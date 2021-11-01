@@ -2092,6 +2092,27 @@ var _ = DescribeTestsFor(TestCase{
 										Expect(method).To(Not(Equal("PATCH")))
 									})
 								})
+								When("invalid label key", func() {
+									It("returns error", func() {
+										labels := []*types.LabelChange{
+											{
+												Operation: types.AddLabelOperation,
+												Key:       "label Key1",
+												Values:    []string{"labelValue1"},
+											},
+										}
+										patchLabelsBody = make(map[string]interface{})
+										patchLabelsBody["labels"] = labels
+										testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+											WithQuery("async", "false").
+											WithJSON(patchLabelsBody).Expect().Status(http.StatusBadRequest)
+
+										testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+											WithQuery("async", "false").
+											WithJSON(patchLabelsBody).Expect().Status(http.StatusBadRequest)
+
+									})
+								})
 								When("name and label is provided in request body", func() {
 									It("returns 404", func() {
 										patchLabelsBody["name"] = "name"
