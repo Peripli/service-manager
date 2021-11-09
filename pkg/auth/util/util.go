@@ -17,6 +17,7 @@
 package util
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/auth"
@@ -28,10 +29,19 @@ import (
 
 // BuildHTTPClient builds custom http client with configured ssl validation / mtls
 func BuildHTTPClient(options *auth.Options) (*http.Client, error) {
+	var err error
+	var cert tls.Certificate
 	client := getClient()
 
 	if options.MtlsEnabled() {
-		cert, err := tls.LoadX509KeyPair(options.Certificate, options.Key)
+		certBytes := []byte(options.Certificate)
+		keyBytes := []byte(options.Key)
+		if pemFormat(certBytes) && pemFormat(keyBytes) {
+			cert, err = tls.X509KeyPair(certBytes, keyBytes)
+		} else {
+			// attempt load cert & key pair from file:
+			cert, err = tls.LoadX509KeyPair(options.Certificate, options.Key)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -48,6 +58,16 @@ func BuildHTTPClient(options *auth.Options) (*http.Client, error) {
 	}
 
 	return client, nil
+}
+
+func pemFormat(data []byte) bool {
+	pemStart := []byte("\n-----BEGIN ")
+	pemEnd := []byte("\n-----END ")
+	pemEndOfLine := []byte("-----")
+	if bytes.HasPrefix(data, pemStart[1:]) && bytes.Contains(data, pemEnd) && bytes.HasSuffix(data, pemEndOfLine) {
+		return true
+	}
+	return false
 }
 
 func ConvertBackSlashN(originalValue string) string {
