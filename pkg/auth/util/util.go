@@ -63,8 +63,7 @@ func BuildHTTPClient(options *auth.Options) (*http.Client, error) {
 func pemFormat(data []byte) bool {
 	pemStart := []byte("\n-----BEGIN ")
 	pemEnd := []byte("\n-----END ")
-	pemEndOfLine := []byte("-----")
-	if bytes.HasPrefix(data, pemStart[1:]) && bytes.Contains(data, pemEnd) && bytes.HasSuffix(data, pemEndOfLine) {
+	if bytes.HasPrefix(data, pemStart[1:]) && bytes.Contains(data, pemEnd) {
 		return true
 	}
 	return false
