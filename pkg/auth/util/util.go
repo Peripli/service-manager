@@ -17,6 +17,7 @@
 package util
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/auth"
@@ -28,26 +29,52 @@ import (
 
 // BuildHTTPClient builds custom http client with configured ssl validation / mtls
 func BuildHTTPClient(options *auth.Options) (*http.Client, error) {
+	if options.MtlsEnabled() {
+		return newMtlsClient(options)
+	} else {
+		return newClient(options)
+	}
+}
+
+func newClient(options *auth.Options) (*http.Client, error) {
+	client := getClient()
+	if options.SSLDisabled {
+		client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+	return client, nil
+}
+
+func newMtlsClient(options *auth.Options) (*http.Client, error) {
+	var err error
+	var cert tls.Certificate
+
 	client := getClient()
 
-	if options.MtlsEnabled() {
-		cert, err := tls.LoadX509KeyPair(options.Certificate, options.Key)
-		if err != nil {
-			return nil, err
-		}
+	certBytes := []byte(options.Certificate)
+	keyBytes := []byte(options.Key)
 
-		client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{
-			Certificates: []tls.Certificate{cert},
-		}
-
-		return client, nil
+	if pemFile(certBytes) != pemFile(keyBytes) {
+		return nil, fmt.Errorf("both certificate and key must be provided as file or as string")
+	}
+	if pemFile(certBytes) && pemFile(keyBytes) {
+		cert, err = tls.LoadX509KeyPair(options.Certificate, options.Key)
 	} else {
-		if options.SSLDisabled {
-			client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-		}
+		cert, err = tls.X509KeyPair(certBytes, keyBytes)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{
+		Certificates: []tls.Certificate{cert},
 	}
 
 	return client, nil
+}
+
+func pemFile(data []byte) bool {
+	fileType := []byte(".pem")
+	return bytes.HasSuffix(data, fileType)
 }
 
 func ConvertBackSlashN(originalValue string) string {

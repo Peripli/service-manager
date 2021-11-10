@@ -2,6 +2,7 @@ package oidc
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/test/tls_settings"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -159,6 +160,52 @@ var _ = Describe("Service Manager Auth strategy test", func() {
 			ExpiresIn:    time.Now().Add(-1 * time.Hour),
 		}
 
+		DescribeTable("mTLS oidc client",
+			func(options *auth.Options, expectedErrMsg string) {
+				client, err := NewClient(options, token)
+
+				if expectedErrMsg != "" {
+					Expect(err).NotTo(BeNil())
+					Expect(err.Error()).To(ContainSubstring(expectedErrMsg))
+				} else {
+					Expect(err).ToNot(HaveOccurred())
+					Expect(err).To(BeNil())
+					Expect(client).ToNot(BeNil())
+				}
+			},
+			Entry("mTLS with valid certificate & key",
+				&auth.Options{
+					Certificate:   tls_settings.ClientCertificate,
+					Key:           tls_settings.ClientKey,
+					TokenEndpoint: "http://token-endpoint",
+					ClientID:      "client-id",
+				},
+				""),
+			Entry("mTLS invalid certificate - returns error",
+				&auth.Options{
+					Certificate:   "certificate",
+					Key:           tls_settings.ClientKey,
+					TokenEndpoint: "http://token-endpoint",
+					ClientID:      "client-id",
+				},
+				"tls: failed to find any PEM data in certificate input"),
+			Entry("mTLS invalid certificate file - returns error",
+				&auth.Options{
+					Certificate:   "certificate.pem",
+					Key:           "key.pem",
+					TokenEndpoint: "http://token-endpoint",
+					ClientID:      "client-id",
+				},
+				"no such file or directory"),
+			Entry("mTLS certificate provided with file, key by input string - returns error",
+				&auth.Options{
+					Certificate:   "certificate.pem",
+					Key:           "key",
+					TokenEndpoint: "http://token-endpoint",
+					ClientID:      "client-id",
+				},
+				"both certificate and key must be provided as file or as string"),
+		)
 		DescribeTable("NewClient",
 			func(options *auth.Options, token *auth.Token, expectedErrMsg string, expetedToken *auth.Token) {
 				client, err := NewClient(options, token)
