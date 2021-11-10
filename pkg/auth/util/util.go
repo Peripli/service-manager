@@ -74,10 +74,7 @@ func newMtlsClient(options *auth.Options) (*http.Client, error) {
 
 func pemFile(data []byte) bool {
 	fileType := []byte(".pem")
-	if bytes.HasSuffix(data, fileType) {
-		return true
-	}
-	return false
+	return bytes.HasSuffix(data, fileType)
 }
 
 func ConvertBackSlashN(originalValue string) string {
