@@ -161,7 +161,7 @@ var _ = Describe("Service Manager Auth strategy test", func() {
 		}
 
 		DescribeTable("mTLS oidc client",
-			func(options *auth.Options, token *auth.Token, expectedErrMsg string, expetedToken *auth.Token) {
+			func(options *auth.Options, expectedErrMsg string) {
 				client, err := NewClient(options, token)
 
 				if expectedErrMsg != "" {
@@ -180,14 +180,7 @@ var _ = Describe("Service Manager Auth strategy test", func() {
 					TokenEndpoint: "http://token-endpoint",
 					ClientID:      "client-id",
 				},
-				nil,
-				"",
-				nil),
-			Entry("mTLS Valid token - reuses the token", &auth.Options{
-				Certificate: tls_settings.ClientCertificate,
-				Key:         tls_settings.ClientKey,
-				ClientID:    "client-id",
-			}, newToken(-1*time.Hour), "", token),
+				""),
 			Entry("mTLS invalid certificate - returns error",
 				&auth.Options{
 					Certificate:   "certificate",
@@ -195,9 +188,7 @@ var _ = Describe("Service Manager Auth strategy test", func() {
 					TokenEndpoint: "http://token-endpoint",
 					ClientID:      "client-id",
 				},
-				newToken(-1*time.Hour),
-				"tls: failed to find any PEM data in certificate input",
-				nil),
+				"tls: failed to find any PEM data in certificate input"),
 			Entry("mTLS invalid certificate file - returns error",
 				&auth.Options{
 					Certificate:   "certificate.pem",
@@ -205,9 +196,7 @@ var _ = Describe("Service Manager Auth strategy test", func() {
 					TokenEndpoint: "http://token-endpoint",
 					ClientID:      "client-id",
 				},
-				newToken(-1*time.Hour),
-				"no such file or directory",
-				nil),
+				"no such file or directory"),
 		)
 		DescribeTable("NewClient",
 			func(options *auth.Options, token *auth.Token, expectedErrMsg string, expetedToken *auth.Token) {
