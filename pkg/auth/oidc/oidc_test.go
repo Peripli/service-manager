@@ -197,6 +197,14 @@ var _ = Describe("Service Manager Auth strategy test", func() {
 					ClientID:      "client-id",
 				},
 				"no such file or directory"),
+			Entry("mTLS certificate provided with file, key by input string - returns error",
+				&auth.Options{
+					Certificate:   "certificate.pem",
+					Key:           "key",
+					TokenEndpoint: "http://token-endpoint",
+					ClientID:      "client-id",
+				},
+				"both certificate and key must be provided as file or as string"),
 		)
 		DescribeTable("NewClient",
 			func(options *auth.Options, token *auth.Token, expectedErrMsg string, expetedToken *auth.Token) {
