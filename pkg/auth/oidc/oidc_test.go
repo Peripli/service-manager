@@ -173,7 +173,7 @@ var _ = Describe("Service Manager Auth strategy test", func() {
 					Expect(client).ToNot(BeNil())
 				}
 			},
-			Entry("mTLS with invalid certificate & key",
+			Entry("mTLS with valid certificate & key",
 				&auth.Options{
 					Certificate:   tls_settings.ClientCertificate,
 					Key:           tls_settings.ClientKey,
