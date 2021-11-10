@@ -36,11 +36,10 @@ func BuildHTTPClient(options *auth.Options) (*http.Client, error) {
 	if options.MtlsEnabled() {
 		certBytes := []byte(options.Certificate)
 		keyBytes := []byte(options.Key)
-		if pemFormat(certBytes) && pemFormat(keyBytes) {
-			cert, err = tls.X509KeyPair(certBytes, keyBytes)
-		} else {
-			// attempt load cert & key pair from file:
+		if pemFile(certBytes) && pemFile(keyBytes) {
 			cert, err = tls.LoadX509KeyPair(options.Certificate, options.Key)
+		} else {
+			cert, err = tls.X509KeyPair(certBytes, keyBytes)
 		}
 		if err != nil {
 			return nil, err
@@ -60,10 +59,9 @@ func BuildHTTPClient(options *auth.Options) (*http.Client, error) {
 	return client, nil
 }
 
-func pemFormat(data []byte) bool {
-	pemStart := []byte("\n-----BEGIN ")
-	pemEnd := []byte("\n-----END ")
-	if bytes.HasPrefix(data, pemStart[1:]) && bytes.Contains(data, pemEnd) {
+func pemFile(data []byte) bool {
+	fileType := []byte(".pem")
+	if bytes.HasSuffix(data, fileType) {
 		return true
 	}
 	return false

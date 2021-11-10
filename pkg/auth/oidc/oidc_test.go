@@ -2,6 +2,7 @@ package oidc
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/test/tls_settings"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -159,6 +160,55 @@ var _ = Describe("Service Manager Auth strategy test", func() {
 			ExpiresIn:    time.Now().Add(-1 * time.Hour),
 		}
 
+		DescribeTable("mTLS oidc client",
+			func(options *auth.Options, token *auth.Token, expectedErrMsg string, expetedToken *auth.Token) {
+				client, err := NewClient(options, token)
+
+				if expectedErrMsg != "" {
+					Expect(err).NotTo(BeNil())
+					Expect(err.Error()).To(ContainSubstring(expectedErrMsg))
+				} else {
+					Expect(err).ToNot(HaveOccurred())
+					Expect(err).To(BeNil())
+					Expect(client).ToNot(BeNil())
+				}
+			},
+			Entry("mTLS with invalid certificate & key",
+				&auth.Options{
+					Certificate:   tls_settings.ClientCertificate,
+					Key:           tls_settings.ClientKey,
+					TokenEndpoint: "http://token-endpoint",
+					ClientID:      "client-id",
+				},
+				nil,
+				"",
+				nil),
+			Entry("mTLS Valid token - reuses the token", &auth.Options{
+				Certificate: tls_settings.ClientCertificate,
+				Key:         tls_settings.ClientKey,
+				ClientID:    "client-id",
+			}, newToken(-1*time.Hour), "", token),
+			Entry("mTLS invalid certificate - returns error",
+				&auth.Options{
+					Certificate:   "certificate",
+					Key:           tls_settings.ClientKey,
+					TokenEndpoint: "http://token-endpoint",
+					ClientID:      "client-id",
+				},
+				newToken(-1*time.Hour),
+				"tls: failed to find any PEM data in certificate input",
+				nil),
+			Entry("mTLS invalid certificate file - returns error",
+				&auth.Options{
+					Certificate:   "certificate.pem",
+					Key:           "key.pem",
+					TokenEndpoint: "http://token-endpoint",
+					ClientID:      "client-id",
+				},
+				newToken(-1*time.Hour),
+				"no such file or directory",
+				nil),
+		)
 		DescribeTable("NewClient",
 			func(options *auth.Options, token *auth.Token, expectedErrMsg string, expetedToken *auth.Token) {
 				client, err := NewClient(options, token)
