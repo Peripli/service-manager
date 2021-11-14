@@ -58,7 +58,7 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.3
 	github.com/spf13/viper v1.7.1
-	github.com/tidwall/gjson v1.6.7
+	github.com/tidwall/gjson v1.9.3
 	github.com/tidwall/sjson v1.1.4
 	github.com/ulule/limiter v2.2.2+incompatible
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
