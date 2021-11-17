@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/Peripli/service-manager/pkg/auth/util"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/cloudfoundry-community/go-cfenv"
 	"github.com/spf13/cast"
@@ -56,9 +57,11 @@ func setCFOverrides(env Environment) error {
 
 func setPostgresSSL(env Environment, credentials map[string]interface{}) error {
 	if sslRootCert, hasRootCert := credentials["sslrootcert"]; hasRootCert {
+		filename := "./root.crt"
 		env.Set("storage.sslmode", "verify-ca")
-		sslRootCertStr := sslRootCert.(string)
-		err := ioutil.WriteFile("root.crt", []byte(sslRootCertStr), 0666)
+		env.Set("storage.sslrootcert", filename)
+		sslRootCertStr := util.ConvertBackSlashN(sslRootCert.(string))
+		err := ioutil.WriteFile(filename, []byte(sslRootCertStr), 0666)
 		if err != nil {
 			return err
 		}

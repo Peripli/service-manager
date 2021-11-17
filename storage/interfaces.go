@@ -74,7 +74,6 @@ type Settings struct {
 // DefaultSettings returns default values for storage settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		SSLRootCert:        "root.crt",
 		URI:                "",
 		MigrationsURL:      fmt.Sprintf("file://%s/postgres/migrations", basepath),
 		EncryptionKey:      "",
