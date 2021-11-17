@@ -86,6 +86,10 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 
 		parsedQuery.Set("read_timeout", strconv.Itoa(settings.ReadTimeout))
 		parsedQuery.Set("write_timeout", strconv.Itoa(settings.WriteTimeout))
+		if settings.SSLMode == "verify-ca" && len(settings.SSLRootCert) > 0 {
+			parsedQuery.Set("sslmode", "verify-ca")
+			parsedQuery.Set("sslrootcert", settings.SSLRootCert)
+		}
 		parsedUrl.RawQuery = parsedQuery.Encode()
 
 		db, err := ps.ConnectFunc(postgresDriverName, parsedUrl.String())
