@@ -86,9 +86,6 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 
 		parsedQuery.Set("read_timeout", strconv.Itoa(settings.ReadTimeout))
 		parsedQuery.Set("write_timeout", strconv.Itoa(settings.WriteTimeout))
-		if settings.SkipSSLValidation {
-			parsedQuery.Add("sslmode", "disable")
-		}
 		parsedUrl.RawQuery = parsedQuery.Encode()
 
 		db, err := ps.ConnectFunc(postgresDriverName, parsedUrl.String())

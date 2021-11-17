@@ -18,6 +18,7 @@ package env
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -45,6 +46,22 @@ func setCFOverrides(env Environment) error {
 			return fmt.Errorf("could not find service with name %s: %v", pgServiceName, err)
 		}
 		env.Set("storage.uri", service.Credentials["uri"])
+		if err := setPostgresSSL(env, service.Credentials); err != nil {
+			return err
+		}
+
+	}
+	return nil
+}
+
+func setPostgresSSL(env Environment, credentials map[string]interface{}) error {
+	if sslRootCert, hasRootCert := credentials["sslrootcert"]; hasRootCert {
+		env.Set("storage.sslmode", "verify-ca")
+		sslRootCertStr := sslRootCert.(string)
+		err := ioutil.WriteFile("root.crt", []byte(sslRootCertStr), 0666)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
