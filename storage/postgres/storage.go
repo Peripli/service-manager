@@ -87,6 +87,7 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 		parsedQuery.Set("read_timeout", strconv.Itoa(settings.ReadTimeout))
 		parsedQuery.Set("write_timeout", strconv.Itoa(settings.WriteTimeout))
 		if len(settings.SSLMode) > 0 && len(settings.SSLRootCert) > 0 {
+			log.D().Infof("ssl mode set to %s, sslrootcert detected", settings.SSLMode)
 			parsedQuery.Set("sslmode", settings.SSLMode)
 			parsedQuery.Set("sslrootcert", settings.SSLRootCert)
 		}
