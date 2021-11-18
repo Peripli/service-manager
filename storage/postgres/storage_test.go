@@ -100,7 +100,6 @@ var _ = Describe("Postgres Storage", func() {
 						URI:                "invalid",
 						MigrationsURL:      "invalid",
 						EncryptionKey:      "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8",
-						SkipSSLValidation:  true,
 						Notification:       storage.DefaultNotificationSettings(),
 						IntegrityProcessor: &securityfakes.FakeIntegrityProcessor{},
 					})

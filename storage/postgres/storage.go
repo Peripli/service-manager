@@ -86,8 +86,9 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 
 		parsedQuery.Set("read_timeout", strconv.Itoa(settings.ReadTimeout))
 		parsedQuery.Set("write_timeout", strconv.Itoa(settings.WriteTimeout))
-		if settings.SkipSSLValidation {
-			parsedQuery.Add("sslmode", "disable")
+		if len(settings.SSLMode) > 0 && len(settings.SSLRootCert) > 0 {
+			parsedQuery.Set("sslmode", settings.SSLMode)
+			parsedQuery.Set("sslrootcert", settings.SSLRootCert)
 		}
 		parsedUrl.RawQuery = parsedQuery.Encode()
 
@@ -163,7 +164,7 @@ func (ps *Storage) updateSchema(migrationsURL, pgDriverName string) error {
 	return err
 }
 
-func (ps *Storage) PingContext(ctx context.Context) error {
+func (ps *Storage) PingContext(_ context.Context) error {
 	ps.checkOpen()
 	return ps.state.Get()
 }
@@ -386,9 +387,6 @@ func (ps *Storage) list(ctx context.Context, objType types.ObjectType, forUpdate
 			log.C(ctx).WithError(err).Error("Could not release connection when checking database")
 		}
 	}()
-	if err != nil {
-		return nil, err
-	}
 	return entity.RowsToList(rows)
 }
 
