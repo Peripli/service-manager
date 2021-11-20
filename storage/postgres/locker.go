@@ -90,7 +90,7 @@ func (l *Locker) TryLock(ctx context.Context) error {
 	rows, err := l.lockerCon.QueryContext(ctx, "SELECT pg_try_advisory_lock($1)", l.AdvisoryIndex)
 	if err != nil {
 		l.release(ctx)
-		log.C(ctx).Infof("Failed to try_lock locker with advisory index (%d)", l.AdvisoryIndex)
+		log.C(ctx).Debugf("Failed to try_lock locker with advisory index (%d)", l.AdvisoryIndex)
 		return err
 	}
 	defer func() {
@@ -109,7 +109,7 @@ func (l *Locker) TryLock(ctx context.Context) error {
 
 	if !locked {
 		l.release(ctx)
-		log.C(ctx).Infof("Failed to try_lock locker with advisory index (%d) - either already locked or failed to lock", l.AdvisoryIndex)
+		log.C(ctx).Debugf("Failed to try_lock locker with advisory index (%d) - either already locked or failed to lock", l.AdvisoryIndex)
 		return ErrLockAcquisition
 	}
 
