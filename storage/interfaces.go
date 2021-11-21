@@ -61,6 +61,7 @@ type Settings struct {
 	URI                string                `mapstructure:"uri" description:"URI of the storage"`
 	MigrationsURL      string                `mapstructure:"migrations_url" description:"location of a directory containing sql migrations scripts"`
 	EncryptionKey      string                `mapstructure:"encryption_key" description:"key to use for encrypting database entries"`
+	SkipSSLValidation  bool                  `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when connecting to the storage"`
 	SSLMode            string                `mapstructure:"sslmode" description:"defines ssl mode type"`
 	SSLRootCert        string                `mapstructure:"sslrootcert" description:"The location of the root certificate file."`
 	MaxIdleConnections int                   `mapstructure:"max_idle_connections" description:"sets the maximum number of connections in the idle connection pool"`
@@ -77,6 +78,7 @@ func DefaultSettings() *Settings {
 		URI:                "",
 		MigrationsURL:      fmt.Sprintf("file://%s/postgres/migrations", basepath),
 		EncryptionKey:      "",
+		SkipSSLValidation:  false,
 		MaxIdleConnections: 5,
 		MaxOpenConnections: 30,
 		ReadTimeout:        900000, //15 minutes
