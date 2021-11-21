@@ -17,8 +17,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-type object = common.Object
-
 func TestFilters(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Rate Limiter Tests Suite")
@@ -273,7 +271,7 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 				It("apply request limit using secondary limiter", func() {
 					expectLimitedRequest(ctx.SMWithOAuth, web.PlatformsURL)
 				})
-				It("limit expires after timeout", func() {
+				XIt("limit expires after timeout", func() {
 					// Expecting all limiters will reset
 					time.Sleep(61 * time.Second)
 					expectNonLimitedRequest(ctx.SMWithOAuth, web.PlatformsURL)
