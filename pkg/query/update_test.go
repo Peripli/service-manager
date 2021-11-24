@@ -63,9 +63,8 @@ var _ = Describe("Update", func() {
 			It("Should return error", func() {
 				body, err := sjson.DeleteBytes(body, "labels.0.values")
 				Expect(err).ToNot(HaveOccurred())
-				changes, err := LabelChangesFromJSON(body)
+				_, err = LabelChangesFromJSON(body)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(changes).To(BeNil())
 			})
 		})
 
