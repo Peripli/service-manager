@@ -2571,7 +2571,19 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Status(http.StatusOK)
 						})
 					})
-
+					Context("Add  label empty value", func() {
+						BeforeEach(func() {
+							operation = types.AddLabelOperation
+							changedLabelKey = "cluster_id"
+							changedLabelValues = []string{}
+						})
+						It("Should return 200", func() {
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
+								WithJSON(patchLabelsBody).
+								Expect().
+								Status(http.StatusOK)
+						})
+					})
 					Context("Remove a label", func() {
 						BeforeEach(func() {
 							operation = types.RemoveLabelOperation

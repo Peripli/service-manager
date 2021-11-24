@@ -26,7 +26,7 @@ CREATE TABLE broker_platform_credential_labels
 (
   id                             varchar(100) PRIMARY KEY,
   key                            varchar(255) NOT NULL CHECK (key <> ''),
-  val                            varchar(255) NOT NULL CHECK (val <> ''),
+  val                            varchar(255),
   broker_platform_credential_id  varchar(100) NOT NULL REFERENCES broker_platform_credentials (id) ON DELETE CASCADE,
   created_at                     timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at                     timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,

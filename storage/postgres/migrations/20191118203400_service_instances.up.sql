@@ -20,7 +20,7 @@ CREATE TABLE service_instance_labels
 (
   id                  varchar(100) PRIMARY KEY,
   key                 varchar(255) NOT NULL CHECK (key <> ''),
-  val                 varchar(255) NOT NULL CHECK (val <> ''),
+  val                 varchar(255),
   service_instance_id varchar(100) NOT NULL REFERENCES service_instances (id) ON DELETE CASCADE,
   created_at          timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at          timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,

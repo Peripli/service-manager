@@ -298,6 +298,41 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						common.MapContains(reply.Raw(), updatedPlatform)
 					})
+					It("when labels value are empty returns 200", func() {
+						By("Update platform")
+
+						updatedPlatform := common.MakePlatform("", "cf-11", "cff", "descr2")
+						delete(updatedPlatform, "id")
+						changeLabels := []*types.LabelChange{
+							{
+								Operation: types.AddLabelOperation,
+								Key:       "newKey",
+							},
+						}
+						updatedPlatform["labels"] = changeLabels
+						reply := ctx.SMWithOAuth.PATCH(web.PlatformsURL + "/" + id).
+							WithJSON(updatedPlatform).
+							Expect().
+							Status(http.StatusOK).JSON().Object()
+
+						reply.NotContainsKey("credentials")
+						labels := map[string]interface{}{
+							"newKey":[]interface{}{""},
+						}
+
+						updatedPlatform["labels"] = labels
+
+						updatedPlatform["id"] = id
+						common.MapContains(reply.Raw(), updatedPlatform)
+
+						By("Update is persisted")
+
+						reply = ctx.SMWithOAuth.GET(web.PlatformsURL + "/" + id).
+							Expect().
+							Status(http.StatusOK).JSON().Object()
+
+						common.MapContains(reply.Raw(), updatedPlatform)
+					})
 				})
 
 				Context("With created_at in body", func() {
