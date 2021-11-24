@@ -51,7 +51,7 @@ func ApplyLabelChangesToLabels(changes types.LabelChanges, labels types.Labels) 
 		case types.AddLabelOperation:
 			fallthrough
 		case types.AddLabelValuesOperation:
-			if len(change.Values) == 0{
+			if len(change.Values) == 0 {
 				addValue(mergedLabels, change, "", labelsToAdd)
 			}
 			for _, value := range change.Values {

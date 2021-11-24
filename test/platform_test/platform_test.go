@@ -317,7 +317,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						reply.NotContainsKey("credentials")
 						labels := map[string]interface{}{
-							"newKey":[]interface{}{""},
+							"newKey": []interface{}{""},
 						}
 
 						updatedPlatform["labels"] = labels
