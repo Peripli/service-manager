@@ -26,7 +26,7 @@ CREATE TABLE service_binding_labels
 (
   id                  varchar(100) PRIMARY KEY,
   key                 varchar(255) NOT NULL CHECK (key <> ''),
-  val                 varchar(255),
+  val                 varchar(255) NOT NULL CHECK (val <> ''),
   service_binding_id  varchar(100) NOT NULL REFERENCES service_bindings (id) ON DELETE CASCADE,
   created_at          timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at          timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,

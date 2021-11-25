@@ -2581,7 +2581,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
-								Status(http.StatusOK)
+								Status(http.StatusOK).JSON().
+								Path("$.labels").Object().Keys().Contains(changedLabelKey)
 						})
 					})
 					Context("Remove a label", func() {
