@@ -51,18 +51,11 @@ func ApplyLabelChangesToLabels(changes types.LabelChanges, labels types.Labels) 
 		case types.AddLabelOperation:
 			fallthrough
 		case types.AddLabelValuesOperation:
+			if len(change.Values) == 0 {
+				addValue(mergedLabels, change, "", labelsToAdd)
+			}
 			for _, value := range change.Values {
-				found := false
-				for _, currentValue := range mergedLabels[change.Key] {
-					if currentValue == value {
-						found = true
-						break
-					}
-				}
-				if !found {
-					labelsToAdd[change.Key] = append(labelsToAdd[change.Key], value)
-					mergedLabels[change.Key] = append(mergedLabels[change.Key], value)
-				}
+				addValue(mergedLabels, change, value, labelsToAdd)
 			}
 		case types.RemoveLabelOperation:
 			fallthrough
@@ -87,4 +80,18 @@ func ApplyLabelChangesToLabels(changes types.LabelChanges, labels types.Labels) 
 	}
 
 	return mergedLabels, labelsToAdd, labelsToRemove
+}
+
+func addValue(mergedLabels types.Labels, change *types.LabelChange, value string, labelsToAdd types.Labels) {
+	found := false
+	for _, currentValue := range mergedLabels[change.Key] {
+		if currentValue == value {
+			found = true
+			break
+		}
+	}
+	if !found {
+		labelsToAdd[change.Key] = append(labelsToAdd[change.Key], value)
+		mergedLabels[change.Key] = append(mergedLabels[change.Key], value)
+	}
 }
