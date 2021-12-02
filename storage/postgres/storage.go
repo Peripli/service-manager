@@ -87,7 +87,7 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 		parsedQuery.Set("read_timeout", strconv.Itoa(settings.ReadTimeout))
 		parsedQuery.Set("write_timeout", strconv.Itoa(settings.WriteTimeout))
 		parsedQuery.Set("statement_timeout", strconv.Itoa(settings.StatementTimeout))
-		parsedQuery.Set("idle_in_transaction_session_timeout", strconv.Itoa(settings.IdleInTransactionStatementTimeout))
+		parsedQuery.Set("idle_in_transaction_session_timeout", strconv.Itoa(settings.IdleInTransactionSessionTimeout))
 		if settings.SkipSSLValidation {
 			log.D().Infof("skipping ssl validation SkipSSLValidation set to true")
 			parsedQuery.Set("sslmode", "disable")

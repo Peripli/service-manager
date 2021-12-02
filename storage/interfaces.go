@@ -58,36 +58,36 @@ var (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	URI                               string                `mapstructure:"uri" description:"URI of the storage"`
-	MigrationsURL                     string                `mapstructure:"migrations_url" description:"location of a directory containing sql migrations scripts"`
-	EncryptionKey                     string                `mapstructure:"encryption_key" description:"key to use for encrypting database entries"`
-	SkipSSLValidation                 bool                  `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when connecting to the storage"`
-	SSLMode                           string                `mapstructure:"sslmode" description:"defines ssl mode type"`
-	SSLRootCert                       string                `mapstructure:"sslrootcert" description:"The location of the root certificate file."`
-	MaxIdleConnections                int                   `mapstructure:"max_idle_connections" description:"sets the maximum number of connections in the idle connection pool"`
-	MaxOpenConnections                int                   `mapstructure:"max_open_connections" description:"sets the maximum number of open connections to the database"`
-	ReadTimeout                       int                   `mapstructure:"read_timeout" description:"sets the limit for reading in milliseconds"`
-	WriteTimeout                      int                   `mapstructure:"write_timeout" description:"sets the limit for writing in milliseconds"`
-	StatementTimeout                  int                   `mapstructure:"statement_timeout" description:"sets the limit to abort any statement that takes more than the specified time in milliseconds"`
-	IdleInTransactionStatementTimeout int                   `mapstructure:"idle_in_transaction_session_timeout" description:"sets the limit for terminating any session with an open transaction that has been idle for longer than the specified time in milliseconds"`
-	Notification                      *NotificationSettings `mapstructure:"notification"`
-	IntegrityProcessor                security.IntegrityProcessor
+	URI                             string                `mapstructure:"uri" description:"URI of the storage"`
+	MigrationsURL                   string                `mapstructure:"migrations_url" description:"location of a directory containing sql migrations scripts"`
+	EncryptionKey                   string                `mapstructure:"encryption_key" description:"key to use for encrypting database entries"`
+	SkipSSLValidation               bool                  `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when connecting to the storage"`
+	SSLMode                         string                `mapstructure:"sslmode" description:"defines ssl mode type"`
+	SSLRootCert                     string                `mapstructure:"sslrootcert" description:"The location of the root certificate file."`
+	MaxIdleConnections              int                   `mapstructure:"max_idle_connections" description:"sets the maximum number of connections in the idle connection pool"`
+	MaxOpenConnections              int                   `mapstructure:"max_open_connections" description:"sets the maximum number of open connections to the database"`
+	ReadTimeout                     int                   `mapstructure:"read_timeout" description:"sets the limit for reading in milliseconds"`
+	WriteTimeout                    int                   `mapstructure:"write_timeout" description:"sets the limit for writing in milliseconds"`
+	StatementTimeout                int                   `mapstructure:"statement_timeout" description:"sets the limit to abort any statement that takes more than the specified time in milliseconds"`
+	IdleInTransactionSessionTimeout int                   `mapstructure:"idle_in_transaction_session_timeout" description:"sets the limit for terminating any session with an open transaction that has been idle for longer than the specified time in milliseconds"`
+	Notification                    *NotificationSettings `mapstructure:"notification"`
+	IntegrityProcessor              security.IntegrityProcessor
 }
 
 // DefaultSettings returns default values for storage settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		URI:                               "",
-		MigrationsURL:                     fmt.Sprintf("file://%s/postgres/migrations", basepath),
-		EncryptionKey:                     "",
-		SkipSSLValidation:                 false,
-		MaxIdleConnections:                5,
-		MaxOpenConnections:                30,
-		ReadTimeout:                       900000, //15 minutes
-		WriteTimeout:                      900000, //15 minutes
-		StatementTimeout:                  900000, //15 minutes
-		IdleInTransactionStatementTimeout: 900000, //15 minutes
-		Notification:                      DefaultNotificationSettings(),
+		URI:                             "",
+		MigrationsURL:                   fmt.Sprintf("file://%s/postgres/migrations", basepath),
+		EncryptionKey:                   "",
+		SkipSSLValidation:               false,
+		MaxIdleConnections:              5,
+		MaxOpenConnections:              30,
+		ReadTimeout:                     900000, //15 minutes
+		WriteTimeout:                    900000, //15 minutes
+		StatementTimeout:                900000, //15 minutes
+		IdleInTransactionSessionTimeout: 900000, //15 minutes
+		Notification:                    DefaultNotificationSettings(),
 		IntegrityProcessor: &security.HashingIntegrityProcessor{
 			HashingFunc: func(data []byte) []byte {
 				hash := sha256.Sum256(data)
