@@ -130,11 +130,11 @@ func (s *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *ty
 		log.C(ctx).Errorf("failed to execute action for %s operation with id %s for %s entity with id %s: %s", operation.Type, operation.ID, operation.ResourceType, operation.ResourceID, actionErr)
 	}
 
-	if object, err = s.handleActionResponse(&util.StateContext{Context: ctx}, object, actionErr, operation); err != nil {
-		return nil, err
-	}
+	go func() {
+		_, _ = s.handleActionResponse(&util.StateContext{Context: ctx}, object, actionErr, operation)
+	}()
 
-	return object, nil
+	return object, actionErr
 }
 
 // ScheduleAsyncStorageAction stores the job's Operation entity in DB asynchronously executes the CREATE/UPDATE/DELETE DB transaction in a goroutine
@@ -431,7 +431,7 @@ func updateOperationState(ctx context.Context, repository storage.Repository, op
 
 		if len(operation.Errors) == 0 {
 			log.C(ctx).Debugf("setting error of operation with id %s to %s", operation.ID, httpError)
-			operation.Errors = json.RawMessage(bytes)
+			operation.Errors = bytes
 		} else {
 			log.C(ctx).Debugf("operation with id %s already has a root cause error %s. Current error %s will not be written", operation.ID, string(operation.Errors), httpError)
 		}
