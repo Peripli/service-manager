@@ -528,42 +528,6 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 		return err
 	}
 
-	// we want to schedule deletion if the operation is marked for deletion and the deletion timeout is not yet reached
-	isDeleteRescheduleRequired := opAfterJob.InOrphanMitigationState() &&
-		time.Now().UTC().Before(opAfterJob.DeletionScheduled.Add(s.reconciliationOperationTimeout)) &&
-		opAfterJob.State != types.SUCCEEDED
-
-	if isDeleteRescheduleRequired {
-		deletionAction := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-			byID := query.ByField(query.EqualsOperator, "id", opAfterJob.ResourceID)
-			err := repository.Delete(ctx, opAfterJob.ResourceType, byID)
-			if err != nil {
-				if err == util.ErrNotFoundInStorage {
-					log.C(ctx).Debugf("Could not find resource with id %s and type %s during delete action in SMDB. Ignoring missing resource", opAfterJob.ResourceID, opAfterJob.ResourceType)
-					return nil, nil
-				}
-				return nil, util.HandleStorageError(err, opAfterJob.ResourceType.String())
-			}
-			return nil, nil
-		}
-
-		log.C(ctx).Infof("Scheduling of required delete operation after actual operation with id %s failed", opAfterJob.ID)
-		// if deletion timestamp was set on the op, reschedule the same op with delete action and wait for reschedulingDelay time
-		// so that we don't DOS the broker
-		reschedulingDelayTimeout := time.After(s.reschedulingDelay)
-		select {
-		case <-s.smCtx.Done():
-			return fmt.Errorf("sm context canceled: %s", s.smCtx.Err())
-		case <-reschedulingDelayTimeout:
-			if orphanMitigationErr := s.ScheduleAsyncStorageAction(ctx, opAfterJob, deletionAction); orphanMitigationErr != nil {
-				return &util.HTTPError{
-					ErrorType:   "BrokerError",
-					Description: fmt.Sprintf("job failed with %s and orphan mitigation failed with %s", actionError, orphanMitigationErr),
-					StatusCode:  http.StatusBadGateway,
-				}
-			}
-		}
-	}
 	return actionError
 }
 
