@@ -39,7 +39,7 @@ type Settings struct {
 	Lifespan                time.Duration `mapstructure:"lifespan" description:"after that time is passed since its creation, the operation can be cleaned up by the maintainer"`
 
 	ReschedulingInterval     time.Duration `mapstructure:"rescheduling_interval" description:"the interval between auto rescheduling of operation actions"`
-	ReschedulingLongInterval time.Duration `mapstructure:"rescheduling_interval" description:"the interval between auto rescheduling of operation actions after multiple retries"`
+	ReschedulingLongInterval time.Duration `mapstructure:"rescheduling_long_interval" description:"the interval between auto rescheduling of operation actions after multiple retries"`
 	PollingInterval          time.Duration `mapstructure:"polling_interval" description:"the interval between polls for async requests"`
 
 	DefaultPoolSize               int            `mapstructure:"default_pool_size" description:"default worker pool size"`
