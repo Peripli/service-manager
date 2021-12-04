@@ -46,6 +46,7 @@ type Scheduler struct {
 	reconciliationOperationTimeout time.Duration
 	cascadeOrphanMitigationTimeout time.Duration
 	reschedulingDelay              time.Duration
+	reschedulingLongDelay          time.Duration
 	wg                             *sync.WaitGroup
 }
 
@@ -59,6 +60,7 @@ func NewScheduler(smCtx context.Context, repository storage.TransactionalReposit
 		reconciliationOperationTimeout: settings.ReconciliationOperationTimeout,
 		cascadeOrphanMitigationTimeout: settings.CascadeOrphanMitigationTimeout,
 		reschedulingDelay:              settings.ReschedulingInterval,
+		reschedulingLongDelay:          settings.ReschedulingLongInterval,
 		wg:                             wg,
 	}
 }
@@ -551,6 +553,9 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 		// if deletion timestamp was set on the op, reschedule the same op with delete action and wait for reschedulingDelay time
 		// so that we don't DOS the broker
 		reschedulingDelayTimeout := time.After(s.reschedulingDelay)
+		if time.Now().UTC().After(opAfterJob.DeletionScheduled.Add(s.actionTimeout * 2)) {
+			reschedulingDelayTimeout = time.After(s.reschedulingLongDelay)
+		}
 		select {
 		case <-s.smCtx.Done():
 			return fmt.Errorf("sm context canceled: %s", s.smCtx.Err())
