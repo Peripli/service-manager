@@ -142,6 +142,5 @@ func (c *Credentials) BasicExists() bool {
 }
 
 func (c *Credentials) BasicNotEmpty() bool {
-	return c.Basic != nil && len(c.Basic.Password)>0 && len(c.Basic.Username)>0
+	return c.Basic != nil && len(c.Basic.Password) > 0 && len(c.Basic.Username) > 0
 }
-
