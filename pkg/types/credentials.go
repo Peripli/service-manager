@@ -140,3 +140,8 @@ func (c *Credentials) TLSExists() bool {
 func (c *Credentials) BasicExists() bool {
 	return c.Basic != nil && *c.Basic != Basic{}
 }
+
+func (c *Credentials) BasicNotEmpty() bool {
+	return c.Basic != nil && len(c.Basic.Password)>0 && len(c.Basic.Username)>0
+}
+
