@@ -114,9 +114,9 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 
 	modifiedRequest := r.Request.WithContext(ctx)
 	if broker.Credentials.BasicExists() {
-		logger.Infof("######@@@ setting basic auth %s:%s",broker.Credentials.Basic.Username, broker.Credentials.Basic.Password)
+		logger.Infof("######@@@ setting basic auth %s:%s", broker.Credentials.Basic.Username, broker.Credentials.Basic.Password)
 		modifiedRequest.SetBasicAuth(broker.Credentials.Basic.Username, broker.Credentials.Basic.Password)
-	}else{
+	} else {
 		logger.Infof("######@@@ Not setting basic auth")
 	}
 
