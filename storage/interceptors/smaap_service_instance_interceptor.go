@@ -741,7 +741,7 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 		APIVersion:          osbc.LatestAPIVersion(),
 	}
 
-	if broker.Credentials.Basic != nil {
+	if broker.Credentials.BasicExists() {
 		osbClientConfig.AuthConfig = &osbc.AuthConfig{
 			BasicAuthConfig: &osbc.BasicAuthConfig{
 				Username: broker.Credentials.Basic.Username,
