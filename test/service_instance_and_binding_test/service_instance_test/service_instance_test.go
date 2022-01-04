@@ -19,12 +19,13 @@ package service_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/instance_sharing"
-	"github.com/Peripli/service-manager/pkg/query"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
+	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/tidwall/gjson"
@@ -627,6 +628,18 @@ var _ = DescribeTestsFor(TestCase{
 									WithJSON(postInstanceRequestTLS).
 									Expect().Status(http.StatusAccepted)
 							})
+							It("returns 201", func() {
+								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanIDWithTLS, TenantIDValue)
+								labels := types.Labels{
+									"organization_guid": []string{},
+								}
+
+								postInstanceRequestTLS["labels"] = labels
+								ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+									WithQuery("async", false).
+									WithJSON(postInstanceRequestTLS).
+									Expect().Status(http.StatusCreated)
+							})
 
 							It("returns 201", func() {
 								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanIDWithTLS, TenantIDValue)
@@ -668,7 +681,6 @@ var _ = DescribeTestsFor(TestCase{
 									JSON().Object().
 									Keys().Contains("error", "description")
 							})
-
 							Context("when request body contains multiple label objects", func() {
 								It("returns 400", func() {
 									ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
@@ -2090,6 +2102,26 @@ var _ = DescribeTestsFor(TestCase{
 										// method should not be patch to the broker, but only post of the previous request
 										method := brokerServer.LastRequest.Method
 										Expect(method).To(Not(Equal("PATCH")))
+									})
+								})
+								When("only label is provided in request body- value is empty", func() {
+									It("returns success", func() {
+										labels := []*types.LabelChange{
+											{
+												Operation: types.AddLabelOperation,
+												Key:       "labelKey1",
+											},
+										}
+										patchLabelsBody["labels"] = labels
+
+										testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+											WithQuery("async", "false").
+											WithJSON(patchLabelsBody).Expect().Status(http.StatusOK).JSON().Object()
+										// Expect to retrieve the data from the broker of the creat instance and not of the update instance
+										// method should not be patch to the broker, but only post of the previous request
+										method := brokerServer.LastRequest.Method
+										Expect(method).To(Not(Equal("PATCH")))
+
 									})
 								})
 								When("invalid label key", func() {
