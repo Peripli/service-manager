@@ -356,14 +356,20 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 			})
 		case query.ResultQuery:
 			pq.processResultCriteria(criterion)
-
 		case query.ExistQuery:
 			pq.fieldsWhereClause.children = append(pq.fieldsWhereClause.children, &whereClauseTree{
 				criterion: criterion,
 				dbTags:    pq.entityTags,
 				tableName: pq.entityTableName,
 			})
+		case query.Subquery:
+			pq.fieldsWhereClause.children = append(pq.fieldsWhereClause.children, &whereClauseTree{
+				criterion: criterion,
+				dbTags:    pq.entityTags,
+				tableName: pq.entityTableName,
+			})
 		}
+
 	}
 
 	return pq

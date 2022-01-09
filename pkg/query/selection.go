@@ -48,6 +48,8 @@ const (
 	ResultQuery CriterionType = "resultQuery"
 	// ExistQuery denotes that the query should test for the existence of any record in a given sub-query
 	ExistQuery CriterionType = "existQuery"
+	// InQuery denotes that the query
+	Subquery CriterionType = "subQuery"
 )
 
 // OperatorType represents the type of the query operator
@@ -86,7 +88,7 @@ var (
 		InOperator, NotInOperator, EqualsOrNilOperator, ContainsOperator,
 	}
 	// CriteriaTypes returns the supported query criteria types
-	CriteriaTypes = []CriterionType{FieldQuery, LabelQuery, ExistQuery}
+	CriteriaTypes = []CriterionType{FieldQuery, LabelQuery, ExistQuery, Subquery}
 )
 
 // Operator is a query operator
@@ -124,6 +126,10 @@ func ByNotExists(subQuery string) Criterion {
 
 func ByExists(subQuery string) Criterion {
 	return NewCriterion("", ExistsSubquery, []string{subQuery}, ExistQuery)
+}
+
+func BySubquery(operator Operator, leftOp string, subQuery string) Criterion {
+	return NewCriterion(leftOp, operator, []string{subQuery}, Subquery)
 }
 
 // ByLabel constructs a new criterion for label querying
@@ -188,7 +194,7 @@ func (c Criterion) Validate() error {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("separator %s is not allowed in %s with left operand \"%s\".", Separator, c.Type, c.LeftOp)}
 	}
 	for _, op := range c.RightOp {
-		if strings.ContainsRune(op, '\n') && c.Type != ExistQuery {
+		if strings.ContainsRune(op, '\n') && c.Type != ExistQuery && c.Type != Subquery {
 			return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s with key \"%s\" has value \"%s\" contaning forbidden new line character", c.Type, c.LeftOp, op)}
 		}
 	}
