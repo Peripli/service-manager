@@ -245,6 +245,16 @@ var _ = Describe("Service Manager Query", func() {
 					Expect(listContains(list, "latestOpForInstance1"))
 					Expect(listContains(list, "latestOpForInstance2"))
 				})
+
+				It("should return only the operations being NOT last operation for their corresponding instances", func() {
+					criteria := []query.Criterion{query.BySubquery(query.InSubqueryOperator, "id", storage.GetSubQuery(storage.QueryForAllNotLastOperationsPerResource))}
+
+					list, err := repository.List(context.Background(), types.OperationType, criteria...)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(list.Len()).To(BeEquivalentTo(2))
+					Expect(listContains(list, "oldestOpForInstance1"))
+					Expect(listContains(list, "oldestOpForInstance2"))
+				})
 			})
 
 		})

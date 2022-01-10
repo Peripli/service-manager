@@ -73,7 +73,8 @@ func (t *whereClauseTree) compileSQL() (string, []interface{}) {
 		childSQL, childQueryParams := child.compileSQL()
 		if len(childSQL) != 0 {
 			childrenSQL = append(childrenSQL, childSQL)
-			if child.criterion.Type != query.ExistQuery {
+			//todo - check if we need this if statement
+			if child.criterion.Type != query.ExistQuery && child.criterion.Type != query.Subquery {
 				queryParams = append(queryParams, childQueryParams...)
 			}
 		}
@@ -109,7 +110,9 @@ func criterionSQL(c query.Criterion, dbTags []tagType, tableAlias string) (strin
 		}
 	}
 	var clause string
-	if c.Type == query.ExistQuery {
+	if c.Type == query.Subquery {
+		clause = fmt.Sprintf("%s %s (%s)", c.LeftOp, sqlOperation, rightOpQueryValue.(string))
+	} else if c.Type == query.ExistQuery {
 		clause = fmt.Sprintf("%s (%s)", sqlOperation, rightOpQueryValue.(string))
 	} else if tableAlias != "" {
 		clause = fmt.Sprintf("%s.%s%s %s %s", tableAlias, c.LeftOp, dbCast, sqlOperation, rightOpBindVar)
@@ -163,6 +166,8 @@ func translateOperationToSQLEquivalent(operator query.Operator) string {
 		return ">="
 	case query.NotInOperator:
 		return "NOT IN"
+	case query.InSubqueryOperator:
+		return "IN"
 	case query.ExistsSubquery:
 		return "EXISTS"
 	case query.NotExistsSubquery:
