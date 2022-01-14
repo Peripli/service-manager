@@ -18,7 +18,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/pkg/log"
@@ -27,6 +26,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/tidwall/gjson"
 	"net/http"
 )
 
@@ -179,12 +179,7 @@ func (c *ServiceBindingController) PatchObjectName(r *web.Request) (*web.Respons
 		}
 	}
 
-	bodyMap := make(map[string]interface{})
-	err := json.Unmarshal(r.Body, &bodyMap)
-	if err != nil {
-		return nil, err
-	}
-
+	bodyMap := gjson.ParseBytes(r.Body).Map()
 	_, hasName := bodyMap["name"]
 
 	if len(bodyMap) > 1 || !hasName {
