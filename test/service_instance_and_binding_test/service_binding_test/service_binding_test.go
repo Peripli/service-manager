@@ -456,7 +456,7 @@ var _ = DescribeTestsFor(TestCase{
 							Expect(lastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
 							// validate request body.context:
 							jsonBody := Object{}
-							json.Unmarshal(brokerServer.LastRequestBody, &jsonBody)
+							_ = json.Unmarshal(brokerServer.LastRequestBody, &jsonBody)
 							Expect(jsonBody["context"]).To(Equal(Object{
 								"instance_name":  sharedInstance.Name,
 								"platform":       sharedInstance.PlatformID,
@@ -2799,6 +2799,49 @@ var _ = DescribeTestsFor(TestCase{
 					})
 				}
 			})
+
+			Describe("PATCH", func() {
+				BeforeEach(func() {
+					createBinding(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
+				})
+
+				It("should be possible to change binding name", func() {
+					obj := ctx.SMWithOAuthForTenant.PATCH(web.ServiceBindingsURL + "/" + bindingID).
+						WithJSON(Object{
+							"name": "newName",
+						}).
+						Expect().
+						Status(http.StatusOK).
+						JSON().Object()
+
+					obj.ContainsKey("name").
+						ValueEqual("name", "newName")
+				})
+
+				It("should not be possible to change other properties", func() {
+					obj := ctx.SMWithOAuthForTenant.PATCH(web.ServiceBindingsURL + "/" + bindingID).
+						WithJSON(Object{
+							"name":    "newName",
+							"context": Object{},
+						}).
+						Expect().
+						Status(http.StatusBadRequest).
+						JSON().Object()
+
+					Expect(obj.Value("description").String().Raw()).To(ContainSubstring("api only supports name changes"))
+
+				})
+
+				It("should not allow async parameter", func() {
+					ctx.SMWithOAuthForTenant.PATCH(web.ServiceBindingsURL+"/"+bindingID).
+						WithJSON(Object{
+							"name": "newName",
+						}).
+						WithQuery("async", true).
+						Expect().
+						Status(http.StatusBadRequest)
+				})
+			})
 		})
 	},
 	ContextBuilder: nil,
@@ -2914,9 +2957,6 @@ func newShareableServicePlanWithMaxPollingDuration(ctx *TestContext, bindable bo
 		panic(err)
 	}
 	cPaidPlan2, _ := GenerateShareablePaidTestPlan()
-	if err != nil {
-		panic(err)
-	}
 	cService := GenerateTestServiceWithPlans(cPaidPlan1, cPaidPlan2)
 
 	freePlan := GenerateShareableFreeTestPlan()

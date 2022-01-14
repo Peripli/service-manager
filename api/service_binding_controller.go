@@ -18,16 +18,16 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 	"net/http"
-
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/web"
 )
 
 const serviceBindingOSBURL = "%s/v2/service_instances/%s/service_bindings/%s"
@@ -90,6 +90,13 @@ func (c *ServiceBindingController) Routes() []web.Route {
 				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
 			},
 			Handler: c.DeleteSingleObject,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodPatch,
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
+			},
+			Handler: c.PatchObjectName,
 		},
 	}
 }
@@ -160,4 +167,33 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 
 	return util.NewJSONResponse(http.StatusOK, &serviceBindingResponse.Parameters)
 
+}
+
+func (c *ServiceBindingController) PatchObjectName(r *web.Request) (*web.Response, error) {
+	isAsync := r.URL.Query().Get(web.QueryParamAsync)
+	if isAsync == "true" {
+		return nil, &util.HTTPError{
+			ErrorType:   "InvalidRequest",
+			Description: fmt.Sprintf("requested %s api doesn't support asynchronous operation.", r.URL.RequestURI()),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
+	bodyMap := make(map[string]interface{})
+	err := json.Unmarshal(r.Body, &bodyMap)
+	if err != nil {
+		return nil, err
+	}
+
+	_, noName := bodyMap["name"]
+
+	if len(bodyMap) > 1 || !noName {
+		return nil, &util.HTTPError{
+			ErrorType:   "InvalidRequest",
+			Description: fmt.Sprintf("requested %s api only supports name changes", r.URL.RequestURI()),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
+	return c.PatchObject(r)
 }
