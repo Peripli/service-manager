@@ -185,9 +185,9 @@ func (c *ServiceBindingController) PatchObjectName(r *web.Request) (*web.Respons
 		return nil, err
 	}
 
-	_, noName := bodyMap["name"]
+	_, hasName := bodyMap["name"]
 
-	if len(bodyMap) > 1 || !noName {
+	if len(bodyMap) > 1 || !hasName {
 		return nil, &util.HTTPError{
 			ErrorType:   "InvalidRequest",
 			Description: fmt.Sprintf("requested %s api only supports name changes", r.URL.RequestURI()),
