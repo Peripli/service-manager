@@ -10,17 +10,17 @@ import (
 	"time"
 
 	"github.com/fatih/structs"
-	. "github.com/onsi/ginkgo/v2"
+	g "github.com/onsi/ginkgo/v2"
 
 	. "github.com/onsi/gomega"
 )
 
 func TestTypes(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Types test suite")
+	RegisterFailHandler(g.Fail)
+	g.RunSpecs(t, "Types test suite")
 }
 
-var _ = Describe("Types test", func() {
+var _ = g.Describe("Types test", func() {
 	now := time.Now()
 	entries := []*testCase{
 		{
@@ -77,9 +77,9 @@ var _ = Describe("Types test", func() {
 		func(entry *testCase) {
 			blueprint := entry.baseObjectCreateFunc(now)
 			typ := blueprint.GetType().String()
-			Context(typ, func() {
+			g.Context(typ, func() {
 				var object1, object2 Object
-				BeforeEach(func() {
+				g.BeforeEach(func() {
 					object1 = entry.baseObjectCreateFunc(now)
 					object2 = entry.baseObjectCreateFunc(now)
 
@@ -88,8 +88,8 @@ var _ = Describe("Types test", func() {
 				changeableProps := setProps(blueprint, "")
 				for k := range changeableProps {
 					func(cp propChange) {
-						When(fmt.Sprintf("%s is changed", cp.path), func() {
-							BeforeEach(func() {
+						g.When(fmt.Sprintf("%s is changed", cp.path), func() {
+							g.BeforeEach(func() {
 								err := setProp(object1, cp.path, cp.value)
 								Expect(err).ShouldNot(HaveOccurred())
 							})
@@ -105,7 +105,7 @@ var _ = Describe("Types test", func() {
 								itmsg = "should NOT be equal"
 							}
 
-							It(itmsg, func() {
+							g.It(itmsg, func() {
 								Expect(object1.Equals(object2)).To(Equal(expectedEqual))
 							})
 						})
