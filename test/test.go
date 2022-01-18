@@ -203,7 +203,7 @@ func DescribeTestsFor(t TestCase) bool {
 	return Describe(t.API, func() {
 		var ctx *common.TestContext
 
-		AfterSuite(func() {
+		AfterAll(func() {
 			ctx.Cleanup()
 		})
 
