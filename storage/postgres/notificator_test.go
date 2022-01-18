@@ -317,11 +317,11 @@ var _ = Describe("Notificator", func() {
 		})
 
 		Context("When consumer is unregistered and then registered again after unlisten", func() {
+			done := make(chan interface{})
 			fakeNotificationConnection.UnlistenStub = func(s string) error {
 				Expect(s).To(Equal(postgresChannel))
 				fakeNotificationConnection.UnlistenReturns(nil)
 
-				done := make(chan interface{})
 				go func() {
 					registerDefaultPlatform()
 					Expect(fakeNotificationConnection.ListenCallCount()).To(Equal(2))
