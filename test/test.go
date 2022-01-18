@@ -200,7 +200,7 @@ func EnsurePlanVisibility(repository storage.Repository, tenantIdentifier, platf
 }
 
 func DescribeTestsFor(t TestCase) bool {
-	return Describe(t.API, func() {
+	return Describe(t.API, Ordered, func() {
 		var ctx *common.TestContext
 
 		AfterAll(func() {
