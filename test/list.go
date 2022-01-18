@@ -576,7 +576,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 					By("with multiple field and label queries")
 					By(fmt.Sprintf("%s", fquery+"&"+lquery))
 					verifyListOp(params, fquery+"&"+lquery)
-					
+
 				}
 
 			}, Entry("return 200 when contains operator is valid",
