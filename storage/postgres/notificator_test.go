@@ -317,21 +317,24 @@ var _ = Describe("Notificator", func() {
 		})
 
 		Context("When consumer is unregistered and then registered again after unlisten", func() {
-			done := make(chan interface{})
-			fakeNotificationConnection.UnlistenStub = func(s string) error {
-				Expect(s).To(Equal(postgresChannel))
-				fakeNotificationConnection.UnlistenReturns(nil)
+			It("Should listen again", func() {
 
-				go func() {
-					registerDefaultPlatform()
-					Expect(fakeNotificationConnection.ListenCallCount()).To(Equal(2))
-					close(done) //signifies the code is done
-				}()
-				return nil
-			}
-			err := testNotificator.UnregisterConsumer(queue)
-			Expect(err).ToNot(HaveOccurred())
-			Eventually(done, eventuallyTimeout).Should(BeClosed())
+				done := make(chan interface{})
+				fakeNotificationConnection.UnlistenStub = func(s string) error {
+					Expect(s).To(Equal(postgresChannel))
+					fakeNotificationConnection.UnlistenReturns(nil)
+
+					go func() {
+						registerDefaultPlatform()
+						Expect(fakeNotificationConnection.ListenCallCount()).To(Equal(2))
+						close(done) //signifies the code is done
+					}()
+					return nil
+				}
+				err := testNotificator.UnregisterConsumer(queue)
+				Expect(err).ToNot(HaveOccurred())
+				Eventually(done, eventuallyTimeout).Should(BeClosed())
+			})
 
 		})
 
@@ -381,13 +384,15 @@ var _ = Describe("Notificator", func() {
 		})
 
 		Context("When Notificator is running", func() {
-			done := make(chan interface{})
-			fakeNotificationConnection.PingStub = func() error {
-				defer close(done)
-				return nil
-			}
-			registerDefaultPlatform()
-			Eventually(done, eventuallyTimeout).Should(BeClosed())
+			It("Should ping db regularly", func() {
+				done := make(chan interface{})
+				fakeNotificationConnection.PingStub = func() error {
+					defer close(done)
+					return nil
+				}
+				registerDefaultPlatform()
+				Eventually(done, eventuallyTimeout).Should(BeClosed())
+			})
 
 		})
 
