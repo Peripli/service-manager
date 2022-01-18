@@ -25,8 +25,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/Peripli/service-manager/test/common"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/ginkgo/v2"
 )
 
 type deleteOpEntry struct {
@@ -745,7 +744,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			})
 		})
 
-		DescribeTable("with non-empty query", verifyDeleteListOp, entriesWithQuery...)
+		DescribeTable("with non-empty query", verifyDeleteListOp, entriesWithQuery)
 	})
 }
 

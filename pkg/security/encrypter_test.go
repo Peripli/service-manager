@@ -22,7 +22,7 @@ import (
 	"log"
 
 	"github.com/Peripli/service-manager/pkg/security"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 

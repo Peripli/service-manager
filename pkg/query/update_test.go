@@ -20,15 +20,13 @@ import (
 	"fmt"
 
 	. "github.com/Peripli/service-manager/pkg/query"
-	. "github.com/onsi/ginkgo/extensions/table"
-
 	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/tidwall/sjson"
 
 	. "github.com/onsi/gomega"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 )
 
 var _ = Describe("Update", func() {
@@ -294,7 +292,7 @@ var _ = Describe("Update", func() {
 				Expect(mergedLabels).To(Equal(t.ExpectedMergedLabels))
 				Expect(labelsToAdd).To(Equal(t.ExpectedLabelsToAdd))
 				Expect(labelsToRemove).To(Equal(t.ExpectedLabelsToRemove))
-			}, entries...)
+			}, entries)
 		})
 	})
 })

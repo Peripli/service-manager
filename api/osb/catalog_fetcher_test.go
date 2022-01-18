@@ -31,8 +31,7 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/test/common"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/ginkgo/v2"
 )
 
 var _ = Describe("Catalog CatalogFetcher", func() {
@@ -240,5 +239,5 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 		if t.expectedResponse != nil {
 			Expect(rawCatalog).To(Equal(t.expectedResponse))
 		}
-	}, entries...)
+	}, entries)
 })

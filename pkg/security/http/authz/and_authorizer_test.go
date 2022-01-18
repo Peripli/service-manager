@@ -6,7 +6,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 
 	httpsec "github.com/Peripli/service-manager/pkg/security/http"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 )
 
 var _ = Describe("AndAuthorizer", func() {

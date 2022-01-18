@@ -19,10 +19,8 @@ package osb_test
 import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/types"
+	. "github.com/onsi/ginkgo/v2"
 	"net/http"
-
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
 )
 
 type testCase struct {
@@ -169,7 +167,7 @@ var _ = Describe("Get Binding Last Operation", func() {
 					expectGetBindingStatus:          http.StatusOK,
 					expectBindingReady:              false,
 				}),
-			}...)
+			})
 		})
 
 		Context("Unbind", func() {
@@ -226,7 +224,7 @@ var _ = Describe("Get Binding Last Operation", func() {
 					expectGetBindingStatus:          http.StatusOK,
 					expectBindingReady:              true,
 				}),
-			}...)
+			})
 		})
 
 	})

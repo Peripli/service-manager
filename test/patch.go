@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/Peripli/service-manager/test/common"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 )
 
 func DescribePatchTestsFor(ctx *common.TestContext, t TestCase, responseMode ResponseMode) bool {

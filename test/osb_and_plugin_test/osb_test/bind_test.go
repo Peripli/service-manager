@@ -21,7 +21,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 )
 
 var _ = Describe("Bind", func() {

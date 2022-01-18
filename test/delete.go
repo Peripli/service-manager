@@ -25,7 +25,7 @@ import (
 	"strconv"
 
 	"github.com/Peripli/service-manager/test/common"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 )
 
 func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode ResponseMode, supportedCascadeDelete bool) bool {

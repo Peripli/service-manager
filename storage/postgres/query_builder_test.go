@@ -17,7 +17,7 @@ import (
 
 	"github.com/Peripli/service-manager/storage/postgres/postgresfakes"
 	"github.com/jmoiron/sqlx"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 )
 
 // The query builder tests contain the full queries that are expected to be build and can therefore be used as documentation

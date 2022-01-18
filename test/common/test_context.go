@@ -45,7 +45,7 @@ import (
 	"github.com/gavv/httpexpect"
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/spf13/pflag"
 
 	"github.com/Peripli/service-manager/config"

@@ -11,7 +11,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gofrs/uuid"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 )
 
 func CreateInstanceInPlatform(ctx *TestContext, platformID string) (string, *types.ServiceInstance) {

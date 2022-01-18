@@ -1,14 +1,11 @@
 package web_test
 
 import (
-	"net/http"
-
-	. "github.com/onsi/ginkgo/extensions/table"
-
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"net/http"
 )
 
 var _ = Describe("Dynamic filter", func() {
@@ -76,7 +73,7 @@ var _ = Describe("Dynamic filter", func() {
 			Expect(f.called).To(Equal(e.called[i]))
 		}
 
-	}, entries...)
+	}, entries)
 })
 
 type test struct {

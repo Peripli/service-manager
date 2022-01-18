@@ -33,7 +33,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/test/common"
 	"github.com/Peripli/service-manager/test/testutil"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	"github.com/sirupsen/logrus"
 )
 

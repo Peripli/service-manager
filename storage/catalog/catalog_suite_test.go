@@ -17,7 +17,7 @@
 package catalog_test
 
 import "testing"
-import . "github.com/onsi/ginkgo"
+import . "github.com/onsi/ginkgo/v2"
 import . "github.com/onsi/gomega"
 
 func TestCatalog(t *testing.T) {

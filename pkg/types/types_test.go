@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/fatih/structs"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 
 	. "github.com/onsi/gomega"
 )

@@ -9,8 +9,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 
 	httpsec "github.com/Peripli/service-manager/pkg/security/http"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -52,7 +51,7 @@ var _ = Describe("Oauth Scopes", func() {
 				expectedDecision: httpsec.Allow,
 				expectedAccess:   web.GlobalAccess,
 			}),
-		}...)
+		})
 	})
 
 	Describe("HasScope", func() {

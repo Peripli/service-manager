@@ -27,7 +27,7 @@ import (
 
 	"github.com/Peripli/service-manager/api/healthcheck"
 	"github.com/Peripli/service-manager/test/common"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 )
 
 func TestHealth(t *testing.T) {

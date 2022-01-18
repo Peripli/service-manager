@@ -42,7 +42,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/Peripli/service-manager/test/common"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 )
 
 type Op string

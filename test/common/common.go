@@ -31,7 +31,7 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/web"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	"github.com/spf13/pflag"
 
 	"crypto/rand"
@@ -52,7 +52,7 @@ import (
 	"io/ioutil"
 
 	"github.com/Peripli/service-manager/pkg/types"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 )
 
 type Object = map[string]interface{}
