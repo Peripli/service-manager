@@ -50,3 +50,4 @@ Feedback and contributions are always welcome. Please refer to the [contribution
 * Service Manager Introduction as part of the keynote @ CF Summit Europe 2018 can be found [here](https://www.youtube.com/watch?v=LMwo_zgfYjU).
 
 * Service Manager Session @ CF Summit Europe 2018 can be found [here](https://www.youtube.com/watch?v=SGfwVPx-kmE).
+
