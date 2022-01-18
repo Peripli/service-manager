@@ -35,9 +35,9 @@ func TestServer(t *testing.T) {
 
 var sm *httpexpect.Expect
 
-var _ = Describe("Server", func() {
+var _ = Describe("Server", Ordered, func() {
 
-	BeforeSuite(func() {
+	BeforeAll(func() {
 		api := &web.API{}
 		route := web.Route{
 			Endpoint: web.Endpoint{

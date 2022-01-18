@@ -231,13 +231,13 @@ func DescribeTestsFor(t TestCase) bool {
 		func() {
 			By("==== Preparation for SM tests... ====")
 
-			defer GinkgoRecover()
 			ctx = ctxBuilder().Build()
 
 			// A panic outside of Ginkgo's primitives (during test setup) would be recovered
 			// by the deferred GinkgoRecover() and the error will be associated with the first
 			// It to be ran in the suite. There, we add a dummy It to reduce confusion.
 			It("sets up all test prerequisites that are ran outside of Ginkgo primitives properly", func() {
+				defer GinkgoRecover()
 				Expect(true).To(BeTrue())
 			})
 
