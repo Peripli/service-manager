@@ -25,10 +25,16 @@ jobs:
         with:
           path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
 
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.29
+        skip-go-installation: true
+        working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
 
       - name: Test
         working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
-        run: make precommit-new-unit-tets
+        run: make precommit-new-unit-tests
 
       - name: Send coverage
         uses: shogo82148/actions-goveralls@v1.4.2
