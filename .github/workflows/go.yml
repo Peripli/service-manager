@@ -29,8 +29,8 @@ jobs:
         uses: golangci/golangci-lint-action@v2
         with:
           version: v1.29
-        skip-go-installation: true
-        working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
+          skip-go-installation: true
+          working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
 
       - name: Test
         working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
