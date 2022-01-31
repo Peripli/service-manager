@@ -622,7 +622,6 @@ func (om *Maintainer) batchDeleteOperation(criteria []query.Criterion, batchSize
 		for i := 0; i < operations.Len(); i++ {
 			operationIDs = append(operationIDs, operations.ItemAt(i).GetID())
 		}
-
 		if err := om.repository.Delete(om.smCtx, types.OperationType, query.ByField(query.InOperator, "id", operationIDs...)); err != nil && err != util.ErrNotFoundInStorage {
 			log.C(om.smCtx).Errorf("Failed to cleanup operations - delete query failed: %s", err)
 			return
