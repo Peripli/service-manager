@@ -19,6 +19,7 @@ package operations
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -188,10 +189,8 @@ func (om *Maintainer) cleanupExternalOperations() {
 		query.BySubquery(query.InSubqueryOperator, "id", storage.GetSubQuery(storage.QueryForAllNotLastOperationsPerResource)),
 	}
 
-	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
-		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
-		return
-	}
+	om.batchDeleteOperation(criteria, om.settings.DeleteOperationsBatchSize)
+
 	log.C(om.smCtx).Debug("Finished cleaning up external operations")
 }
 
@@ -284,16 +283,15 @@ func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 		query.BySubquery(query.InSubqueryOperator, "id", storage.GetSubQuery(storage.QueryForAllNotLastOperationsPerResource)),
 	}
 
-	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
-		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
-		return
-	}
+	om.batchDeleteOperation(criteria, om.settings.DeleteOperationsBatchSize)
+
 	log.C(om.smCtx).Debug("Finished cleaning up successful internal operations")
 }
 
 // cleanupInternalFailedOperations cleans up all failed internal operations which are older than some specified time
 func (om *Maintainer) cleanupInternalFailedOperations() {
 	currentTime := time.Now()
+
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "state", string(types.FAILED)),
@@ -306,10 +304,8 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 		query.BySubquery(query.InSubqueryOperator, "id", storage.GetSubQuery(storage.QueryForAllNotLastOperationsPerResource)),
 	}
 
-	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
-		log.C(om.smCtx).Debugf("Failed to cleanup operations: %s", err)
-		return
-	}
+	om.batchDeleteOperation(criteria, om.settings.DeleteOperationsBatchSize)
+
 	log.C(om.smCtx).Debug("Finished cleaning up failed internal operations")
 }
 
@@ -606,4 +602,19 @@ func (om *Maintainer) markStuckOperationsFailed() {
 	}
 
 	log.C(om.smCtx).Debug("Finished marking stuck operations as failed")
+}
+
+func (om *Maintainer) batchDeleteOperation(criteria []query.Criterion, batchSize int) {
+	numberOfOperationsToDelete, err := om.repository.Count(om.smCtx, types.OperationType, criteria...)
+	if err != nil {
+		log.C(om.smCtx).Errorf("Error on cleanup operations - get number of operation to delete failed: %s", err)
+	}
+
+	criteria = append(criteria, query.LimitResultBy(batchSize))
+	for i := 0.0; i < math.Ceil(float64(numberOfOperationsToDelete/batchSize)); i++ {
+		if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
+			log.C(om.smCtx).Errorf("Failed to cleanup operations - delete query failed: %s", err)
+			return
+		}
+	}
 }
