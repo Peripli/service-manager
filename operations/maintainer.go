@@ -604,17 +604,29 @@ func (om *Maintainer) markStuckOperationsFailed() {
 	log.C(om.smCtx).Debug("Finished marking stuck operations as failed")
 }
 
-func (om *Maintainer) batchDeleteOperation(criteria []query.Criterion, batchSize int) {
+func (om *Maintainer) batchDeleteOperation(criteria []query.Criterion, batchSize int) error {
 	numberOfOperationsToDelete, err := om.repository.Count(om.smCtx, types.OperationType, criteria...)
 	if err != nil {
 		log.C(om.smCtx).Errorf("Error on cleanup operations - get number of operation to delete failed: %s", err)
+		return err
 	}
 
 	criteria = append(criteria, query.LimitResultBy(batchSize))
 	for i := 0.0; i < math.Ceil(float64(numberOfOperationsToDelete/batchSize)); i++ {
-		if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
+		operations, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
+		if err != nil {
+			log.C(om.smCtx).Errorf("Failed to cleanup operations - list query failed: %s", err)
+			return err
+		}
+		operationIDs := make([]string, 0, operations.Len())
+		for i := 0; i < operations.Len(); i++ {
+			operationIDs = append(operationIDs, operations.ItemAt(i).GetID())
+		}
+
+		if err := om.repository.Delete(om.smCtx, types.OperationType, query.ByField(query.InOperator, "id", operationIDs...)); err != nil && err != util.ErrNotFoundInStorage {
 			log.C(om.smCtx).Errorf("Failed to cleanup operations - delete query failed: %s", err)
-			return
+			return err
 		}
 	}
+	return nil
 }
