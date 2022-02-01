@@ -309,7 +309,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							resourcelessOperation, _ := ctx.SMRepository.List(context.Background(), types.OperationType, byIDs)
 							return resourcelessOperation.Len()
 						}, cleanupInterval*4).Should(BeZero())
-
 					})
 				})
 
