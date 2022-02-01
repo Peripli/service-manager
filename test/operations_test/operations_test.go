@@ -440,7 +440,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
 								Expect(err).To(BeNil())
 								return count
-							}, operationExpiration*3).Should(Equal(0))
+							}, operationExpiration*3).Should(Equal(1))
 						})
 					})
 				})
