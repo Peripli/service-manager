@@ -618,6 +618,10 @@ func (om *Maintainer) batchDeleteOperation(criteria []query.Criterion, batchSize
 			log.C(om.smCtx).Errorf("Failed to cleanup operations - list query failed: %s", err)
 			return
 		}
+		if operations.Len() == 0 {
+			log.C(om.smCtx).Errorf("Failed to cleanup operations - list query returned 0 operations but numberOfOperationsToDelete is %d", numberOfOperationsToDelete)
+			return
+		}
 		operationIDs := make([]string, 0, operations.Len())
 		for i := 0; i < operations.Len(); i++ {
 			operationIDs = append(operationIDs, operations.ItemAt(i).GetID())
