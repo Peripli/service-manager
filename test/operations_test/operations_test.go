@@ -228,10 +228,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 			Context("Maintainer", func() {
 				const (
-					maintainerRetry     = 1 * time.Second
-					actionTimeout       = 2 * time.Second
-					cleanupInterval     = 3 * time.Second
-					operationExpiration = 3 * time.Second
+					maintainerRetry           = 1 * time.Second
+					actionTimeout             = 2 * time.Second
+					cleanupInterval           = 3 * time.Second
+					operationExpiration       = 3 * time.Second
+					deleteOperationsBatchSize = 1
 				)
 
 				var ctxBuilder *TestContextBuilder
@@ -241,6 +242,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						e.Set("operations.action_timeout", actionTimeout)
 						e.Set("operations.maintainer_retry_interval", maintainerRetry)
 						e.Set("operations.cleanup_interval", cleanupInterval)
+						e.Set("operations.delete_operations_batch_size", deleteOperationsBatchSize)
 						e.Set("operations.lifespan", operationExpiration)
 						e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)
 					}
@@ -276,6 +278,37 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							resourcelessOperation, _ := ctx.SMRepository.Get(context.Background(), types.OperationType, byID)
 							return resourcelessOperation
 						}, cleanupInterval*4).Should(BeNil())
+
+					})
+				})
+
+				When("there are more than deleteOperationsBatchSize resource-less operations", func() {
+					BeforeEach(func() {
+						ctx = ctxBuilder.Build()
+						resourcelessOperation := types.Operation{
+							Base:       types.Base{ID: "test-resource-less-operation"},
+							ResourceID: "non-existent-resource",
+							Type:       types.CREATE,
+							State:      "succeeded",
+						}
+						ctx.SMRepository.Create(context.Background(), &resourcelessOperation)
+
+						resourcelessOperation = types.Operation{
+							Base:       types.Base{ID: "test-resource-less-operation-2"},
+							ResourceID: "non-existent-resource-2",
+							Type:       types.CREATE,
+							State:      "succeeded",
+						}
+						ctx.SMRepository.Create(context.Background(), &resourcelessOperation)
+					})
+					It("Should deleted all resource-less operations once cleanup interval has passed", func() {
+						ensureOperationExist(ctx.SMRepository, "test-resource-less-operation")
+						ensureOperationExist(ctx.SMRepository, "test-resource-less-operation-2")
+						Eventually(func() int {
+							byIDs := query.ByField(query.InOperator, "id", "test-resource-less-operation", "test-resource-less-operation-2")
+							resourcelessOperation, _ := ctx.SMRepository.List(context.Background(), types.OperationType, byIDs)
+							return resourcelessOperation.Len()
+						}, cleanupInterval*4).Should(BeZero())
 
 					})
 				})
