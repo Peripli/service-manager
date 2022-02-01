@@ -3946,7 +3946,7 @@ var _ = DescribeTestsFor(TestCase{
 										doneChannel = make(chan interface{})
 
 										newSMCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
-											Expect(set.Set("httpclient.timeout", (100 * time.Millisecond).String())).ToNot(HaveOccurred())
+											Expect(set.Set("httpclient.timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
 										}).BuildWithoutCleanup()
 
 										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", DelayingHandler(doneChannel))
@@ -3958,7 +3958,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									It("orphan mitigates the instance", func() {
 										resp := deleteInstance(newSMCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
-										<-time.After(1100 * time.Millisecond)
+										<-time.After(2 * time.Second)
 										close(doneChannel)
 
 										instanceID, _ = VerifyOperationExists(newSMCtx, resp.Header("Location").Raw(), OperationExpectations{
