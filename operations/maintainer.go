@@ -610,7 +610,6 @@ func (om *Maintainer) batchDeleteOperation(criteria []query.Criterion, batchSize
 		log.C(om.smCtx).Errorf("Error on cleanup operations - get number of operation to delete failed: %s", err)
 		return
 	}
-
 	criteria = append(criteria, query.LimitResultBy(batchSize))
 	for i := 0.0; i < math.Ceil(float64(numberOfOperationsToDelete)/float64(batchSize)); i++ {
 		operations, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
