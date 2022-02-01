@@ -626,7 +626,5 @@ func (om *Maintainer) batchDeleteOperation(criteria []query.Criterion, batchSize
 			log.C(om.smCtx).Errorf("Failed to cleanup operations - delete query failed: %s", err)
 			return
 		}
-
 	}
-	return
 }
