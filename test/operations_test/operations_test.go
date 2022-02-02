@@ -228,10 +228,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 			Context("Maintainer", func() {
 				const (
-					maintainerRetry     = 1 * time.Second
-					actionTimeout       = 2 * time.Second
-					cleanupInterval     = 3 * time.Second
-					operationExpiration = 3 * time.Second
+					maintainerRetry           = 1 * time.Second
+					actionTimeout             = 2 * time.Second
+					cleanupInterval           = 3 * time.Second
+					operationExpiration       = 3 * time.Second
+					deleteOperationsBatchSize = 1
 				)
 
 				var ctxBuilder *TestContextBuilder
@@ -241,6 +242,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						e.Set("operations.action_timeout", actionTimeout)
 						e.Set("operations.maintainer_retry_interval", maintainerRetry)
 						e.Set("operations.cleanup_interval", cleanupInterval)
+						e.Set("operations.delete_operations_batch_size", deleteOperationsBatchSize)
 						e.Set("operations.lifespan", operationExpiration)
 						e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)
 					}
@@ -326,7 +328,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("operation platform is service Manager", func() {
 						BeforeEach(func() {
-							createLastOperationForTestPlatform(ctx)
+							createLastOperationForTestPlatform(ctx, "")
 						})
 						It("Deletes operations older than that interval", func() {
 							ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
@@ -427,17 +429,18 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							object, err := ctx.SMRepository.Create(context.Background(), operation)
 							Expect(err).To(BeNil())
 							Expect(object).To(Not(BeNil()))
-							createLastOperationForTestPlatform(ctx)
+							createLastOperationForTestPlatform(ctx, "service-manager")
+							createLastOperationForTestPlatform(ctx, "service-manager")
 						})
 
 						It("should cleanup external old ones", func() {
 							byPlatformID := query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform)
-							assertOperationCount(1, byPlatformID)
+							assertOperationCount(3, byPlatformID)
 							Eventually(func() int {
 								count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
 								Expect(err).To(BeNil())
 								return count
-							}, operationExpiration*3).Should(Equal(0))
+							}, operationExpiration*3).Should(Equal(1))
 						})
 					})
 				})
@@ -574,7 +577,7 @@ func ensureOperationExist(repository storage.TransactionalRepository, operationI
 	Expect(resourcelessOperation).ToNot(BeNil())
 }
 
-func createLastOperationForTestPlatform(ctx *TestContext) {
+func createLastOperationForTestPlatform(ctx *TestContext, platformID string) {
 	//Last operation is never deleted since we keep the last operation for any resource (see: CleanupResourcelessOperations in maintainer.go).
 	//The test framework creates the platform 'basic-auth-default-test-platform' which is associated to a single 'create' operation that will never be deleted
 	//that's why we create here another operation for 'basic-auth-default-test-platform'.
@@ -585,6 +588,7 @@ func createLastOperationForTestPlatform(ctx *TestContext) {
 		Base:         types.Base{ID: UUID.String()},
 		ResourceID:   "basic-auth-default-test-platform",
 		ResourceType: "/v1/platforms",
+		PlatformID:   platformID,
 		Type:         types.CREATE,
 		State:        "succeeded",
 	}

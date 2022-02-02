@@ -3958,7 +3958,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									It("orphan mitigates the instance", func() {
 										resp := deleteInstance(newSMCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
-										<-time.After(1100 * time.Millisecond)
+										<-time.After(2 * time.Second)
 										close(doneChannel)
 
 										instanceID, _ = VerifyOperationExists(newSMCtx, resp.Header("Location").Raw(), OperationExpectations{
