@@ -96,7 +96,7 @@ func (c *ServiceBindingController) Routes() []web.Route {
 				Method: http.MethodPatch,
 				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
 			},
-			Handler: c.PatchObjectName,
+			Handler: c.PatchObjectNameAndLabels,
 		},
 	}
 }
@@ -169,7 +169,7 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 
 }
 
-func (c *ServiceBindingController) PatchObjectName(r *web.Request) (*web.Response, error) {
+func (c *ServiceBindingController) PatchObjectNameAndLabels(r *web.Request) (*web.Response, error) {
 	isAsync := r.URL.Query().Get(web.QueryParamAsync)
 	if isAsync == "true" {
 		return nil, &util.HTTPError{
@@ -180,12 +180,13 @@ func (c *ServiceBindingController) PatchObjectName(r *web.Request) (*web.Respons
 	}
 
 	bodyMap := gjson.ParseBytes(r.Body).Map()
-	_, hasName := bodyMap["name"]
+	delete(bodyMap, "name")
+	delete(bodyMap, "labels")
 
-	if len(bodyMap) > 1 || !hasName {
+	if len(bodyMap) > 0 {
 		return nil, &util.HTTPError{
 			ErrorType:   "InvalidRequest",
-			Description: fmt.Sprintf("requested %s api only supports name changes", r.URL.RequestURI()),
+			Description: fmt.Sprintf("requested %s api only supports name and label changes", r.URL.RequestURI()),
 			StatusCode:  http.StatusBadRequest,
 		}
 	}

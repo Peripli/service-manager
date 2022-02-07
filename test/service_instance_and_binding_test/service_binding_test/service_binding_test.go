@@ -2805,10 +2805,19 @@ var _ = DescribeTestsFor(TestCase{
 					createBinding(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
 				})
 
-				It("should be possible to change binding name", func() {
+				It("should be possible to change binding name and labels", func() {
+					labels := []*types.LabelChange{
+						{
+							Operation: types.AddLabelOperation,
+							Key:       "labelKey1",
+							Values:    []string{"labelValue1"},
+						},
+					}
+
 					obj := ctx.SMWithOAuthForTenant.PATCH(web.ServiceBindingsURL + "/" + bindingID).
 						WithJSON(Object{
-							"name": "newName",
+							"name":   "newName",
+							"labels": labels,
 						}).
 						Expect().
 						Status(http.StatusOK).
@@ -2816,6 +2825,15 @@ var _ = DescribeTestsFor(TestCase{
 
 					obj.ContainsKey("name").
 						ValueEqual("name", "newName")
+					expectedLabels := types.Labels{
+						"labelKey1": {
+							"labelValue1",
+						},
+						TenantIdentifier: {
+							TenantIDValue,
+						},
+					}
+					obj.ValueEqual("labels", expectedLabels)
 				})
 
 				It("should not be possible to change other properties", func() {
@@ -2828,7 +2846,7 @@ var _ = DescribeTestsFor(TestCase{
 						Status(http.StatusBadRequest).
 						JSON().Object()
 
-					Expect(obj.Value("description").String().Raw()).To(ContainSubstring("api only supports name changes"))
+					Expect(obj.Value("description").String().Raw()).To(ContainSubstring("api only supports name and label changes"))
 
 				})
 
