@@ -83,6 +83,7 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 				return nil, util.HandleStorageError(err, string(op.GetType()))
 			}
 		}
+		log.C(ctx).Infof("Finished Creating %v cascade operations for deletion", len(ops))
 
 		return f(ctx, storage, operation)
 	}
