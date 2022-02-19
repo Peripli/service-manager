@@ -42,7 +42,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/Peripli/service-manager/test/common"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 )
 
 type Op string
@@ -200,10 +200,10 @@ func EnsurePlanVisibility(repository storage.Repository, tenantIdentifier, platf
 }
 
 func DescribeTestsFor(t TestCase) bool {
-	return Describe(t.API, func() {
+	return Describe(t.API, Ordered, func() {
 		var ctx *common.TestContext
 
-		AfterSuite(func() {
+		AfterAll(func() {
 			ctx.Cleanup()
 		})
 

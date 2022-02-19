@@ -23,8 +23,7 @@ import (
 	"strconv"
 	"strings"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -147,7 +146,7 @@ var _ = Describe("Utils test", func() {
 				Entry("top level keys", `{"key1":"value1","key1":"value2"}`),
 				Entry("nested keys", `{"key1":{"key2":"value1","key2":"value2"}}`),
 				Entry("duplicate keys in array element", `{"key1":[{"key3":"value3"},{"key2":"value1","key2":"value2"}]}`),
-			}...)
+			})
 
 		})
 

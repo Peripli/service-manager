@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/benjamintf1/unmarshalledmatchers"
-
-	. "github.com/onsi/ginkgo/extensions/table"
-
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/benjamintf1/unmarshalledmatchers"
 
 	"github.com/Peripli/service-manager/pkg/web"
 
@@ -17,7 +14,7 @@ import (
 
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 )
 
 var _ = Describe("TenantFilters", func() {
@@ -207,7 +204,7 @@ var _ = Describe("TenantFilters", func() {
 						_, err = multitenancyFilters[1].Run(fakeRequest, fakeHandler)
 						Expect(err).ToNot(HaveOccurred())
 						Expect(string(fakeRequest.Body)).To(unmarshalledmatchers.MatchOrderedJSON(t.expectedRequestBody))
-					}, entries...)
+					}, entries)
 				})
 
 				Describe("Global access", func() {
@@ -259,7 +256,7 @@ var _ = Describe("TenantFilters", func() {
 						_, err = multitenancyFilters[1].Run(fakeRequest, fakeHandler)
 						Expect(err).ToNot(HaveOccurred())
 						Expect(string(fakeRequest.Body)).To(unmarshalledmatchers.MatchOrderedJSON(t.actualRequestBody))
-					}, entries...)
+					}, entries)
 				})
 			})
 		})

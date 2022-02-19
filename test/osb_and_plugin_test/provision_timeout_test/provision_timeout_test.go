@@ -2,7 +2,7 @@ package provision_timeout
 
 import (
 	"github.com/Peripli/service-manager/pkg/web"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	"net/http"
 )
 

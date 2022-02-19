@@ -29,7 +29,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/security/securityfakes"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 

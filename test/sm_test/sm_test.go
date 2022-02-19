@@ -30,7 +30,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/env"
 
 	"github.com/gavv/httpexpect"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	"net/http"

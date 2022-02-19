@@ -7,7 +7,7 @@ import (
 
 	httpsec "github.com/Peripli/service-manager/pkg/security/http"
 	"github.com/Peripli/service-manager/pkg/web"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 

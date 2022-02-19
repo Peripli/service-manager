@@ -29,7 +29,7 @@ import (
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/storage/storagefakes"
 	"github.com/Peripli/service-manager/test/common"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -38,18 +38,18 @@ func TestAPI(t *testing.T) {
 	RunSpecs(t, "API Suite")
 }
 
-var _ = Describe("API", func() {
+var _ = Describe("API", Ordered, func() {
 	var (
 		mockedStorage   *storage.InterceptableTransactionalRepository
 		server          *common.OAuthServer
 		fakeEnvironment *envfakes.FakeEnvironment
 	)
 
-	BeforeSuite(func() {
+	BeforeAll(func() {
 		server = common.NewOAuthServer()
 	})
 
-	AfterSuite(func() {
+	AfterAll(func() {
 		server.Close()
 	})
 

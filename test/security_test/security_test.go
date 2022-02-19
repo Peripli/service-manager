@@ -12,8 +12,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/ginkgo/v2"
+
 	. "github.com/onsi/gomega"
 )
 
@@ -57,7 +57,7 @@ var _ = Describe("Service Manager Security Tests", func() {
 			ctx.SMWithBasic.Request(t.method, t.path).Expect().Status(t.basicAuthRequestExpectedStatus)
 			By("requesting with bearer auth")
 			ctx.SMWithOAuth.Request(t.method, t.path).Expect().Status(t.bearerAuthRequestExpectedStatus)
-		}, entries...)
+		}, entries)
 	}
 
 	Describe("Required", func() {

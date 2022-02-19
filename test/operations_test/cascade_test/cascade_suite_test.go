@@ -13,7 +13,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	. "github.com/Peripli/service-manager/test/common"
 	"github.com/gofrs/uuid"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/pflag"
 	"net/http"

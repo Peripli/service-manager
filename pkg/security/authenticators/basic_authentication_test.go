@@ -30,7 +30,7 @@ import (
 	httpsec "github.com/Peripli/service-manager/pkg/security/http"
 
 	"github.com/Peripli/service-manager/pkg/types"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 

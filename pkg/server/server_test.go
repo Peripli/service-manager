@@ -24,7 +24,7 @@ import (
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gavv/httpexpect"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -35,9 +35,9 @@ func TestServer(t *testing.T) {
 
 var sm *httpexpect.Expect
 
-var _ = Describe("Server", func() {
+var _ = Describe("Server", Ordered, func() {
 
-	BeforeSuite(func() {
+	BeforeAll(func() {
 		api := &web.API{}
 		route := web.Route{
 			Endpoint: web.Endpoint{

@@ -7,7 +7,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/types"
 	storagefakes "github.com/Peripli/service-manager/storage/storagefakes"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"time"
 )

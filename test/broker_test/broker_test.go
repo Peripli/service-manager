@@ -45,7 +45,7 @@ import (
 
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/Peripli/service-manager/test/common"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/cast"
 )

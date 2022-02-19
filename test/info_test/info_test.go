@@ -24,7 +24,7 @@ import (
 
 	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/test/common"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 

@@ -10,8 +10,7 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/auth"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -20,7 +19,7 @@ func TestAuthStrategy(t *testing.T) {
 	RunSpecs(t, "")
 }
 
-var _ = Describe("Service Manager Auth strategy test", func() {
+var _ = Describe("Service Manager Auth strategy test", Ordered, func() {
 	var authStrategy auth.Authenticator
 	var authOptions *auth.Options
 	var configurationResponseCode int
@@ -42,7 +41,7 @@ var _ = Describe("Service Manager Auth strategy test", func() {
 		}
 	}
 
-	BeforeSuite(func() {
+	BeforeAll(func() {
 		uaaServer = httptest.NewServer(createUAAHandler())
 		configurationResponseCode = http.StatusOK
 		configurationResponseBody = []byte(`{"token_endpoint": "` + uaaServer.URL + `"}`)
@@ -58,7 +57,7 @@ var _ = Describe("Service Manager Auth strategy test", func() {
 		}))
 	})
 
-	AfterSuite(func() {
+	AfterAll(func() {
 		if uaaServer != nil {
 			uaaServer.Close()
 		}

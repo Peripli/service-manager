@@ -18,17 +18,23 @@ jobs:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
-          go-version: 1.14
+          go-version: 1.17
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
         with:
           path: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
 
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.29
+          skip-go-installation: true
+          working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
 
       - name: Test
         working-directory: ${{ env.GOPATH }}/src/github.com/${{ github.repository }}
-        run: make precommit-new-unit-tets
+        run: make precommit-new-unit-tests
 
       - name: Send coverage
         uses: shogo82148/actions-goveralls@v1.4.2
@@ -59,7 +65,7 @@ jobs:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
-          go-version: 1.14
+          go-version: 1.17
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
@@ -99,7 +105,7 @@ jobs:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
-          go-version: 1.14
+          go-version: 1.17
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
@@ -139,7 +145,7 @@ jobs:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
-          go-version: 1.14
+          go-version: 1.17
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
@@ -179,7 +185,7 @@ jobs:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
-          go-version: 1.14
+          go-version: 1.17
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2

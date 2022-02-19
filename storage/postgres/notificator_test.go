@@ -38,7 +38,7 @@ import (
 
 	"github.com/lib/pq"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -46,6 +46,7 @@ var _ = Describe("Notificator", func() {
 	const (
 		defaultLastRevision int64 = 10
 		defaultQueueSize          = 1
+		eventuallyTimeout         = time.Second * 20
 	)
 
 	var (
@@ -298,7 +299,7 @@ var _ = Describe("Notificator", func() {
 			})
 		})
 
-		Context("When consumer is unregistered and then registered again after unlisten", func() {
+		XContext("When consumer is unregistered and then registered again after unlisten", func() {
 			It("Should listen again", func(done Done) {
 				fakeNotificationConnection.UnlistenStub = func(s string) error {
 					Expect(s).To(Equal(postgresChannel))
@@ -313,6 +314,28 @@ var _ = Describe("Notificator", func() {
 				err := testNotificator.UnregisterConsumer(queue)
 				Expect(err).ToNot(HaveOccurred())
 			})
+		})
+
+		Context("When consumer is unregistered and then registered again after unlisten", func() {
+			It("Should listen again", func() {
+
+				done := make(chan interface{})
+				fakeNotificationConnection.UnlistenStub = func(s string) error {
+					Expect(s).To(Equal(postgresChannel))
+					fakeNotificationConnection.UnlistenReturns(nil)
+
+					go func() {
+						registerDefaultPlatform()
+						Expect(fakeNotificationConnection.ListenCallCount()).To(Equal(2))
+						close(done) //signifies the code is done
+					}()
+					return nil
+				}
+				err := testNotificator.UnregisterConsumer(queue)
+				Expect(err).ToNot(HaveOccurred())
+				Eventually(done, eventuallyTimeout).Should(BeClosed())
+			})
+
 		})
 
 		Context("When more than one consumer is registered", func() {
@@ -350,7 +373,7 @@ var _ = Describe("Notificator", func() {
 			})
 		})
 
-		Context("When Notificator is running", func() {
+		XContext("When Notificator is running", func() {
 			It("Should ping db regularly", func(done Done) {
 				fakeNotificationConnection.PingStub = func() error {
 					defer close(done)
@@ -358,6 +381,19 @@ var _ = Describe("Notificator", func() {
 				}
 				registerDefaultPlatform()
 			})
+		})
+
+		Context("When Notificator is running", func() {
+			It("Should ping db regularly", func() {
+				done := make(chan interface{})
+				fakeNotificationConnection.PingStub = func() error {
+					defer close(done)
+					return nil
+				}
+				registerDefaultPlatform()
+				Eventually(done, eventuallyTimeout).Should(BeClosed())
+			})
+
 		})
 
 		Context("When notification revision is grater than the the one SM knows", func() {

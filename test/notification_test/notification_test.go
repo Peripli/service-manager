@@ -35,8 +35,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/Peripli/service-manager/pkg/types"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.com/onsi/ginkgo/v2"
 )
 
 const tenantLabelKey = "tenant"
@@ -810,7 +809,7 @@ var _ = Describe("Notifications Suite", func() {
 
 				verifyModificationNotificationsCreated(createdObj, objAfterOp, updateBody, notificationsAfterOp)
 
-			}, updateOpEntries(entry.ResourceUpdates)...)
+			}, updateOpEntries(entry.ResourceUpdates))
 
 			if !entry.ResourceNotifyInactivePlatforms {
 				When("platforms are not active but were active recently", func() {
@@ -826,7 +825,7 @@ var _ = Describe("Notifications Suite", func() {
 
 						verifyModificationNotificationsCreated(createdObj, objAfterOp, updateBody, notificationsAfterOp)
 
-					}, updateOpEntries(entry.ResourceUpdates)...)
+					}, updateOpEntries(entry.ResourceUpdates))
 				})
 
 				When("platforms are not active and were last active more than the notification keep for duration ago", func() {
@@ -841,7 +840,7 @@ var _ = Describe("Notifications Suite", func() {
 						notificationsAfterOp, _ := getNotifications(ids...)
 
 						verifyNoNotificationCreatedForType(entry.ResourceType, notificationsAfterOp)
-					}, updateOpEntries(entry.ResourceUpdates)...)
+					}, updateOpEntries(entry.ResourceUpdates))
 				})
 			} else {
 				When("platforms are not active and were last active more than the notification keep for duration ago", func() {
@@ -857,7 +856,7 @@ var _ = Describe("Notifications Suite", func() {
 
 						verifyModificationNotificationsCreated(createdObj, objAfterOp, updateBody, notificationsAfterOp)
 
-					}, updateOpEntries(entry.ResourceUpdates)...)
+					}, updateOpEntries(entry.ResourceUpdates))
 				})
 			}
 

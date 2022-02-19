@@ -24,7 +24,7 @@ import (
 	"github.com/tidwall/sjson"
 
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 

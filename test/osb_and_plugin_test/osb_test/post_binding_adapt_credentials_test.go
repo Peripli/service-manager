@@ -20,7 +20,7 @@ import (
 	"net/http"
 
 	"github.com/Peripli/service-manager/test/common"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 )
 
 var _ = Describe("Post Binding Adapt Credentials", func() {
