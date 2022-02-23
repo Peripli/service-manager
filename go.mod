@@ -25,7 +25,7 @@ require (
 	github.com/gbrlsnchs/jwt v0.5.0
 	github.com/gobwas/glob v0.2.3
 	github.com/gofrs/uuid v3.1.0+incompatible
-	github.com/golang-migrate/migrate v4.15.1
+	github.com/golang-migrate/migrate v4.15.1+incompatible
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/gorilla/context v1.1.1 // indirect
