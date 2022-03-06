@@ -252,9 +252,7 @@ func (s *Scheduler) checkForConcurrentOperations(ctx context.Context, operation 
 
 	isDeletionScheduled := lastOperation.InOrphanMitigationState()
 
-	// for the outside world job timeout would have expired if the last update happened > job timeout time ago (this is worst case)
-	// an "old" updated_at means that for a while nobody was processing this operation
-	isLastOpInProgress := lastOperation.State == types.IN_PROGRESS && time.Now().Before(lastOperation.UpdatedAt.Add(s.actionTimeout))
+	isLastOpInProgress := lastOperation.State == types.IN_PROGRESS
 
 	isAReschedule := lastOperation.Reschedule && operation.Reschedule
 
