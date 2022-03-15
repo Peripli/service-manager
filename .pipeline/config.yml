@@ -1,19 +1,29 @@
-# Project Setup
-#general:
-#  githubApiUrl: 'https://api.github.com'
-#  githubServerUrl: 'https://github.com'
-#  gitSshKeyCredentialsId: 'alex-github-ssh'
-#  githubTokenCredentialsId: 'alex-public-github-token'
-#
-#steps:
-#  pollBuilds:
-#    pollIntervalSeconds: 120
-#    external: true
-#  pushChangesToRepo:
-#    gitUser: 'pavelmaliy'
-#    gitEmail: 'pavel.maliy@sap.com'
-#    githubApprovalTokenCredentialsId: 'peripli-github-token-approval'
-#  buildDepProjects:
-#    projects: ['Release-SBP', 'Release-SAP-SM']
-#  setupPipelineEnvironment:
-#    gitSshUrl: 'git@github.com:Peripli/service-manager.git'
+ Project Setup
+general:
+  githubApiUrl: 'https://api.github.com'
+  githubServerUrl: 'https://github.com'
+  gitSshKeyCredentialsId: 'alex-github-ssh'
+  githubTokenCredentialsId: 'alex-public-github-token'
+
+steps:
+  pollBuilds:
+    pollIntervalSeconds: 120
+    external: true
+  pushChangesToRepo:
+    gitUser: 'pavelmaliy'
+    gitEmail: 'pavel.maliy@sap.com'
+    githubApprovalTokenCredentialsId: 'peripli-github-token-approval'
+  buildDepProjects:
+    projects: ['Release-SBP', 'Release-SAP-SM']
+  setupPipelineEnvironment:
+    gitSshUrl: 'git@github.com:Peripli/service-manager.git'
+
+stages:
+  whitesourceExecuteScanGolang:
+    githubTokenCredentialsId: 'github-jenkins'
+    excludes:
+      - '.pipeline/**'
+      - '.whitesource/**'
+      - '.github/**'
+      - '.postman/**'
+      - '**/*.yaml'
