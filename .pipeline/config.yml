@@ -17,13 +17,9 @@ steps:
     projects: ['Release-SBP', 'Release-SAP-SM']
   setupPipelineEnvironment:
     gitSshUrl: 'git@github.com:Peripli/service-manager.git'
+  whitesourceExecuteScanGolang:
+    githubTokenCredentialsId: 'github-jenkins'
 
 stages:
   whitesourceExecuteScanGolang:
     githubTokenCredentialsId: 'github-jenkins'
-    excludes:
-      - '.pipeline/**'
-      - '.whitesource/**'
-      - '.github/**'
-      - '.postman/**'
-      - '**/*.yaml'
