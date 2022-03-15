@@ -4,7 +4,6 @@ general:
   githubServerUrl: 'https://github.com'
   gitSshKeyCredentialsId: 'alex-github-ssh'
   githubTokenCredentialsId: 'github-jenkins'
-#  githubTokenCredentialsId: 'alex-public-github-token'
 
 steps:
   pollBuilds:
@@ -18,8 +17,6 @@ steps:
     projects: ['Release-SBP', 'Release-SAP-SM']
   setupPipelineEnvironment:
     gitSshUrl: 'git@github.com:Peripli/service-manager.git'
-  whitesourceExecuteScanGolang:
-    githubTokenCredentialsId: 'github-jenkins'
 
 stages:
   whitesourceExecuteScanGolang:
