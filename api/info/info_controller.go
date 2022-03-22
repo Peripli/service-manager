@@ -32,7 +32,7 @@ type Controller struct {
 	TokenBasicAuth               bool   `json:"token_basic_auth"`
 	ServiceManagerTenantId       string `json:"service_manager_tenant_id"`
 	ContextRSAPublicKey          string `json:"context_rsa_public_key,omitempty"`
-	SuccessorContextRSAPublicKey string `json:"successor_context_rsa_public_key,omitempty"`
+	SuccessorContextRSAPublicKey string `json:"context_successor_rsa_public_key,omitempty"`
 }
 
 var _ web.Controller = &Controller{}
