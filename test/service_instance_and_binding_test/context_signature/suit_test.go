@@ -42,6 +42,8 @@ var _ = BeforeSuite(func() {
 	ctx = common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(func(e env.Environment, servers map[string]common.FakeServer) {
 		e.Set("api.osb_rsa_private_key", privateKeyStr)
 		e.Set("api.osb_rsa_public_key", publicKeyStr)
+		e.Set("api.osb_successor_rsa_private_key", privateKeyStr)
+		e.Set("api.osb_successor_rsa_public_key", publicKeyStr)
 	}).Build()
 	UUID, err := uuid.NewV4()
 	Expect(err).ToNot(HaveOccurred())
