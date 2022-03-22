@@ -66,7 +66,6 @@ type Settings struct {
 	OSBRSAPublicKey            string   `mapstructure:"osb_rsa_public_key"`
 	OSBRSAPrivateKey           string   `mapstructure:"osb_rsa_private_key"`
 	OSBSuccessorRSAPublicKey   string   `mapstructure:"osb_successor_rsa_public_key"`
-	OSBSuccessorRSAPrivateKey  string   `mapstructure:"osb_successor_rsa_private_key"`
 }
 
 // DefaultSettings returns default values for API settings
