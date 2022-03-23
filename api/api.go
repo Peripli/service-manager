@@ -65,6 +65,7 @@ type Settings struct {
 	DisabledQueryParameters    []string `mapstructure:"disabled_query_parameters" description:"which query parameters are not implemented by service manager and should be extended"`
 	OSBRSAPublicKey            string   `mapstructure:"osb_rsa_public_key"`
 	OSBRSAPrivateKey           string   `mapstructure:"osb_rsa_private_key"`
+	OSBSuccessorRSAPublicKey   string   `mapstructure:"osb_successor_rsa_public_key"`
 }
 
 // DefaultSettings returns default values for API settings
@@ -139,10 +140,11 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			},
 
 			&info.Controller{
-				TokenIssuer:            options.APISettings.TokenIssuerURL,
-				TokenBasicAuth:         options.APISettings.TokenBasicAuth,
-				ServiceManagerTenantId: options.APISettings.ServiceManagerTenantId,
-				ContextRSAPublicKey:    options.APISettings.OSBRSAPublicKey,
+				TokenIssuer:                  options.APISettings.TokenIssuerURL,
+				TokenBasicAuth:               options.APISettings.TokenBasicAuth,
+				ServiceManagerTenantId:       options.APISettings.ServiceManagerTenantId,
+				ContextRSAPublicKey:          options.APISettings.OSBRSAPublicKey,
+				SuccessorContextRSAPublicKey: options.APISettings.OSBSuccessorRSAPublicKey,
 			},
 			&osb.Controller{
 				BrokerFetcher: func(ctx context.Context, brokerID string) (*types.ServiceBroker, error) {
