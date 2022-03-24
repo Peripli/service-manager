@@ -144,7 +144,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 				TokenBasicAuth:               options.APISettings.TokenBasicAuth,
 				ServiceManagerTenantId:       options.APISettings.ServiceManagerTenantId,
 				ContextRSAPublicKey:          options.APISettings.OSBRSAPublicKey,
-				SuccessorContextRSAPublicKey: options.APISettings.OSBSuccessorRSAPublicKey,
+				ContextSuccessorRSAPublicKey: options.APISettings.OSBSuccessorRSAPublicKey,
 			},
 			&osb.Controller{
 				BrokerFetcher: func(ctx context.Context, brokerID string) (*types.ServiceBroker, error) {
