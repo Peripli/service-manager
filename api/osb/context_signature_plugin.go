@@ -96,12 +96,12 @@ func (cs *ContextSigner) Sign(ctx context.Context, contextMap map[string]interfa
 	if cs.ContextPrivateKey == "" {
 		errorMsg := "context rsa private key is missing. context signature can not be calculated"
 		log.C(ctx).Errorf(errorMsg)
-		return fmt.Errorf(errorMsg)
+		return nil
 	}
 	ctxByte, err := json.Marshal(contextMap)
 	if err != nil {
 		log.C(ctx).Errorf("failed to marshal context: %v", err)
-		return err
+		return nil
 	}
 
 	//on the first time the sign function is executed we should parse the rsa private key and keep it for next executions
@@ -109,13 +109,13 @@ func (cs *ContextSigner) Sign(ctx context.Context, contextMap map[string]interfa
 		cs.rsaPrivateKey, err = cs.parseRsaPrivateKey(ctx, cs.ContextPrivateKey)
 		if err != nil {
 			log.C(ctx).Errorf("failed to parse rsa private key: %v", err)
-			return err
+			return nil
 		}
 	}
 	signedCtx, err := cs.calculateSignature(ctx, string(ctxByte), cs.rsaPrivateKey)
 	if err != nil {
 		log.C(ctx).Errorf("failed to calculate the context signature: %v", err)
-		return err
+		return nil
 	}
 
 	contextMap["signature"] = signedCtx
