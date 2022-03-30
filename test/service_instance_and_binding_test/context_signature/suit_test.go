@@ -12,16 +12,17 @@ import (
 )
 
 var (
-	ctx              *common.TestContext
-	brokerServer     *common.BrokerServer
-	osbURL           string
-	brokerID         string
-	catalogServiceID string
-	catalogPlanID    string
-	serviceID        string
-	planID           string
-	privateKeyStr    string
-	publicKeyStr     string
+	ctx                   *common.TestContext
+	brokerServer          *common.BrokerServer
+	osbURL                string
+	brokerID              string
+	catalogServiceID      string
+	catalogPlanID         string
+	serviceID             string
+	planID                string
+	privateKeyStr         string
+	publicKeyStr          string
+	publicSuccessorKeyStr string
 )
 
 func TestContextSignature(t *testing.T) {
@@ -39,9 +40,12 @@ var _ = BeforeSuite(func() {
 	//	2. cat rsa_pub_key.pem | base64
 	publicKeyStr = "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQ0lqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FnOEFNSUlDQ2dLQ0FnRUFvQVI2QkE1Zjdsb2dwWlNRczZseQo3WFg0N0RDWDVIRVZMUklqdU4xYng4WUdPbG9jb2Y1L240ckEvZEFSNG5XOGUxeWFUVHIvMzBXeE41S3NIMU9pCm5FMkovcGF5TWVuUmlFdTZMSFZIVUtlN3BLci9EUEhHeDV2d2h5eWpucTlFenJwR2NWaDZUU3FVUGJ4RlM4czQKR2kzdUJXQUxEcmVOVUhQamJJMWE5RGh6L1lsZ3dFaWgzajY5WGVmOEN1K1lCS2kySkNVVDBNdkxNV2swbU1abwpNbEZyaDJ0SkFOd25YSUd1V0VNRmcxMHNpOFZrY01DSEM2V1VKTFRwZzlBZVIvSzNLYmN0Z1dXVE8yL09mSFhrCjhGT3Y2OXRDOFBIQ3JyWUlEeW91Z1g0TlF0aC82NVk3NGY5RmNKNk00eklDOStNZm1oWklmMFlYMVliWkovaHoKVXpFUGd3TmNzUEJTYVEzZG8ydkh1ZEQ4TVhNaWJhYldlN2xxd1FsY1ZJeFNCUXlRdVJ2UDZIeFNoejNjN0ZuNgowTWF4NjNydkxldjNwTlNROVh3QjhzR2dmSmR4d2lLQzZNSStqYXhsNktqTnMzTXJQTU0xc1JzVURodUExYVJ5Cm1OSTNKWkpLenlQTnBVcE03UXhSeHdYdlNVQWVnWDVpUFpGWnI5UjVtWXNPMnJvV2FYOWNmallPUStsZmo3YkUKSUIwYy9MOXRYdHVrTmNEdDZ3TXVLcTFwRThpazdsTENPZkZDeE5POVB4T2JiTE9qc2J2N1lkZkwzSGRJNGFGeQpkR3JNeS83WkM4eHNWdUxPOHZLVzFocUFCNzBUalhZcGhtelhTZTcwSG1RQmRjcEs3Y0ppOHZPdkdCS3Nva3c3CjVyYnNJMWllWlZvbGFxSzVSU3Z1T29NQ0F3RUFBUT09Ci0tLS0tRU5EIFBVQkxJQyBLRVktLS0tLQo="
 
+	publicSuccessorKeyStr = "testKey"
+
 	ctx = common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(func(e env.Environment, servers map[string]common.FakeServer) {
 		e.Set("api.osb_rsa_private_key", privateKeyStr)
 		e.Set("api.osb_rsa_public_key", publicKeyStr)
+		e.Set("api.osb_successor_rsa_public_key", publicSuccessorKeyStr)
 	}).Build()
 	UUID, err := uuid.NewV4()
 	Expect(err).ToNot(HaveOccurred())

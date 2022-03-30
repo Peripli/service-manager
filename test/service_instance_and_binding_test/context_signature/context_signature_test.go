@@ -51,9 +51,11 @@ var _ = Describe("context signature verification tests", func() {
 		})
 		When("sm environment variable context_rsa_public_key is set", func() {
 			It("should return it in /info API", func() {
-				ctx.SM.GET(web.InfoURL).Expect().
+				object := ctx.SM.GET(web.InfoURL).Expect().
 					Status(http.StatusOK).
-					JSON().Object().Value("context_rsa_public_key").Equal(publicKeyStr)
+					JSON().Object()
+				object.Value("context_rsa_public_key").Equal(publicKeyStr)
+				object.Value("context_successor_rsa_public_key").Equal(publicSuccessorKeyStr)
 			})
 		})
 	})
