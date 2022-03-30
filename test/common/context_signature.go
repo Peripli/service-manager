@@ -192,7 +192,7 @@ func ProvisionInstanceAndVerifySignature(ctx *TestContext, brokerServer *BrokerS
 	return instanceID
 }
 
-func ProvisionInstance(ctx *TestContext, brokerServer *BrokerServer, provisionFunc func() string) string {
+func ProvisionInstanceWithoutSignature(ctx *TestContext, brokerServer *BrokerServer, provisionFunc func() string) string {
 	brokerServer.ServiceInstanceHandler = GetVerifyContextInvalidKeyHandlerFunc()
 
 	instanceID := provisionFunc()
