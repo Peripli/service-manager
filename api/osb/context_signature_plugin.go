@@ -63,12 +63,12 @@ func (s *ContextSignaturePlugin) signContext(req *web.Request, next web.Handler)
 	err := json.Unmarshal(req.Body, &reqBodyMap)
 	if err != nil {
 		log.C(req.Context()).Errorf("failed to unmarshal context: %v", err)
-		return nil, err
+		return next.Handle(req)
 	}
 	if _, found := reqBodyMap["context"]; !found {
 		errorMsg := "context not found on request body"
 		log.C(req.Context()).Error(errorMsg)
-		return nil, fmt.Errorf(errorMsg)
+		return next.Handle(req)
 	}
 	contextMap := reqBodyMap["context"].(map[string]interface{})
 
@@ -79,13 +79,13 @@ func (s *ContextSignaturePlugin) signContext(req *web.Request, next web.Handler)
 	err = s.contextSigner.Sign(req.Context(), contextMap)
 	if err != nil {
 		log.C(req.Context()).Errorf("failed to sign request context: %v", err)
-		return nil, err
+		return next.Handle(req)
 	}
 
 	reqBody, err := json.Marshal(reqBodyMap)
 	if err != nil {
 		log.C(req.Context()).Errorf("failed to marshal request body: %v", err)
-		return nil, err
+		return next.Handle(req)
 	}
 	req.Body = reqBody
 
@@ -96,12 +96,12 @@ func (cs *ContextSigner) Sign(ctx context.Context, contextMap map[string]interfa
 	if cs.ContextPrivateKey == "" {
 		errorMsg := "context rsa private key is missing. context signature can not be calculated"
 		log.C(ctx).Errorf(errorMsg)
-		return nil
+		return fmt.Errorf(errorMsg)
 	}
 	ctxByte, err := json.Marshal(contextMap)
 	if err != nil {
 		log.C(ctx).Errorf("failed to marshal context: %v", err)
-		return nil
+		return err
 	}
 
 	//on the first time the sign function is executed we should parse the rsa private key and keep it for next executions
@@ -109,13 +109,13 @@ func (cs *ContextSigner) Sign(ctx context.Context, contextMap map[string]interfa
 		cs.rsaPrivateKey, err = cs.parseRsaPrivateKey(ctx, cs.ContextPrivateKey)
 		if err != nil {
 			log.C(ctx).Errorf("failed to parse rsa private key: %v", err)
-			return nil
+			return err
 		}
 	}
 	signedCtx, err := cs.calculateSignature(ctx, string(ctxByte), cs.rsaPrivateKey)
 	if err != nil {
 		log.C(ctx).Errorf("failed to calculate the context signature: %v", err)
-		return nil
+		return err
 	}
 
 	contextMap["signature"] = signedCtx

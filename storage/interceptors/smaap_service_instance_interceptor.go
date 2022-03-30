@@ -773,7 +773,7 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(ctx context.Context
 		err = i.contextSigner.Sign(ctx, instanceContext)
 		if err != nil {
 			log.C(ctx).Errorf("failed to sign context: %v", err)
-			return nil, err
+			//			return nil, err
 		}
 	}
 
@@ -877,7 +877,7 @@ func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(ctx context.Co
 		err := i.contextSigner.Sign(ctx, instanceContext)
 		if err != nil {
 			log.C(ctx).Errorf("failed to sign context: %v", err)
-			return nil, err
+			//			return nil, err
 		}
 	}
 

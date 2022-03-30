@@ -47,6 +47,10 @@ var _ = BeforeSuite(func() {
 		e.Set("api.osb_rsa_public_key", publicKeyStr)
 		e.Set("api.osb_successor_rsa_public_key", publicSuccessorKeyStr)
 	}).Build()
+	ctxSetup()
+})
+
+func ctxSetup() {
 	UUID, err := uuid.NewV4()
 	Expect(err).ToNot(HaveOccurred())
 	catalogPlanID = UUID.String()
@@ -67,7 +71,7 @@ var _ = BeforeSuite(func() {
 	serviceID = serviceOfferings.Object().Value("id").String().Raw()
 	servicePlans := ctx.SMWithBasic.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", serviceID))
 	planID = servicePlans.Element(0).Object().Value("id").String().Raw()
-})
+}
 
 var _ = AfterSuite(func() {
 	ctx.Cleanup()
