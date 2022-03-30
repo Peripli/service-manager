@@ -520,7 +520,6 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(ctx context.Context, inst
 		err := i.contextSigner.Sign(ctx, context)
 		if err != nil {
 			log.C(ctx).Errorf("failed to sign context: %v", err)
-			//			return nil, err
 		}
 	}
 
