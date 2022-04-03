@@ -89,6 +89,29 @@ func GetVerifyContextHandlerFunc(publicKeyStr string) func(http.ResponseWriter, 
 	}
 }
 
+func GetVerifyContextInvalidKeyHandlerFunc() func(http.ResponseWriter, *http.Request) {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		defer GinkgoRecover()
+		bytes, err := util.BodyToBytes(r.Body)
+		if err != nil {
+			Expect(err).ToNot(HaveOccurred())
+		}
+		signatureBytes := gjson.GetBytes(bytes, "context.signature")
+		Expect(signatureBytes.Exists()).To(Equal(false), "context should not have a signature field")
+
+		responseStatus := http.StatusCreated
+		if r.Method == http.MethodGet || r.Method == http.MethodPatch {
+			responseStatus = http.StatusOK
+		}
+		if err := util.WriteJSON(rw, responseStatus, Object{}); err != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			if _, errWrite := rw.Write([]byte(err.Error())); errWrite != nil {
+				Expect(errWrite).ToNot(HaveOccurred())
+			}
+		}
+	}
+}
+
 func VerifySignatureNotPersisted(ctx *TestContext, objType types.ObjectType, id string) {
 	obj, err := ctx.SMRepository.Get(context.TODO(), objType, query.ByField(query.EqualsOperator, "id", id))
 	Expect(err).ToNot(HaveOccurred(), "failed to get "+objType.String()+" from db")
@@ -156,6 +179,21 @@ func SmaapBind(ctx *TestContext, async, instanceID string) string {
 
 func ProvisionInstanceAndVerifySignature(ctx *TestContext, brokerServer *BrokerServer, provisionFunc func() string, publicKeyStr string) string {
 	brokerServer.ServiceInstanceHandler = GetVerifyContextHandlerFunc(publicKeyStr)
+
+	instanceID := provisionFunc()
+
+	VerifySignatureNotPersisted(ctx, types.ServiceInstanceType, instanceID)
+
+	ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID).
+		Expect().Status(http.StatusOK).
+		JSON().
+		Object().Value("context").Object().NotContainsKey("signature")
+
+	return instanceID
+}
+
+func ProvisionInstanceWithoutSignature(ctx *TestContext, brokerServer *BrokerServer, provisionFunc func() string) string {
+	brokerServer.ServiceInstanceHandler = GetVerifyContextInvalidKeyHandlerFunc()
 
 	instanceID := provisionFunc()
 

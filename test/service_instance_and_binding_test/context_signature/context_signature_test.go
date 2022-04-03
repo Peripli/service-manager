@@ -2,6 +2,7 @@ package context_signature
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
@@ -59,7 +60,6 @@ var _ = Describe("context signature verification tests", func() {
 			})
 		})
 	})
-
 	Context("SMAAP", func() {
 		var provisionFunc func() string
 		BeforeEach(func() {
@@ -101,4 +101,26 @@ var _ = Describe("context signature verification tests", func() {
 			})
 		})
 	})
+
+	Context("when the private key is invalid", func() {
+		instanceID := "signed-ctx-instance-invalid"
+		var provisionFunc func() string
+		BeforeEach(func() {
+			ctx = common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(func(e env.Environment, servers map[string]common.FakeServer) {
+				e.Set("api.osb_rsa_private_key", "invalidKey")
+			}).Build()
+			registerServiceBroker()
+		})
+
+		It("should not fail the request,osb request sent without the signature", func() {
+			provisionFunc = common.GetOsbProvisionFunc(ctx, instanceID, osbURL, catalogServiceID, catalogPlanID)
+			common.ProvisionInstanceWithoutSignature(ctx, brokerServer, provisionFunc)
+		})
+		It("should not fail the request,SMAAP request sent without the signature", func() {
+			provisionFunc = common.GetSMAAPProvisionInstanceFunc(ctx, "false", planID)
+			common.ProvisionInstanceWithoutSignature(ctx, brokerServer, provisionFunc)
+		})
+
+	})
+
 })
