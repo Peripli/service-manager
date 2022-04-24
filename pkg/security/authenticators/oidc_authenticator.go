@@ -36,11 +36,12 @@ import (
 )
 
 type claims struct {
-	UserID   string `json:"user_id"`
-	Username string `json:"user_name"`
-	Subject  string `json:"sub"`
-	Email    string `json:"email"`
-	Verified bool   `json:"email_verified"`
+	UserID          string            `json:"user_id"`
+	Username        string            `json:"user_name"`
+	Subject         string            `json:"sub"`
+	Email           string            `json:"email"`
+	Verified        bool              `json:"email_verified"`
+	ExtraAttributes map[string]string `json:"ext_attr,omitempty"`
 }
 
 type providerJSON struct {
