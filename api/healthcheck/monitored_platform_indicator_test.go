@@ -50,7 +50,7 @@ var _ = Describe("Monitored Platforms Indicator", func() {
 	})
 	Context("When no platforms are labeled as monitored", func() {
 		BeforeEach(func() {
-			objectList := &types.Platforms{[]*types.Platform{}}
+			objectList := &types.Platforms{Platforms: []*types.Platform{}}
 			repository.QueryForListReturns(objectList, nil)
 		})
 		It("Healthcheck should be healthy", func() {
@@ -85,7 +85,7 @@ var _ = Describe("Monitored Platforms Indicator", func() {
 		})
 		Context("all platforms are active", func() {
 			BeforeEach(func() {
-				repository.QueryForListReturns(&types.Platforms{platforms}, nil)
+				repository.QueryForListReturns(&types.Platforms{Platforms: platforms}, nil)
 			})
 			It("should not return an error", func() {
 				details, err := indicator.Status()
@@ -104,7 +104,7 @@ var _ = Describe("Monitored Platforms Indicator", func() {
 				for i := 0; i < 2; i++ {
 					createPlatform(fmt.Sprintf("kubernentes-inactive-%d", i), false, true)
 				}
-				repository.QueryForListReturns(&types.Platforms{platforms}, nil)
+				repository.QueryForListReturns(&types.Platforms{Platforms: platforms}, nil)
 			})
 			It("Should return error", func() {
 				details, err := indicator.Status()
@@ -118,13 +118,13 @@ var _ = Describe("Monitored Platforms Indicator", func() {
 		Context("inactive platform less than threshold", func() {
 			BeforeEach(func() {
 				createPlatform("kubernentes-inactive", false, true)
-				repository.QueryForListReturns(&types.Platforms{platforms}, nil)
+				repository.QueryForListReturns(&types.Platforms{Platforms: platforms}, nil)
 			})
 			It("Should not return error", func() {
 				details, err := indicator.Status()
+				Expect(err).ShouldNot(HaveOccurred())
 				detailsH := details.(map[string]*health.Health)
 				Expect(len(detailsH)).To(Equal(3))
-				Expect(err).ShouldNot(HaveOccurred())
 			})
 		})
 

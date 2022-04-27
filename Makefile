@@ -78,16 +78,8 @@ prepare-counterfeiter:
 	@GO111MODULE=off go get -u github.com/maxbrunsfeld/counterfeiter
 	@chmod a+x $(GOPATH)/bin/counterfeiter
 
-## Installs some tools (gometalinter, cover, goveralls)
+## Installs some tools (cover, goveralls)
 prepare: prepare-counterfeiter build-gen-binary
-ifeq ($(shell which gometalinter),)
-	@echo "Installing gometalinter ...";\
-		cd $(GOPATH)/src;\
-		GO111MODULE=off go get -u github.com/alecthomas/gometalinter;\
-		GO111MODULE=off cd $(GOPATH)/src/github.com/alecthomas/gometalinter;\
-		GO111MODULE=off go install;\
-		GO111MODULE=off gometalinter -i -u
-endif
 ifeq ($(shell which cover),)
 	@echo "Installing cover tool..."
 	@go get -u golang.org/x/tools/cmd/cover
@@ -239,9 +231,14 @@ format-check: ## Checks for style violation using gofmt
 	@echo Checking if there are files not formatted with gofmt...
 	@$(GOFMT) -l -s $(SOURCE_FILES) | grep ".*\.go"; if [ "$$?" = "0" ]; then echo "Files need reformating! Run make format!" ; exit 1; fi
 
-lint-check: ## Runs some linters and static code checks
+golangci-lint: $(BINDIR)/golangci-lint
+$(BINDIR)/golangci-lint:
+	@curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.45.2
+
+
+lint-check: golangci-lint
 	@echo Running linter checks...
-	@export PATH=$(PATH):bin && gometalinter --vendor ./...
+	@$(BINDIR)/golangci-lint run --config .golangci.yml --issues-exit-code=0 --deadline=30m --out-format checkstyle ./... > checkstyle.xml
 
 #-----------------------------------------------------------------------------
 # Useful utility targets

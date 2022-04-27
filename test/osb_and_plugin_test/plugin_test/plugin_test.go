@@ -160,7 +160,8 @@ var _ = Describe("Service Manager Plugins", func() {
 
 			reply.ValueEqual("extra", "response")
 			jsonBody := object{}
-			json.Unmarshal(brokerServer.LastRequestBody, &jsonBody)
+			err := json.Unmarshal(brokerServer.LastRequestBody, &jsonBody)
+			Expect(err).ToNot(HaveOccurred())
 			Expect(jsonBody).To(Equal(object{
 				"service_id": serviceID,
 				"plan_id":    planID,

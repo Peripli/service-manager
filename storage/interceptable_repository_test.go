@@ -421,13 +421,13 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 
 			fakeUpdateOnTxIntercetptor.OnTxUpdateCalls(func(next storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
 				return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*types.LabelChange) (types.Object, error) {
+					_, err := txStorage.Update(ctx, newObj, labelChanges)
+					Expect(err).ShouldNot(HaveOccurred())
+
+					_, err = next(ctx, txStorage, oldObj, newObj, labelChanges...)
+					Expect(err).ShouldNot(HaveOccurred())
+
 					o, err := txStorage.Update(ctx, newObj, labelChanges)
-					Expect(err).ShouldNot(HaveOccurred())
-
-					o, err = next(ctx, txStorage, oldObj, newObj, labelChanges...)
-					Expect(err).ShouldNot(HaveOccurred())
-
-					o, err = txStorage.Update(ctx, newObj, labelChanges)
 					Expect(err).ShouldNot(HaveOccurred())
 
 					return o, nil

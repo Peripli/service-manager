@@ -25,9 +25,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"github.com/gbrlsnchs/jwt"
+	"github.com/gorilla/mux"
+	. "github.com/onsi/gomega"
 )
 
 type OAuthServer struct {
@@ -86,10 +86,11 @@ func (os *OAuthServer) TokenKeysRequestCallCount() int {
 
 func (os *OAuthServer) getOpenIDConfig(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{
+	_, err := w.Write([]byte(`{
 		 "issuer": "` + os.BaseURL + `/oauth/token",
 		 "jwks_uri": "` + os.BaseURL + `/token_keys"
 	 }`))
+	Expect(err).ToNot(HaveOccurred())
 }
 
 func (os *OAuthServer) RotateTokenKey() {
@@ -104,7 +105,8 @@ func (os *OAuthServer) getToken(w http.ResponseWriter, r *http.Request) {
 		"user_name": "testUser",
 	})
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"access_token": "` + token + `"}`))
+	_, err := w.Write([]byte(`{"access_token": "` + token + `"}`))
+	Expect(err).ToNot(HaveOccurred())
 }
 
 func (os *OAuthServer) CreateToken(payload map[string]interface{}) string {
@@ -138,8 +140,8 @@ func (os *OAuthServer) getTokenKeys(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(responseBody)
-
+	_, err := w.Write(responseBody)
+	Expect(err).ToNot(HaveOccurred())
 	os.mutex.Lock()
 	os.tokenKeysRequestCallCount++
 	os.mutex.Unlock()

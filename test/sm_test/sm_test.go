@@ -242,11 +242,11 @@ func verifyServiceManagerStartsSuccessFully(serviceManagerServer *httptest.Serve
 		Status(http.StatusOK).JSON().Object().ContainsMap(map[string]interface{}{
 		"status": "UP",
 	})
-	return &common.SMExpect{SM}
+	return &common.SMExpect{Expect: SM}
 }
 
 func testHandler(identifier string) web.HandlerFunc {
-	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
+	return func(request *web.Request) (*web.Response, error) {
 		headers := http.Header{}
 		headers.Add("Content-Type", "application/json")
 		return &web.Response{
@@ -254,7 +254,7 @@ func testHandler(identifier string) web.HandlerFunc {
 			Header:     headers,
 			Body:       []byte(`{"invoked": "` + identifier + `"}`),
 		}, nil
-	})
+	}
 }
 
 type testFilter struct {

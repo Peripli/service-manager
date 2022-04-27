@@ -144,7 +144,8 @@ var _ = Describe("WS", func() {
 				return nil
 			})
 			go func() {
-				wsconn.ReadMessage()
+				_, _, err := wsconn.ReadMessage()
+				Expect(err).ToNot(HaveOccurred())
 			}()
 		}, pingTimeout.Seconds()+1)
 	})
@@ -303,7 +304,8 @@ var _ = Describe("WS", func() {
 
 				By(fmt.Sprintf("Ping received and active status is true, then when %v ping timeout passes, active status should be set to false", pingTimeout))
 
-				ctx, _ := context.WithTimeout(context.TODO(), pingTimeout+time.Second)
+				ctx, cancel := context.WithTimeout(context.TODO(), pingTimeout+time.Second)
+				defer cancel()
 				ticker := time.NewTicker(pingTimeout / 3)
 				for {
 					select {

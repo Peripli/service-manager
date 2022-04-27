@@ -231,7 +231,7 @@ func (ps *Storage) createLabels(ctx context.Context, labels []PostgresLabel) err
 		return fmt.Errorf("%s insert: No fields to insert", pgLabel.LabelsTableName())
 	}
 
-	tableName := labels[0].(PostgresLabel).LabelsTableName()
+	tableName := labels[0].LabelsTableName()
 
 	sqlQuery := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(:%s) ON CONFLICT DO NOTHING;",

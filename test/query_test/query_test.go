@@ -41,7 +41,8 @@ var _ = Describe("Service Manager Query", func() {
 
 	AfterEach(func() {
 		if repository != nil {
-			repository.Delete(context.Background(), types.NotificationType)
+			err := repository.Delete(context.Background(), types.NotificationType)
+			Expect(err).ShouldNot(HaveOccurred())
 		}
 	})
 
@@ -178,7 +179,8 @@ var _ = Describe("Service Manager Query", func() {
 		Context("ByExists", func() {
 			When("there are multiple operations for each instance", func() {
 				BeforeEach(func() {
-					common.RemoveAllInstances(ctx)
+					err := common.RemoveAllInstances(ctx)
+					Expect(err).ShouldNot(HaveOccurred())
 					common.RemoveAllOperations(ctx.SMRepository)
 
 					serviceInstance1 := &types.ServiceInstance{
@@ -228,12 +230,18 @@ var _ = Describe("Service Manager Query", func() {
 						ResourceType: web.ServiceInstancesURL,
 					}
 
-					repository.Create(context.Background(), serviceInstance1)
-					repository.Create(context.Background(), serviceInstance2)
-					repository.Create(context.Background(), oldestOpForInstance1)
-					repository.Create(context.Background(), latestOpForInstance1)
-					repository.Create(context.Background(), oldestOpForInstance2)
-					repository.Create(context.Background(), latestOpForInstance2)
+					_, err = repository.Create(context.Background(), serviceInstance1)
+					Expect(err).ShouldNot(HaveOccurred())
+					_, err = repository.Create(context.Background(), serviceInstance2)
+					Expect(err).ShouldNot(HaveOccurred())
+					_, err = repository.Create(context.Background(), oldestOpForInstance1)
+					Expect(err).ShouldNot(HaveOccurred())
+					_, err = repository.Create(context.Background(), latestOpForInstance1)
+					Expect(err).ShouldNot(HaveOccurred())
+					_, err = repository.Create(context.Background(), oldestOpForInstance2)
+					Expect(err).ShouldNot(HaveOccurred())
+					_, err = repository.Create(context.Background(), latestOpForInstance2)
+					Expect(err).ShouldNot(HaveOccurred())
 				})
 
 				It("should return only the operations being last operation for their corresponding instances", func() {
@@ -261,7 +269,8 @@ var _ = Describe("Service Manager Query", func() {
 		Context("ByExists with template parameters", func() {
 			When("There is an operation is associated to a resource and another operation that is resource-less", func() {
 				BeforeEach(func() {
-					common.RemoveAllInstances(ctx)
+					err := common.RemoveAllInstances(ctx)
+					Expect(err).ShouldNot(HaveOccurred())
 					common.RemoveAllOperations(ctx.SMRepository)
 
 					resource := &types.Platform{
@@ -286,10 +295,12 @@ var _ = Describe("Service Manager Query", func() {
 						ResourceType: web.ServiceInstancesURL,
 					}
 
-					_, err := repository.Create(context.Background(), resource)
+					_, err = repository.Create(context.Background(), resource)
+					Expect(err).ShouldNot(HaveOccurred())
 					_, err = repository.Create(context.Background(), opForInstance1)
 					Expect(err).ToNot(HaveOccurred())
-					repository.Create(context.Background(), resourcelessOperation)
+					_, err = repository.Create(context.Background(), resourcelessOperation)
+					Expect(err).ShouldNot(HaveOccurred())
 				})
 
 				It("should retrieve only the operation that is not associated to a resource", func() {

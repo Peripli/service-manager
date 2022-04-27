@@ -97,7 +97,7 @@ func (s *Scheduler) ScheduleStorageAction(ctx context.Context, operation *types.
 		if !isAsyncSupported {
 			return nil, false, &util.HTTPError{
 				ErrorType:   "InvalidRequest",
-				Description: fmt.Sprintf("requested api doesn't support asynchronous operations"),
+				Description: "requested api doesn't support asynchronous operations",
 				StatusCode:  http.StatusBadRequest,
 			}
 		}

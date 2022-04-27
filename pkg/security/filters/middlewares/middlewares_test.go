@@ -46,7 +46,6 @@ var _ = Describe("Middlewares", func() {
 	)
 
 	Describe("Authz middleware", func() {
-		const filterName = "authzFilterName"
 		var authorizer *httpfakes.FakeAuthorizer
 
 		BeforeEach(func() {
@@ -66,6 +65,7 @@ var _ = Describe("Middlewares", func() {
 							Authorizer: authorizer,
 						}
 						_, err := authzFilter.Run(req, handler)
+						Expect(err).ToNot(HaveOccurred())
 						ok, err := web.AuthorizationErrorFromContext(req.Context())
 						Expect(ok).To(BeTrue())
 						Expect(err.Error()).To(Equal("errored"))
@@ -170,7 +170,8 @@ var _ = Describe("Middlewares", func() {
 						authzFilter := Authorization{
 							Authorizer: authorizer,
 						}
-						authzFilter.Run(req, handler)
+						_, err := authzFilter.Run(req, handler)
+						Expect(err).ToNot(HaveOccurred())
 						handler.HandleReturns(nil, nil)
 						ok, err := web.AuthorizationErrorFromContext(req.Context())
 						Expect(ok).To(BeTrue())
@@ -201,7 +202,8 @@ var _ = Describe("Middlewares", func() {
 						Authenticator: nil,
 					}
 					req.Request = req.Request.WithContext(web.ContextWithUser(req.Context(), &web.UserContext{}))
-					authnFilter.Run(req, handler)
+					_, err := authnFilter.Run(req, handler)
+					Expect(err).ToNot(HaveOccurred())
 					Expect(handler.HandleCallCount()).To(Equal(1))
 				})
 			})
@@ -213,7 +215,8 @@ var _ = Describe("Middlewares", func() {
 						authnFilter := Authentication{
 							Authenticator: authenticator,
 						}
-						authnFilter.Run(req, handler)
+						_, err := authnFilter.Run(req, handler)
+						Expect(err).ToNot(HaveOccurred())
 						ok, _ := web.AuthenticationErrorFromContext(req.Context())
 						Expect(ok).To(BeFalse())
 						Expect(web.IsAuthorized(req.Context())).To(BeFalse())
@@ -280,6 +283,7 @@ var _ = Describe("Middlewares", func() {
 							Authenticator: authenticator,
 						}
 						_, err := authnFilter.Run(req, handler)
+						Expect(err).ToNot(HaveOccurred())
 						ok, err := web.AuthenticationErrorFromContext(req.Context())
 						Expect(ok).To(BeTrue())
 						Expect(err.Error()).To(Equal(expectedErrorMessage))

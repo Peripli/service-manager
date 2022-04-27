@@ -46,6 +46,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	"github.com/spf13/pflag"
 
 	"github.com/Peripli/service-manager/config"
@@ -327,8 +328,8 @@ func NewTestContextBuilder() *TestContextBuilder {
 			},
 		},
 		smExtensions:       []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error{},
-		defaultTokenClaims: make(map[string]interface{}, 0),
-		tenantTokenClaims:  make(map[string]interface{}, 0),
+		defaultTokenClaims: make(map[string]interface{}),
+		tenantTokenClaims:  make(map[string]interface{}),
 		Servers:            map[string]FakeServer{},
 		HttpClient: &http.Client{
 			Transport: &http.Transport{
@@ -414,7 +415,7 @@ func (tcb *TestContextBuilder) WithDefaultEnv(envCreateFunc func(f ...func(set *
 
 func (tcb *TestContextBuilder) WithAdditionalFakeServers(additionalFakeServers map[string]FakeServer) *TestContextBuilder {
 	if tcb.Servers == nil {
-		tcb.Servers = make(map[string]FakeServer, 0)
+		tcb.Servers = make(map[string]FakeServer)
 	}
 
 	for name, server := range additionalFakeServers {
@@ -486,7 +487,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 	}
 	wg := &sync.WaitGroup{}
 
-	smServer, smRepository, smScheduler, maintainer, config := newSMServer(environment, wg, tcb.smExtensions, listener)
+	smServer, smRepository, smScheduler, maintainer, smConfig := newSMServer(environment, wg, tcb.smExtensions, listener)
 	tcb.Servers[SMServer] = smServer
 
 	SM := httpexpect.New(ginkgo.GinkgoT(), smServer.URL())
@@ -504,7 +505,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 
 	testContext := &TestContext{
 		wg:                   wg,
-		Config:               config,
+		Config:               smConfig,
 		SM:                   &SMExpect{Expect: SM},
 		Maintainer:           maintainer,
 		SMWithOAuth:          &SMExpect{Expect: SMWithOAuth},
@@ -519,8 +520,10 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 	}
 
 	if cleanup {
-		RemoveAllBindings(testContext)
-		RemoveAllInstances(testContext)
+		err := RemoveAllBindings(testContext)
+		Expect(err).ToNot(HaveOccurred())
+		err = RemoveAllInstances(testContext)
+		Expect(err).ToNot(HaveOccurred())
 		RemoveAllBrokers(testContext.SMRepository)
 		RemoveAllPlatforms(testContext.SMRepository)
 		RemoveAllOperations(testContext.SMRepository)
@@ -860,8 +863,10 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	}
 
 	RemoveAllNotifications(ctx.SMRepository)
-	RemoveAllBindings(ctx)
-	RemoveAllInstances(ctx)
+	err := RemoveAllBindings(ctx)
+	Expect(err).ToNot(HaveOccurred())
+	err = RemoveAllInstances(ctx)
+	Expect(err).ToNot(HaveOccurred())
 	RemoveAllOperations(ctx.SMRepository)
 
 	ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL).Expect()
@@ -879,7 +884,8 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	}
 
 	for _, conn := range ctx.wsConnections {
-		conn.Close()
+		err = conn.Close()
+		Expect(err).ToNot(HaveOccurred())
 	}
 	ctx.wsConnections = nil
 }
@@ -901,11 +907,11 @@ func (ctx *TestContext) ConnectWebSocket(platform *types.Platform,
 	headers := http.Header{}
 	encodedPlatform := base64.StdEncoding.EncodeToString([]byte(platform.Credentials.Basic.Username + ":" + platform.Credentials.Basic.Password))
 	headers.Add("Authorization", "Basic "+encodedPlatform)
-	if withHeaders != nil {
-		for k, v := range withHeaders {
-			headers.Add(k, v)
-		}
+
+	for k, v := range withHeaders {
+		headers.Add(k, v)
 	}
+
 	wsEndpoint := smEndpoint.String()
 	conn, resp, err := websocket.DefaultDialer.Dial(wsEndpoint, headers)
 	if conn != nil {

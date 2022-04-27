@@ -69,6 +69,7 @@ func GetVerifyContextHandlerFunc(publicKeyStr string) func(http.ResponseWriter, 
 		//read and hash context
 		ctxStr := gjson.GetBytes(bytes, "context").String()
 		ctxByte, err := sjson.DeleteBytes([]byte(ctxStr), "signature")
+		Expect(err).ShouldNot(HaveOccurred())
 		ctxStr = string(ctxByte)
 		hashedCtx := sha256.Sum256([]byte(ctxStr))
 

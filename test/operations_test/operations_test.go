@@ -268,8 +268,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Type:       types.CREATE,
 							State:      "succeeded",
 						}
-						ctx.SMRepository.Create(context.Background(), &resourcelessOperation)
-
+						_, err := ctx.SMRepository.Create(context.Background(), &resourcelessOperation)
+						Expect(err).ToNot(HaveOccurred())
 					})
 					It("Should be deleted once cleanup interval has passed", func() {
 						ensureOperationExist(ctx.SMRepository, "test-resource-less-operation")
@@ -303,10 +303,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Type:       types.CREATE,
 							State:      "failed",
 						}
-						ctx.SMRepository.Create(context.Background(), testResource1)
-						ctx.SMRepository.Create(context.Background(), testResource2)
-						ctx.SMRepository.Create(context.Background(), lastInternalSuccessfulOperation)
-						ctx.SMRepository.Create(context.Background(), lastInternalFailedOperation)
+						_, err := ctx.SMRepository.Create(context.Background(), testResource1)
+						Expect(err).ToNot(HaveOccurred())
+						_, err = ctx.SMRepository.Create(context.Background(), testResource2)
+						Expect(err).ToNot(HaveOccurred())
+						_, err = ctx.SMRepository.Create(context.Background(), lastInternalSuccessfulOperation)
+						Expect(err).ToNot(HaveOccurred())
+						_, err = ctx.SMRepository.Create(context.Background(), lastInternalFailedOperation)
+						Expect(err).ToNot(HaveOccurred())
 					})
 					It("Should not be deleted", func() {
 						ensureOperationExist(ctx.SMRepository, "test-last-op-successful")
@@ -387,7 +391,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						AfterEach(func() {
-							RemoveAllInstances(ctx)
+							err := RemoveAllInstances(ctx)
+							Expect(err).ToNot(HaveOccurred())
 							ctx.CleanupBroker(brokerID)
 						})
 
@@ -593,7 +598,8 @@ func createLastOperationForTestPlatform(ctx *TestContext, platformID string) {
 		State:        "succeeded",
 	}
 
-	ctx.SMRepository.Create(context.Background(), &lastOperation)
+	_, err = ctx.SMRepository.Create(context.Background(), &lastOperation)
+	Expect(err).ToNot(HaveOccurred())
 }
 
 type DeleteBrokerDelayingInterceptorProvider struct{}
@@ -687,9 +693,10 @@ func (pc panicController) Routes() []web.Route {
 				Path:   testControllerURL,
 			},
 			Handler: func(req *web.Request) (resp *web.Response, err error) {
-				pc.scheduler.ScheduleAsyncStorageAction(context.TODO(), pc.operation, func(ctx context.Context, repository storage.Repository) (object types.Object, e error) {
+				err = pc.scheduler.ScheduleAsyncStorageAction(context.TODO(), pc.operation, func(ctx context.Context, repository storage.Repository) (object types.Object, e error) {
 					panic("test panic")
 				})
+				Expect(err).ToNot(HaveOccurred())
 				return
 			},
 		},

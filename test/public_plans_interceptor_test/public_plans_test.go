@@ -616,7 +616,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				newPlanCatalogName = gjson.Get(newPlan, "name").String()
 				Expect(newPlanCatalogName).ToNot(BeEmpty())
 				additionalPublicPlan, err := sjson.Set(newPlan, "metadata.supportedPlatforms", []string{k8sPlatform.Type})
-
+				Expect(err).ToNot(HaveOccurred())
 				var catalog string
 				catalog, err = sjson.Set(string(existingBrokerServer.Catalog), "services.0.plans.-1", common.JSONToMap(additionalPublicPlan))
 				Expect(err).ShouldNot(HaveOccurred())
