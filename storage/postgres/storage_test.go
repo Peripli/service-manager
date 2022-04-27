@@ -122,7 +122,7 @@ var _ = Describe("Postgres Storage", func() {
 			It("Should not panic", func() {
 				Expect(func() {
 					err := pgStorage.Close()
-					Expect(err).To(HaveOccurred())
+					Expect(err).ToNot(HaveOccurred())
 				}).ToNot(Panic())
 			})
 		})

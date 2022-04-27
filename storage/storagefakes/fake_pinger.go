@@ -30,15 +30,16 @@ func (fake *FakePinger) PingContext(arg1 context.Context) error {
 	fake.pingContextArgsForCall = append(fake.pingContextArgsForCall, struct {
 		arg1 context.Context
 	}{arg1})
+	stub := fake.PingContextStub
+	fakeReturns := fake.pingContextReturns
 	fake.recordInvocation("PingContext", []interface{}{arg1})
 	fake.pingContextMutex.Unlock()
-	if fake.PingContextStub != nil {
-		return fake.PingContextStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.pingContextReturns
 	return fakeReturns.result1
 }
 

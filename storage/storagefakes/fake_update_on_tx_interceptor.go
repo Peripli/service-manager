@@ -29,15 +29,16 @@ func (fake *FakeUpdateOnTxInterceptor) OnTxUpdate(arg1 storage.InterceptUpdateOn
 	fake.onTxUpdateArgsForCall = append(fake.onTxUpdateArgsForCall, struct {
 		arg1 storage.InterceptUpdateOnTxFunc
 	}{arg1})
+	stub := fake.OnTxUpdateStub
+	fakeReturns := fake.onTxUpdateReturns
 	fake.recordInvocation("OnTxUpdate", []interface{}{arg1})
 	fake.onTxUpdateMutex.Unlock()
-	if fake.OnTxUpdateStub != nil {
-		return fake.OnTxUpdateStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.onTxUpdateReturns
 	return fakeReturns.result1
 }
 

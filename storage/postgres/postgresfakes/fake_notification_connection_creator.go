@@ -29,15 +29,16 @@ func (fake *FakeNotificationConnectionCreator) NewConnection(arg1 func(isRunning
 	fake.newConnectionArgsForCall = append(fake.newConnectionArgsForCall, struct {
 		arg1 func(isRunning bool, err error)
 	}{arg1})
+	stub := fake.NewConnectionStub
+	fakeReturns := fake.newConnectionReturns
 	fake.recordInvocation("NewConnection", []interface{}{arg1})
 	fake.newConnectionMutex.Unlock()
-	if fake.NewConnectionStub != nil {
-		return fake.NewConnectionStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.newConnectionReturns
 	return fakeReturns.result1
 }
 

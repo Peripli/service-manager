@@ -51,15 +51,16 @@ func (fake *FakeFilter) FilterMatchers() []web.FilterMatcher {
 	ret, specificReturn := fake.filterMatchersReturnsOnCall[len(fake.filterMatchersArgsForCall)]
 	fake.filterMatchersArgsForCall = append(fake.filterMatchersArgsForCall, struct {
 	}{})
+	stub := fake.FilterMatchersStub
+	fakeReturns := fake.filterMatchersReturns
 	fake.recordInvocation("FilterMatchers", []interface{}{})
 	fake.filterMatchersMutex.Unlock()
-	if fake.FilterMatchersStub != nil {
-		return fake.FilterMatchersStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.filterMatchersReturns
 	return fakeReturns.result1
 }
 
@@ -103,15 +104,16 @@ func (fake *FakeFilter) Name() string {
 	ret, specificReturn := fake.nameReturnsOnCall[len(fake.nameArgsForCall)]
 	fake.nameArgsForCall = append(fake.nameArgsForCall, struct {
 	}{})
+	stub := fake.NameStub
+	fakeReturns := fake.nameReturns
 	fake.recordInvocation("Name", []interface{}{})
 	fake.nameMutex.Unlock()
-	if fake.NameStub != nil {
-		return fake.NameStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.nameReturns
 	return fakeReturns.result1
 }
 
@@ -157,15 +159,16 @@ func (fake *FakeFilter) Run(arg1 *web.Request, arg2 web.Handler) (*web.Response,
 		arg1 *web.Request
 		arg2 web.Handler
 	}{arg1, arg2})
+	stub := fake.RunStub
+	fakeReturns := fake.runReturns
 	fake.recordInvocation("Run", []interface{}{arg1, arg2})
 	fake.runMutex.Unlock()
-	if fake.RunStub != nil {
-		return fake.RunStub(arg1, arg2)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.runReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 

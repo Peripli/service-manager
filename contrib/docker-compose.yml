@@ -1,0 +1,23 @@
+version: '3.4'
+volumes:
+  postgresdata2:
+
+networks:
+  local-dev:
+
+services:
+  db:
+    image: postgres
+    restart: always
+    container_name: "sm-postgres"
+    environment:
+      - POSTGRES_USERNAME=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgresdata2:/data/postgres
+    expose:
+      - 5432
+    ports:
+      - "5432:5432"
+    networks:
+      - local-dev

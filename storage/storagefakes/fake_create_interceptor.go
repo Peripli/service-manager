@@ -40,15 +40,16 @@ func (fake *FakeCreateInterceptor) AroundTxCreate(arg1 storage.InterceptCreateAr
 	fake.aroundTxCreateArgsForCall = append(fake.aroundTxCreateArgsForCall, struct {
 		arg1 storage.InterceptCreateAroundTxFunc
 	}{arg1})
+	stub := fake.AroundTxCreateStub
+	fakeReturns := fake.aroundTxCreateReturns
 	fake.recordInvocation("AroundTxCreate", []interface{}{arg1})
 	fake.aroundTxCreateMutex.Unlock()
-	if fake.AroundTxCreateStub != nil {
-		return fake.AroundTxCreateStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.aroundTxCreateReturns
 	return fakeReturns.result1
 }
 
@@ -100,15 +101,16 @@ func (fake *FakeCreateInterceptor) OnTxCreate(arg1 storage.InterceptCreateOnTxFu
 	fake.onTxCreateArgsForCall = append(fake.onTxCreateArgsForCall, struct {
 		arg1 storage.InterceptCreateOnTxFunc
 	}{arg1})
+	stub := fake.OnTxCreateStub
+	fakeReturns := fake.onTxCreateReturns
 	fake.recordInvocation("OnTxCreate", []interface{}{arg1})
 	fake.onTxCreateMutex.Unlock()
-	if fake.OnTxCreateStub != nil {
-		return fake.OnTxCreateStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.onTxCreateReturns
 	return fakeReturns.result1
 }
 

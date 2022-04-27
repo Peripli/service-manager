@@ -34,15 +34,16 @@ func (fake *FakeTokenVerifier) Verify(arg1 context.Context, arg2 string) (http.T
 		arg1 context.Context
 		arg2 string
 	}{arg1, arg2})
+	stub := fake.VerifyStub
+	fakeReturns := fake.verifyReturns
 	fake.recordInvocation("Verify", []interface{}{arg1, arg2})
 	fake.verifyMutex.Unlock()
-	if fake.VerifyStub != nil {
-		return fake.VerifyStub(arg1, arg2)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.verifyReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
