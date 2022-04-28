@@ -16,7 +16,7 @@ GOBIN=$(shell go env GOPATH)/bin
 else
 GOBIN=$(shell go env GOBIN)
 endif
-
+PATHS = $(PATH):$(PWD)/bin:$(GOBIN):$(HOME)/go/bin:$(TEMPBIN)
 all: build test-unit ## Default target that builds SM and runs unit-tests
 
 GO 					?= go
@@ -54,20 +54,15 @@ GO_BUILD 		= env CGO_ENABLED=0 GOOS=$(PLATFORM) GOARCH=$(ARCH) \
            		$(GO) build $(GO_FLAGS) -ldflags '-s -w $(BUILD_LDFLAGS) $(VERSION_FLAGS)'
 
 # TEST_FLAGS - extra "go test" flags to use
-GO_INT_TEST 	= $(GOBIN)/gotestsum  --debug --no-color --format standard-verbose -- $(shell go list ./... | egrep -v "fakes|test|cmd|parser|version" | paste -sd " " -) \
-                  ./test/... -coverprofile=$(UNIT_TEST_PROFILE)
+GO_INT_TEST 	= $(GOBIN)/gotestsum  --debug --no-color --format standard-verbose -- ./test/... -coverprofile=$(UNIT_TEST_PROFILE)
 
-GO_INT_TEST_OTHER = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
-				$(shell go list ./test/... | egrep -v "broker_test|osb_and_plugin_test|service_instance_and_binding_test") $(TEST_FLAGS) -coverprofile=$(INT_OTHER_TEST_PROFILE)
+GO_INT_TEST_OTHER = $(GOBIN)/gotestsum  --debug --no-color --format standard-verbose -- $(shell go list ./test/... | egrep -v "broker_test|osb_and_plugin_test|service_instance_and_binding_test") -coverprofile=$(INT_OTHER_TEST_PROFILE)
 
-GO_INT_TEST_BROKER = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
-				./test/broker_test/... $(TEST_FLAGS) -coverprofile=$(INT_BROKER_TEST_PROFILE)
+GO_INT_TEST_BROKER = $(GOBIN)/gotestsum  --debug --no-color --format standard-verbose -- ./test/broker_test/... -coverprofile=$(INT_BROKER_TEST_PROFILE)
 
-GO_INT_TEST_OSB_AND_PLUGIN = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
-				./test/osb_and_plugin_test/... $(TEST_FLAGS) -coverprofile=$(INT_OSB_AND_PLUGIN_TEST_PROFILE)
+GO_INT_TEST_OSB_AND_PLUGIN = $(GOBIN)/gotestsum  --debug --no-color --format standard-verbose -- ./test/osb_and_plugin_test/... -coverprofile=$(INT_OSB_AND_PLUGIN_TEST_PROFILE)
 
-GO_INT_TEST_SERVICE_INSTANCE_AND_BINDING = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
-				./test/service_instance_and_binding_test/... $(TEST_FLAGS) -coverprofile=$(INT_SERVICE_INSTANCE_AND_BINDINGS_TEST_PROFILE)
+GO_INT_TEST_SERVICE_INSTANCE_AND_BINDING = $(GOBIN)/gotestsum  --debug --no-color --format standard-verbose -- ./test/service_instance_and_binding_test/... -coverprofile=$(INT_SERVICE_INSTANCE_AND_BINDINGS_TEST_PROFILE)
 
 GO_UNIT_TEST 	= $(GOBIN)/gotestsum  --debug --no-color --format standard-verbose -- $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd " " -) \
 				$(shell go list ./... | egrep -v "test") -coverprofile=$(UNIT_TEST_PROFILE)
@@ -150,7 +145,7 @@ go-deps:
 	@go mod vendor
 
 # Run tests
-run-unit-test: go-deps
+test-unit: go-deps
 	@export PATH=$(PATHS)
 	@rm -rf $(UNIT_TEST_PROFILE)
 	@rm -rf coverage.xml
@@ -161,18 +156,25 @@ run-unit-test: go-deps
 	@go tool cover -func $(UNIT_TEST_PROFILE) | grep total
 	PATH=$(PATHS) $(GOBIN)/gocover-cobertura < $(UNIT_TEST_PROFILE) > coverage.xml
 
-run-int-test: go-deps build
+test-int: go-deps build
 	@export PATH=$(PATHS)
 	@rm -rf $(INT_TEST_PROFILE)
 	@rm -rf coverage.xml
 	@ulimit -n 10000 # Fix too many files open error
 	@echo Running integration tests:
-	$(GO_INT_TEST)
+#	$(GO_INT_TEST_BROKER)
+#	@echo Running integration tests:
+#	$(GO_INT_TEST_OSB_AND_PLUGIN)
+#	@echo Running integration tests:
+#	$(GO_INT_TEST_SERVICE_INSTANCE_AND_BINDING)
+	@echo Running integration tests:
+	$(GO_INT_TEST_OTHER)
+
 	@echo Total code coverage:
 	@go tool cover -func $(INT_TEST_PROFILE) | grep total
 	PATH=$(PATHS) $(GOBIN)/gocover-cobertura < $(INT_TEST_PROFILE) > coverage.xml
 
-run-test-all: run-unit-test run-int-test
+run-test-all: test-int
 
 # DB
 start-db:

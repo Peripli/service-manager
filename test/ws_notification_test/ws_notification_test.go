@@ -145,7 +145,7 @@ var _ = Describe("WS", func() {
 			})
 			go func() {
 				_, _, err := wsconn.ReadMessage()
-				Expect(err).ToNot(HaveOccurred())
+				Expect(err).To(HaveOccurred())
 			}()
 		}, pingTimeout.Seconds()+1)
 	})

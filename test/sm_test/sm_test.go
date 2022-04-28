@@ -196,6 +196,7 @@ var _ = Describe("SM", func() {
 
 			AfterEach(func() {
 				verifySMPlatformExists()
+				ctx.Cleanup()
 			})
 
 			auths := []func() *common.SMExpect{

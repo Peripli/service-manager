@@ -1084,8 +1084,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							rw.WriteHeader(http.StatusOK)
 							if fl, ok := rw.(http.Flusher); ok {
 								for i := 0; i < 50; i++ {
-									_, err := fmt.Fprintf(rw, "Chunk %d", i)
-									Expect(err).ShouldNot(HaveOccurred())
+									//nolint
+									fmt.Fprintf(rw, "Chunk %d", i)
 									fl.Flush()
 									time.Sleep(time.Millisecond * 100)
 								}

@@ -114,7 +114,6 @@ var _ = Describe("context signature verification tests", func() {
 			}).Build()
 			registerServiceBroker()
 		})
-
 		It("should not fail the request,osb request sent without the signature", func() {
 			provisionFunc = common.GetOsbProvisionFunc(ctx, instanceID, osbURL, catalogServiceID, catalogPlanID)
 			common.ProvisionInstanceWithoutSignature(ctx, brokerServer, provisionFunc)

@@ -63,7 +63,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				changedLabelKey := "label_key"
 				changedLabelValues := []string{"label_value1", "label_value2"}
 				operation := types.AddLabelOperation
-
+				AfterSuite(func() {
+					if ctx != nil {
+						ctx.Cleanup()
+					}
+				})
 				BeforeEach(func() {
 					patchLabelsBody = make(map[string]interface{})
 					patchLabels = append(patchLabels, types.LabelChange{
