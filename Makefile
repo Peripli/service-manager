@@ -139,9 +139,11 @@ generate: prepare-counterfeiter build-gen-binary $(GENERATE_PREREQ_FILES) ## Rec
 	@touch $@
 
 go-deps:
+	set GO111MODULE=off
 	go install gotest.tools/gotestsum@latest
 	go install github.com/boumenot/gocover-cobertura@latest
 	go install github.com/ggere/gototal-cobertura@latest
+	set GO111MODULE=on
 	go mod vendor
 
 # Run tests
