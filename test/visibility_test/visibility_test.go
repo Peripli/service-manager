@@ -60,11 +60,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				postVisibilityRequestNoLabels   common.Object
 				postVisibilityRequestWithLabels labeledVisibility
 			)
-			AfterSuite(func() {
-				if ctx != nil {
-					ctx.Cleanup()
-				}
-			})
+
 			BeforeEach(func() {
 				existingBrokerID = ctx.RegisterBroker().Broker.ID
 				Expect(existingBrokerID).ToNot(BeEmpty())

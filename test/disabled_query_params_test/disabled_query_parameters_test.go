@@ -21,9 +21,7 @@ var _ = Describe("disable query parameter", func() {
 		ctxBuilder *common.TestContextBuilder
 		ctx        *common.TestContext
 	)
-	AfterSuite(func() {
-		ctx.Cleanup()
-	})
+
 	Describe("query param is extended", func() {
 		AfterEach(func() {
 			ctx.Cleanup()

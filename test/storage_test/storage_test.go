@@ -49,11 +49,6 @@ var _ = Describe("Test", func() {
 		ctx.Cleanup()
 	})
 
-	AfterSuite(func() {
-		if ctx != nil {
-			ctx.Cleanup()
-		}
-	})
 	Context("when resource is created without labels", func() {
 		It("should be fetched from storage without any labels", func() {
 			byID := query.ByField(query.EqualsOperator, "id", platform.GetID())
