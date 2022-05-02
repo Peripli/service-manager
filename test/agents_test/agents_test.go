@@ -26,10 +26,15 @@ var _ = Describe("agents API", func() {
 		ctxBuilder = common.NewTestContextBuilder()
 
 	})
-
+	AfterSuite(func() {
+		ctx.Cleanup()
+	})
 	Context("when no versions are set", func() {
 		BeforeEach(func() {
 			ctx = ctxBuilder.Build()
+		})
+		AfterEach(func() {
+			ctx.Cleanup()
 		})
 		It("should return an empty json object", func() {
 			ctx.SM.GET(web.AgentsURL).

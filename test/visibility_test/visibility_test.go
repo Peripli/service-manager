@@ -764,7 +764,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
 	return func(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
-		visReqBody := make(common.Object, 0)
+		visReqBody := make(common.Object)
 		cPaidPlan := common.GeneratePaidTestPlan()
 		cService := common.GenerateTestServiceWithPlans(cPaidPlan)
 		catalog := common.NewEmptySBCatalog()

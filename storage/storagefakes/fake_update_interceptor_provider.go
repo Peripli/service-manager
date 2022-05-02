@@ -37,15 +37,16 @@ func (fake *FakeUpdateInterceptorProvider) Name() string {
 	ret, specificReturn := fake.nameReturnsOnCall[len(fake.nameArgsForCall)]
 	fake.nameArgsForCall = append(fake.nameArgsForCall, struct {
 	}{})
+	stub := fake.NameStub
+	fakeReturns := fake.nameReturns
 	fake.recordInvocation("Name", []interface{}{})
 	fake.nameMutex.Unlock()
-	if fake.NameStub != nil {
-		return fake.NameStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.nameReturns
 	return fakeReturns.result1
 }
 
@@ -89,15 +90,16 @@ func (fake *FakeUpdateInterceptorProvider) Provide() storage.UpdateInterceptor {
 	ret, specificReturn := fake.provideReturnsOnCall[len(fake.provideArgsForCall)]
 	fake.provideArgsForCall = append(fake.provideArgsForCall, struct {
 	}{})
+	stub := fake.ProvideStub
+	fakeReturns := fake.provideReturns
 	fake.recordInvocation("Provide", []interface{}{})
 	fake.provideMutex.Unlock()
-	if fake.ProvideStub != nil {
-		return fake.ProvideStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.provideReturns
 	return fakeReturns.result1
 }
 

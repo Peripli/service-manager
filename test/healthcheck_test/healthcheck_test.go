@@ -49,10 +49,6 @@ var _ = Describe("Healthcheck API", func() {
 		ctx = ctxBuilder.Build()
 	})
 
-	AfterEach(func() {
-		ctx.Cleanup()
-	})
-
 	Describe("Unauthorized", func() {
 		When("Get info handler", func() {
 			It("Returns correct response", func() {

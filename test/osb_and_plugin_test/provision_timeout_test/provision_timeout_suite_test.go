@@ -173,6 +173,7 @@ func parameterizedHandler(statusCode int, responseBody string) func(rw http.Resp
 	return func(rw http.ResponseWriter, _ *http.Request) {
 		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(statusCode)
-		rw.Write([]byte(responseBody))
+		_, err := rw.Write([]byte(responseBody))
+		Expect(err).ToNot(HaveOccurred())
 	}
 }

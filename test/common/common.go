@@ -405,7 +405,7 @@ func generatePrivateKey() *rsa.PrivateKey {
 }
 
 func ExtractResourceIDs(entities []Object) []string {
-	result := make([]string, 0, 0)
+	result := make([]string, 0)
 	if entities == nil {
 		return result
 	}
@@ -488,7 +488,6 @@ func GenerateRandomPlatform() Object {
 }
 
 func GenerateRandomBroker() Object {
-	o := Object{}
 
 	brokerServer := NewBrokerServer()
 	UUID, err := uuid.NewV4()
@@ -499,7 +498,7 @@ func GenerateRandomBroker() Object {
 	if err != nil {
 		panic(err)
 	}
-	o = Object{
+	o := Object{
 		"name":        UUID.String(),
 		"broker_url":  brokerServer.URL(),
 		"description": UUID2.String(),

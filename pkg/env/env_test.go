@@ -286,7 +286,8 @@ var _ = Describe("Env", func() {
 
 	cleanUpFile := func() {
 		f := cfgFile.Location + string(filepath.Separator) + cfgFile.Name + "." + cfgFile.Format
-		os.Remove(f)
+		err = os.Remove(f)
+		Expect(err).ShouldNot(HaveOccurred())
 	}
 
 	verifyEnvCreated := func() {
@@ -440,7 +441,8 @@ var _ = Describe("Env", func() {
 
 				It("allows overriding the config file properties", func() {
 					cfgFile.Name = "updatedName"
-					testFlags.Set(keyFileName, "updatedName")
+					err := testFlags.Set(keyFileName, "updatedName")
+					Expect(err).ToNot(HaveOccurred())
 					verifyEnvCreated()
 
 					verifyEnvContainsValues(struct{ File env.File }{File: cfgFile.File})
@@ -454,8 +456,8 @@ var _ = Describe("Env", func() {
 
 				It("returns an err if config file loading fails", func() {
 					cfgFile.Format = "json"
-					testFlags.Set(keyFileFormat, "json")
-
+					err := testFlags.Set(keyFileFormat, "json")
+					Expect(err).ToNot(HaveOccurred())
 					Expect(createEnv()).Should(HaveOccurred())
 				})
 
@@ -517,8 +519,8 @@ var _ = Describe("Env", func() {
 			Expect(environment.Get(key)).To(Equal(flagDefaultValue))
 			Expect(environment.Get(aliasKey)).To(BeNil())
 
-			environment.BindPFlag(aliasKey, testFlags.Lookup(key))
-
+			err := environment.BindPFlag(aliasKey, testFlags.Lookup(key))
+			Expect(err).ToNot(HaveOccurred())
 			Expect(environment.Get(key)).To(Equal(flagDefaultValue))
 			Expect(environment.Get(aliasKey)).To(Equal(flagDefaultValue))
 		})
@@ -644,10 +646,12 @@ var _ = Describe("Env", func() {
 				verifyEnvCreated()
 				Expect(environment.Get(key)).Should(Equal(fileValue))
 
-				os.Setenv(strings.ToTitle(key), envValue)
+				err := os.Setenv(strings.ToTitle(key), envValue)
+				Expect(err).ToNot(HaveOccurred())
 				Expect(environment.Get(key)).Should(Equal(envValue))
 
-				testFlags.Set(key, flagValue)
+				err = testFlags.Set(key, flagValue)
+				Expect(err).ToNot(HaveOccurred())
 				Expect(environment.Get(key)).Should(Equal(flagValue))
 
 				environment.Set(key, overrideValue)
@@ -785,11 +789,13 @@ var _ = Describe("Env", func() {
 					verifyEnvCreated()
 					verifyUnmarshallingIsCorrect(&str, &s{fileValue})
 
-					os.Setenv(strings.ToTitle(key), envValue)
+					err := os.Setenv(strings.ToTitle(key), envValue)
+					Expect(err).ShouldNot(HaveOccurred())
 					verifyUnmarshallingIsCorrect(&str, &s{envValue})
 					Expect(environment.Get(key)).Should(Equal(envValue))
 
-					testFlags.Set(key, flagValue)
+					err = testFlags.Set(key, flagValue)
+					Expect(err).ShouldNot(HaveOccurred())
 					verifyUnmarshallingIsCorrect(&str, &s{flagValue})
 
 					environment.Set(key, overrideValue)

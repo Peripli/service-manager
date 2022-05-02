@@ -70,15 +70,16 @@ func (fake *FakeNotificationConnection) Close() error {
 	ret, specificReturn := fake.closeReturnsOnCall[len(fake.closeArgsForCall)]
 	fake.closeArgsForCall = append(fake.closeArgsForCall, struct {
 	}{})
+	stub := fake.CloseStub
+	fakeReturns := fake.closeReturns
 	fake.recordInvocation("Close", []interface{}{})
 	fake.closeMutex.Unlock()
-	if fake.CloseStub != nil {
-		return fake.CloseStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.closeReturns
 	return fakeReturns.result1
 }
 
@@ -123,15 +124,16 @@ func (fake *FakeNotificationConnection) Listen(arg1 string) error {
 	fake.listenArgsForCall = append(fake.listenArgsForCall, struct {
 		arg1 string
 	}{arg1})
+	stub := fake.ListenStub
+	fakeReturns := fake.listenReturns
 	fake.recordInvocation("Listen", []interface{}{arg1})
 	fake.listenMutex.Unlock()
-	if fake.ListenStub != nil {
-		return fake.ListenStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.listenReturns
 	return fakeReturns.result1
 }
 
@@ -182,15 +184,16 @@ func (fake *FakeNotificationConnection) NotificationChannel() <-chan *pq.Notific
 	ret, specificReturn := fake.notificationChannelReturnsOnCall[len(fake.notificationChannelArgsForCall)]
 	fake.notificationChannelArgsForCall = append(fake.notificationChannelArgsForCall, struct {
 	}{})
+	stub := fake.NotificationChannelStub
+	fakeReturns := fake.notificationChannelReturns
 	fake.recordInvocation("NotificationChannel", []interface{}{})
 	fake.notificationChannelMutex.Unlock()
-	if fake.NotificationChannelStub != nil {
-		return fake.NotificationChannelStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.notificationChannelReturns
 	return fakeReturns.result1
 }
 
@@ -234,15 +237,16 @@ func (fake *FakeNotificationConnection) Ping() error {
 	ret, specificReturn := fake.pingReturnsOnCall[len(fake.pingArgsForCall)]
 	fake.pingArgsForCall = append(fake.pingArgsForCall, struct {
 	}{})
+	stub := fake.PingStub
+	fakeReturns := fake.pingReturns
 	fake.recordInvocation("Ping", []interface{}{})
 	fake.pingMutex.Unlock()
-	if fake.PingStub != nil {
-		return fake.PingStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.pingReturns
 	return fakeReturns.result1
 }
 
@@ -287,15 +291,16 @@ func (fake *FakeNotificationConnection) Unlisten(arg1 string) error {
 	fake.unlistenArgsForCall = append(fake.unlistenArgsForCall, struct {
 		arg1 string
 	}{arg1})
+	stub := fake.UnlistenStub
+	fakeReturns := fake.unlistenReturns
 	fake.recordInvocation("Unlisten", []interface{}{arg1})
 	fake.unlistenMutex.Unlock()
-	if fake.UnlistenStub != nil {
-		return fake.UnlistenStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.unlistenReturns
 	return fakeReturns.result1
 }
 

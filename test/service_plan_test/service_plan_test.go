@@ -314,15 +314,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								BeforeEach(func() {
 									cPaidPlan1, _ := common.GenerateShareablePaidTestPlan()
 									cPaidPlan1, err := sjson.Set(cPaidPlan1, "maximum_polling_duration", 2)
+									Expect(err).ToNot(HaveOccurred())
 									cPaidPlan1, err = sjson.Set(cPaidPlan1, "bindable", true)
-									if err != nil {
-										panic(err)
-									}
+									Expect(err).ToNot(HaveOccurred())
 									cPaidPlan2, _ := common.GenerateShareablePaidTestPlan()
 									cPaidPlan2, err = sjson.Set(cPaidPlan2, "bindable", true)
-									if err != nil {
-										panic(err)
-									}
+									Expect(err).ToNot(HaveOccurred())
 									cService := common.GenerateTestServiceWithPlansNonBindable(cPaidPlan1, cPaidPlan2)
 									catalog := common.NewEmptySBCatalog()
 									catalog.AddService(cService)

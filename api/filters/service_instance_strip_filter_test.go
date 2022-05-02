@@ -41,7 +41,6 @@ var _ = Describe("Service Instance Strip Filter", func() {
 	)
 
 	BeforeEach(func() {
-		filter = ServiceInstanceStripFilter{}
 		handler = &webfakes.FakeHandler{}
 		jsonWithPropertiesToStrip = `{}`
 	})
@@ -85,7 +84,8 @@ var _ = Describe("Service Instance Strip Filter", func() {
 		When("body is invalid json", func() {
 			It("should do nothing", func() {
 				req := mockedRequest(http.MethodPost, invalidJSON)
-				filter.Run(req, handler)
+				_, err := filter.Run(req, handler)
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(handler.HandleCallCount()).To(Equal(1))
 				requestBody := handler.HandleArgsForCall(0).Body
 				Expect(string(requestBody)).To(Equal(invalidJSON))
@@ -118,7 +118,8 @@ var _ = Describe("Service Instance Strip Filter", func() {
 		When("body is invalid json", func() {
 			It("should do nothing", func() {
 				req := mockedRequest(http.MethodPatch, invalidJSON)
-				filter.Run(req, handler)
+				_, err := filter.Run(req, handler)
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(handler.HandleCallCount()).To(Equal(1))
 				requestBody := handler.HandleArgsForCall(0).Body
 				Expect(string(requestBody)).To(Equal(invalidJSON))

@@ -91,7 +91,8 @@ var _ = Describe("Integrity Repository", func() {
 		}, nil)
 
 		bytes := make([]byte, 32)
-		rand.Read(bytes)
+		_, err = rand.Read(bytes)
+		Expect(err).ToNot(HaveOccurred())
 		copy(randomIntegrity[:], bytes[:])
 
 		fakeIntegrityProcessor = &securityfakes.FakeIntegrityProcessor{}
@@ -263,7 +264,8 @@ var _ = Describe("Integrity Repository", func() {
 			var newIntegrity [32]byte
 			BeforeEach(func() {
 				bytes := make([]byte, 32)
-				rand.Read(bytes)
+				_, err = rand.Read(bytes)
+				Expect(err).ToNot(HaveOccurred())
 				copy(newIntegrity[:], bytes[:])
 				fakeIntegrityProcessor.CalculateIntegrityReturns(newIntegrity[:], nil)
 			})

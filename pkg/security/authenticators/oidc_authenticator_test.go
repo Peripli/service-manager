@@ -92,7 +92,8 @@ var _ = Describe("OIDC Authenticator", func() {
 		server.RouteToHandler(http.MethodGet, "/.well-known/openid-configuration", func(writer http.ResponseWriter, request *http.Request) {
 			writer.Header().Set("Content-Type", "application/json")
 			writer.WriteHeader(openIDResponseCode)
-			writer.Write(openIDResponseBodyBytes)
+			_, err := writer.Write(openIDResponseBodyBytes)
+			Expect(err).To(BeNil())
 		})
 		return server
 	}
@@ -189,7 +190,8 @@ var _ = Describe("OIDC Authenticator", func() {
 				})
 
 				It("Should log an error", func() {
-					NewOIDCAuthenticator(ctx, oauthOptions)
+					_, _, err := NewOIDCAuthenticator(ctx, oauthOptions)
+					Expect(err).To(BeNil())
 					Expect(loggingInterceptor).To(ContainSubstring(expectedError.Error()))
 				})
 			})
@@ -219,8 +221,7 @@ var _ = Describe("OIDC Authenticator", func() {
 
 				It("Should return error", func() {
 					_, _, err := NewOIDCAuthenticator(ctx, oauthOptions)
-
-					Expect(err).To(Not(BeNil()))
+					Expect(err).To(HaveOccurred())
 				})
 			})
 

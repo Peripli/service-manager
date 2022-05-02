@@ -483,7 +483,8 @@ var _ = Describe("Catalog", func() {
 			BeforeEach(func() {
 				notBrokerApp = httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 					rw.WriteHeader(brokerResponseCode)
-					rw.Write([]byte("Internal Data"))
+					_, err := rw.Write([]byte("Internal Data"))
+					Expect(err).ShouldNot(HaveOccurred())
 				}))
 			})
 

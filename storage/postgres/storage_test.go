@@ -34,9 +34,10 @@ var _ = Describe("Postgres Storage", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should panic", func() {
 				Expect(func() {
-					pgStorage.GetEncryptionKey(context.TODO(), func(i context.Context, bytes3 []byte, bytes2 []byte) (bytes []byte, e error) {
+					_, err := pgStorage.GetEncryptionKey(context.TODO(), func(i context.Context, bytes3 []byte, bytes2 []byte) (bytes []byte, e error) {
 						return []byte{}, nil
 					})
+					Expect(err).ToNot(HaveOccurred())
 				}).To(Panic())
 			})
 		})
@@ -46,9 +47,10 @@ var _ = Describe("Postgres Storage", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should panic", func() {
 				Expect(func() {
-					pgStorage.SetEncryptionKey(context.TODO(), []byte{}, func(i context.Context, bytes3 []byte, bytes2 []byte) (bytes []byte, e error) {
+					err := pgStorage.SetEncryptionKey(context.TODO(), []byte{}, func(i context.Context, bytes3 []byte, bytes2 []byte) (bytes []byte, e error) {
 						return []byte{}, nil
 					})
+					Expect(err).ToNot(HaveOccurred())
 				}).To(Panic())
 			})
 		})
@@ -57,7 +59,10 @@ var _ = Describe("Postgres Storage", func() {
 	Describe("Ping", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should panic", func() {
-				Expect(func() { pgStorage.PingContext(context.Background()) }).To(Panic())
+				Expect(func() {
+					err := pgStorage.PingContext(context.Background())
+					Expect(err).ToNot(HaveOccurred())
+				}).To(Panic())
 			})
 		})
 	})
@@ -65,7 +70,10 @@ var _ = Describe("Postgres Storage", func() {
 	Describe("SelectContext", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should panic", func() {
-				Expect(func() { pgStorage.SelectContext(context.Background(), nil, "") }).To(Panic())
+				Expect(func() {
+					err := pgStorage.SelectContext(context.Background(), nil, "")
+					Expect(err).ToNot(HaveOccurred())
+				}).To(Panic())
 			})
 		})
 	})
@@ -96,13 +104,14 @@ var _ = Describe("Postgres Storage", func() {
 		Context("Called with invalid postgres uri", func() {
 			It("Should panic", func() {
 				Expect(func() {
-					pgStorage.Open(&storage.Settings{
+					err := pgStorage.Open(&storage.Settings{
 						URI:                "invalid",
 						MigrationsURL:      "invalid",
 						EncryptionKey:      "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8",
 						Notification:       storage.DefaultNotificationSettings(),
 						IntegrityProcessor: &securityfakes.FakeIntegrityProcessor{},
 					})
+					Expect(err).To(HaveOccurred())
 				}).To(Panic())
 			})
 		})
@@ -111,7 +120,10 @@ var _ = Describe("Postgres Storage", func() {
 	Describe("Close", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should not panic", func() {
-				Expect(func() { pgStorage.Close() }).ToNot(Panic())
+				Expect(func() {
+					err := pgStorage.Close()
+					Expect(err).ToNot(HaveOccurred())
+				}).ToNot(Panic())
 			})
 		})
 	})

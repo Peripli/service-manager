@@ -42,15 +42,16 @@ func (fake *FakeIntegrityProcessor) CalculateIntegrity(arg1 security.IntegralObj
 	fake.calculateIntegrityArgsForCall = append(fake.calculateIntegrityArgsForCall, struct {
 		arg1 security.IntegralObject
 	}{arg1})
+	stub := fake.CalculateIntegrityStub
+	fakeReturns := fake.calculateIntegrityReturns
 	fake.recordInvocation("CalculateIntegrity", []interface{}{arg1})
 	fake.calculateIntegrityMutex.Unlock()
-	if fake.CalculateIntegrityStub != nil {
-		return fake.CalculateIntegrityStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.calculateIntegrityReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -105,15 +106,16 @@ func (fake *FakeIntegrityProcessor) ValidateIntegrity(arg1 security.IntegralObje
 	fake.validateIntegrityArgsForCall = append(fake.validateIntegrityArgsForCall, struct {
 		arg1 security.IntegralObject
 	}{arg1})
+	stub := fake.ValidateIntegrityStub
+	fakeReturns := fake.validateIntegrityReturns
 	fake.recordInvocation("ValidateIntegrity", []interface{}{arg1})
 	fake.validateIntegrityMutex.Unlock()
-	if fake.ValidateIntegrityStub != nil {
-		return fake.ValidateIntegrityStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.validateIntegrityReturns
 	return fakeReturns.result1
 }
 

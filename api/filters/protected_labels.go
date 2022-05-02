@@ -69,7 +69,7 @@ func (flo *ProtectedLabelsFilter) Run(req *web.Request, next web.Handler) (*web.
 		if err := json.Unmarshal(req.Body, &result); err != nil {
 			return nil, &util.HTTPError{
 				ErrorType:   "BadRequest",
-				Description: fmt.Sprintf("Invalid JSON body"),
+				Description: "Invalid JSON body",
 				StatusCode:  http.StatusBadRequest,
 			}
 		}

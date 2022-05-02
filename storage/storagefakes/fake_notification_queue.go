@@ -53,15 +53,16 @@ func (fake *FakeNotificationQueue) Channel() <-chan *types.Notification {
 	ret, specificReturn := fake.channelReturnsOnCall[len(fake.channelArgsForCall)]
 	fake.channelArgsForCall = append(fake.channelArgsForCall, struct {
 	}{})
+	stub := fake.ChannelStub
+	fakeReturns := fake.channelReturns
 	fake.recordInvocation("Channel", []interface{}{})
 	fake.channelMutex.Unlock()
-	if fake.ChannelStub != nil {
-		return fake.ChannelStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.channelReturns
 	return fakeReturns.result1
 }
 
@@ -104,9 +105,10 @@ func (fake *FakeNotificationQueue) Close() {
 	fake.closeMutex.Lock()
 	fake.closeArgsForCall = append(fake.closeArgsForCall, struct {
 	}{})
+	stub := fake.CloseStub
 	fake.recordInvocation("Close", []interface{}{})
 	fake.closeMutex.Unlock()
-	if fake.CloseStub != nil {
+	if stub != nil {
 		fake.CloseStub()
 	}
 }
@@ -129,15 +131,16 @@ func (fake *FakeNotificationQueue) Enqueue(arg1 *types.Notification) error {
 	fake.enqueueArgsForCall = append(fake.enqueueArgsForCall, struct {
 		arg1 *types.Notification
 	}{arg1})
+	stub := fake.EnqueueStub
+	fakeReturns := fake.enqueueReturns
 	fake.recordInvocation("Enqueue", []interface{}{arg1})
 	fake.enqueueMutex.Unlock()
-	if fake.EnqueueStub != nil {
-		return fake.EnqueueStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.enqueueReturns
 	return fakeReturns.result1
 }
 
@@ -188,15 +191,16 @@ func (fake *FakeNotificationQueue) ID() string {
 	ret, specificReturn := fake.iDReturnsOnCall[len(fake.iDArgsForCall)]
 	fake.iDArgsForCall = append(fake.iDArgsForCall, struct {
 	}{})
+	stub := fake.IDStub
+	fakeReturns := fake.iDReturns
 	fake.recordInvocation("ID", []interface{}{})
 	fake.iDMutex.Unlock()
-	if fake.IDStub != nil {
-		return fake.IDStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.iDReturns
 	return fakeReturns.result1
 }
 
