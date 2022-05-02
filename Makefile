@@ -139,10 +139,15 @@ generate: prepare-counterfeiter build-gen-binary $(GENERATE_PREREQ_FILES) ## Rec
 	@touch $@
 
 go-deps:
-	@go install gotest.tools/gotestsum@latest
-	@go install github.com/boumenot/gocover-cobertura@latest
-	@go install github.com/ggere/gototal-cobertura@latest
-	@go mod vendor
+go-deps:
+	set GO111MODULE=off
+	go get gotest.tools/gotestsum
+	go get github.com/t-yuki/gocover-cobertura
+	go install github.com/axw/gocov/gocov@latest
+	go get github.com/AlekSi/gocov-xml
+	go get -u github.com/jstemmer/go-junit-report
+	set GO111MODULE=on
+	go mod vendor
 
 # Run tests
 test-unit: go-deps
@@ -156,7 +161,7 @@ test-unit: go-deps
 	@go tool cover -func $(UNIT_TEST_PROFILE) | grep total
 	PATH=$(PATHS) $(GOBIN)/gocover-cobertura < $(UNIT_TEST_PROFILE) > coverage.xml
 
-test-int: go-deps build
+test-int: go-deps prepare build
 	@export PATH=$(PATHS)
 	@rm -rf $(INT_TEST_PROFILE)
 	@rm -rf coverage.xml
@@ -165,10 +170,10 @@ test-int: go-deps build
 #	$(GO_INT_TEST_BROKER)
 #	@echo Running integration tests:
 #	$(GO_INT_TEST_OSB_AND_PLUGIN)
-#	@echo Running integration tests:
-#	$(GO_INT_TEST_SERVICE_INSTANCE_AND_BINDING)
 	@echo Running integration tests:
-	$(GO_INT_TEST_OTHER)
+	$(GO_INT_TEST_SERVICE_INSTANCE_AND_BINDING)
+#	@echo Running integration tests:
+#	$(GO_INT_TEST_OTHER)
 
 	@echo Total code coverage:
 	@go tool cover -func $(INT_TEST_PROFILE) | grep total
