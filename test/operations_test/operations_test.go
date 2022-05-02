@@ -306,7 +306,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						_, err := ctx.SMRepository.Create(context.Background(), testResource1)
 						Expect(err).ToNot(HaveOccurred())
 						_, err = ctx.SMRepository.Create(context.Background(), testResource2)
-						Expect(err).ToNot(HaveOccurred())
+						Expect(err).To(HaveOccurred())
 						_, err = ctx.SMRepository.Create(context.Background(), lastInternalSuccessfulOperation)
 						Expect(err).ToNot(HaveOccurred())
 						_, err = ctx.SMRepository.Create(context.Background(), lastInternalFailedOperation)
