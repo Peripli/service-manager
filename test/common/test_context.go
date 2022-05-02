@@ -46,7 +46,6 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"github.com/spf13/pflag"
 
 	"github.com/Peripli/service-manager/config"
@@ -520,10 +519,10 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 	}
 
 	if cleanup {
-		err := RemoveAllBindings(testContext)
-		Expect(err).ToNot(HaveOccurred())
-		err = RemoveAllInstances(testContext)
-		Expect(err).ToNot(HaveOccurred())
+		//nolint
+		RemoveAllBindings(testContext)
+		//nolint
+		RemoveAllInstances(testContext)
 		RemoveAllBrokers(testContext.SMRepository)
 		RemoveAllPlatforms(testContext.SMRepository)
 		RemoveAllOperations(testContext.SMRepository)
@@ -861,12 +860,12 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	if ctx == nil {
 		return
 	}
-
+	//nolint
 	RemoveAllNotifications(ctx.SMRepository)
-	err := RemoveAllBindings(ctx)
-	Expect(err).ToNot(HaveOccurred())
-	err = RemoveAllInstances(ctx)
-	Expect(err).ToNot(HaveOccurred())
+	//nolint
+	RemoveAllBindings(ctx)
+	//nolint
+	RemoveAllInstances(ctx)
 	RemoveAllOperations(ctx.SMRepository)
 
 	ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL).Expect()
@@ -884,8 +883,7 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	}
 
 	for _, conn := range ctx.wsConnections {
-		err = conn.Close()
-		Expect(err).ToNot(HaveOccurred())
+		conn.Close()
 	}
 	ctx.wsConnections = nil
 }
