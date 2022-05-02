@@ -11,12 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-ifeq (,$(shell go env GOBIN))
-GOBIN=$(shell go env GOPATH)/bin
-else
-GOBIN=$(shell go env GOBIN)
-endif
-PATHS = $(PATH):$(PWD)/bin:$(GOBIN):$(HOME)/go/bin:$(TEMPBIN)
+
 all: build test-unit ## Default target that builds SM and runs unit-tests
 
 GO 					?= go
@@ -54,17 +49,22 @@ GO_BUILD 		= env CGO_ENABLED=0 GOOS=$(PLATFORM) GOARCH=$(ARCH) \
            		$(GO) build $(GO_FLAGS) -ldflags '-s -w $(BUILD_LDFLAGS) $(VERSION_FLAGS)'
 
 # TEST_FLAGS - extra "go test" flags to use
-GO_INT_TEST 	= $(GOBIN)/gotestsum  --debug --no-color --format standard-verbose -- ./test/... -coverprofile=$(UNIT_TEST_PROFILE)
+GO_INT_TEST 	= $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
+				./test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
 
-GO_INT_TEST_OTHER = $(GOBIN)/gotestsum  --debug --no-color --format standard-verbose -- $(shell go list ./test/... | egrep -v "broker_test|osb_and_plugin_test|service_instance_and_binding_test") -coverprofile=$(INT_OTHER_TEST_PROFILE)
+GO_INT_TEST_OTHER = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
+				$(shell go list ./test/... | egrep -v "broker_test|osb_and_plugin_test|service_instance_and_binding_test") $(TEST_FLAGS) -coverprofile=$(INT_OTHER_TEST_PROFILE)
 
-GO_INT_TEST_BROKER = $(GOBIN)/gotestsum  --debug --no-color --format standard-verbose -- ./test/broker_test/... -coverprofile=$(INT_BROKER_TEST_PROFILE)
+GO_INT_TEST_BROKER = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
+				./test/broker_test/... $(TEST_FLAGS) -coverprofile=$(INT_BROKER_TEST_PROFILE)
 
-GO_INT_TEST_OSB_AND_PLUGIN = $(GOBIN)/gotestsum  --debug --no-color --format standard-verbose -- ./test/osb_and_plugin_test/... -coverprofile=$(INT_OSB_AND_PLUGIN_TEST_PROFILE)
+GO_INT_TEST_OSB_AND_PLUGIN = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
+				./test/osb_and_plugin_test/... $(TEST_FLAGS) -coverprofile=$(INT_OSB_AND_PLUGIN_TEST_PROFILE)
 
-GO_INT_TEST_SERVICE_INSTANCE_AND_BINDING = $(GOBIN)/gotestsum  --debug --no-color --format standard-verbose -- ./test/service_instance_and_binding_test/... -coverprofile=$(INT_SERVICE_INSTANCE_AND_BINDINGS_TEST_PROFILE)
+GO_INT_TEST_SERVICE_INSTANCE_AND_BINDING = $(GO) test -p 1 -timeout 30m -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
+				./test/service_instance_and_binding_test/... $(TEST_FLAGS) -coverprofile=$(INT_SERVICE_INSTANCE_AND_BINDINGS_TEST_PROFILE)
 
-GO_UNIT_TEST 	= $(GOBIN)/gotestsum  --debug --no-color --format standard-verbose -- $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd " " -) \
+GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
 				$(shell go list ./... | egrep -v "test") -coverprofile=$(UNIT_TEST_PROFILE)
 
 COUNTERFEITER   ?= "v6.0.2"
@@ -78,8 +78,16 @@ prepare-counterfeiter:
 	@GO111MODULE=off go get -u github.com/maxbrunsfeld/counterfeiter
 	@chmod a+x $(GOPATH)/bin/counterfeiter
 
-## Installs some tools (cover, goveralls)
+## Installs some tools (gometalinter, cover, goveralls)
 prepare: prepare-counterfeiter build-gen-binary
+ifeq ($(shell which gometalinter),)
+	@echo "Installing gometalinter ...";\
+		cd $(GOPATH)/src;\
+		GO111MODULE=off go get -u github.com/alecthomas/gometalinter;\
+		GO111MODULE=off cd $(GOPATH)/src/github.com/alecthomas/gometalinter;\
+		GO111MODULE=off go install;\
+		GO111MODULE=off gometalinter -i -u
+endif
 ifeq ($(shell which cover),)
 	@echo "Installing cover tool..."
 	@go get -u golang.org/x/tools/cmd/cover
@@ -138,57 +146,13 @@ generate: prepare-counterfeiter build-gen-binary $(GENERATE_PREREQ_FILES) ## Rec
 	$(GO) list ./... | xargs $(GO) generate
 	@touch $@
 
-go-deps:
-	set GO111MODULE=off
-	go install gotest.tools/gotestsum@latest
-	go install github.com/boumenot/gocover-cobertura@latest
-	go install github.com/ggere/gototal-cobertura@latest
-	set GO111MODULE=on
-	go mod vendor
-
-# Run tests
-test-unit: go-deps
-	@export PATH=$(PATHS)
-	@rm -rf $(UNIT_TEST_PROFILE)
-	@rm -rf coverage.xml
-	@ulimit -n 10000 # Fix too many files open error
+test-unit:
 	@echo Running unit tests:
 	$(GO_UNIT_TEST)
-	@echo Total code coverage:
-	@go tool cover -func $(UNIT_TEST_PROFILE) | grep total
-	PATH=$(PATHS) $(GOBIN)/gocover-cobertura < $(UNIT_TEST_PROFILE) > coverage.xml
 
-test-int: go-deps prepare build
-	@export PATH=$(PATHS)
-	@rm -rf $(INT_TEST_PROFILE)
-	@rm -rf coverage.xml
-	@ulimit -n 10000 # Fix too many files open error
+test-int: generate ## Runs the integration tests. Use TEST_FLAGS="--storage.uri=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" to specify the DB. All other SM flags are also supported
 	@echo Running integration tests:
-#	$(GO_INT_TEST_BROKER)
-#	@echo Running integration tests:
-#	$(GO_INT_TEST_OSB_AND_PLUGIN)
-	@echo Running integration tests:
-	$(GO_INT_TEST_SERVICE_INSTANCE_AND_BINDING)
-#	@echo Running integration tests:
-#	$(GO_INT_TEST_OTHER)
-
-	@echo Total code coverage:
-	@go tool cover -func $(INT_TEST_PROFILE) | grep total
-	PATH=$(PATHS) $(GOBIN)/gocover-cobertura < $(INT_TEST_PROFILE) > coverage.xml
-
-run-test-all: test-int
-
-# DB
-start-db:
-	docker-compose -p sm -f contrib/docker-compose.yml up -d
-	@echo "Ready!"
-
-stop-db:
-	docker-compose -p sm -f contrib/docker-compose.yml down
-
-# Tests
-
-test: stop-db start-db run-test-all stop-db
+	$(GO_INT_TEST)
 
 test-int-other:
 	@echo Running integration tests:
@@ -215,6 +179,24 @@ coverage: test-report ## Produces an HTML report containing code coverage detail
 	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
 	@echo Generated coverage report in $(COVERAGE).
 
+go-deps:
+	set GO111MODULE=off
+	go get gotest.tools/gotestsum
+	go get github.com/t-yuki/gocover-cobertura
+	go install github.com/axw/gocov/gocov@latest
+	go get github.com/AlekSi/gocov-xml
+	go get -u github.com/jstemmer/go-junit-report
+	set GO111MODULE=on
+	go mod tidy
+# Run tests
+
+run-test: go-deps
+	rm -rf reports
+	mkdir -p reports
+	$(GOBIN)/gotestsum --junitfile reports/junit.xml -- -coverprofile=cover.out ./... -mod=mod
+	go tool cover -func $(TEST_PROFILE_OUT) | grep total
+	find . -name cover.out -execdir sh -c '$(GOBIN)/gocover-cobertura < cover.out > coverage.xml'  \; ;\
+	GO111MODULE=on
 
 clean-generate:
 	@rm -f generate
@@ -257,14 +239,9 @@ format-check: ## Checks for style violation using gofmt
 	@echo Checking if there are files not formatted with gofmt...
 	@$(GOFMT) -l -s $(SOURCE_FILES) | grep ".*\.go"; if [ "$$?" = "0" ]; then echo "Files need reformating! Run make format!" ; exit 1; fi
 
-golangci-lint: $(BINDIR)/golangci-lint
-$(BINDIR)/golangci-lint:
-	@curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.45.2
-
-
-lint-check: golangci-lint
+lint-check: ## Runs some linters and static code checks
 	@echo Running linter checks...
-	@$(BINDIR)/golangci-lint run --config .golangci.yml --issues-exit-code=0 --deadline=30m --out-format checkstyle ./... > checkstyle.xml
+	@export PATH=$(PATH):bin && gometalinter --vendor ./...
 
 #-----------------------------------------------------------------------------
 # Useful utility targets
