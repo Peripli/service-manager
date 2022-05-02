@@ -43,15 +43,16 @@ func (fake *FakeAuthenticator) ClientCredentials() (*auth.Token, error) {
 	ret, specificReturn := fake.clientCredentialsReturnsOnCall[len(fake.clientCredentialsArgsForCall)]
 	fake.clientCredentialsArgsForCall = append(fake.clientCredentialsArgsForCall, struct {
 	}{})
+	stub := fake.ClientCredentialsStub
+	fakeReturns := fake.clientCredentialsReturns
 	fake.recordInvocation("ClientCredentials", []interface{}{})
 	fake.clientCredentialsMutex.Unlock()
-	if fake.ClientCredentialsStub != nil {
-		return fake.ClientCredentialsStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.clientCredentialsReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -100,15 +101,16 @@ func (fake *FakeAuthenticator) PasswordCredentials(arg1 string, arg2 string) (*a
 		arg1 string
 		arg2 string
 	}{arg1, arg2})
+	stub := fake.PasswordCredentialsStub
+	fakeReturns := fake.passwordCredentialsReturns
 	fake.recordInvocation("PasswordCredentials", []interface{}{arg1, arg2})
 	fake.passwordCredentialsMutex.Unlock()
-	if fake.PasswordCredentialsStub != nil {
-		return fake.PasswordCredentialsStub(arg1, arg2)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.passwordCredentialsReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 

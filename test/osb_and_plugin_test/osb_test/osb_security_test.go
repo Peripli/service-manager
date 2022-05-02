@@ -126,7 +126,7 @@ var _ = Describe("OSB Security", func() {
 			SMPlatformOtherSubaccountExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
 				username := platformForOtherTenant.Credentials.Basic.Username
 				password := platformForOtherTenant.Credentials.Basic.Password
-				req = req.WithBasicAuth(username, password)
+				req.WithBasicAuth(username, password)
 			})
 
 			SMPlatformOtherSubaccountExpect.PUT(web.BrokerPlatformCredentialsURL).
@@ -137,7 +137,7 @@ var _ = Describe("OSB Security", func() {
 				}).Expect().Status(http.StatusOK)
 
 			brokerExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
-				req = req.WithBasicAuth("admin2", "admin")
+				req.WithBasicAuth("admin2", "admin")
 			})
 			createBinding()
 		})

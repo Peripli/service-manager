@@ -40,15 +40,16 @@ func (fake *FakeDeleteInterceptor) AroundTxDelete(arg1 storage.InterceptDeleteAr
 	fake.aroundTxDeleteArgsForCall = append(fake.aroundTxDeleteArgsForCall, struct {
 		arg1 storage.InterceptDeleteAroundTxFunc
 	}{arg1})
+	stub := fake.AroundTxDeleteStub
+	fakeReturns := fake.aroundTxDeleteReturns
 	fake.recordInvocation("AroundTxDelete", []interface{}{arg1})
 	fake.aroundTxDeleteMutex.Unlock()
-	if fake.AroundTxDeleteStub != nil {
-		return fake.AroundTxDeleteStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.aroundTxDeleteReturns
 	return fakeReturns.result1
 }
 
@@ -100,15 +101,16 @@ func (fake *FakeDeleteInterceptor) OnTxDelete(arg1 storage.InterceptDeleteOnTxFu
 	fake.onTxDeleteArgsForCall = append(fake.onTxDeleteArgsForCall, struct {
 		arg1 storage.InterceptDeleteOnTxFunc
 	}{arg1})
+	stub := fake.OnTxDeleteStub
+	fakeReturns := fake.onTxDeleteReturns
 	fake.recordInvocation("OnTxDelete", []interface{}{arg1})
 	fake.onTxDeleteMutex.Unlock()
-	if fake.OnTxDeleteStub != nil {
-		return fake.OnTxDeleteStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.onTxDeleteReturns
 	return fakeReturns.result1
 }
 

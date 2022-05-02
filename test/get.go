@@ -203,7 +203,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 					Expect(err).ToNot(HaveOccurred())
 					labels := make(map[string][]string)
 					if tenantAccess {
-						labels[t.MultitenancySettings.LabelKey] = append([]string{t.MultitenancySettings.TokenClaims[t.MultitenancySettings.TenantTokenClaim].(string)})
+						labels[t.MultitenancySettings.LabelKey] = []string{t.MultitenancySettings.TokenClaims[t.MultitenancySettings.TenantTokenClaim].(string)}
 					}
 					testResource, err := ctx.SMRepository.Create(context.TODO(), &types.Operation{
 						Base: types.Base{
@@ -220,7 +220,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 						ResourceType:  types.ObjectType(t.API),
 						CorrelationID: id.String(),
 					})
-
+					Expect(err).ToNot(HaveOccurred())
 					testRes := testResource.(*types.Operation)
 					testRes.Context = nil
 					return testResource, id.String()

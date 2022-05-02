@@ -25,9 +25,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"github.com/gbrlsnchs/jwt"
+	"github.com/gorilla/mux"
 )
 
 type OAuthServer struct {
@@ -86,6 +85,7 @@ func (os *OAuthServer) TokenKeysRequestCallCount() int {
 
 func (os *OAuthServer) getOpenIDConfig(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	//nolint
 	w.Write([]byte(`{
 		 "issuer": "` + os.BaseURL + `/oauth/token",
 		 "jwks_uri": "` + os.BaseURL + `/token_keys"
@@ -104,6 +104,7 @@ func (os *OAuthServer) getToken(w http.ResponseWriter, r *http.Request) {
 		"user_name": "testUser",
 	})
 	w.Header().Set("Content-Type", "application/json")
+	//nolint
 	w.Write([]byte(`{"access_token": "` + token + `"}`))
 }
 
@@ -138,8 +139,8 @@ func (os *OAuthServer) getTokenKeys(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.Header().Set("Content-Type", "application/json")
+	//nolint
 	w.Write(responseBody)
-
 	os.mutex.Lock()
 	os.tokenKeysRequestCallCount++
 	os.mutex.Unlock()

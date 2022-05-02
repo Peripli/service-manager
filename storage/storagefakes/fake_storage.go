@@ -258,15 +258,16 @@ func (fake *FakeStorage) Close() error {
 	ret, specificReturn := fake.closeReturnsOnCall[len(fake.closeArgsForCall)]
 	fake.closeArgsForCall = append(fake.closeArgsForCall, struct {
 	}{})
+	stub := fake.CloseStub
+	fakeReturns := fake.closeReturns
 	fake.recordInvocation("Close", []interface{}{})
 	fake.closeMutex.Unlock()
-	if fake.CloseStub != nil {
-		return fake.CloseStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.closeReturns
 	return fakeReturns.result1
 }
 
@@ -313,15 +314,16 @@ func (fake *FakeStorage) Count(arg1 context.Context, arg2 types.ObjectType, arg3
 		arg2 types.ObjectType
 		arg3 []query.Criterion
 	}{arg1, arg2, arg3})
+	stub := fake.CountStub
+	fakeReturns := fake.countReturns
 	fake.recordInvocation("Count", []interface{}{arg1, arg2, arg3})
 	fake.countMutex.Unlock()
-	if fake.CountStub != nil {
-		return fake.CountStub(arg1, arg2, arg3...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.countReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -378,15 +380,16 @@ func (fake *FakeStorage) CountLabelValues(arg1 context.Context, arg2 types.Objec
 		arg2 types.ObjectType
 		arg3 []query.Criterion
 	}{arg1, arg2, arg3})
+	stub := fake.CountLabelValuesStub
+	fakeReturns := fake.countLabelValuesReturns
 	fake.recordInvocation("CountLabelValues", []interface{}{arg1, arg2, arg3})
 	fake.countLabelValuesMutex.Unlock()
-	if fake.CountLabelValuesStub != nil {
-		return fake.CountLabelValuesStub(arg1, arg2, arg3...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.countLabelValuesReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -442,15 +445,16 @@ func (fake *FakeStorage) Create(arg1 context.Context, arg2 types.Object) (types.
 		arg1 context.Context
 		arg2 types.Object
 	}{arg1, arg2})
+	stub := fake.CreateStub
+	fakeReturns := fake.createReturns
 	fake.recordInvocation("Create", []interface{}{arg1, arg2})
 	fake.createMutex.Unlock()
-	if fake.CreateStub != nil {
-		return fake.CreateStub(arg1, arg2)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.createReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -507,15 +511,16 @@ func (fake *FakeStorage) Delete(arg1 context.Context, arg2 types.ObjectType, arg
 		arg2 types.ObjectType
 		arg3 []query.Criterion
 	}{arg1, arg2, arg3})
+	stub := fake.DeleteStub
+	fakeReturns := fake.deleteReturns
 	fake.recordInvocation("Delete", []interface{}{arg1, arg2, arg3})
 	fake.deleteMutex.Unlock()
-	if fake.DeleteStub != nil {
-		return fake.DeleteStub(arg1, arg2, arg3...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.deleteReturns
 	return fakeReturns.result1
 }
 
@@ -569,15 +574,16 @@ func (fake *FakeStorage) DeleteReturning(arg1 context.Context, arg2 types.Object
 		arg2 types.ObjectType
 		arg3 []query.Criterion
 	}{arg1, arg2, arg3})
+	stub := fake.DeleteReturningStub
+	fakeReturns := fake.deleteReturningReturns
 	fake.recordInvocation("DeleteReturning", []interface{}{arg1, arg2, arg3})
 	fake.deleteReturningMutex.Unlock()
-	if fake.DeleteReturningStub != nil {
-		return fake.DeleteReturningStub(arg1, arg2, arg3...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.deleteReturningReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -634,15 +640,16 @@ func (fake *FakeStorage) Get(arg1 context.Context, arg2 types.ObjectType, arg3 .
 		arg2 types.ObjectType
 		arg3 []query.Criterion
 	}{arg1, arg2, arg3})
+	stub := fake.GetStub
+	fakeReturns := fake.getReturns
 	fake.recordInvocation("Get", []interface{}{arg1, arg2, arg3})
 	fake.getMutex.Unlock()
-	if fake.GetStub != nil {
-		return fake.GetStub(arg1, arg2, arg3...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.getReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -696,15 +703,16 @@ func (fake *FakeStorage) GetEntities() []storage.EntityMetadata {
 	ret, specificReturn := fake.getEntitiesReturnsOnCall[len(fake.getEntitiesArgsForCall)]
 	fake.getEntitiesArgsForCall = append(fake.getEntitiesArgsForCall, struct {
 	}{})
+	stub := fake.GetEntitiesStub
+	fakeReturns := fake.getEntitiesReturns
 	fake.recordInvocation("GetEntities", []interface{}{})
 	fake.getEntitiesMutex.Unlock()
-	if fake.GetEntitiesStub != nil {
-		return fake.GetEntitiesStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.getEntitiesReturns
 	return fakeReturns.result1
 }
 
@@ -751,15 +759,16 @@ func (fake *FakeStorage) GetForUpdate(arg1 context.Context, arg2 types.ObjectTyp
 		arg2 types.ObjectType
 		arg3 []query.Criterion
 	}{arg1, arg2, arg3})
+	stub := fake.GetForUpdateStub
+	fakeReturns := fake.getForUpdateReturns
 	fake.recordInvocation("GetForUpdate", []interface{}{arg1, arg2, arg3})
 	fake.getForUpdateMutex.Unlock()
-	if fake.GetForUpdateStub != nil {
-		return fake.GetForUpdateStub(arg1, arg2, arg3...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.getForUpdateReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -815,15 +824,16 @@ func (fake *FakeStorage) InTransaction(arg1 context.Context, arg2 func(ctx conte
 		arg1 context.Context
 		arg2 func(ctx context.Context, storage storage.Repository) error
 	}{arg1, arg2})
+	stub := fake.InTransactionStub
+	fakeReturns := fake.inTransactionReturns
 	fake.recordInvocation("InTransaction", []interface{}{arg1, arg2})
 	fake.inTransactionMutex.Unlock()
-	if fake.InTransactionStub != nil {
-		return fake.InTransactionStub(arg1, arg2)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.inTransactionReturns
 	return fakeReturns.result1
 }
 
@@ -874,9 +884,10 @@ func (fake *FakeStorage) Introduce(arg1 storage.Entity) {
 	fake.introduceArgsForCall = append(fake.introduceArgsForCall, struct {
 		arg1 storage.Entity
 	}{arg1})
+	stub := fake.IntroduceStub
 	fake.recordInvocation("Introduce", []interface{}{arg1})
 	fake.introduceMutex.Unlock()
-	if fake.IntroduceStub != nil {
+	if stub != nil {
 		fake.IntroduceStub(arg1)
 	}
 }
@@ -908,15 +919,16 @@ func (fake *FakeStorage) List(arg1 context.Context, arg2 types.ObjectType, arg3 
 		arg2 types.ObjectType
 		arg3 []query.Criterion
 	}{arg1, arg2, arg3})
+	stub := fake.ListStub
+	fakeReturns := fake.listReturns
 	fake.recordInvocation("List", []interface{}{arg1, arg2, arg3})
 	fake.listMutex.Unlock()
-	if fake.ListStub != nil {
-		return fake.ListStub(arg1, arg2, arg3...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.listReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -973,15 +985,16 @@ func (fake *FakeStorage) ListNoLabels(arg1 context.Context, arg2 types.ObjectTyp
 		arg2 types.ObjectType
 		arg3 []query.Criterion
 	}{arg1, arg2, arg3})
+	stub := fake.ListNoLabelsStub
+	fakeReturns := fake.listNoLabelsReturns
 	fake.recordInvocation("ListNoLabels", []interface{}{arg1, arg2, arg3})
 	fake.listNoLabelsMutex.Unlock()
-	if fake.ListNoLabelsStub != nil {
-		return fake.ListNoLabelsStub(arg1, arg2, arg3...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.listNoLabelsReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -1036,15 +1049,16 @@ func (fake *FakeStorage) Open(arg1 *storage.Settings) error {
 	fake.openArgsForCall = append(fake.openArgsForCall, struct {
 		arg1 *storage.Settings
 	}{arg1})
+	stub := fake.OpenStub
+	fakeReturns := fake.openReturns
 	fake.recordInvocation("Open", []interface{}{arg1})
 	fake.openMutex.Unlock()
-	if fake.OpenStub != nil {
-		return fake.OpenStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.openReturns
 	return fakeReturns.result1
 }
 
@@ -1096,15 +1110,16 @@ func (fake *FakeStorage) PingContext(arg1 context.Context) error {
 	fake.pingContextArgsForCall = append(fake.pingContextArgsForCall, struct {
 		arg1 context.Context
 	}{arg1})
+	stub := fake.PingContextStub
+	fakeReturns := fake.pingContextReturns
 	fake.recordInvocation("PingContext", []interface{}{arg1})
 	fake.pingContextMutex.Unlock()
-	if fake.PingContextStub != nil {
-		return fake.PingContextStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.pingContextReturns
 	return fakeReturns.result1
 }
 
@@ -1159,15 +1174,16 @@ func (fake *FakeStorage) QueryForList(arg1 context.Context, arg2 types.ObjectTyp
 		arg3 storage.NamedQuery
 		arg4 map[string]interface{}
 	}{arg1, arg2, arg3, arg4})
+	stub := fake.QueryForListStub
+	fakeReturns := fake.queryForListReturns
 	fake.recordInvocation("QueryForList", []interface{}{arg1, arg2, arg3, arg4})
 	fake.queryForListMutex.Unlock()
-	if fake.QueryForListStub != nil {
-		return fake.QueryForListStub(arg1, arg2, arg3, arg4)
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.queryForListReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -1225,15 +1241,16 @@ func (fake *FakeStorage) Update(arg1 context.Context, arg2 types.Object, arg3 ty
 		arg3 types.LabelChanges
 		arg4 []query.Criterion
 	}{arg1, arg2, arg3, arg4})
+	stub := fake.UpdateStub
+	fakeReturns := fake.updateReturns
 	fake.recordInvocation("Update", []interface{}{arg1, arg2, arg3, arg4})
 	fake.updateMutex.Unlock()
-	if fake.UpdateStub != nil {
-		return fake.UpdateStub(arg1, arg2, arg3, arg4...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.updateReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -1292,15 +1309,16 @@ func (fake *FakeStorage) UpdateLabels(arg1 context.Context, arg2 types.ObjectTyp
 		arg4 types.LabelChanges
 		arg5 []query.Criterion
 	}{arg1, arg2, arg3, arg4, arg5})
+	stub := fake.UpdateLabelsStub
+	fakeReturns := fake.updateLabelsReturns
 	fake.recordInvocation("UpdateLabels", []interface{}{arg1, arg2, arg3, arg4, arg5})
 	fake.updateLabelsMutex.Unlock()
-	if fake.UpdateLabelsStub != nil {
-		return fake.UpdateLabelsStub(arg1, arg2, arg3, arg4, arg5...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4, arg5...)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.updateLabelsReturns
 	return fakeReturns.result1
 }
 

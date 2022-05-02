@@ -95,6 +95,7 @@ var _ = Describe("Notification cleaner", func() {
 				Expect(criteria[0].LeftOp).To(Equal("created_at"))
 				timeString := criteria[0].RightOp[0]
 				timeQueryParameter, err := time.Parse(time.RFC3339, timeString)
+				Expect(err).ToNot(HaveOccurred())
 				Expect(timeQueryParameter).To(BeTemporally("<", time.Now()))
 			})
 		})

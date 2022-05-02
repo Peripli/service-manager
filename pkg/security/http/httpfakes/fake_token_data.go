@@ -29,15 +29,16 @@ func (fake *FakeTokenData) Claims(arg1 interface{}) error {
 	fake.claimsArgsForCall = append(fake.claimsArgsForCall, struct {
 		arg1 interface{}
 	}{arg1})
+	stub := fake.ClaimsStub
+	fakeReturns := fake.claimsReturns
 	fake.recordInvocation("Claims", []interface{}{arg1})
 	fake.claimsMutex.Unlock()
-	if fake.ClaimsStub != nil {
-		return fake.ClaimsStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.claimsReturns
 	return fakeReturns.result1
 }
 

@@ -40,15 +40,16 @@ func (fake *FakeUpdateInterceptor) AroundTxUpdate(arg1 storage.InterceptUpdateAr
 	fake.aroundTxUpdateArgsForCall = append(fake.aroundTxUpdateArgsForCall, struct {
 		arg1 storage.InterceptUpdateAroundTxFunc
 	}{arg1})
+	stub := fake.AroundTxUpdateStub
+	fakeReturns := fake.aroundTxUpdateReturns
 	fake.recordInvocation("AroundTxUpdate", []interface{}{arg1})
 	fake.aroundTxUpdateMutex.Unlock()
-	if fake.AroundTxUpdateStub != nil {
-		return fake.AroundTxUpdateStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.aroundTxUpdateReturns
 	return fakeReturns.result1
 }
 
@@ -100,15 +101,16 @@ func (fake *FakeUpdateInterceptor) OnTxUpdate(arg1 storage.InterceptUpdateOnTxFu
 	fake.onTxUpdateArgsForCall = append(fake.onTxUpdateArgsForCall, struct {
 		arg1 storage.InterceptUpdateOnTxFunc
 	}{arg1})
+	stub := fake.OnTxUpdateStub
+	fakeReturns := fake.onTxUpdateReturns
 	fake.recordInvocation("OnTxUpdate", []interface{}{arg1})
 	fake.onTxUpdateMutex.Unlock()
-	if fake.OnTxUpdateStub != nil {
-		return fake.OnTxUpdateStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.onTxUpdateReturns
 	return fakeReturns.result1
 }
 

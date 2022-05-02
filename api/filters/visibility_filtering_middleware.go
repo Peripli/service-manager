@@ -3,7 +3,6 @@ package filters
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -47,7 +46,7 @@ func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (
 		} else if !isResourceVisible {
 			return nil, &util.HTTPError{
 				ErrorType:   "NotFound",
-				Description: fmt.Sprintf("could not find resource"),
+				Description: "could not find resource",
 				StatusCode:  http.StatusNotFound,
 			}
 		}

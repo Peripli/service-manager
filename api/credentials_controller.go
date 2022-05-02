@@ -122,7 +122,7 @@ func (c *credentialsController) setCredentials(r *web.Request) (*web.Response, e
 		log.C(ctx).Error("Notification id not provided and broker platform credentials already exists...")
 		return nil, &util.HTTPError{
 			ErrorType:   "CredentialsError",
-			Description: fmt.Sprint("Invalid request - cannot update existing credentials"),
+			Description: "Invalid request - cannot update existing credentials",
 			StatusCode:  http.StatusConflict,
 		}
 	}

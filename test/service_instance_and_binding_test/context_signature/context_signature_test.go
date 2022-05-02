@@ -7,6 +7,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	"net/http"
 )
 
@@ -14,8 +15,10 @@ var _ = Describe("context signature verification tests", func() {
 
 	AfterEach(func() {
 		brokerServer.ResetHandlers()
-		common.RemoveAllBindings(ctx)
-		common.RemoveAllInstances(ctx)
+		err := common.RemoveAllBindings(ctx)
+		Expect(err).ShouldNot(HaveOccurred())
+		err = common.RemoveAllInstances(ctx)
+		Expect(err).ShouldNot(HaveOccurred())
 	})
 
 	Context("OSB", func() {
@@ -111,7 +114,6 @@ var _ = Describe("context signature verification tests", func() {
 			}).Build()
 			registerServiceBroker()
 		})
-
 		It("should not fail the request,osb request sent without the signature", func() {
 			provisionFunc = common.GetOsbProvisionFunc(ctx, instanceID, osbURL, catalogServiceID, catalogPlanID)
 			common.ProvisionInstanceWithoutSignature(ctx, brokerServer, provisionFunc)

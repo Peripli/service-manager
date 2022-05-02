@@ -141,7 +141,7 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 	if !service.BindingsRetrievable {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("this operation is not supported"),
+			Description: "this operation is not supported",
 			StatusCode:  http.StatusBadRequest,
 		}
 	}

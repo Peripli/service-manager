@@ -78,7 +78,7 @@ const (
 var _ = AfterEach(func() {
 	if printTree && testFullTree != nil {
 		fmt.Println()
-		fmt.Println(fmt.Sprintf("test (%s) tree: ", CurrentGinkgoTestDescription().FullTestText))
+		fmt.Printf("test (%s) tree: \n", CurrentGinkgoTestDescription().FullTestText)
 		printFullTree(testFullTree.byParentID, testFullTree.root, 0)
 	}
 	ctx.CleanupAdditionalResources()
@@ -416,8 +416,8 @@ func fetchFullTree(repository storage.TransactionalRepository, rootID string) (*
 }
 
 const (
-	SucceededColor = "\033[48;5;193m%s\033[0m"
-	FailedColor    = "\033[48;5;224m%s\033[0m"
+	SucceededColor = "\033[48;5;193m - %s: %s \033[0m"
+	FailedColor    = "\033[48;5;224m - %s: %s \033[0m"
 )
 
 func printFullTree(byParentID map[string][]*types.Operation, parent *types.Operation, spaces int) {
@@ -425,16 +425,15 @@ func printFullTree(byParentID map[string][]*types.Operation, parent *types.Opera
 		fmt.Print("            ")
 	}
 
-	var newType string
-	newType = strings.ReplaceAll(parent.ResourceType.String(), "/v1/", "")
+	newType := strings.ReplaceAll(parent.ResourceType.String(), "/v1/", "")
 
 	switch parent.State {
 	case types.FAILED:
-		fmt.Println(fmt.Sprintf(FailedColor, fmt.Sprintf(" - %s: %s ", newType, parent.ResourceID)))
+		fmt.Printf(FailedColor, newType, parent.ResourceID)
 	case types.SUCCEEDED:
-		fmt.Println(fmt.Sprintf(SucceededColor, fmt.Sprintf(" - %s: %s ", newType, parent.ResourceID)))
+		fmt.Printf(SucceededColor, newType, parent.ResourceID)
 	default:
-		fmt.Println(fmt.Sprintf(" - %s: %s ", newType, parent.ResourceID))
+		fmt.Printf(" - %s: %s \n", newType, parent.ResourceID)
 	}
 	for _, n := range byParentID[parent.ID] {
 		printFullTree(byParentID, n, spaces+1)
@@ -488,7 +487,7 @@ func triggerInstanceUpdateOperation(repoContext context.Context, rootID, resourc
 	}
 
 	_, err = ctx.SMRepository.Create(repoContext, &instanceUpdateOperation)
-
+	Expect(err).ShouldNot(HaveOccurred())
 	return opID
 }
 
@@ -509,6 +508,7 @@ func triggerCascadeOperationWithCategory(rootID string, repoCtx context.Context,
 		ResourceType:  types.TenantType,
 	}
 	_, err := ctx.SMRepository.Create(repoCtx, &cascadeOperation)
+	Expect(err).ShouldNot(HaveOccurred())
 	//Last operation is never deleted since we keep the last operation for any resource (see: CleanupResourcelessOperations in maintainer.go).
 	//That's why we create here another operation thus allow us to verify the deletion of the cascade operation in the tests.
 	UUID, err := uuid.NewV4()
@@ -550,6 +550,7 @@ func triggerCascadeOperation(repoCtx context.Context, resourceType types.ObjectT
 		ResourceType:  resourceType,
 	}
 	_, err = ctx.SMRepository.Create(repoCtx, &cascadeOperation)
+	Expect(err).ShouldNot(HaveOccurred())
 	//Last operation is never deleted since we keep the last operation for any resource (see: CleanupResourcelessOperations in maintainer.go).
 	//That's why we create here another operation thus allow us to verify the deletion of the cascade operation in the tests.
 	UUID, err = uuid.NewV4()
