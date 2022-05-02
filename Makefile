@@ -252,3 +252,7 @@ clean: clean-bin clean-coverage ## Cleans up binaries, test and coverage artifac
 help: ## Displays documentation about the makefile targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 	awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+run-unit-test: prepare build test-unit
+
+run-int-test: prepare build test-int-broker test-int-osb-and-plugin test-int-service-instance-and-binding test-int-other
