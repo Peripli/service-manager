@@ -1,5 +1,0 @@
-@Library(['piper-lib', 'piper-lib-os', 'sm-libs', 'cfs-pipeline-lib', 'piper-customDefaultConfiguration']) _
-
-node('master'){
-    unitTestPipelineGoMod script: this
-}
