@@ -20,6 +20,7 @@ import (
 	"context"
 	"github.com/Peripli/service-manager/pkg/multitenancy"
 	"github.com/tidwall/gjson"
+	"reflect"
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -214,7 +215,8 @@ func MapContains(actual Object, expected Object) {
 		if !ok {
 			Fail(fmt.Sprintf("Missing property '%s'", k), 1)
 		}
-		if value != v {
+
+		if !reflect.DeepEqual(value, v) {
 			Fail(
 				fmt.Sprintf("For property '%s':\nExpected: %s\nActual: %s", k, v, value),
 				1)
@@ -403,7 +405,7 @@ func generatePrivateKey() *rsa.PrivateKey {
 }
 
 func ExtractResourceIDs(entities []Object) []string {
-	result := make([]string, 0, 0)
+	result := make([]string, 0)
 	if entities == nil {
 		return result
 	}
@@ -486,7 +488,6 @@ func GenerateRandomPlatform() Object {
 }
 
 func GenerateRandomBroker() Object {
-	o := Object{}
 
 	brokerServer := NewBrokerServer()
 	UUID, err := uuid.NewV4()
@@ -497,7 +498,7 @@ func GenerateRandomBroker() Object {
 	if err != nil {
 		panic(err)
 	}
-	o = Object{
+	o := Object{
 		"name":        UUID.String(),
 		"broker_url":  brokerServer.URL(),
 		"description": UUID2.String(),

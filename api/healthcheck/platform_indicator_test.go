@@ -58,7 +58,7 @@ var _ = Describe("Platforms Indicator", func() {
 
 	Context("There are inactive platforms longer than max inactive allowed", func() {
 		BeforeEach(func() {
-			objectList := &types.Platforms{[]*types.Platform{platform}}
+			objectList := &types.Platforms{Platforms: []*types.Platform{platform}}
 			repository.ListReturns(objectList, nil)
 		})
 		It("should return error", func() {
@@ -77,7 +77,7 @@ var _ = Describe("Platforms Indicator", func() {
 				Active:     false,
 				LastActive: time.Now().Add(-59 * 24 * time.Hour),
 			}
-			objectList := &types.Platforms{[]*types.Platform{platform}}
+			objectList := &types.Platforms{Platforms: []*types.Platform{platform}}
 			repository.ListReturns(objectList, nil)
 		})
 		It("should not return error", func() {
@@ -102,7 +102,7 @@ var _ = Describe("Platforms Indicator", func() {
 	Context("All platforms are active", func() {
 		BeforeEach(func() {
 			platform.Active = true
-			objectList := &types.Platforms{[]*types.Platform{platform}}
+			objectList := &types.Platforms{Platforms: []*types.Platform{platform}}
 			repository.ListReturns(objectList, nil)
 		})
 		It("should not return error", func() {

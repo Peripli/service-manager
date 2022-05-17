@@ -41,7 +41,11 @@ var _ = Describe("Service Manager Query", func() {
 
 	AfterEach(func() {
 		if repository != nil {
-			repository.Delete(context.Background(), types.NotificationType)
+			err := repository.Delete(context.Background(), types.NotificationType)
+			if err != nil {
+				expectedErrMsg := "not found"
+				Expect(err.Error()).To(Equal(expectedErrMsg))
+			}
 		}
 	})
 
@@ -178,9 +182,6 @@ var _ = Describe("Service Manager Query", func() {
 		Context("ByExists", func() {
 			When("there are multiple operations for each instance", func() {
 				BeforeEach(func() {
-					common.RemoveAllInstances(ctx)
-					common.RemoveAllOperations(ctx.SMRepository)
-
 					serviceInstance1 := &types.ServiceInstance{
 						Base: types.Base{
 							ID: "instance1",
@@ -228,14 +229,24 @@ var _ = Describe("Service Manager Query", func() {
 						ResourceType: web.ServiceInstancesURL,
 					}
 
-					repository.Create(context.Background(), serviceInstance1)
-					repository.Create(context.Background(), serviceInstance2)
-					repository.Create(context.Background(), oldestOpForInstance1)
-					repository.Create(context.Background(), latestOpForInstance1)
-					repository.Create(context.Background(), oldestOpForInstance2)
-					repository.Create(context.Background(), latestOpForInstance2)
+					//_, err = repository.Create(context.Background(), serviceInstance1)
+					//Expect(err).ShouldNot(HaveOccurred())
+					//_, err = repository.Create(context.Background(), serviceInstance2)
+					//Expect(err).ShouldNot(HaveOccurred())
+					_, err := repository.Create(context.Background(), oldestOpForInstance1)
+					Expect(err).ShouldNot(HaveOccurred())
+					_, err = repository.Create(context.Background(), latestOpForInstance1)
+					Expect(err).ShouldNot(HaveOccurred())
+					_, err = repository.Create(context.Background(), oldestOpForInstance2)
+					Expect(err).ShouldNot(HaveOccurred())
+					_, err = repository.Create(context.Background(), latestOpForInstance2)
+					Expect(err).ShouldNot(HaveOccurred())
 				})
-
+				AfterEach(func() {
+					err := common.RemoveAllInstances(ctx)
+					Expect(err).ShouldNot(HaveOccurred())
+					common.RemoveAllOperations(ctx.SMRepository)
+				})
 				It("should return only the operations being last operation for their corresponding instances", func() {
 					criteria := []query.Criterion{query.ByExists(storage.GetSubQuery(storage.QueryForAllLastOperationsPerResource))}
 
@@ -245,14 +256,22 @@ var _ = Describe("Service Manager Query", func() {
 					Expect(listContains(list, "latestOpForInstance1"))
 					Expect(listContains(list, "latestOpForInstance2"))
 				})
+
+				It("should return only the operations being NOT last operation for their corresponding instances", func() {
+					criteria := []query.Criterion{query.BySubquery(query.InSubqueryOperator, "id", storage.GetSubQuery(storage.QueryForAllNotLastOperationsPerResource))}
+
+					list, err := repository.List(context.Background(), types.OperationType, criteria...)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(list.Len()).To(BeEquivalentTo(2))
+					Expect(listContains(list, "oldestOpForInstance1"))
+					Expect(listContains(list, "oldestOpForInstance2"))
+				})
 			})
 
 		})
 		Context("ByExists with template parameters", func() {
 			When("There is an operation is associated to a resource and another operation that is resource-less", func() {
 				BeforeEach(func() {
-					common.RemoveAllInstances(ctx)
-					common.RemoveAllOperations(ctx.SMRepository)
 
 					resource := &types.Platform{
 						Base: types.Base{ID: "test-resource"},
@@ -277,9 +296,17 @@ var _ = Describe("Service Manager Query", func() {
 					}
 
 					_, err := repository.Create(context.Background(), resource)
+					Expect(err).ShouldNot(HaveOccurred())
 					_, err = repository.Create(context.Background(), opForInstance1)
-					Expect(err).ToNot(HaveOccurred())
-					repository.Create(context.Background(), resourcelessOperation)
+					Expect(err).ShouldNot(HaveOccurred())
+					_, err = repository.Create(context.Background(), resourcelessOperation)
+					Expect(err).ShouldNot(HaveOccurred())
+				})
+				AfterEach(func() {
+					common.RemoveAllPlatforms(ctx.SMRepository)
+					err := common.RemoveAllInstances(ctx)
+					Expect(err).ShouldNot(HaveOccurred())
+					common.RemoveAllOperations(ctx.SMRepository)
 				})
 
 				It("should retrieve only the operation that is not associated to a resource", func() {
@@ -337,6 +364,11 @@ var _ = Describe("Service Manager Query", func() {
 					globalCatalog := common.NewEmptySBCatalog()
 					globalCatalog.AddService(globalService)
 					ctx.RegisterBrokerWithCatalog(globalCatalog)
+				})
+				AfterEach(func() {
+					err := common.RemoveAllInstances(ctx)
+					Expect(err).ShouldNot(HaveOccurred())
+					common.RemoveAllOperations(ctx.SMRepository)
 				})
 
 				It("should find query for tenant scoped service offerings", func() {

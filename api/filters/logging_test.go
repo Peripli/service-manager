@@ -38,7 +38,8 @@ var _ = Describe("Logging Filter", func() {
 	Describe("Correlation Id", func() {
 		Context("When none is provided in header", func() {
 			It("Should generate a new for logger", func() {
-				loggingFilter.Run(request, handler)
+				_, err := loggingFilter.Run(request, handler)
+				Expect(err).ShouldNot(HaveOccurred())
 				logger := log.C(request.Context())
 				correlationId := logger.Data[log.FieldCorrelationID].(string)
 				Expect(correlationId).ToNot(BeEmpty())
@@ -48,7 +49,8 @@ var _ = Describe("Logging Filter", func() {
 			It("Uses it for logger", func() {
 				expectedCorrelationId := "correlationId"
 				request.Header.Set("X-Correlation-ID", expectedCorrelationId)
-				loggingFilter.Run(request, handler)
+				_, err := loggingFilter.Run(request, handler)
+				Expect(err).ShouldNot(HaveOccurred())
 				logger := log.C(request.Context())
 				correlationId := logger.Data[log.FieldCorrelationID].(string)
 				Expect(correlationId).To(Equal(expectedCorrelationId))

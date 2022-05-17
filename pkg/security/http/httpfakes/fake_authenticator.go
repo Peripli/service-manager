@@ -34,15 +34,16 @@ func (fake *FakeAuthenticator) Authenticate(arg1 *web.Request) (*web.UserContext
 	fake.authenticateArgsForCall = append(fake.authenticateArgsForCall, struct {
 		arg1 *web.Request
 	}{arg1})
+	stub := fake.AuthenticateStub
+	fakeReturns := fake.authenticateReturns
 	fake.recordInvocation("Authenticate", []interface{}{arg1})
 	fake.authenticateMutex.Unlock()
-	if fake.AuthenticateStub != nil {
-		return fake.AuthenticateStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2, ret.result3
 	}
-	fakeReturns := fake.authenticateReturns
 	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
 }
 

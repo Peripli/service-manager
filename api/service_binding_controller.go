@@ -22,12 +22,12 @@ import (
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/storage"
-	"net/http"
-
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/storage"
+	"github.com/tidwall/gjson"
+	"net/http"
 )
 
 const serviceBindingOSBURL = "%s/v2/service_instances/%s/service_bindings/%s"
@@ -91,6 +91,13 @@ func (c *ServiceBindingController) Routes() []web.Route {
 			},
 			Handler: c.DeleteSingleObject,
 		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodPatch,
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
+			},
+			Handler: c.PatchObjectNameAndLabels,
+		},
 	}
 }
 func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response, error) {
@@ -134,7 +141,7 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 	if !service.BindingsRetrievable {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("this operation is not supported"),
+			Description: "this operation is not supported",
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
@@ -160,4 +167,29 @@ func (c *ServiceBindingController) GetParameters(r *web.Request) (*web.Response,
 
 	return util.NewJSONResponse(http.StatusOK, &serviceBindingResponse.Parameters)
 
+}
+
+func (c *ServiceBindingController) PatchObjectNameAndLabels(r *web.Request) (*web.Response, error) {
+	isAsync := r.URL.Query().Get(web.QueryParamAsync)
+	if isAsync == "true" {
+		return nil, &util.HTTPError{
+			ErrorType:   "InvalidRequest",
+			Description: fmt.Sprintf("requested %s api doesn't support asynchronous operation.", r.URL.RequestURI()),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
+	bodyMap := gjson.ParseBytes(r.Body).Map()
+	delete(bodyMap, "name")
+	delete(bodyMap, "labels")
+
+	if len(bodyMap) > 0 {
+		return nil, &util.HTTPError{
+			ErrorType:   "InvalidRequest",
+			Description: fmt.Sprintf("requested %s api only supports name and label changes", r.URL.RequestURI()),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
+	return c.PatchObject(r)
 }

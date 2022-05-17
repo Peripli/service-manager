@@ -45,7 +45,7 @@ import (
 var _ = Describe("Notificator", func() {
 	const (
 		defaultLastRevision int64 = 10
-		defaultQueueSize          = 1
+		defaultQueueSize    int   = 1
 	)
 
 	var (

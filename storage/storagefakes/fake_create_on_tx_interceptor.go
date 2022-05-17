@@ -29,15 +29,16 @@ func (fake *FakeCreateOnTxInterceptor) OnTxCreate(arg1 storage.InterceptCreateOn
 	fake.onTxCreateArgsForCall = append(fake.onTxCreateArgsForCall, struct {
 		arg1 storage.InterceptCreateOnTxFunc
 	}{arg1})
+	stub := fake.OnTxCreateStub
+	fakeReturns := fake.onTxCreateReturns
 	fake.recordInvocation("OnTxCreate", []interface{}{arg1})
 	fake.onTxCreateMutex.Unlock()
-	if fake.OnTxCreateStub != nil {
-		return fake.OnTxCreateStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.onTxCreateReturns
 	return fakeReturns.result1
 }
 

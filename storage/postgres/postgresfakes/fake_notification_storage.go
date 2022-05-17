@@ -76,15 +76,16 @@ func (fake *FakeNotificationStorage) GetLastRevision(arg1 context.Context) (int6
 	fake.getLastRevisionArgsForCall = append(fake.getLastRevisionArgsForCall, struct {
 		arg1 context.Context
 	}{arg1})
+	stub := fake.GetLastRevisionStub
+	fakeReturns := fake.getLastRevisionReturns
 	fake.recordInvocation("GetLastRevision", []interface{}{arg1})
 	fake.getLastRevisionMutex.Unlock()
-	if fake.GetLastRevisionStub != nil {
-		return fake.GetLastRevisionStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.getLastRevisionReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -140,15 +141,16 @@ func (fake *FakeNotificationStorage) GetNotification(arg1 context.Context, arg2 
 		arg1 context.Context
 		arg2 string
 	}{arg1, arg2})
+	stub := fake.GetNotificationStub
+	fakeReturns := fake.getNotificationReturns
 	fake.recordInvocation("GetNotification", []interface{}{arg1, arg2})
 	fake.getNotificationMutex.Unlock()
-	if fake.GetNotificationStub != nil {
-		return fake.GetNotificationStub(arg1, arg2)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.getNotificationReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -204,15 +206,16 @@ func (fake *FakeNotificationStorage) GetNotificationByRevision(arg1 context.Cont
 		arg1 context.Context
 		arg2 int64
 	}{arg1, arg2})
+	stub := fake.GetNotificationByRevisionStub
+	fakeReturns := fake.getNotificationByRevisionReturns
 	fake.recordInvocation("GetNotificationByRevision", []interface{}{arg1, arg2})
 	fake.getNotificationByRevisionMutex.Unlock()
-	if fake.GetNotificationByRevisionStub != nil {
-		return fake.GetNotificationByRevisionStub(arg1, arg2)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.getNotificationByRevisionReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -270,15 +273,16 @@ func (fake *FakeNotificationStorage) ListNotifications(arg1 context.Context, arg
 		arg3 int64
 		arg4 int64
 	}{arg1, arg2, arg3, arg4})
+	stub := fake.ListNotificationsStub
+	fakeReturns := fake.listNotificationsReturns
 	fake.recordInvocation("ListNotifications", []interface{}{arg1, arg2, arg3, arg4})
 	fake.listNotificationsMutex.Unlock()
-	if fake.ListNotificationsStub != nil {
-		return fake.ListNotificationsStub(arg1, arg2, arg3, arg4)
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.listNotificationsReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 

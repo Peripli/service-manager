@@ -1,7 +1,6 @@
 package filters
 
 import (
-	"context"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -44,8 +43,7 @@ func NewRateLimiterFilter(middleware []RateLimiterMiddleware, excludeClients, ex
 	}
 }
 
-func (rl *RateLimiterFilter) handleLimitIsReached(limiterContext limiter.Context, username string, context context.Context) error {
-	log.C(context).Debugf("Request limit has been exceeded for client with key: %s", username)
+func (rl *RateLimiterFilter) handleLimitIsReached(limiterContext limiter.Context) error {
 	return &util.HTTPError{
 		ErrorType:   "BadRequest",
 		Description: fmt.Sprintf("The allowed request limit of %d requests has been reached please try again later", limiterContext.Limit),
@@ -124,7 +122,8 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 			}
 
 			if limiterContext.Reached {
-				err := rl.handleLimitIsReached(limiterContext, userContext.Name, request.Context())
+				log.C(request.Context()).Infof("Request limit has been exceeded for client with key: %s and path: %s", userContext.Name, rlm.pathPrefix)
+				err := rl.handleLimitIsReached(limiterContext)
 				if err != nil {
 					return nil, err
 				}

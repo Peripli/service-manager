@@ -18,6 +18,7 @@ package filters
 
 import (
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -68,7 +69,18 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 		return next.Handle(req)
 	}
 
-	instanceID := gjson.GetBytes(req.Body, serviceInstanceIDProperty).String()
+	var instanceID string
+	if req.Method == http.MethodPatch {
+		bindingID := req.PathParams[web.PathParamResourceID]
+		bindingObj, err := f.repository.Get(ctx, types.ServiceBindingType, query.ByField(query.EqualsOperator, "id", bindingID))
+		if err != nil {
+			return nil, util.HandleStorageError(err, types.ServiceBindingType.String())
+		}
+		instanceID = bindingObj.(*types.ServiceBinding).ServiceInstanceID
+	} else {
+		instanceID = gjson.GetBytes(req.Body, serviceInstanceIDProperty).String()
+	}
+
 	if instanceID == "" {
 		log.C(ctx).Info("Service Instance ID is not provided in the request. Proceeding with the next handler...")
 		return next.Handle(req)
@@ -77,6 +89,10 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 	platformID := types.SMPlatform
 	if web.IsSMAAPOperated(req.Context()) {
 		platformID = gjson.GetBytes(req.Body, "platform_id").String()
+		var err error
+		if req.Body, err = sjson.DeleteBytes(req.Body, "platform_id"); err != nil {
+			return nil, err
+		}
 	}
 
 	criteria := []query.Criterion{
@@ -106,7 +122,7 @@ func (*serviceBindingVisibilityFilter) FilterMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Path(web.ServiceBindingsURL + "/**"),
-				web.Methods(http.MethodPost, http.MethodDelete),
+				web.Methods(http.MethodPost, http.MethodDelete, http.MethodPatch),
 			},
 		},
 	}

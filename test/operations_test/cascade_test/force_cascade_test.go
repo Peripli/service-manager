@@ -157,7 +157,7 @@ var _ = Describe("force cascade delete", func() {
 						registerBindingLastOPHandlers(tenantBrokerServer, http.StatusInternalServerError, types.FAILED)
 						rootID := triggerCascadeOperation(context.Background(), types.TenantType, tenantID, true)
 
-						ctx.SMRepository.Create(context.Background(), &types.ServiceBinding{
+						_, err := ctx.SMRepository.Create(context.Background(), &types.ServiceBinding{
 							Base: types.Base{
 								ID:    "binding3",
 								Ready: true,
@@ -165,7 +165,7 @@ var _ = Describe("force cascade delete", func() {
 							ServiceInstanceID: osbInstanceID,
 							Name:              "name",
 						})
-
+						Expect(err).ToNot(HaveOccurred())
 						waitCascadingProcessToFinish(actionTimeout+pollCascade, subaccountResourcesCount(), 1, queryForRoot(rootID), queryFailures)
 
 						fullTree := fetchTree(rootID)

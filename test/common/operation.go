@@ -60,12 +60,12 @@ func VerifyResource(smClient *SMExpect, expectations ResourceExpectations, async
 func VerifyResourceExists(smClient *SMExpect, expectations ResourceExpectations) *httpexpect.Object {
 	timeoutDuration := 15 * time.Second
 	timeout := time.After(timeoutDuration)
-	ticker := time.Tick(100 * time.Millisecond)
+	ticker := time.NewTicker(100 * time.Millisecond)
 	for {
 		select {
 		case <-timeout:
 			Fail(fmt.Sprintf("resource with type %s and id %s did not appear in SM after %.0f seconds", expectations.Type, expectations.ID, timeoutDuration.Seconds()))
-		case <-ticker:
+		case <-ticker.C:
 			resources := smClient.ListWithQuery(expectations.Type.String(), fmt.Sprintf("fieldQuery=id eq '%s'", expectations.ID))
 			switch {
 			case resources.Length().Raw() == 0:
@@ -87,12 +87,12 @@ func VerifyResourceExists(smClient *SMExpect, expectations ResourceExpectations)
 func VerifyResourceDoesNotExist(smClient *SMExpect, expectations ResourceExpectations) {
 	timeoutDuration := 15 * time.Second
 	timeout := time.After(timeoutDuration)
-	ticker := time.Tick(100 * time.Millisecond)
+	ticker := time.NewTicker(100 * time.Millisecond)
 	for {
 		select {
 		case <-timeout:
 			Fail(fmt.Sprintf("resource with type %s and id %s was still in SM after %.0f seconds", expectations.Type, expectations.ID, timeoutDuration.Seconds()))
-		case <-ticker:
+		case <-ticker.C:
 			resp := smClient.GET(expectations.Type.String() + "/" + expectations.ID).
 				Expect().Raw()
 			if resp.StatusCode != http.StatusNotFound {
@@ -105,14 +105,14 @@ func VerifyResourceDoesNotExist(smClient *SMExpect, expectations ResourceExpecta
 }
 
 func VerifyOperationExists(ctx *TestContext, operationURL string, expectations OperationExpectations) (string, string) {
-	timeoutDuration := 30 * time.Second
+	timeoutDuration := 1 * time.Minute
 	timeout := time.After(timeoutDuration)
-	ticker := time.Tick(100 * time.Millisecond)
+	ticker := time.NewTicker(100 * time.Millisecond)
 	for {
 		select {
 		case <-timeout:
 			Fail(fmt.Sprintf("operation matching expectations did not appear in SM after %.0f seconds", timeoutDuration.Seconds()))
-		case <-ticker:
+		case <-ticker.C:
 			var operation map[string]interface{}
 			if len(operationURL) != 0 {
 				operation = ctx.SMWithOAuth.GET(operationURL).Expect().Status(http.StatusOK).JSON().Object().Raw()

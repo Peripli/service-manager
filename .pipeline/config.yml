@@ -1,0 +1,17 @@
+# Project Setup
+general:
+  githubApiUrl: 'https://api.github.com'
+  githubServerUrl: 'https://github.com'
+
+steps:
+  pollBuilds:
+    pollIntervalSeconds: 120
+    external: true
+  pushChangesToRepo:
+    gitUser: 'pavelmaliy'
+    gitEmail: 'pavel.maliy@sap.com'
+    githubApprovalTokenCredentialsId: 'peripli-github-token-approval'
+  buildDepProjects:
+    projects: ['Release-SBP', 'Release-SAP-SM']
+  setupPipelineEnvironment:
+    gitSshUrl: 'git@github.com:Peripli/service-manager.git'

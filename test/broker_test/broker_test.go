@@ -596,8 +596,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						httpclient.Configure()
 						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
 							catalogStopDuration := timeoutDuration + additionalDelayAfterTimeout
-							continueCtx, _ := context.WithTimeout(req.Context(), catalogStopDuration)
-
+							continueCtx, cancel := context.WithTimeout(req.Context(), catalogStopDuration)
+							defer cancel()
 							<-continueCtx.Done()
 
 							SetResponse(rw, http.StatusTeapot, Object{})
@@ -1084,6 +1084,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							rw.WriteHeader(http.StatusOK)
 							if fl, ok := rw.(http.Flusher); ok {
 								for i := 0; i < 50; i++ {
+									//nolint
 									fmt.Fprintf(rw, "Chunk %d", i)
 									fl.Flush()
 									time.Sleep(time.Millisecond * 100)
@@ -1455,7 +1456,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								},
 							},
 						}
-						reply := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
+						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
 							WithJSON(updatedCredentials).
 							Expect().
 							Status(http.StatusOK).
@@ -1463,7 +1464,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 
-						reply = ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
+						reply := ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
 							Expect().
 							Status(http.StatusOK).
 							JSON().Object()
@@ -2193,10 +2194,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							var expectedCatalog string
 
 							BeforeEach(func() {
-								catalog, err := sjson.Set(string(brokerServer.Catalog), "services.0.id", "new-svc-id")
+								_, err := sjson.Set(string(brokerServer.Catalog), "services.0.id", "new-svc-id")
 								Expect(err).ToNot(HaveOccurred())
 
-								catalog, err = sjson.Set(string(brokerServer.Catalog), "services.0.plans.0.id", "new-plan-id")
+								catalog, err := sjson.Set(string(brokerServer.Catalog), "services.0.plans.0.id", "new-plan-id")
 								Expect(err).ToNot(HaveOccurred())
 
 								expectedCatalog = catalog
@@ -2571,7 +2572,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Status(http.StatusOK)
 						})
 					})
-
+					Context("Add  label empty value", func() {
+						BeforeEach(func() {
+							operation = types.AddLabelOperation
+							changedLabelKey = "cluster_id"
+							changedLabelValues = []string{}
+						})
+						It("Should return 200", func() {
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
+								WithJSON(patchLabelsBody).
+								Expect().
+								Status(http.StatusOK).JSON().
+								Path("$.labels").Object().Keys().Contains(changedLabelKey)
+						})
+					})
 					Context("Remove a label", func() {
 						BeforeEach(func() {
 							operation = types.RemoveLabelOperation
@@ -2874,8 +2888,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								planID1 = gjson.Get(plan1, "id").String()
 								referencePlan1 = GetReferencePlanOfExistingPlan(ctx, "catalog_id", planID1)
 								Expect(referencePlan1).NotTo(BeNil())
-								DeleteInstance(ctx, referenceInstance.ID, referenceInstance.ServicePlanID)
-								DeleteInstance(ctx, sharedInstance.ID, sharedInstance.ServicePlanID)
+								err := DeleteInstance(ctx, referenceInstance.ID, referenceInstance.ServicePlanID)
+								Expect(err).ShouldNot(HaveOccurred())
+								err = DeleteInstance(ctx, sharedInstance.ID, sharedInstance.ServicePlanID)
+								Expect(err).ShouldNot(HaveOccurred())
 							})
 							It("fails removing the reference plan after changing the supportsInstanceSharing to 'false' (for planID1) due to existing shared instance of a plan", func() {
 								// update broker
@@ -2918,7 +2934,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								planID1 = gjson.Get(plan1, "id").String()
 								referencePlan1 = GetReferencePlanOfExistingPlan(ctx, "catalog_id", planID1)
 								Expect(referencePlan1).NotTo(BeNil())
-								DeleteInstance(ctx, sharedInstance.ID, sharedInstance.ServicePlanID)
+								err := DeleteInstance(ctx, sharedInstance.ID, sharedInstance.ServicePlanID)
+								Expect(err).ShouldNot(HaveOccurred())
 							})
 							It("fails removing the reference plan after changing the supportsInstanceSharing to 'false' (for planID1) due to existing shared instance of a plan", func() {
 								// update broker

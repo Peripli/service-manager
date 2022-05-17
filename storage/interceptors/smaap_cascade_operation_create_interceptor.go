@@ -19,6 +19,7 @@ package interceptors
 import (
 	"context"
 	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -76,11 +77,13 @@ func (co *cascadeOperationCreateInterceptor) OnTxCreate(f storage.InterceptCreat
 			return nil, err
 		}
 
+		log.C(ctx).Infof("Creating %v cascade operations for deletion", len(ops))
 		for _, op := range ops {
 			if _, err := storage.Create(ctx, op); err != nil {
 				return nil, util.HandleStorageError(err, string(op.GetType()))
 			}
 		}
+		log.C(ctx).Infof("Finished creating %v cascade operations for deletion", len(ops))
 
 		return f(ctx, storage, operation)
 	}

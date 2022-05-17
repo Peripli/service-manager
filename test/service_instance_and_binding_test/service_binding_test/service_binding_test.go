@@ -68,7 +68,6 @@ const (
 type testCase struct {
 	async                           string
 	expectedCreateSuccessStatusCode int
-	expectedUpdateSuccessStatusCode int
 	expectedDeleteSuccessStatusCode int
 	expectedBrokerFailureStatusCode int
 	expectedSMCrashStatusCode       int
@@ -140,7 +139,6 @@ var _ = DescribeTestsFor(TestCase{
 				{
 					async:                           "",
 					expectedCreateSuccessStatusCode: http.StatusCreated,
-					expectedUpdateSuccessStatusCode: http.StatusOK,
 					expectedDeleteSuccessStatusCode: http.StatusOK,
 					expectedBrokerFailureStatusCode: http.StatusBadGateway,
 					expectedSMCrashStatusCode:       http.StatusBadGateway,
@@ -226,7 +224,7 @@ var _ = DescribeTestsFor(TestCase{
 				objAfterOp.Value("service_instance_id").Equal(sourceInstanceID)
 				return bindingID
 			}
-			deleteBindingsWithValidations := func(bindingID, instanceID, pointsToInstanceID, async string, expectedReqStatus int) {
+			deleteBindingsWithValidations := func(instanceID, pointsToInstanceID, async string, expectedReqStatus int) {
 				resp := deleteBinding(ctx.SMWithOAuthForTenant, async, expectedReqStatus)
 				bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 					Category:          types.DELETE,
@@ -351,27 +349,25 @@ var _ = DescribeTestsFor(TestCase{
 				})
 				Describe("DELETE", func() {
 					When("unbinding a shared instance", func() {
-						var sharedBindingID string
 						BeforeEach(func() {
-							sharedBindingID = createBindingAndValidateSourceAndTarget(sharedInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
+							createBindingAndValidateSourceAndTarget(sharedInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
 						})
 						It("returns 200", func() {
-							deleteBindingsWithValidations(sharedBindingID, sharedInstanceID, sharedInstanceID, "false", http.StatusOK)
+							deleteBindingsWithValidations(sharedInstanceID, sharedInstanceID, "false", http.StatusOK)
 						})
 						It("returns 202", func() {
-							deleteBindingsWithValidations(sharedBindingID, sharedInstanceID, sharedInstanceID, "true", http.StatusAccepted)
+							deleteBindingsWithValidations(sharedInstanceID, sharedInstanceID, "true", http.StatusAccepted)
 						})
 					})
 					When("unbinding a reference instance", func() {
-						var referenceBindingID string
 						BeforeEach(func() {
-							referenceBindingID = createBindingAndValidateSourceAndTarget(sharedInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
+							createBindingAndValidateSourceAndTarget(sharedInstanceID, sharedInstanceID, "false", http.StatusCreated, types.SUCCEEDED)
 						})
 						It("returns 200", func() {
-							deleteBindingsWithValidations(referenceBindingID, referenceInstanceID, sharedInstanceID, "false", http.StatusOK)
+							deleteBindingsWithValidations(referenceInstanceID, sharedInstanceID, "false", http.StatusOK)
 						})
 						It("returns 202", func() {
-							deleteBindingsWithValidations(referenceBindingID, referenceInstanceID, sharedInstanceID, "true", http.StatusAccepted)
+							deleteBindingsWithValidations(referenceInstanceID, sharedInstanceID, "true", http.StatusAccepted)
 						})
 					})
 				})
@@ -456,7 +452,7 @@ var _ = DescribeTestsFor(TestCase{
 							Expect(lastRequest.RequestURI).To(ContainSubstring(sharedInstanceID))
 							// validate request body.context:
 							jsonBody := Object{}
-							json.Unmarshal(brokerServer.LastRequestBody, &jsonBody)
+							_ = json.Unmarshal(brokerServer.LastRequestBody, &jsonBody)
 							Expect(jsonBody["context"]).To(Equal(Object{
 								"instance_name":  sharedInstance.Name,
 								"platform":       sharedInstance.PlatformID,
@@ -910,7 +906,7 @@ var _ = DescribeTestsFor(TestCase{
 								BeforeEach(func() {
 
 									doneChannel = make(chan interface{})
-									resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+									createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
 
 									VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 										ID:    instanceID,
@@ -920,7 +916,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete, ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
 									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete, DelayingHandler(doneChannel))
-									resp = deleteInstance(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
+									resp := deleteInstance(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
 									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.DELETE,
 										State:             types.IN_PROGRESS,
@@ -2749,7 +2745,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 
-							When("unbind responds with error due to times out", func() {
+							XWhen("unbind responds with error due to times out", func() {
 								var doneChannel chan interface{}
 								var newCtx *TestContext
 
@@ -2798,6 +2794,67 @@ var _ = DescribeTestsFor(TestCase{
 						})
 					})
 				}
+			})
+
+			Describe("PATCH", func() {
+				BeforeEach(func() {
+					createBinding(ctx.SMWithOAuthForTenant, "false", http.StatusCreated)
+				})
+
+				It("should be possible to change binding name and labels", func() {
+					labels := []*types.LabelChange{
+						{
+							Operation: types.AddLabelOperation,
+							Key:       "labelKey1",
+							Values:    []string{"labelValue1"},
+						},
+					}
+
+					obj := ctx.SMWithOAuthForTenant.PATCH(web.ServiceBindingsURL + "/" + bindingID).
+						WithJSON(Object{
+							"name":   "newName",
+							"labels": labels,
+						}).
+						Expect().
+						Status(http.StatusOK).
+						JSON().Object()
+
+					obj.ContainsKey("name").
+						ValueEqual("name", "newName")
+					expectedLabels := types.Labels{
+						"labelKey1": {
+							"labelValue1",
+						},
+						TenantIdentifier: {
+							TenantIDValue,
+						},
+					}
+					obj.ValueEqual("labels", expectedLabels)
+				})
+
+				It("should not be possible to change other properties", func() {
+					obj := ctx.SMWithOAuthForTenant.PATCH(web.ServiceBindingsURL + "/" + bindingID).
+						WithJSON(Object{
+							"name":    "newName",
+							"context": Object{},
+						}).
+						Expect().
+						Status(http.StatusBadRequest).
+						JSON().Object()
+
+					Expect(obj.Value("description").String().Raw()).To(ContainSubstring("api only supports name and label changes"))
+
+				})
+
+				It("should not allow async parameter", func() {
+					ctx.SMWithOAuthForTenant.PATCH(web.ServiceBindingsURL+"/"+bindingID).
+						WithJSON(Object{
+							"name": "newName",
+						}).
+						WithQuery("async", true).
+						Expect().
+						Status(http.StatusBadRequest)
+				})
 			})
 		})
 	},
@@ -2914,9 +2971,6 @@ func newShareableServicePlanWithMaxPollingDuration(ctx *TestContext, bindable bo
 		panic(err)
 	}
 	cPaidPlan2, _ := GenerateShareablePaidTestPlan()
-	if err != nil {
-		panic(err)
-	}
 	cService := GenerateTestServiceWithPlans(cPaidPlan1, cPaidPlan2)
 
 	freePlan := GenerateShareableFreeTestPlan()

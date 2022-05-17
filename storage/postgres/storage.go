@@ -87,7 +87,14 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 		parsedQuery.Set("read_timeout", strconv.Itoa(settings.ReadTimeout))
 		parsedQuery.Set("write_timeout", strconv.Itoa(settings.WriteTimeout))
 		if settings.SkipSSLValidation {
-			parsedQuery.Add("sslmode", "disable")
+			log.D().Infof("skipping ssl validation SkipSSLValidation set to true")
+			parsedQuery.Set("sslmode", "disable")
+		} else {
+			if len(settings.SSLMode) > 0 && len(settings.SSLRootCert) > 0 {
+				log.D().Infof("ssl mode set to %s sslrootcert detected", settings.SSLMode)
+				parsedQuery.Set("sslmode", settings.SSLMode)
+				parsedQuery.Set("sslrootcert", settings.SSLRootCert)
+			}
 		}
 		parsedUrl.RawQuery = parsedQuery.Encode()
 
@@ -163,7 +170,7 @@ func (ps *Storage) updateSchema(migrationsURL, pgDriverName string) error {
 	return err
 }
 
-func (ps *Storage) PingContext(ctx context.Context) error {
+func (ps *Storage) PingContext(_ context.Context) error {
 	ps.checkOpen()
 	return ps.state.Get()
 }
@@ -224,7 +231,7 @@ func (ps *Storage) createLabels(ctx context.Context, labels []PostgresLabel) err
 		return fmt.Errorf("%s insert: No fields to insert", pgLabel.LabelsTableName())
 	}
 
-	tableName := labels[0].(PostgresLabel).LabelsTableName()
+	tableName := labels[0].LabelsTableName()
 
 	sqlQuery := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(:%s) ON CONFLICT DO NOTHING;",
@@ -386,9 +393,6 @@ func (ps *Storage) list(ctx context.Context, objType types.ObjectType, forUpdate
 			log.C(ctx).WithError(err).Error("Could not release connection when checking database")
 		}
 	}()
-	if err != nil {
-		return nil, err
-	}
 	return entity.RowsToList(rows)
 }
 

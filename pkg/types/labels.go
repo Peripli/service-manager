@@ -55,7 +55,8 @@ const (
 
 // RequiresValues returns true if the operation requires values to be provided
 func (o LabelOperation) RequiresValues() bool {
-	return o != RemoveLabelOperation
+	// add support for empty value
+	return o != RemoveLabelOperation && o != AddLabelOperation
 }
 
 // LabelChange represents the changes that should be performed to a label

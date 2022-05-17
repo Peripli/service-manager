@@ -199,7 +199,7 @@ func ValidateJSONContentType(contentTypeHeader string) error {
 	if !isJSON {
 		return &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("unsupported media type"),
+			Description: "unsupported media type",
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
@@ -215,7 +215,7 @@ func IsJSONContentType(contentTypeHeader string) (bool, error) {
 	if err != nil {
 		return false, &HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("unsupported media type"),
+			Description: "unsupported media type",
 			StatusCode:  http.StatusBadRequest,
 		}
 	}

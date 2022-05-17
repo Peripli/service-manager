@@ -2,10 +2,12 @@ package context_signature
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	"net/http"
 )
 
@@ -13,8 +15,10 @@ var _ = Describe("context signature verification tests", func() {
 
 	AfterEach(func() {
 		brokerServer.ResetHandlers()
-		common.RemoveAllBindings(ctx)
-		common.RemoveAllInstances(ctx)
+		err := common.RemoveAllBindings(ctx)
+		Expect(err).ShouldNot(HaveOccurred())
+		err = common.RemoveAllInstances(ctx)
+		Expect(err).ShouldNot(HaveOccurred())
 	})
 
 	Context("OSB", func() {
@@ -51,13 +55,14 @@ var _ = Describe("context signature verification tests", func() {
 		})
 		When("sm environment variable context_rsa_public_key is set", func() {
 			It("should return it in /info API", func() {
-				ctx.SM.GET(web.InfoURL).Expect().
+				object := ctx.SM.GET(web.InfoURL).Expect().
 					Status(http.StatusOK).
-					JSON().Object().Value("context_rsa_public_key").Equal(publicKeyStr)
+					JSON().Object()
+				object.Value("context_rsa_public_key").Equal(publicKeyStr)
+				object.Value("context_successor_rsa_public_key").Equal(publicSuccessorKeyStr)
 			})
 		})
 	})
-
 	Context("SMAAP", func() {
 		var provisionFunc func() string
 		BeforeEach(func() {
@@ -99,4 +104,25 @@ var _ = Describe("context signature verification tests", func() {
 			})
 		})
 	})
+
+	Context("when the private key is invalid", func() {
+		instanceID := "signed-ctx-instance-invalid"
+		var provisionFunc func() string
+		BeforeEach(func() {
+			ctx = common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(func(e env.Environment, servers map[string]common.FakeServer) {
+				e.Set("api.osb_rsa_private_key", "invalidKey")
+			}).Build()
+			registerServiceBroker()
+		})
+		It("should not fail the request,osb request sent without the signature", func() {
+			provisionFunc = common.GetOsbProvisionFunc(ctx, instanceID, osbURL, catalogServiceID, catalogPlanID)
+			common.ProvisionInstanceWithoutSignature(ctx, brokerServer, provisionFunc)
+		})
+		It("should not fail the request,SMAAP request sent without the signature", func() {
+			provisionFunc = common.GetSMAAPProvisionInstanceFunc(ctx, "false", planID)
+			common.ProvisionInstanceWithoutSignature(ctx, brokerServer, provisionFunc)
+		})
+
+	})
+
 })

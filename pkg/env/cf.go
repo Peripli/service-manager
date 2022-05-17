@@ -18,8 +18,10 @@ package env
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 
+	"github.com/Peripli/service-manager/pkg/auth/util"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/cloudfoundry-community/go-cfenv"
 	"github.com/spf13/cast"
@@ -45,6 +47,24 @@ func setCFOverrides(env Environment) error {
 			return fmt.Errorf("could not find service with name %s: %v", pgServiceName, err)
 		}
 		env.Set("storage.uri", service.Credentials["uri"])
+		if err := setPostgresSSL(env, service.Credentials); err != nil {
+			return err
+		}
+
+	}
+	return nil
+}
+
+func setPostgresSSL(env Environment, credentials map[string]interface{}) error {
+	if sslRootCert, hasRootCert := credentials["sslrootcert"]; hasRootCert {
+		filename := "./root.crt"
+		env.Set("storage.sslmode", "verify-ca")
+		env.Set("storage.sslrootcert", filename)
+		sslRootCertStr := util.ConvertBackSlashN(sslRootCert.(string))
+		err := ioutil.WriteFile(filename, []byte(sslRootCertStr), 0666)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

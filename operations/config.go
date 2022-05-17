@@ -33,13 +33,15 @@ type Settings struct {
 	ReconciliationOperationTimeout time.Duration `mapstructure:"reconciliation_operation_timeout" description:"the maximum allowed timeout for auto rescheduling of operation actions"`
 	CascadeOrphanMitigationTimeout time.Duration `mapstructure:"cascade_orphan_mitigation_timeout" description:"maximum allowed timeout for orphan mitigation of cascade operations"`
 
-	PollCascadeInterval     time.Duration `mapstructure:"poll_cascade_interval" description:"poll interval for cascade operations"`
-	CleanupInterval         time.Duration `mapstructure:"cleanup_interval" description:"cleanup interval of old operations"`
-	MaintainerRetryInterval time.Duration `mapstructure:"maintainer_retry_interval" description:"maintenance retry interval"`
-	Lifespan                time.Duration `mapstructure:"lifespan" description:"after that time is passed since its creation, the operation can be cleaned up by the maintainer"`
+	PollCascadeInterval       time.Duration `mapstructure:"poll_cascade_interval" description:"poll interval for cascade operations"`
+	CleanupInterval           time.Duration `mapstructure:"cleanup_interval" description:"cleanup interval of old operations"`
+	MaintainerRetryInterval   time.Duration `mapstructure:"maintainer_retry_interval" description:"maintenance retry interval"`
+	DeleteOperationsBatchSize int           `mapstructure:"delete_operations_batch_size" description:"delete operation batch size"`
+	Lifespan                  time.Duration `mapstructure:"lifespan" description:"after that time is passed since its creation, the operation can be cleaned up by the maintainer"`
 
-	ReschedulingInterval time.Duration `mapstructure:"rescheduling_interval" description:"the interval between auto rescheduling of operation actions"`
-	PollingInterval      time.Duration `mapstructure:"polling_interval" description:"the interval between polls for async requests"`
+	ReschedulingInterval     time.Duration `mapstructure:"rescheduling_interval" description:"the interval between auto rescheduling of operation actions"`
+	ReschedulingLongInterval time.Duration `mapstructure:"rescheduling_long_interval" description:"the interval between auto rescheduling of operation actions after multiple retries"`
+	PollingInterval          time.Duration `mapstructure:"polling_interval" description:"the interval between polls for async requests"`
 
 	DefaultPoolSize               int            `mapstructure:"default_pool_size" description:"default worker pool size"`
 	DefaultCascadePollingPoolSize int            `mapstructure:"default_cascade_polling_pool_size" description:"default worker pool size"`
@@ -56,8 +58,10 @@ func DefaultSettings() *Settings {
 		CascadeOrphanMitigationTimeout: 6 * time.Hour,
 		CleanupInterval:                1 * time.Hour,
 		MaintainerRetryInterval:        10 * time.Minute,
+		DeleteOperationsBatchSize:      1000,
 		Lifespan:                       7 * 24 * time.Hour,
 		ReschedulingInterval:           10 * time.Second,
+		ReschedulingLongInterval:       1 * time.Hour,
 		PollingInterval:                4 * time.Second,
 		PollCascadeInterval:            4 * time.Second,
 		DefaultPoolSize:                20,

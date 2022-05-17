@@ -38,7 +38,7 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 
 				_, err := ctx.SMRepository.Create(context.TODO(), &op)
 				Expect(err).To(HaveOccurred())
-				expectedErrMsg := fmt.Sprintf("root operation should have the same CascadeRootID and ID")
+				expectedErrMsg := "root operation should have the same CascadeRootID and ID"
 				Expect(err.Error()).To(Equal(expectedErrMsg))
 			})
 
@@ -59,7 +59,7 @@ var _ = Describe("Cascade Operation Interceptor", func() {
 
 				_, err := ctx.SMRepository.Create(context.TODO(), &op)
 				Expect(err).To(HaveOccurred())
-				expectedErrMsg := fmt.Sprintf("not found")
+				expectedErrMsg := "not found"
 				Expect(err.Error()).To(Equal(expectedErrMsg))
 			})
 

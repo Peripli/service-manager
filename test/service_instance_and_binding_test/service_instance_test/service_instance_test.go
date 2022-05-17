@@ -19,12 +19,13 @@ package service_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/instance_sharing"
-	"github.com/Peripli/service-manager/pkg/query"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/instance_sharing"
+	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/tidwall/gjson"
@@ -627,6 +628,18 @@ var _ = DescribeTestsFor(TestCase{
 									WithJSON(postInstanceRequestTLS).
 									Expect().Status(http.StatusAccepted)
 							})
+							It("returns 201", func() {
+								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanIDWithTLS, TenantIDValue)
+								labels := types.Labels{
+									"organization_guid": []string{},
+								}
+
+								postInstanceRequestTLS["labels"] = labels
+								ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
+									WithQuery("async", false).
+									WithJSON(postInstanceRequestTLS).
+									Expect().Status(http.StatusCreated)
+							})
 
 							It("returns 201", func() {
 								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanIDWithTLS, TenantIDValue)
@@ -668,7 +681,6 @@ var _ = DescribeTestsFor(TestCase{
 									JSON().Object().
 									Keys().Contains("error", "description")
 							})
-
 							Context("when request body contains multiple label objects", func() {
 								It("returns 400", func() {
 									ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
@@ -2090,6 +2102,26 @@ var _ = DescribeTestsFor(TestCase{
 										// method should not be patch to the broker, but only post of the previous request
 										method := brokerServer.LastRequest.Method
 										Expect(method).To(Not(Equal("PATCH")))
+									})
+								})
+								When("only label is provided in request body- value is empty", func() {
+									It("returns success", func() {
+										labels := []*types.LabelChange{
+											{
+												Operation: types.AddLabelOperation,
+												Key:       "labelKey1",
+											},
+										}
+										patchLabelsBody["labels"] = labels
+
+										testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+SID).
+											WithQuery("async", "false").
+											WithJSON(patchLabelsBody).Expect().Status(http.StatusOK).JSON().Object()
+										// Expect to retrieve the data from the broker of the creat instance and not of the update instance
+										// method should not be patch to the broker, but only post of the previous request
+										method := brokerServer.LastRequest.Method
+										Expect(method).To(Not(Equal("PATCH")))
+
 									})
 								})
 								When("invalid label key", func() {
@@ -3926,7 +3958,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									It("orphan mitigates the instance", func() {
 										resp := deleteInstance(newSMCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
-										<-time.After(1100 * time.Millisecond)
+										<-time.After(2 * time.Second)
 										close(doneChannel)
 
 										instanceID, _ = VerifyOperationExists(newSMCtx, resp.Header("Location").Raw(), OperationExpectations{
@@ -5204,7 +5236,7 @@ var _ = DescribeTestsFor(TestCase{
 								resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrAsyncNotSupportedForSharing, sharedInstanceID))
 							})
 							It("returns 200 setting shared=false on a non shared instance", func() {
-								resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
+								ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
 									WithQuery("async", "false").
 									WithJSON(Object{
 										"shared": false,
@@ -5213,7 +5245,7 @@ var _ = DescribeTestsFor(TestCase{
 									Status(http.StatusOK)
 								// retrieve at start to verify no change
 								instance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
-								resp = ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
+								resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
 									WithQuery("async", "false").
 									WithJSON(Object{
 										"shared": false,
@@ -5244,7 +5276,8 @@ var _ = DescribeTestsFor(TestCase{
 						BeforeEach(func() {
 							plan = GetPlanByKey(ctx, "id", anotherServicePlanID)
 							plan.Metadata = nil
-							ctx.SMRepository.Update(context.TODO(), plan, types.LabelChanges{})
+							_, err := ctx.SMRepository.Update(context.TODO(), plan, types.LabelChanges{})
+							Expect(err).ShouldNot(HaveOccurred())
 							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, anotherServicePlanID, TenantIDValue)
 							provisionBody := Object{
 								"service_plan_id": anotherServicePlanID,
@@ -5265,7 +5298,8 @@ var _ = DescribeTestsFor(TestCase{
 						AfterEach(func() {
 							plan = GetPlanByKey(ctx, "id", anotherServicePlanID)
 							plan.Metadata = []byte("{\"supportsInstanceSharing\": true}")
-							ctx.SMRepository.Update(context.TODO(), plan, types.LabelChanges{})
+							_, err := ctx.SMRepository.Update(context.TODO(), plan, types.LabelChanges{})
+							Expect(err).ShouldNot(HaveOccurred())
 						})
 						It("should fail to share the instance", func() {
 							shareInstanceBody := Object{

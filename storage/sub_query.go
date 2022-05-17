@@ -6,6 +6,7 @@ type SubQuery int
 
 const (
 	QueryForAllLastOperationsPerResource SubQuery = iota
+	QueryForAllNotLastOperationsPerResource
 	QueryForOperationsWithResource
 	QueryForTenantScopedServiceOfferings
 	QueryForInstanceChildrenByLabel
@@ -40,6 +41,15 @@ var subQueries = map[SubQuery]string{
         GROUP BY resource_id, resource_type) LAST_OPERATIONS ON 
     op.paging_sequence = LAST_OPERATIONS.paging_sequence
     WHERE operations.id = op.id`,
+	QueryForAllNotLastOperationsPerResource: `
+	SELECT op.id 
+	FROM OPERATIONS op
+	LEFT JOIN (
+		SELECT MAX(OPERATIONS.PAGING_SEQUENCE) PAGING_SEQUENCE 
+		FROM OPERATIONS 
+		GROUP BY RESOURCE_ID, RESOURCE_TYPE
+	) max_op ON op.PAGING_SEQUENCE = max_op.PAGING_SEQUENCE
+	WHERE max_op.PAGING_SEQUENCE IS NULL`,
 	QueryForOperationsWithResource: `
     SELECT id
     FROM {{.RESOURCE_TABLE}}

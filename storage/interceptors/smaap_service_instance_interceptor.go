@@ -741,7 +741,7 @@ func preparePrerequisites(ctx context.Context, repository storage.Repository, os
 		APIVersion:          osbc.LatestAPIVersion(),
 	}
 
-	if broker.Credentials.Basic != nil {
+	if broker.Credentials.BasicExists() {
 		osbClientConfig.AuthConfig = &osbc.AuthConfig{
 			BasicAuthConfig: &osbc.BasicAuthConfig{
 				Username: broker.Credentials.Basic.Username,
@@ -773,7 +773,6 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(ctx context.Context
 		err = i.contextSigner.Sign(ctx, instanceContext)
 		if err != nil {
 			log.C(ctx).Errorf("failed to sign context: %v", err)
-			return nil, err
 		}
 	}
 
@@ -877,7 +876,6 @@ func (i *ServiceInstanceInterceptor) prepareUpdateInstanceRequest(ctx context.Co
 		err := i.contextSigner.Sign(ctx, instanceContext)
 		if err != nil {
 			log.C(ctx).Errorf("failed to sign context: %v", err)
-			return nil, err
 		}
 	}
 

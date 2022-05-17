@@ -32,7 +32,8 @@ const (
 	// LessThanOrEqualOperator takes two operands and tests if the left is lesser than or equal the right
 	LessThanOrEqualOperator leOperator = "le"
 	// InOperator takes two operands and tests if the left is contained in the right
-	InOperator inOperator = "in"
+	InOperator         inOperator         = "in"
+	InSubqueryOperator inSubqueryOperator = "inSubquery"
 	// NotInOperator takes two operands and tests if the left is not contained in the right
 	NotInOperator notInOperator = "notin"
 	// NotExistsSubquery receives a sub-query as single left-operand and checks the sub-query for rows existence. If there're no rows then it will return TRUE, otherwise FALSE.
@@ -170,6 +171,24 @@ func (containsOperator) IsNullable() bool {
 }
 
 func (containsOperator) IsNumeric() bool {
+	return false
+}
+
+type inSubqueryOperator string
+
+func (o inSubqueryOperator) String() string {
+	return string(o)
+}
+
+func (inSubqueryOperator) Type() OperatorType {
+	return UnivariateOperator
+}
+
+func (inSubqueryOperator) IsNullable() bool {
+	return false
+}
+
+func (inSubqueryOperator) IsNumeric() bool {
 	return false
 }
 
