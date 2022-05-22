@@ -34,10 +34,12 @@ var _ = Describe("Service Manager Auth strategy test", func() {
 			response.Header().Add("Content-Type", "application/json")
 			if strings.Contains(req.URL.String(), ".well-known/openid-configuration") {
 				response.WriteHeader(configurationResponseCode)
-				response.Write(configurationResponseBody)
+				_, err := response.Write(configurationResponseBody)
+				Expect(err).ToNot(HaveOccurred())
 			} else {
 				response.WriteHeader(responseStatusCode)
-				response.Write([]byte(responseBody))
+				_, err := response.Write([]byte(responseBody))
+				Expect(err).ToNot(HaveOccurred())
 			}
 		}
 	}

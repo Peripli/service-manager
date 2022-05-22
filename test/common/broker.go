@@ -23,14 +23,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/gorilla/mux"
+	. "github.com/onsi/gomega"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"time"
-
-	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/gorilla/mux"
 )
 
 type BrokerServer struct {
@@ -112,7 +112,7 @@ func NewBrokerServerWithTLSAndCatalog(catalog SBCatalog, serverCertificate []byt
 
 	uServer.TLS.ClientCAs = caCertPool
 	uServer.TLS.ClientAuth = tls.RequireAndVerifyClientCert
-	if serverCertificate != nil && len(serverCertificate) > 0 && serverCertificateKey != nil && len(serverCertificateKey) > 0 {
+	if len(serverCertificate) > 0 && serverCertificateKey != nil && len(serverCertificateKey) > 0 {
 		cert, err := tls.X509KeyPair(serverCertificate, serverCertificateKey)
 		if err != nil {
 			panic(err)
@@ -324,19 +324,22 @@ func (b *BrokerServer) authenticationMiddleware(next http.Handler) http.Handler 
 			auth := req.Header.Get("Authorization")
 			if auth == "" {
 				w.WriteHeader(http.StatusUnauthorized)
-				w.Write([]byte("Missing authorization header"))
+				_, err := w.Write([]byte("Missing authorization header"))
+				Expect(err).ShouldNot(HaveOccurred())
 				return
 			}
 			const basicHeaderPrefixLength = len("Basic ")
 			decoded, err := base64.StdEncoding.DecodeString(auth[basicHeaderPrefixLength:])
 			if err != nil {
 				w.WriteHeader(http.StatusUnauthorized)
-				w.Write([]byte(err.Error()))
+				_, err = w.Write([]byte(err.Error()))
+				Expect(err).ShouldNot(HaveOccurred())
 				return
 			}
 			if string(decoded) != fmt.Sprintf("%s:%s", b.Username, b.Password) {
 				w.WriteHeader(http.StatusUnauthorized)
-				w.Write([]byte("Credentials mismatch"))
+				_, err = w.Write([]byte("Credentials mismatch"))
+				Expect(err).ShouldNot(HaveOccurred())
 				return
 			}
 		}
@@ -389,7 +392,7 @@ func (b *BrokerServer) defaultServiceInstanceHandler(rw http.ResponseWriter, req
 	}
 }
 
-func (b *BrokerServer) defaultServiceInstanceLastOpHandler(rw http.ResponseWriter, req *http.Request) {
+func (b *BrokerServer) defaultServiceInstanceLastOpHandler(rw http.ResponseWriter, request *http.Request) {
 	SetResponse(rw, http.StatusOK, Object{
 		"state": "succeeded",
 	})
@@ -415,13 +418,13 @@ func (b *BrokerServer) defaultBindingHandler(rw http.ResponseWriter, req *http.R
 	}
 }
 
-func (b *BrokerServer) defaultBindingLastOpHandler(rw http.ResponseWriter, req *http.Request) {
+func (b *BrokerServer) defaultBindingLastOpHandler(rw http.ResponseWriter, request *http.Request) {
 	SetResponse(rw, http.StatusOK, Object{
 		"state": "succeeded",
 	})
 }
 
-func (b *BrokerServer) defaultBindingAdaptCredentialsHandler(rw http.ResponseWriter, req *http.Request) {
+func (b *BrokerServer) defaultBindingAdaptCredentialsHandler(rw http.ResponseWriter, request *http.Request) {
 	SetResponse(rw, http.StatusOK, Object{
 		"credentials": Object{
 			"user":     "user",
@@ -434,7 +437,8 @@ func SetResponse(rw http.ResponseWriter, status int, message map[string]interfac
 	err := util.WriteJSON(rw, status, message)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(err.Error()))
+		_, err = rw.Write([]byte(err.Error()))
+		Expect(err).ShouldNot(HaveOccurred())
 	}
 }
 

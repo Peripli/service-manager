@@ -369,7 +369,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 		By(fmt.Sprintf("[TEST]: Verifying expected status code %d is returned from list operation", listOpEntry.expectedStatusCode))
 
 		if listOpEntry.expectedStatusCode != http.StatusOK {
-			By(fmt.Sprintf("[TEST]: Verifying error and description fields are returned after list operation"))
+			By("[TEST]: Verifying error and description fields are returned after list operation")
 			req := auth.GET(t.API)
 			if query != "" {
 				req = req.WithQueryString(query)
@@ -788,13 +788,13 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 				Context("with field query=", func() {
 					for _, queryValue := range queryValues {
 						query := "fieldQuery" + "=" + queryValue
-						DescribeTable(fmt.Sprintf("%s", queryValue), func(test listOpEntry) {
+						DescribeTable(queryValue, func(test listOpEntry) {
 							verifyListOp(test, query)
 						}, entries[i])
 					}
 
 					if len(queryValues) > 1 {
-						DescribeTable(fmt.Sprintf("%s", multiQueryValue), func(test listOpEntry) {
+						DescribeTable(multiQueryValue, func(test listOpEntry) {
 							verifyListOp(test, fquery)
 						}, entries[i])
 
@@ -809,20 +809,20 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 					Context("with label query=", func() {
 						for _, queryValue := range queryValues {
 							query := "labelQuery" + "=" + queryValue
-							DescribeTable(fmt.Sprintf("%s", queryValue), func(test listOpEntry) {
+							DescribeTable(queryValue, func(test listOpEntry) {
 								verifyListOp(test, query)
 							}, entries[i])
 						}
 
 						if len(queryValues) > 1 {
-							DescribeTable(fmt.Sprintf("%s", multiQueryValue), func(test listOpEntry) {
+							DescribeTable(multiQueryValue, func(test listOpEntry) {
 								verifyListOp(test, lquery)
 							}, entries[i])
 						}
 					})
 
 					Context("with multiple field and label queries", func() {
-						DescribeTable(fmt.Sprintf("%s", fquery+"&"+lquery), func(test listOpEntry) {
+						DescribeTable(fquery+"&"+lquery, func(test listOpEntry) {
 							verifyListOp(test, fquery+"&"+lquery)
 						}, entries[i])
 					})

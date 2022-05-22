@@ -31,15 +31,16 @@ func (fake *FakeHandler) Handle(arg1 *web.Request) (*web.Response, error) {
 	fake.handleArgsForCall = append(fake.handleArgsForCall, struct {
 		arg1 *web.Request
 	}{arg1})
+	stub := fake.HandleStub
+	fakeReturns := fake.handleReturns
 	fake.recordInvocation("Handle", []interface{}{arg1})
 	fake.handleMutex.Unlock()
-	if fake.HandleStub != nil {
-		return fake.HandleStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.handleReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 

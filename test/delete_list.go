@@ -428,9 +428,9 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 	}
 
 	beforeEachHelper := func() {
-		By(fmt.Sprintf("[BEFOREEACH]: Preparing and creating test resources"))
+		By("[BEFOREEACH]: Preparing and creating test resources")
 
-		r = make([]common.Object, 0, 0)
+		r = make([]common.Object, 0)
 		rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth, false)
 		for i := 0; i < 2; i++ {
 			gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth, false)
@@ -438,13 +438,13 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			stripObject(gen, t.ResourcePropertiesToIgnore...)
 			r = append(r, gen)
 		}
-		By(fmt.Sprintf("[BEFOREEACH]: Successfully finished preparing and creating test resources"))
+		By("[BEFOREEACH]: Successfully finished preparing and creating test resources")
 	}
 
 	afterEachHelper := func() {
-		By(fmt.Sprintf("[AFTEREACH]: Cleaning up test resources"))
+		By("[AFTEREACH]: Cleaning up test resources")
 		ctx.CleanupAdditionalResources()
-		By(fmt.Sprintf("[AFTEREACH]: Sucessfully finished cleaning up test resources"))
+		By("[AFTEREACH]: Sucessfully finished cleaning up test resources")
 	}
 
 	verifyDeleteListOpHelperWithAuth := func(deleteListOpEntry deleteOpEntry, query string, auth *common.SMExpect) {
@@ -494,7 +494,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			Status(deleteListOpEntry.expectedStatusCode)
 
 		if deleteListOpEntry.expectedStatusCode != http.StatusOK {
-			By(fmt.Sprintf("[TEST]: Verifying error and description fields are returned after operation"))
+			By("[TEST]: Verifying error and description fields are returned after operation")
 			resp.JSON().Object().Keys().Contains("error", "description")
 		} else {
 			afterOpArray := auth.List(t.API)

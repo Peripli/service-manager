@@ -1230,7 +1230,8 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 				params := map[string]interface{}{
 					"key": "subaccount_id"}
 
-				qb.NewQuery(entity).Query(ctx, storage.QueryByMissingLabel, params)
+				_, err := qb.NewQuery(entity).Query(ctx, storage.QueryByMissingLabel, params)
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(`
 	SELECT visibilities.*,
 	visibility_labels.id         "visibility_labels.id",
@@ -1254,7 +1255,8 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 				params := map[string]interface{}{
 					"platform_ids": []string{"a", "b"}}
 
-				qb.NewQuery(entity).Query(ctx, storage.QueryForLabelLessVisibilities, params)
+				_, err := qb.NewQuery(entity).Query(ctx, storage.QueryForLabelLessVisibilities, params)
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(`
 	SELECT v.* FROM visibilities v
 	WHERE (v.platform_id in (?, ?) OR v.platform_id IS NULL) AND
@@ -1267,7 +1269,8 @@ WHERE visibilities.id = t.id RETURNING *;`)))
 				params := map[string]interface{}{
 					"key": "subaccount_id"}
 
-				qb.NewQuery(entity).Query(ctx, storage.QueryByExistingLabel, params)
+				_, err := qb.NewQuery(entity).Query(ctx, storage.QueryByExistingLabel, params)
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(`
 	SELECT visibilities.*,
 	visibility_labels.id         "visibility_labels.id",

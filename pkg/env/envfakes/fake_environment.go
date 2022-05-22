@@ -68,15 +68,16 @@ func (fake *FakeEnvironment) AllSettings() map[string]interface{} {
 	ret, specificReturn := fake.allSettingsReturnsOnCall[len(fake.allSettingsArgsForCall)]
 	fake.allSettingsArgsForCall = append(fake.allSettingsArgsForCall, struct {
 	}{})
+	stub := fake.AllSettingsStub
+	fakeReturns := fake.allSettingsReturns
 	fake.recordInvocation("AllSettings", []interface{}{})
 	fake.allSettingsMutex.Unlock()
-	if fake.AllSettingsStub != nil {
-		return fake.AllSettingsStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.allSettingsReturns
 	return fakeReturns.result1
 }
 
@@ -122,15 +123,16 @@ func (fake *FakeEnvironment) BindPFlag(arg1 string, arg2 *pflag.Flag) error {
 		arg1 string
 		arg2 *pflag.Flag
 	}{arg1, arg2})
+	stub := fake.BindPFlagStub
+	fakeReturns := fake.bindPFlagReturns
 	fake.recordInvocation("BindPFlag", []interface{}{arg1, arg2})
 	fake.bindPFlagMutex.Unlock()
-	if fake.BindPFlagStub != nil {
-		return fake.BindPFlagStub(arg1, arg2)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.bindPFlagReturns
 	return fakeReturns.result1
 }
 
@@ -182,15 +184,16 @@ func (fake *FakeEnvironment) Get(arg1 string) interface{} {
 	fake.getArgsForCall = append(fake.getArgsForCall, struct {
 		arg1 string
 	}{arg1})
+	stub := fake.GetStub
+	fakeReturns := fake.getReturns
 	fake.recordInvocation("Get", []interface{}{arg1})
 	fake.getMutex.Unlock()
-	if fake.GetStub != nil {
-		return fake.GetStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.getReturns
 	return fakeReturns.result1
 }
 
@@ -242,9 +245,10 @@ func (fake *FakeEnvironment) Set(arg1 string, arg2 interface{}) {
 		arg1 string
 		arg2 interface{}
 	}{arg1, arg2})
+	stub := fake.SetStub
 	fake.recordInvocation("Set", []interface{}{arg1, arg2})
 	fake.setMutex.Unlock()
-	if fake.SetStub != nil {
+	if stub != nil {
 		fake.SetStub(arg1, arg2)
 	}
 }
@@ -274,15 +278,16 @@ func (fake *FakeEnvironment) Unmarshal(arg1 interface{}) error {
 	fake.unmarshalArgsForCall = append(fake.unmarshalArgsForCall, struct {
 		arg1 interface{}
 	}{arg1})
+	stub := fake.UnmarshalStub
+	fakeReturns := fake.unmarshalReturns
 	fake.recordInvocation("Unmarshal", []interface{}{arg1})
 	fake.unmarshalMutex.Unlock()
-	if fake.UnmarshalStub != nil {
-		return fake.UnmarshalStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.unmarshalReturns
 	return fakeReturns.result1
 }
 

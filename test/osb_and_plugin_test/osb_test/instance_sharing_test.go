@@ -130,9 +130,7 @@ var _ = Describe("Instance Sharing", func() {
 			})
 			It("should fail provisioning an instance with shared property in the request", func() {
 				UUID, err := uuid.NewV4()
-				if err != nil {
-					panic(err)
-				}
+				Expect(err).ShouldNot(HaveOccurred())
 				instanceGuid := UUID.String()
 
 				resp := ctx.SMWithBasic.PUT(instanceSharingBrokerPath+"/v2/service_instances/"+instanceGuid).
@@ -189,9 +187,7 @@ var _ = Describe("Instance Sharing", func() {
 			})
 			It("should fail", func() {
 				UUID, err := uuid.NewV4()
-				if err != nil {
-					panic(err)
-				}
+				Expect(err).ShouldNot(HaveOccurred())
 				instanceGuid := UUID.String()
 
 				resp := ctx.SMWithBasic.PUT(instanceSharingBrokerPath+"/v2/service_instances/"+instanceGuid).
@@ -282,9 +278,7 @@ var _ = Describe("Instance Sharing", func() {
 				shareablePlan := GetPlanByKey(ctx, "catalog_id", shareablePlanCatalogID)
 
 				UUID, err := uuid.NewV4()
-				if err != nil {
-					panic(err)
-				}
+				Expect(err).ShouldNot(HaveOccurred())
 				instanceID := UUID.String()
 
 				referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareablePlanCatalogID)
@@ -310,7 +304,8 @@ var _ = Describe("Instance Sharing", func() {
 					// rename instance to avoid multiple results:
 					sharedInstance2, _ := GetInstanceObjectByID(ctx, sharedInstanceID2)
 					sharedInstance2.Name = "shared-instance-2"
-					ctx.SMRepository.Update(context.TODO(), sharedInstance2, types.LabelChanges{})
+					_, err := ctx.SMRepository.Update(context.TODO(), sharedInstance2, types.LabelChanges{})
+					Expect(err).ShouldNot(HaveOccurred())
 
 					_, sharedInstanceID3 := createAndShareInstance(false)
 					// rename instance to avoid multiple results:
@@ -320,7 +315,8 @@ var _ = Describe("Instance Sharing", func() {
 						TenantIdentifier: {TenantValue},
 						"type":           {"dev"},
 					})
-					ctx.SMRepository.Update(context.TODO(), sharedInstance3, types.LabelChanges{})
+					_, err = ctx.SMRepository.Update(context.TODO(), sharedInstance3, types.LabelChanges{})
+					Expect(err).ShouldNot(HaveOccurred())
 					VerifyResourceExists(ctx.SMWithOAuthForTenant, ResourceExpectations{
 						ID:    sharedInstanceID2,
 						Type:  types.ServiceInstanceType,
@@ -728,7 +724,8 @@ var _ = Describe("Instance Sharing", func() {
 
 				// validate request body.context when creating the binding
 				jsonBody := Object{}
-				json.Unmarshal(instanceSharingBrokerServer.LastRequestBody, &jsonBody)
+				err := json.Unmarshal(instanceSharingBrokerServer.LastRequestBody, &jsonBody)
+				Expect(err).ShouldNot(HaveOccurred())
 				sharedInstance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
 				expectedContextToBroker := Object{
 					"space_name":        "development",
@@ -850,9 +847,7 @@ var _ = Describe("Instance Sharing", func() {
 
 func createBinding(sourceInstanceID, targetInstanceID string, expectedStatus int, acceptsIncomplete string) string {
 	UUID, err := uuid.NewV4()
-	if err != nil {
-		panic(err)
-	}
+	Expect(err).ShouldNot(HaveOccurred())
 	bindingID := UUID.String()
 
 	body := provisionRequestBodyMap()()
@@ -905,9 +900,7 @@ func createSharedInstanceAndReference(platform *types.Platform, async bool) (str
 
 func createReferenceInstance(platformID, selectorKey string, selectorValue interface{}, sharedInstanceID string, accepts_incomplete bool) (*httpexpect.Response, string) {
 	UUID, err := uuid.NewV4()
-	if err != nil {
-		panic(err)
-	}
+	Expect(err).ShouldNot(HaveOccurred())
 	instanceID := UUID.String()
 
 	referencePlan := GetReferencePlanOfExistingPlan(ctx, "catalog_id", shareablePlanCatalogID)
@@ -944,13 +937,11 @@ func createReferenceInstance(platformID, selectorKey string, selectorValue inter
 
 func createAndShareInstance(accepts_incomplete bool) (*httpexpect.Response, string) {
 	UUID, err := uuid.NewV4()
-	if err != nil {
-		panic(err)
-	}
+	Expect(err).ShouldNot(HaveOccurred())
 	sharedInstanceID := UUID.String()
 
-	provisionBody := provisionRequestBodyMapWith("plan_id", shareablePlanCatalogID)()
-	provisionBody = provisionRequestBodyMapWith("service_id", service2CatalogID)()
+	provisionRequestBodyMapWith("plan_id", shareablePlanCatalogID)()
+	provisionBody := provisionRequestBodyMapWith("service_id", service2CatalogID)()
 	resp := ctx.SMWithBasic.PUT(instanceSharingBrokerPath+"/v2/service_instances/"+sharedInstanceID).
 		WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 		WithQuery(acceptsIncompleteKey, accepts_incomplete).

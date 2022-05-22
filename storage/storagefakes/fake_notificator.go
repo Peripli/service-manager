@@ -65,15 +65,16 @@ func (fake *FakeNotificator) RegisterConsumer(arg1 *types.Platform, arg2 int64) 
 		arg1 *types.Platform
 		arg2 int64
 	}{arg1, arg2})
+	stub := fake.RegisterConsumerStub
+	fakeReturns := fake.registerConsumerReturns
 	fake.recordInvocation("RegisterConsumer", []interface{}{arg1, arg2})
 	fake.registerConsumerMutex.Unlock()
-	if fake.RegisterConsumerStub != nil {
-		return fake.RegisterConsumerStub(arg1, arg2)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2, ret.result3
 	}
-	fakeReturns := fake.registerConsumerReturns
 	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
 }
 
@@ -130,9 +131,10 @@ func (fake *FakeNotificator) RegisterFilter(arg1 storage.ReceiversFilterFunc) {
 	fake.registerFilterArgsForCall = append(fake.registerFilterArgsForCall, struct {
 		arg1 storage.ReceiversFilterFunc
 	}{arg1})
+	stub := fake.RegisterFilterStub
 	fake.recordInvocation("RegisterFilter", []interface{}{arg1})
 	fake.registerFilterMutex.Unlock()
-	if fake.RegisterFilterStub != nil {
+	if stub != nil {
 		fake.RegisterFilterStub(arg1)
 	}
 }
@@ -163,15 +165,16 @@ func (fake *FakeNotificator) Start(arg1 context.Context, arg2 *sync.WaitGroup) e
 		arg1 context.Context
 		arg2 *sync.WaitGroup
 	}{arg1, arg2})
+	stub := fake.StartStub
+	fakeReturns := fake.startReturns
 	fake.recordInvocation("Start", []interface{}{arg1, arg2})
 	fake.startMutex.Unlock()
-	if fake.StartStub != nil {
-		return fake.StartStub(arg1, arg2)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.startReturns
 	return fakeReturns.result1
 }
 
@@ -223,15 +226,16 @@ func (fake *FakeNotificator) UnregisterConsumer(arg1 storage.NotificationQueue) 
 	fake.unregisterConsumerArgsForCall = append(fake.unregisterConsumerArgsForCall, struct {
 		arg1 storage.NotificationQueue
 	}{arg1})
+	stub := fake.UnregisterConsumerStub
+	fakeReturns := fake.unregisterConsumerReturns
 	fake.recordInvocation("UnregisterConsumer", []interface{}{arg1})
 	fake.unregisterConsumerMutex.Unlock()
-	if fake.UnregisterConsumerStub != nil {
-		return fake.UnregisterConsumerStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.unregisterConsumerReturns
 	return fakeReturns.result1
 }
 

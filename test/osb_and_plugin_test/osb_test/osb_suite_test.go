@@ -102,10 +102,10 @@ var (
 	instanceSharingUtils        *common.BrokerUtils
 	instanceSharingBrokerServer *common.BrokerServer
 	instanceSharingBrokerID     string
-	instanceSharingBrokerName   string
-	instanceSharingBrokerHost   string
-	instanceSharingBrokerPath   string
-	instanceSharingBrokerURL    string
+	//	instanceSharingBrokerName   string
+	instanceSharingBrokerHost string
+	instanceSharingBrokerPath string
+	instanceSharingBrokerURL  string
 
 	provisionRequestBody string
 
@@ -191,8 +191,8 @@ var _ = BeforeSuite(func() {
 	instanceSharingUtils = ctx.RegisterBrokerWithCatalog(instanceSharingCatalog)
 	instanceSharingBrokerID = instanceSharingUtils.Broker.ID
 
-	var instanceSharingBrokerObject common.Object
-	instanceSharingBrokerObject = instanceSharingUtils.Broker.JSON
+	//	var instanceSharingBrokerObject common.Object
+	//	instanceSharingBrokerObject = instanceSharingUtils.Broker.JSON
 	instanceSharingBrokerServer = instanceSharingUtils.Broker.BrokerServer
 	instanceSharingUtils.BrokerWithTLS = ctx.RegisterBrokerWithRandomCatalogAndTLS(ctx.SMWithOAuth).BrokerWithTLS
 	instanceSharingPlans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("catalog_id in ('%s','%s')", plan1CatalogID, plan2CatalogID)).Iter()
@@ -202,7 +202,7 @@ var _ = BeforeSuite(func() {
 	instanceSharingBrokerHost = ctx.Servers[common.SMServer].URL()
 	instanceSharingBrokerPath = "/v1/osb/" + instanceSharingBrokerID
 	instanceSharingBrokerURL = instanceSharingBrokerHost + instanceSharingBrokerPath
-	instanceSharingBrokerName = instanceSharingBrokerObject["name"].(string)
+	//	instanceSharingBrokerName = instanceSharingBrokerObject["name"].(string)
 
 	username, password = test.RegisterBrokerPlatformCredentials(SMWithBasicPlatform, instanceSharingBrokerID)
 	brokerPlatformCredentialsIDMap[instanceSharingBrokerID] = brokerPlatformCredentials{
@@ -245,8 +245,10 @@ var _ = BeforeEach(func() {
 
 var _ = JustAfterEach(func() {
 	common.RemoveAllOperations(ctx.SMRepository)
-	common.RemoveAllBindings(ctx)
-	common.RemoveAllInstances(ctx)
+	err := common.RemoveAllBindings(ctx)
+	Expect(err).ShouldNot(HaveOccurred())
+	err = common.RemoveAllInstances(ctx)
+	Expect(err).ShouldNot(HaveOccurred())
 	common.RemoveAllOperations(ctx.SMRepository)
 })
 
@@ -292,15 +294,22 @@ func parameterizedHandler(statusCode int, responseBody string) func(rw http.Resp
 	return func(rw http.ResponseWriter, _ *http.Request) {
 		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(statusCode)
-		rw.Write([]byte(responseBody))
+		_, err := rw.Write([]byte(responseBody))
+		Expect(err).ShouldNot(HaveOccurred())
 	}
 }
 
 func gzipWrite(w io.Writer, data []byte) error {
 	// Write gzipped data to the client
 	gw, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
-	defer gw.Close()
-	gw.Write(data)
+	Expect(err).ShouldNot(HaveOccurred())
+	defer func(gw *gzip.Writer) {
+		err := gw.Close()
+		Expect(err).ShouldNot(HaveOccurred())
+	}(gw)
+	Expect(err).ShouldNot(HaveOccurred())
+	_, err = gw.Write(data)
+	Expect(err).ShouldNot(HaveOccurred())
 	return err
 }
 
@@ -310,12 +319,15 @@ func gzipHandler(statusCode int, responseBody string) func(rw http.ResponseWrite
 			rw.Header().Set("Content-Encoding", "gzip")
 			rw.WriteHeader(statusCode)
 			var buf bytes.Buffer
-			gzipWrite(&buf, []byte(responseBody))
-			rw.Write(buf.Bytes())
+			err := gzipWrite(&buf, []byte(responseBody))
+			Expect(err).ShouldNot(HaveOccurred())
+			_, err = rw.Write(buf.Bytes())
+			Expect(err).ShouldNot(HaveOccurred())
 		} else {
 			rw.Header().Set("Content-Type", "application/json")
 			rw.WriteHeader(statusCode)
-			rw.Write([]byte(responseBody))
+			_, err := rw.Write([]byte(responseBody))
+			Expect(err).ShouldNot(HaveOccurred())
 		}
 	}
 }
@@ -324,8 +336,8 @@ func queryParameterVerificationHandler(key, value string) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		defer GinkgoRecover()
 		var status int
-		query := request.URL.Query()
-		actualValue := query.Get(key)
+		requestQuery := request.URL.Query()
+		actualValue := requestQuery.Get(key)
 		Expect(actualValue).To(Equal(value))
 		if request.Method == http.MethodPut {
 			status = http.StatusCreated
@@ -339,7 +351,8 @@ func queryParameterVerificationHandler(key, value string) http.HandlerFunc {
 func delayingHandler(done chan<- interface{}) func(rw http.ResponseWriter, req *http.Request) {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		brokerDelay := timeoutDuration + additionalDelayAfterTimeout
-		timeoutContext, _ := context.WithTimeout(req.Context(), brokerDelay)
+		timeoutContext, cancel := context.WithTimeout(req.Context(), brokerDelay)
+		defer cancel()
 		<-timeoutContext.Done()
 		common.SetResponse(rw, http.StatusTeapot, common.Object{})
 		close(done)

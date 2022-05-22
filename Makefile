@@ -18,6 +18,7 @@ GO 					?= go
 GOFMT 				?= gofmt
 BINDIR 				?= bin
 PROJECT_PKG 		?= github.com/Peripli/service-manager
+TEST_PROFILE_OUT=   cover.out
 
 PLATFORM 			?= linux
 ARCH     			?= amd64
@@ -178,6 +179,25 @@ coverage: test-report ## Produces an HTML report containing code coverage detail
 	@go tool cover -html=$(TEST_PROFILE) -o $(COVERAGE)
 	@echo Generated coverage report in $(COVERAGE).
 
+go-deps:
+	set GO111MODULE=off
+	go get gotest.tools/gotestsum
+	go get github.com/t-yuki/gocover-cobertura
+	go install github.com/axw/gocov/gocov@latest
+	go get github.com/AlekSi/gocov-xml
+	go get -u github.com/jstemmer/go-junit-report
+	set GO111MODULE=on
+	go mod tidy
+# Run tests
+
+run-test: go-deps
+	rm -rf reports
+	mkdir -p reports
+	$(GOBIN)/gotestsum --junitfile reports/junit.xml -- -coverprofile=cover.out ./... -mod=mod
+	go tool cover -func $(TEST_PROFILE_OUT) | grep total
+	find . -name cover.out -execdir sh -c '$(GOBIN)/gocover-cobertura < cover.out > coverage.xml'  \; ;\
+	GO111MODULE=on
+
 clean-generate:
 	@rm -f generate
 
@@ -219,9 +239,14 @@ format-check: ## Checks for style violation using gofmt
 	@echo Checking if there are files not formatted with gofmt...
 	@$(GOFMT) -l -s $(SOURCE_FILES) | grep ".*\.go"; if [ "$$?" = "0" ]; then echo "Files need reformating! Run make format!" ; exit 1; fi
 
-lint-check: ## Runs some linters and static code checks
+golangci-lint: $(BINDIR)/golangci-lint
+$(BINDIR)/golangci-lint:
+	@curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.45.2
+
+
+lint-check: golangci-lint
 	@echo Running linter checks...
-	@export PATH=$(PATH):bin && gometalinter --vendor ./...
+	@$(BINDIR)/golangci-lint run --config .golangci.yml --issues-exit-code=0 --deadline=30m --out-format checkstyle ./... > checkstyle.xml
 
 #-----------------------------------------------------------------------------
 # Useful utility targets

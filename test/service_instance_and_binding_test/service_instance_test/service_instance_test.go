@@ -5236,7 +5236,7 @@ var _ = DescribeTestsFor(TestCase{
 								resp.JSON().Object().Equal(util.HandleInstanceSharingError(util.ErrAsyncNotSupportedForSharing, sharedInstanceID))
 							})
 							It("returns 200 setting shared=false on a non shared instance", func() {
-								resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
+								ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
 									WithQuery("async", "false").
 									WithJSON(Object{
 										"shared": false,
@@ -5245,7 +5245,7 @@ var _ = DescribeTestsFor(TestCase{
 									Status(http.StatusOK)
 								// retrieve at start to verify no change
 								instance, _ := GetInstanceObjectByID(ctx, sharedInstanceID)
-								resp = ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
+								resp := ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+sharedInstanceID).
 									WithQuery("async", "false").
 									WithJSON(Object{
 										"shared": false,
@@ -5276,7 +5276,8 @@ var _ = DescribeTestsFor(TestCase{
 						BeforeEach(func() {
 							plan = GetPlanByKey(ctx, "id", anotherServicePlanID)
 							plan.Metadata = nil
-							ctx.SMRepository.Update(context.TODO(), plan, types.LabelChanges{})
+							_, err := ctx.SMRepository.Update(context.TODO(), plan, types.LabelChanges{})
+							Expect(err).ShouldNot(HaveOccurred())
 							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, anotherServicePlanID, TenantIDValue)
 							provisionBody := Object{
 								"service_plan_id": anotherServicePlanID,
@@ -5297,7 +5298,8 @@ var _ = DescribeTestsFor(TestCase{
 						AfterEach(func() {
 							plan = GetPlanByKey(ctx, "id", anotherServicePlanID)
 							plan.Metadata = []byte("{\"supportsInstanceSharing\": true}")
-							ctx.SMRepository.Update(context.TODO(), plan, types.LabelChanges{})
+							_, err := ctx.SMRepository.Update(context.TODO(), plan, types.LabelChanges{})
+							Expect(err).ShouldNot(HaveOccurred())
 						})
 						It("should fail to share the instance", func() {
 							shareInstanceBody := Object{

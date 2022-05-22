@@ -187,15 +187,16 @@ func (fake *FakePgDB) BindNamed(arg1 string, arg2 interface{}) (string, []interf
 		arg1 string
 		arg2 interface{}
 	}{arg1, arg2})
+	stub := fake.BindNamedStub
+	fakeReturns := fake.bindNamedReturns
 	fake.recordInvocation("BindNamed", []interface{}{arg1, arg2})
 	fake.bindNamedMutex.Unlock()
-	if fake.BindNamedStub != nil {
-		return fake.BindNamedStub(arg1, arg2)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2, ret.result3
 	}
-	fakeReturns := fake.bindNamedReturns
 	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
 }
 
@@ -252,15 +253,16 @@ func (fake *FakePgDB) DriverName() string {
 	ret, specificReturn := fake.driverNameReturnsOnCall[len(fake.driverNameArgsForCall)]
 	fake.driverNameArgsForCall = append(fake.driverNameArgsForCall, struct {
 	}{})
+	stub := fake.DriverNameStub
+	fakeReturns := fake.driverNameReturns
 	fake.recordInvocation("DriverName", []interface{}{})
 	fake.driverNameMutex.Unlock()
-	if fake.DriverNameStub != nil {
-		return fake.DriverNameStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.driverNameReturns
 	return fakeReturns.result1
 }
 
@@ -307,15 +309,16 @@ func (fake *FakePgDB) ExecContext(arg1 context.Context, arg2 string, arg3 ...int
 		arg2 string
 		arg3 []interface{}
 	}{arg1, arg2, arg3})
+	stub := fake.ExecContextStub
+	fakeReturns := fake.execContextReturns
 	fake.recordInvocation("ExecContext", []interface{}{arg1, arg2, arg3})
 	fake.execContextMutex.Unlock()
-	if fake.ExecContextStub != nil {
-		return fake.ExecContextStub(arg1, arg2, arg3...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.execContextReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -373,15 +376,16 @@ func (fake *FakePgDB) GetContext(arg1 context.Context, arg2 interface{}, arg3 st
 		arg3 string
 		arg4 []interface{}
 	}{arg1, arg2, arg3, arg4})
+	stub := fake.GetContextStub
+	fakeReturns := fake.getContextReturns
 	fake.recordInvocation("GetContext", []interface{}{arg1, arg2, arg3, arg4})
 	fake.getContextMutex.Unlock()
-	if fake.GetContextStub != nil {
-		return fake.GetContextStub(arg1, arg2, arg3, arg4...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4...)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.getContextReturns
 	return fakeReturns.result1
 }
 
@@ -435,15 +439,16 @@ func (fake *FakePgDB) NamedExecContext(arg1 context.Context, arg2 string, arg3 i
 		arg2 string
 		arg3 interface{}
 	}{arg1, arg2, arg3})
+	stub := fake.NamedExecContextStub
+	fakeReturns := fake.namedExecContextReturns
 	fake.recordInvocation("NamedExecContext", []interface{}{arg1, arg2, arg3})
 	fake.namedExecContextMutex.Unlock()
-	if fake.NamedExecContextStub != nil {
-		return fake.NamedExecContextStub(arg1, arg2, arg3)
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.namedExecContextReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -499,15 +504,16 @@ func (fake *FakePgDB) NamedQuery(arg1 string, arg2 interface{}) (*sqlx.Rows, err
 		arg1 string
 		arg2 interface{}
 	}{arg1, arg2})
+	stub := fake.NamedQueryStub
+	fakeReturns := fake.namedQueryReturns
 	fake.recordInvocation("NamedQuery", []interface{}{arg1, arg2})
 	fake.namedQueryMutex.Unlock()
-	if fake.NamedQueryStub != nil {
-		return fake.NamedQueryStub(arg1, arg2)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.namedQueryReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -563,15 +569,16 @@ func (fake *FakePgDB) PrepareNamedContext(arg1 context.Context, arg2 string) (*s
 		arg1 context.Context
 		arg2 string
 	}{arg1, arg2})
+	stub := fake.PrepareNamedContextStub
+	fakeReturns := fake.prepareNamedContextReturns
 	fake.recordInvocation("PrepareNamedContext", []interface{}{arg1, arg2})
 	fake.prepareNamedContextMutex.Unlock()
-	if fake.PrepareNamedContextStub != nil {
-		return fake.PrepareNamedContextStub(arg1, arg2)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.prepareNamedContextReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -628,15 +635,16 @@ func (fake *FakePgDB) QueryContext(arg1 context.Context, arg2 string, arg3 ...in
 		arg2 string
 		arg3 []interface{}
 	}{arg1, arg2, arg3})
+	stub := fake.QueryContextStub
+	fakeReturns := fake.queryContextReturns
 	fake.recordInvocation("QueryContext", []interface{}{arg1, arg2, arg3})
 	fake.queryContextMutex.Unlock()
-	if fake.QueryContextStub != nil {
-		return fake.QueryContextStub(arg1, arg2, arg3...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.queryContextReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -693,15 +701,16 @@ func (fake *FakePgDB) QueryRowxContext(arg1 context.Context, arg2 string, arg3 .
 		arg2 string
 		arg3 []interface{}
 	}{arg1, arg2, arg3})
+	stub := fake.QueryRowxContextStub
+	fakeReturns := fake.queryRowxContextReturns
 	fake.recordInvocation("QueryRowxContext", []interface{}{arg1, arg2, arg3})
 	fake.queryRowxContextMutex.Unlock()
-	if fake.QueryRowxContextStub != nil {
-		return fake.QueryRowxContextStub(arg1, arg2, arg3...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.queryRowxContextReturns
 	return fakeReturns.result1
 }
 
@@ -755,15 +764,16 @@ func (fake *FakePgDB) QueryxContext(arg1 context.Context, arg2 string, arg3 ...i
 		arg2 string
 		arg3 []interface{}
 	}{arg1, arg2, arg3})
+	stub := fake.QueryxContextStub
+	fakeReturns := fake.queryxContextReturns
 	fake.recordInvocation("QueryxContext", []interface{}{arg1, arg2, arg3})
 	fake.queryxContextMutex.Unlock()
-	if fake.QueryxContextStub != nil {
-		return fake.QueryxContextStub(arg1, arg2, arg3...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.queryxContextReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -818,15 +828,16 @@ func (fake *FakePgDB) Rebind(arg1 string) string {
 	fake.rebindArgsForCall = append(fake.rebindArgsForCall, struct {
 		arg1 string
 	}{arg1})
+	stub := fake.RebindStub
+	fakeReturns := fake.rebindReturns
 	fake.recordInvocation("Rebind", []interface{}{arg1})
 	fake.rebindMutex.Unlock()
-	if fake.RebindStub != nil {
-		return fake.RebindStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.rebindReturns
 	return fakeReturns.result1
 }
 
@@ -881,15 +892,16 @@ func (fake *FakePgDB) SelectContext(arg1 context.Context, arg2 interface{}, arg3
 		arg3 string
 		arg4 []interface{}
 	}{arg1, arg2, arg3, arg4})
+	stub := fake.SelectContextStub
+	fakeReturns := fake.selectContextReturns
 	fake.recordInvocation("SelectContext", []interface{}{arg1, arg2, arg3, arg4})
 	fake.selectContextMutex.Unlock()
-	if fake.SelectContextStub != nil {
-		return fake.SelectContextStub(arg1, arg2, arg3, arg4...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4...)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.selectContextReturns
 	return fakeReturns.result1
 }
 

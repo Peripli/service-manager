@@ -84,7 +84,8 @@ var _ = Describe("Registry", func() {
 
 			It("panics", func() {
 				Expect(func() {
-					storage.InitializeWithSafeTermination(ctx, testStorage, testSettings, wg)
+					_, err := storage.InitializeWithSafeTermination(ctx, testStorage, testSettings, wg)
+					Expect(err).ToNot(HaveOccurred())
 				}).To(Panic())
 			})
 		})

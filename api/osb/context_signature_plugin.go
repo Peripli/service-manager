@@ -63,12 +63,12 @@ func (s *ContextSignaturePlugin) signContext(req *web.Request, next web.Handler)
 	err := json.Unmarshal(req.Body, &reqBodyMap)
 	if err != nil {
 		log.C(req.Context()).Errorf("failed to unmarshal context: %v", err)
-		return nil, err
+		return next.Handle(req)
 	}
 	if _, found := reqBodyMap["context"]; !found {
 		errorMsg := "context not found on request body"
 		log.C(req.Context()).Error(errorMsg)
-		return nil, fmt.Errorf(errorMsg)
+		return next.Handle(req)
 	}
 	contextMap := reqBodyMap["context"].(map[string]interface{})
 
@@ -79,13 +79,13 @@ func (s *ContextSignaturePlugin) signContext(req *web.Request, next web.Handler)
 	err = s.contextSigner.Sign(req.Context(), contextMap)
 	if err != nil {
 		log.C(req.Context()).Errorf("failed to sign request context: %v", err)
-		return nil, err
+		return next.Handle(req)
 	}
 
 	reqBody, err := json.Marshal(reqBodyMap)
 	if err != nil {
 		log.C(req.Context()).Errorf("failed to marshal request body: %v", err)
-		return nil, err
+		return next.Handle(req)
 	}
 	req.Body = reqBody
 

@@ -645,7 +645,7 @@ func (c *BaseController) parseMaxItemsQuery(maxItems string) (int, error) {
 		if limit < 0 {
 			return -1, &util.HTTPError{
 				ErrorType:   "InvalidMaxItems",
-				Description: fmt.Sprintf("max_items cannot be negative"),
+				Description: "max_items cannot be negative",
 				StatusCode:  http.StatusBadRequest,
 			}
 		}

@@ -129,7 +129,7 @@ func (c *ServiceInstanceController) GetParameters(r *web.Request) (*web.Response
 	if !service.InstancesRetrievable {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("this operation is not supported."),
+			Description: "this operation is not supported.",
 			StatusCode:  http.StatusBadRequest,
 		}
 
