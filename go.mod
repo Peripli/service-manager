@@ -64,7 +64,7 @@ require (
 	github.com/tidwall/sjson v1.1.4
 	github.com/ulule/limiter v2.2.2+incompatible
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v0.0.0-20171207120941-e5f51c11919d // indirect
+	github.com/valyala/fasthttp v1.34.0
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	github.com/yalp/jsonpath v0.0.0-20180802001716-5cc68e5049a0 // indirect
