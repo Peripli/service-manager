@@ -359,11 +359,8 @@ var _ = Describe("Provision", func() {
 				query.ByField(query.EqualsOperator, "platform_id", platform.ID))
 			Expect(err).ToNot(HaveOccurred())
 
-			ctx.SMWithOAuth.GET(web.VisibilitiesURL + "?fieldQuery=" + fmt.Sprintf("platform_id eq '%s'", platform.ID))
 			ctx.SMWithOAuth.DELETE(web.VisibilitiesURL + "?fieldQuery=" + fmt.Sprintf("platform_id eq '%s'", platform.ID))
 			ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + platform.ID).Expect().Status(http.StatusOK)
-
-			a, err:=ctx.SMWithOAuth.GET(web.ServiceOfferingsURL + "?fieldQuery=" + fmt.Sprintf("catalog_name eq '%s'", "another-fake-service-service2CatalogID"))
 		})
 
 		Context("in CF platform", func() {
@@ -371,7 +368,7 @@ var _ = Describe("Provision", func() {
 				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
 			})
 			Context("when creating a the broker over tls", func() {
-				FIt("creating broker with valid tls settings", func() {
+				It("creating broker with valid tls settings", func() {
 					provisionRequestBody = buildRequestBody(utils.GetServiceCatalogId(0), utils.
 						SelectBroker(&utils.BrokerWithTLS).GetPlanCatalogId(0, 0), "cloudfoundry", "my-db")
 					ctx.SMWithBasic.PUT(utils.GetBrokerOSBURL(utils.BrokerWithTLS.ID)+"/v2/service_instances/test").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
