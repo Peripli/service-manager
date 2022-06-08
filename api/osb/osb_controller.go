@@ -117,6 +117,11 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 		modifiedRequest.SetBasicAuth(broker.Credentials.Basic.Username, broker.Credentials.Basic.Password)
 	}
 
+	if correlationID := log.CorrelationIDForRequest(r.Request); correlationID != "" {
+		modifiedRequest.Header.Set("X-Broker-API-Request-Identity", correlationID)
+		modifiedRequest.Header.Set("X-Correlation-ID", correlationID)
+	}
+
 	referencedInstance := getReferencedInstance(ctx)
 	if referencedInstance != nil {
 		modifiedRequest.URL.Path = getPathForReferencedInstance(referencedInstance, osbPath[1])
@@ -210,6 +215,7 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 		logger.Infof("configuring broker tls for %s", broker.Name)
 		proxy.Transport = client.GetTransportWithTLS(tlsConfig, logger)
 	}
+
 	proxy.ModifyResponse = func(response *http.Response) error {
 		logger.Infof("Service broker %s replied with status %d", broker.Name, response.StatusCode)
 		return nil
