@@ -167,7 +167,7 @@ func (s *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *t
 					}); opErr != nil {
 						errMessage = fmt.Errorf("%s: setting new operation state failed: %s ", errMessage, opErr)
 					}
-					log.C(stateCtx).Errorf("panic error: %s", errMessage)
+					log.C(stateCtx).Errorf("panic error: %s \n %s", errMessage, debug.Stack())
 					debug.PrintStack()
 				}
 				<-s.workers
