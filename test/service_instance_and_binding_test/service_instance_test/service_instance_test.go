@@ -2382,7 +2382,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								When("tenant has plan visibility", func() {
-									FIt("returns success", func() {
+									It("returns success", func() {
 										EnsurePlanVisibility(testCtx.SMRepository, TenantIdentifier, types.SMPlatform, anotherServicePlanID, TenantIDValue)
 										resp := testCtx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/"+instanceID).
 											WithQuery("async", testCase.async == "true").
