@@ -150,12 +150,28 @@ var _ = DescribeTestsFor(TestCase{
 
 			testCases := []testCase{
 				{
+					async:                           "false",
+					expectedCreateSuccessStatusCode: http.StatusCreated,
+					expectedUpdateSuccessStatusCode: http.StatusOK,
+					expectedDeleteSuccessStatusCode: http.StatusOK,
+					expectedBrokerFailureStatusCode: http.StatusBadGateway,
+					expectedSMCrashStatusCode:       http.StatusBadGateway,
+				},
+				{
 					async:                           "true",
 					expectedCreateSuccessStatusCode: http.StatusAccepted,
 					expectedUpdateSuccessStatusCode: http.StatusAccepted,
 					expectedDeleteSuccessStatusCode: http.StatusAccepted,
 					expectedBrokerFailureStatusCode: http.StatusAccepted,
 					expectedSMCrashStatusCode:       http.StatusAccepted,
+				},
+				{
+					async:                           "",
+					expectedCreateSuccessStatusCode: http.StatusCreated,
+					expectedUpdateSuccessStatusCode: http.StatusOK,
+					expectedDeleteSuccessStatusCode: http.StatusOK,
+					expectedBrokerFailureStatusCode: http.StatusBadGateway,
+					expectedSMCrashStatusCode:       http.StatusBadGateway,
 				},
 			}
 
