@@ -21,6 +21,7 @@ func validateRateLimiterConfiguration(config string) error {
 type RateLimiterConfiguration struct {
 	rate       limiter.Rate
 	pathPrefix string
+	method     string
 }
 
 func createRateLimiterConfigurationSectionError(index int, section string, details string) error {
@@ -51,16 +52,18 @@ func parseRateLimiterConfiguration(input string) ([]RateLimiterConfiguration, er
 			return nil, createRateLimiterConfigurationSectionError(index, section, "no content, expected 'rate:path' format")
 		}
 		rateAndPath := strings.Split(section, ":")
-		if len(rateAndPath) > 2 {
-			return nil, createRateLimiterConfigurationSectionError(index, section, "too many elements, expected 'rate:path' format")
+		if len(rateAndPath) > 3 {
+			return nil, createRateLimiterConfigurationSectionError(index, section, "too many elements, expected 'rate:path:method' format")
 		}
+
 		rateConfig := rateAndPath[0]
 		rate, err := limiter.NewRateFromFormatted(rateConfig)
 		if err != nil {
 			return nil, createRateLimiterConfigurationSectionError(index, section, "unable to parse rate: "+err.Error())
 		}
 		pathPrefix := "/"
-		if len(rateAndPath) == 2 {
+		method := ""
+		if len(rateAndPath) >= 2 {
 			pathPrefix = rateAndPath[1]
 			if pathPrefix == "" {
 				return nil, createRateLimiterConfigurationSectionError(index, section, "path should not be empty")
@@ -71,10 +74,17 @@ func parseRateLimiterConfiguration(input string) ([]RateLimiterConfiguration, er
 			if path.Clean(pathPrefix) != pathPrefix {
 				return nil, createRateLimiterConfigurationSectionError(index, section, "path is not clean, expected path '"+path.Clean(pathPrefix)+"'")
 			}
+			if len(rateAndPath) == 3 {
+				method = strings.ToUpper(rateAndPath[2])
+				if method != "POST" && method != "GET" && method != "PATCH" && method != "DELETE" {
+					return nil, createRateLimiterConfigurationSectionError(index, section, "method '"+method+"' is not valid")
+				}
+			}
 		}
 		configurations = append(configurations, RateLimiterConfiguration{
 			rate:       rate,
 			pathPrefix: pathPrefix,
+			method:     method,
 		})
 	}
 	return configurations, nil
@@ -92,10 +102,7 @@ func initRateLimiters(options *Options) ([]filters.RateLimiterMiddleware, error)
 	for _, configuration := range configurations {
 		rateLimiters = append(
 			rateLimiters,
-			filters.NewRateLimiterMiddleware(
-				stdlib.NewMiddleware(limiter.New(memory.NewStore(), configuration.rate)),
-				configuration.pathPrefix,
-			),
+			filters.NewRateLimiterMiddleware(stdlib.NewMiddleware(limiter.New(memory.NewStore(), configuration.rate)), configuration.pathPrefix, configuration.method),
 		)
 	}
 	return rateLimiters, nil

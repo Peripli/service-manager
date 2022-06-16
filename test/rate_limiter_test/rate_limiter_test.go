@@ -57,6 +57,7 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 	var osbURL string
 	var serviceID string
 	var planID string
+
 	var filterContext = &overrideFilter{}
 	var changeClientIdentifier = func() string {
 		UUID, err := uuid.NewV4()
@@ -80,17 +81,31 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 	var expectLimitedRequest = func(expect *common.SMExpect, path string) {
 		expect.GET(path).Expect().Status(http.StatusTooManyRequests)
 	}
-	var expectNonLimitedRequest = func(expect *common.SMExpect, path string) {
-		expect.GET(path).Expect().Status(http.StatusOK)
+	var expectNonLimitedRequestByMethod = func(expect *common.SMExpect, path string, method string) {
+		req := expect.GET
+		switch method {
+		case "POST":
+			req = expect.POST
+		case "PATCH":
+			req = expect.PATCH
+		case "DELETE":
+			req = expect.DELETE
+		}
+		req(path).Expect().Status(http.StatusOK)
 	}
-	var bulkRequest = func(expect *common.SMExpect, path string, times int) {
+	var expectNonLimitedRequest = func(expect *common.SMExpect, path string) {
+		expectNonLimitedRequestByMethod(expect, path, "GET")
+	}
+	var bulkRequestByMethod = func(expect *common.SMExpect, path string, method string, times int) {
 		for i := 1; i <= times; i++ {
 			expectNonLimitedRequest(expect, path)
 		}
 	}
+	var bulkRequest = func(expect *common.SMExpect, path string, times int) {
+		bulkRequestByMethod(expect, path, "GET", times)
+	}
 
-	BeforeEach(func() {
-		newRateLimiterEnv("20-M", nil)
+	var registerBroker = func() {
 		UUID, err := uuid.NewV4()
 		Expect(err).ToNot(HaveOccurred())
 		planID = UUID.String()
@@ -101,12 +116,18 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 		service1 := common.GenerateTestServiceWithPlansWithID(serviceID, plan1)
 		catalog := common.NewEmptySBCatalog()
 		catalog.AddService(service1)
-		brokerID := ctx.RegisterBrokerWithCatalog(catalog).Broker.ID
+		broker := ctx.RegisterBrokerWithCatalog(catalog)
+		brokerID := broker.Broker.ID
 		common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
 
 		username, password := test.RegisterBrokerPlatformCredentials(ctx.SMWithBasic, brokerID)
 		ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
 		osbURL = "/v1/osb/" + brokerID
+	}
+
+	BeforeEach(func() {
+		newRateLimiterEnv("20-M", nil)
+		registerBroker()
 	})
 
 	AfterEach(func() {
@@ -236,6 +257,33 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 				})
 				It("doesn't limit on other path", func() {
 					expectNonLimitedRequest(ctx.SMWithOAuth, web.ServicePlansURL)
+				})
+			})
+
+			When("limiter for /v1/service_instances path and POST method is configured", func() {
+				var servicePlanID string
+				BeforeEach(func() {
+					newRateLimiterEnv("6-M:"+web.ServiceInstancesURL+",5-M:"+web.ServiceInstancesURL+":POST", nil)
+					registerBroker()
+					servicePlanID = ctx.SMWithOAuth.List(web.ServicePlansURL).Element(0).Object().Value("id").String().Raw()
+					changeClientIdentifier()
+					bulkRequestByMethod(ctx.SMWithOAuth, web.ServiceInstancesURL, "POST", 5)
+				})
+				It("apply request limit on /v1/service_instances path and POST method", func() {
+					requestBody := common.Object{
+						"name":            "test-instance",
+						"service_plan_id": servicePlanID,
+					}
+					ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
+						WithQuery("async", "false").
+						WithJSON(requestBody).
+						Expect().
+						Status(http.StatusTooManyRequests)
+				})
+				It("does not apply request limit on /v1/service_instances path GET method", func() {
+					ctx.SMWithOAuth.GET(web.ServiceInstancesURL).
+						Expect().
+						Status(http.StatusOK)
 				})
 			})
 
