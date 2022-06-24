@@ -30,7 +30,10 @@ import (
 	"strings"
 )
 
-const maxNameLength = 255
+const (
+	maxNameLength                     = 255
+	BrokerHiddenCredentialsDataFormat = "[HIDDEN DATA]"
+)
 
 //go:generate smgen api ServiceBroker
 // ServiceBroker broker struct
@@ -69,7 +72,43 @@ func (e *ServiceBroker) GetTLSConfig(logger *logrus.Entry) (*tls.Config, error) 
 }
 
 func (e *ServiceBroker) Sanitize(context.Context) {
-	e.Credentials = nil
+	isSmTLS := false
+	cert, key := "", ""
+	if e.Credentials != nil && e.Credentials.TLS != nil {
+		isSmTLS = e.Credentials.TLS.SMProvidedCredentials
+		if len(e.Credentials.TLS.Certificate) > 0 {
+			cert = BrokerHiddenCredentialsDataFormat
+		}
+		if len(e.Credentials.TLS.Key) > 0 {
+			key = BrokerHiddenCredentialsDataFormat
+		}
+	}
+
+	user, pass := "", ""
+	if e.Credentials != nil && e.Credentials.Basic != nil {
+		if len(e.Credentials.Basic.Password) > 0 {
+			pass = BrokerHiddenCredentialsDataFormat
+		}
+		if len(e.Credentials.Basic.Username) > 0 {
+			user = BrokerHiddenCredentialsDataFormat
+		}
+	}
+
+	e.Credentials = &Credentials{
+		TLS: &TLS{
+			Certificate:           cert,
+			Key:                   key,
+			SMProvidedCredentials: isSmTLS,
+		},
+	}
+
+	if len(user)+len(pass) > 0 {
+		e.Credentials.Basic = &Basic{
+			Username: user,
+			Password: pass,
+		}
+	}
+
 }
 
 func (e *ServiceBroker) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {
