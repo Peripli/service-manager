@@ -72,10 +72,10 @@ func (e *ServiceBroker) GetTLSConfig(logger *logrus.Entry) (*tls.Config, error) 
 }
 
 func (e *ServiceBroker) Sanitize(context.Context) {
-	isSmTLS := false
+	isServiceManagerTLS := false
 	cert, key := "", ""
 	if e.Credentials != nil && e.Credentials.TLS != nil {
-		isSmTLS = e.Credentials.TLS.SMProvidedCredentials
+		isServiceManagerTLS = e.Credentials.TLS.SMProvidedCredentials
 		if len(e.Credentials.TLS.Certificate) > 0 {
 			cert = BrokerHiddenCredentialsDataFormat
 		}
@@ -98,7 +98,7 @@ func (e *ServiceBroker) Sanitize(context.Context) {
 		TLS: &TLS{
 			Certificate:           cert,
 			Key:                   key,
-			SMProvidedCredentials: isSmTLS,
+			SMProvidedCredentials: isServiceManagerTLS,
 		},
 	}
 
