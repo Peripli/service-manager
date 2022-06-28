@@ -28,7 +28,7 @@ var _ = Describe("context signature verification tests", func() {
 			provisionFunc = common.GetOsbProvisionFunc(ctx, instanceID, osbURL, catalogServiceID, catalogPlanID)
 		})
 		When("provisioning a service instance", func() {
-			FIt("should have a valid context signature on the request body", func() {
+			It("should have a valid context signature on the request body", func() {
 				common.ProvisionInstanceAndVerifySignature(ctx, brokerServer, provisionFunc, publicKeyStr)
 			})
 		})
