@@ -22,6 +22,8 @@ import (
 	"net/http"
 )
 
+const CFOrgNameWithSpecialChars = "Test & Org < with > special = chars"
+
 var (
 	CFContext = `{
 			"service_id": "%s",
@@ -30,6 +32,7 @@ var (
 			"context":{
 				"platform":"cloudfoundry",
 				"organization_guid":"1113aa0-124e-4af2-1526-6bfacf61b111",
+				"organization_name": "%s",
 				"space_guid":"aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
 				"instance_name":"%s",
 				"extra_metadata":{
@@ -132,7 +135,7 @@ func VerifySignatureNotPersisted(ctx *TestContext, objType types.ObjectType, id 
 func GetOsbProvisionFunc(ctx *TestContext, instanceID, osbURL, catalogServiceID, catalogPlanID string) func() string {
 	return func() string {
 		ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/" + instanceID).
-			WithBytes([]byte(fmt.Sprintf(CFContext, catalogServiceID, catalogPlanID, "instance-name"))).
+			WithBytes([]byte(fmt.Sprintf(CFContext, catalogServiceID, catalogPlanID, CFOrgNameWithSpecialChars, "instance-name"))).
 			Expect().
 			Status(http.StatusCreated)
 		return instanceID
@@ -158,7 +161,7 @@ func GetSMAAPProvisionInstanceFunc(ctx *TestContext, async, planID string) func(
 
 func OsbBind(ctx *TestContext, instanceID, bindingID, osbURL, catalogServiceID, catalogPlanID string) *httpexpect.Response {
 	return ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/" + instanceID + "/service_bindings/" + bindingID).
-		WithJSON(JSONToMap(fmt.Sprintf(CFContext, catalogServiceID, catalogPlanID, "instance-name"))).
+		WithJSON(JSONToMap(fmt.Sprintf(CFContext, catalogServiceID, catalogPlanID, CFOrgNameWithSpecialChars, "instance-name"))).
 		Expect().
 		Status(http.StatusCreated)
 }

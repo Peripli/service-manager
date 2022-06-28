@@ -28,7 +28,7 @@ var _ = Describe("context signature verification tests", func() {
 			provisionFunc = common.GetOsbProvisionFunc(ctx, instanceID, osbURL, catalogServiceID, catalogPlanID)
 		})
 		When("provisioning a service instance", func() {
-			It("should have a valid context signature on the request body", func() {
+			FIt("should have a valid context signature on the request body", func() {
 				common.ProvisionInstanceAndVerifySignature(ctx, brokerServer, provisionFunc, publicKeyStr)
 			})
 		})
@@ -36,7 +36,7 @@ var _ = Describe("context signature verification tests", func() {
 			It("should have a valid context signature on the request body", func() {
 				common.ProvisionInstanceAndVerifySignature(ctx, brokerServer, provisionFunc, publicKeyStr)
 				ctx.SMWithBasic.PATCH(osbURL + "/v2/service_instances/" + instanceID).
-					WithJSON(common.JSONToMap(fmt.Sprintf(common.CFContext, catalogServiceID, catalogPlanID, "updated-instance-name"))).
+					WithJSON(common.JSONToMap(fmt.Sprintf(common.CFContext, catalogServiceID, catalogPlanID, common.CFOrgNameWithSpecialChars, "updated-instance-name"))).
 					Expect().
 					Status(http.StatusOK)
 				common.VerifySignatureNotPersisted(ctx, types.ServiceInstanceType, instanceID)

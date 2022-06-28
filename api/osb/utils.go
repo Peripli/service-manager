@@ -1,7 +1,9 @@
 package osb
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/client"
 	"github.com/Peripli/service-manager/pkg/log"
@@ -57,4 +59,21 @@ func Get(doRequestWithClient util.DoRequestWithClientFunc, brokerAPIVersion stri
 
 	return responseBytes, nil
 
+}
+
+func marshalJSONNoHTMLEscape(t interface{}) ([]byte, error) {
+	buffer := &bytes.Buffer{}
+	encoder := json.NewEncoder(buffer)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(t); err != nil {
+		return nil, err
+	}
+
+	outputBytes := buffer.Bytes()
+	outputLen := len(outputBytes)
+	if outputLen > 0 && rune(outputBytes[outputLen-1]) == '\n' { // remove line break added by encoder.Encode (https://pkg.go.dev/encoding/json#Encoder.Encode)
+		return outputBytes[:outputLen-1], nil
+	}
+
+	return outputBytes, nil
 }

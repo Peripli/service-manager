@@ -82,7 +82,7 @@ func (s *ContextSignaturePlugin) signContext(req *web.Request, next web.Handler)
 		return next.Handle(req)
 	}
 
-	reqBody, err := json.Marshal(reqBodyMap)
+	reqBody, err := marshalJSONNoHTMLEscape(reqBodyMap)
 	if err != nil {
 		log.C(req.Context()).Errorf("failed to marshal request body: %v", err)
 		return next.Handle(req)
@@ -98,7 +98,7 @@ func (cs *ContextSigner) Sign(ctx context.Context, contextMap map[string]interfa
 		log.C(ctx).Errorf(errorMsg)
 		return fmt.Errorf(errorMsg)
 	}
-	ctxByte, err := json.Marshal(contextMap)
+	ctxByte, err := marshalJSONNoHTMLEscape(contextMap)
 	if err != nil {
 		log.C(ctx).Errorf("failed to marshal context: %v", err)
 		return err
