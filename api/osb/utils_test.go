@@ -9,9 +9,9 @@ import (
 var _ = Describe("OSB Controller Utils test", func() {
 	Describe("marshalJSONNoHTMLEscape", func() {
 		It("keeps special characters", func() {
-			inputMap := map[string]string{"prop": "a & b"}
-			expected := []byte(`{"prop":"a & b"}`)
-			notExpected := []byte(`{"prop":"a \u0026 b"}`)
+			inputMap := map[string]string{"ampersand": "a & b", "smallerThen": "a < b", "biggerThen": "a > b"}
+			expected := []byte(`{"ampersand":"a & b","biggerThen":"a > b","smallerThen":"a < b"}`)
+			notExpected := []byte(`{"ampersand":"a \u0026 b","biggerThen":"a \u003e b","smallerThen":"a \u003c b"}`)
 
 			marshalNoEscapeBytes, err := marshalJSONNoHTMLEscape(inputMap)
 			Expect(err).ToNot(HaveOccurred())
