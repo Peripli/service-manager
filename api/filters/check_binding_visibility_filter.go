@@ -17,16 +17,16 @@
 package filters
 
 import (
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
-	"net/http"
-
+	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
+	"net/http"
 )
 
 const serviceInstanceIDProperty = "service_instance_id"
@@ -107,10 +107,32 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 	}
 
 	if count != 1 {
-		return nil, &util.HTTPError{
-			ErrorType:   "NotFound",
-			Description: "service instance not found or not accessible",
-			StatusCode:  http.StatusNotFound,
+		criteria := []query.Criterion{
+			query.ByField(query.EqualsOperator, "id", instanceID),
+			query.ByLabel(query.EqualsOperator, f.tenantIdentifier, tenantID),
+		}
+
+		count, err := f.repository.Count(ctx, types.ServiceInstanceType, criteria...)
+		if err != nil {
+			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+		}
+
+		byResourceID := query.ByField(query.EqualsOperator, "resource_id", instanceID)
+		orderDesc := query.OrderResultBy("paging_sequence", query.DescOrder)
+		lastOperationObject, err := f.repository.Get(ctx, types.OperationType, byResourceID, orderDesc)
+		lastOperation := lastOperationObject.(*types.Operation)
+
+		deletion_failed := lastOperation.Type == types.DELETE && lastOperation.State == types.FAILED
+		if deletion_failed {
+			fmt.Printf("Deletion failed")
+		}
+
+		if !deletion_failed || count != 1 {
+			return nil, &util.HTTPError{
+				ErrorType:   "NotFound",
+				Description: "service instance not found or not accessible",
+				StatusCode:  http.StatusNotFound,
+			}
 		}
 	}
 
