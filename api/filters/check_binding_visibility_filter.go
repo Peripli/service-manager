@@ -17,7 +17,6 @@
 package filters
 
 import (
-	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -117,17 +116,17 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 		}
 
-		byResourceID := query.ByField(query.EqualsOperator, "resource_id", instanceID)
+		byID := query.ByField(query.EqualsOperator, "id", instanceID)
 		orderDesc := query.OrderResultBy("paging_sequence", query.DescOrder)
-		lastOperationObject, err := f.repository.Get(ctx, types.OperationType, byResourceID, orderDesc)
-		lastOperation := lastOperationObject.(*types.Operation)
+		lastOperationObject, err := f.repository.Get(ctx, types.OperationType, byID, orderDesc)
 
-		deletion_failed := lastOperation.Type == types.DELETE && lastOperation.State == types.FAILED
-		if deletion_failed {
-			fmt.Printf("Deletion failed")
+		deletionFailed := false
+		if err == nil {
+			lastOperation := lastOperationObject.(*types.Operation)
+			deletionFailed = lastOperation.Type == types.DELETE && lastOperation.State == types.FAILED
 		}
 
-		if !deletion_failed || count != 1 {
+		if !deletionFailed || count != 1 {
 			return nil, &util.HTTPError{
 				ErrorType:   "NotFound",
 				Description: "service instance not found or not accessible",
