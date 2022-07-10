@@ -116,7 +116,7 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 		}
 
-		byID := query.ByField(query.EqualsOperator, "id", instanceID)
+		byID := query.ByField(query.EqualsOperator, "resource_id", instanceID)
 		orderDesc := query.OrderResultBy("paging_sequence", query.DescOrder)
 		lastOperationObject, err := f.repository.Get(ctx, types.OperationType, byID, orderDesc)
 
