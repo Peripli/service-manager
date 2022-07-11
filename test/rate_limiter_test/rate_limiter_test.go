@@ -71,6 +71,7 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 		ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
 			Expect(set.Set("api.rate_limit", limit)).ToNot(HaveOccurred())
 			Expect(set.Set("api.rate_limiting_enabled", "true")).ToNot(HaveOccurred())
+			Expect(set.Set("api.rate_limit_exclude_paths", web.OperationsURL)).ToNot(HaveOccurred())
 			if customizer != nil {
 				customizer(set)
 			}
@@ -141,14 +142,10 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 
 			When("endpoint is excluded", func() {
 				BeforeEach(func() {
-					newRateLimiterEnv("2-M", func(set *pflag.FlagSet) {
-						Expect(set.Set("api.rate_limit_exclude_paths", web.ServiceBrokersURL)).ToNot(HaveOccurred())
-					})
-					changeClientIdentifier()
-					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 2)
+					bulkRequest(ctx.SMWithOAuth, web.OperationsURL, 20)
 				})
 				It("doesn't limit excluded paths", func() {
-					expectNonLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
+					expectNonLimitedRequest(ctx.SMWithOAuth, web.OperationsURL)
 				})
 			})
 
@@ -176,21 +173,6 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 				})
 				It("doesn't limit", func() {
 					expectNonLimitedRequest(ctx.SMWithOAuth, web.PlatformsURL)
-				})
-			})
-
-			When("single global configured", func() {
-				BeforeEach(func() {
-					newRateLimiterEnv("3-S", nil)
-					changeClientIdentifier()
-					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 3)
-				})
-				It("does request limit", func() {
-					expectLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
-				})
-				It("resets the limit after timeout", func() {
-					time.Sleep(1 * time.Second)
-					expectNonLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
 				})
 			})
 
