@@ -24,12 +24,14 @@ type RateLimiterFilter struct {
 type RateLimiterMiddleware struct {
 	middleware *stdlib.Middleware
 	pathPrefix string
+	method     string
 }
 
-func NewRateLimiterMiddleware(middleware *stdlib.Middleware, pathPrefix string) RateLimiterMiddleware {
+func NewRateLimiterMiddleware(middleware *stdlib.Middleware, pathPrefix string, method string) RateLimiterMiddleware {
 	return RateLimiterMiddleware{
 		middleware,
 		pathPrefix,
+		method,
 	}
 }
 
@@ -109,6 +111,9 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 	if isLimitedClient {
 		for _, rlm := range rl.rateLimiters {
 			if !strings.HasPrefix(request.URL.Path, rlm.pathPrefix) {
+				continue
+			}
+			if rlm.method != "" && strings.ToUpper(rlm.method) != strings.ToUpper(request.Method) {
 				continue
 			}
 			limiterContext, err := rlm.middleware.Limiter.Get(request.Context(), userContext.Name)
