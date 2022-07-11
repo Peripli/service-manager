@@ -8,6 +8,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/spf13/pflag"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
@@ -81,30 +82,14 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 	var expectLimitedRequest = func(expect *common.SMExpect, path string) {
 		expect.GET(path).Expect().Status(http.StatusTooManyRequests)
 	}
-	var expectNonLimitedRequestByMethod = func(expect *common.SMExpect, path string, method string) {
-		req := expect.GET
-		switch method {
-		case "POST":
-			req = expect.POST
-		case "PATCH":
-			req = expect.PATCH
-		case "DELETE":
-			req = expect.DELETE
-		}
-		req(path).Expect().Status(http.StatusOK)
-	}
 	var expectNonLimitedRequest = func(expect *common.SMExpect, path string) {
-		expectNonLimitedRequestByMethod(expect, path, "GET")
+		expect.GET(path).Expect().Status(http.StatusOK)
 	}
-	var bulkRequestByMethod = func(expect *common.SMExpect, path string, method string, times int) {
+	var bulkRequest = func(expect *common.SMExpect, path string, times int) {
 		for i := 1; i <= times; i++ {
 			expectNonLimitedRequest(expect, path)
 		}
 	}
-	var bulkRequest = func(expect *common.SMExpect, path string, times int) {
-		bulkRequestByMethod(expect, path, "GET", times)
-	}
-
 	var registerBroker = func() {
 		UUID, err := uuid.NewV4()
 		Expect(err).ToNot(HaveOccurred())
@@ -267,9 +252,20 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 					registerBroker()
 					servicePlanID = ctx.SMWithOAuth.List(web.ServicePlansURL).Element(0).Object().Value("id").String().Raw()
 					changeClientIdentifier()
-					bulkRequestByMethod(ctx.SMWithOAuth, web.ServiceInstancesURL, "POST", 5)
+					for i := 1; i <= 5; i++ {
+						requestBody := common.Object{
+							"name":            "test-instance" + strconv.Itoa(i),
+							"service_plan_id": servicePlanID,
+						}
+						ctx.SMWithOAuth.
+							POST(web.ServiceInstancesURL).
+							WithQuery("async", "false").
+							WithJSON(requestBody).
+							Expect().
+							Status(http.StatusCreated)
+					}
 				})
-				It("apply request limit on /v1/service_instances path and POST method", func() {
+				FIt("apply request limit on /v1/service_instances path and POST method", func() {
 					requestBody := common.Object{
 						"name":            "test-instance",
 						"service_plan_id": servicePlanID,
