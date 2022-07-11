@@ -118,10 +118,6 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 		}
 
-		if err = addClusterIdAndNameSpaceToReqCtx(req); err != nil {
-			return nil, err
-		}
-
 		byID := query.ByField(query.EqualsOperator, "resource_id", instanceID)
 		orderDesc := query.OrderResultBy("paging_sequence", query.DescOrder)
 		lastOperationObject, err := f.repository.Get(ctx, types.OperationType, byID, orderDesc)
@@ -136,6 +132,14 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 			return nil, &util.HTTPError{
 				ErrorType:   "NotFound",
 				Description: "service instance not found or not accessible",
+				StatusCode:  http.StatusNotFound,
+			}
+		}
+
+		if err = addClusterIdAndNameSpaceToReqCtx(req); err != nil {
+			return nil, &util.HTTPError{
+				ErrorType:   "NotFound",
+				Description: "error adding clusterid and namespace to ctx",
 				StatusCode:  http.StatusNotFound,
 			}
 		}
