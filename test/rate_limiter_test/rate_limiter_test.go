@@ -302,13 +302,13 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 
 			When("limiter configured with global rate and multiple for specific path", func() {
 				BeforeEach(func() {
-					newRateLimiterEnv("100-M,20-S:"+web.PlatformsURL+",30-M:"+web.PlatformsURL, nil)
+					newRateLimiterEnv("100-M,2-S:"+web.PlatformsURL+",4-M:"+web.PlatformsURL, nil)
 					changeClientIdentifier()
-					// Exhaust seconds limiter, minute limiter drop from 30 to 10
-					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 20)
+					// Exhaust seconds limiter, minute limiter drop from 4 to 2
+					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 2)
 					time.Sleep(1 * time.Second)
 					// Exhaust minute limiter
-					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 10)
+					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 2)
 					// Expecting second limiter will reset, but minute should be still exhausted
 					time.Sleep(3 * time.Second)
 				})
