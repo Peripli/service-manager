@@ -196,13 +196,13 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 
 			When("two global limiters configured", func() {
 				BeforeEach(func() {
-					newRateLimiterEnv("20-S,30-M", nil)
+					newRateLimiterEnv("2-S,3-M", nil)
 					changeClientIdentifier()
-					// Exhaust seconds limiter, minute limiter drop from 30 to 10
-					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 20)
+					// Exhaust seconds limiter, minute limiter drop from 3 to 1
+					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 2)
 					time.Sleep(1 * time.Second)
 					// Exhaust minute limiter
-					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 10)
+					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 1)
 					// Expecting second limiter will reset, but minute should be still exhausted
 					time.Sleep(3 * time.Second)
 				})
