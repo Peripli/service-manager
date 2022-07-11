@@ -55,6 +55,7 @@ func (*serviceBindingVisibilityFilter) Name() string {
 
 func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
+	var instanceID string
 
 	tenantID := query.RetrieveFromCriteria(f.tenantIdentifier, query.CriteriaForContext(ctx)...)
 	if tenantID == "" {
@@ -70,7 +71,6 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 		return next.Handle(req)
 	}
 
-	var instanceID string
 	if req.Method == http.MethodPatch {
 		bindingID := req.PathParams[web.PathParamResourceID]
 		bindingObj, err := f.repository.Get(ctx, types.ServiceBindingType, query.ByField(query.EqualsOperator, "id", bindingID))
@@ -118,38 +118,21 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 		}
 
-		labelsString := gjson.GetBytes(req.Body, "labels").Raw
-		labels := types.Labels{}
-		if len(labelsString) > 0 {
-			err := json.Unmarshal([]byte(labelsString), &labels)
-			if err != nil {
-				return nil, fmt.Errorf("could not get labels from request body: %s", err)
-			}
-		}
-		clusterLabel := labels["_clusterid"]
-		namespaceLabel := labels["_namespace"]
-
-		req.Body, err = sjson.SetBytes(req.Body, "context."+"clusterid", clusterLabel[0])
-		if err != nil {
-			return nil, fmt.Errorf("could not add clusterid to context: %s", err)
-		}
-
-		req.Body, err = sjson.SetBytes(req.Body, "context."+"namespace", namespaceLabel[0])
-		if err != nil {
-			return nil, fmt.Errorf("could not add namespace to context: %s", err)
+		if err = addClusterIdAndNameSpaceToReq(req); err != nil {
+			return nil, err
 		}
 
 		byID := query.ByField(query.EqualsOperator, "resource_id", instanceID)
 		orderDesc := query.OrderResultBy("paging_sequence", query.DescOrder)
 		lastOperationObject, err := f.repository.Get(ctx, types.OperationType, byID, orderDesc)
-
-		deletionFailed := false
-		if err == nil {
-			lastOperation := lastOperationObject.(*types.Operation)
-			deletionFailed = lastOperation.Type == types.DELETE && lastOperation.State == types.FAILED
+		if err != nil {
+			return nil, err
 		}
 
-		if !deletionFailed || count != 1 || err != nil {
+		lastOperation := lastOperationObject.(*types.Operation)
+		deletionFailed := lastOperation.Type == types.DELETE && lastOperation.State == types.FAILED
+
+		if !deletionFailed || count != 1 {
 			return nil, &util.HTTPError{
 				ErrorType:   "NotFound",
 				Description: "service instance not found or not accessible",
@@ -159,6 +142,34 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 	}
 
 	return next.Handle(req)
+}
+
+func addClusterIdAndNameSpaceToReq(req *web.Request) error {
+	labelsString := gjson.GetBytes(req.Body, "labels").Raw
+	labels := types.Labels{}
+	if len(labelsString) > 0 {
+		err := json.Unmarshal([]byte(labelsString), &labels)
+		if err != nil {
+			return fmt.Errorf("could not get labels from request body: %s", err)
+		}
+	}
+	clusterLabel := labels["_clusterid"]
+	namespaceLabel := labels["_namespace"]
+	clusterID := clusterLabel[0]
+	namespace := namespaceLabel[0]
+
+	var err error
+	req.Body, err = sjson.SetBytes(req.Body, "context.clusterid", clusterID)
+	if err != nil {
+		return fmt.Errorf("could not add clusterid to context: %s", err)
+	}
+
+	req.Body, err = sjson.SetBytes(req.Body, "context.namespace", namespace)
+	if err != nil {
+		return fmt.Errorf("could not add namespace to context: %s", err)
+	}
+
+	return nil
 }
 
 func (*serviceBindingVisibilityFilter) FilterMatchers() []web.FilterMatcher {
