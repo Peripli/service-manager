@@ -118,7 +118,7 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 		}
 
-		if err = addClusterIdAndNameSpaceToReq(req); err != nil {
+		if err = addClusterIdAndNameSpaceToReqCtx(req); err != nil {
 			return nil, err
 		}
 
@@ -144,17 +144,25 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 	return next.Handle(req)
 }
 
-func addClusterIdAndNameSpaceToReq(req *web.Request) error {
-	labelsString := gjson.GetBytes(req.Body, "labels").Raw
+func addClusterIdAndNameSpaceToReqCtx(req *web.Request) error {
+	clusterIdFieldName := "_clusterid"
+	nameSpaceFieldName := "_namespace"
 	labels := types.Labels{}
+
+	labelsString := gjson.GetBytes(req.Body, "labels").Raw
 	if len(labelsString) > 0 {
 		err := json.Unmarshal([]byte(labelsString), &labels)
 		if err != nil {
 			return fmt.Errorf("could not get labels from request body: %s", err)
 		}
 	}
-	clusterLabel := labels["_clusterid"]
-	namespaceLabel := labels["_namespace"]
+
+	if labels[clusterIdFieldName] == nil || labels[nameSpaceFieldName] == nil {
+		return fmt.Errorf("clusterid or namespace field is missing in the body of the request")
+	}
+
+	clusterLabel := labels[clusterIdFieldName]
+	namespaceLabel := labels[nameSpaceFieldName]
 	clusterID := clusterLabel[0]
 	namespace := namespaceLabel[0]
 
