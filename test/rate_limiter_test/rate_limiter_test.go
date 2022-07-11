@@ -132,9 +132,7 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 
 			When("endpoint is public", func() {
 				BeforeEach(func() {
-					newRateLimiterEnv("2-M", nil)
-					changeClientIdentifier()
-					bulkRequest(ctx.SMWithOAuth, "/v1/info", 2)
+					bulkRequest(ctx.SMWithOAuth, "/v1/info", 21)
 				})
 				It("doesn't limit public endpoints", func() {
 					expectNonLimitedRequest(ctx.SMWithOAuth, "/v1/info")
@@ -156,9 +154,8 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 
 			When("doing too many requests", func() {
 				BeforeEach(func() {
-					newRateLimiterEnv("2-M", nil)
 					changeClientIdentifier()
-					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 2)
+					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 20)
 				})
 				It("does limit", func() {
 					expectLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
