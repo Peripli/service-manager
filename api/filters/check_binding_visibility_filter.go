@@ -17,6 +17,8 @@
 package filters
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -116,7 +118,28 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 		}
 
-		byID := query.ByField(query.EqualsOperator, "id", instanceID)
+		labelsString := gjson.GetBytes(req.Body, "labels").Raw
+		labels := types.Labels{}
+		if len(labelsString) > 0 {
+			err := json.Unmarshal([]byte(labelsString), &labels)
+			if err != nil {
+				return nil, fmt.Errorf("could not get labels from request body: %s", err)
+			}
+		}
+		clusterLabel := labels["_clusterid"]
+		namespaceLabel := labels["_namespace"]
+
+		req.Body, err = sjson.SetBytes(req.Body, "context."+"clusterid", clusterLabel[0])
+		if err != nil {
+			return nil, fmt.Errorf("could not add clusterid to context: %s", err)
+		}
+
+		req.Body, err = sjson.SetBytes(req.Body, "context."+"namespace", namespaceLabel[0])
+		if err != nil {
+			return nil, fmt.Errorf("could not add namespace to context: %s", err)
+		}
+
+		byID := query.ByField(query.EqualsOperator, "resource_id", instanceID)
 		orderDesc := query.OrderResultBy("paging_sequence", query.DescOrder)
 		lastOperationObject, err := f.repository.Get(ctx, types.OperationType, byID, orderDesc)
 
@@ -126,7 +149,7 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 			deletionFailed = lastOperation.Type == types.DELETE && lastOperation.State == types.FAILED
 		}
 
-		if !deletionFailed || count != 1 {
+		if !deletionFailed || count != 1 || err != nil {
 			return nil, &util.HTTPError{
 				ErrorType:   "NotFound",
 				Description: "service instance not found or not accessible",
