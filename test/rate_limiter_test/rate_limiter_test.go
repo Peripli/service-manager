@@ -8,6 +8,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/spf13/pflag"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
@@ -57,6 +58,7 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 	var osbURL string
 	var serviceID string
 	var planID string
+
 	var filterContext = &overrideFilter{}
 	var changeClientIdentifier = func() string {
 		UUID, err := uuid.NewV4()
@@ -69,6 +71,7 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 		ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
 			Expect(set.Set("api.rate_limit", limit)).ToNot(HaveOccurred())
 			Expect(set.Set("api.rate_limiting_enabled", "true")).ToNot(HaveOccurred())
+			Expect(set.Set("api.rate_limit_exclude_paths", web.OperationsURL)).ToNot(HaveOccurred())
 			if customizer != nil {
 				customizer(set)
 			}
@@ -88,9 +91,7 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 			expectNonLimitedRequest(expect, path)
 		}
 	}
-
-	BeforeEach(func() {
-		newRateLimiterEnv("20-M", nil)
+	var registerBroker = func() {
 		UUID, err := uuid.NewV4()
 		Expect(err).ToNot(HaveOccurred())
 		planID = UUID.String()
@@ -101,12 +102,18 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 		service1 := common.GenerateTestServiceWithPlansWithID(serviceID, plan1)
 		catalog := common.NewEmptySBCatalog()
 		catalog.AddService(service1)
-		brokerID := ctx.RegisterBrokerWithCatalog(catalog).Broker.ID
+		broker := ctx.RegisterBrokerWithCatalog(catalog)
+		brokerID := broker.Broker.ID
 		common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
 
 		username, password := test.RegisterBrokerPlatformCredentials(ctx.SMWithBasic, brokerID)
 		ctx.SMWithBasic.SetBasicCredentials(ctx, username, password)
 		osbURL = "/v1/osb/" + brokerID
+	}
+
+	BeforeEach(func() {
+		newRateLimiterEnv("20-M", nil)
+		registerBroker()
 	})
 
 	AfterEach(func() {
@@ -120,13 +127,13 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 
 			When("basic auth (global Platform)", func() {
 				It("doesn't limit basic auth requests", func() {
-					bulkRequest(ctx.SMWithBasic, osbURL+"/v2/catalog", 100)
+					bulkRequest(ctx.SMWithBasic, osbURL+"/v2/catalog", 21)
 				})
 			})
 
 			When("endpoint is public", func() {
 				BeforeEach(func() {
-					bulkRequest(ctx.SMWithOAuth, "/v1/info", 100)
+					bulkRequest(ctx.SMWithOAuth, "/v1/info", 21)
 				})
 				It("doesn't limit public endpoints", func() {
 					expectNonLimitedRequest(ctx.SMWithOAuth, "/v1/info")
@@ -135,14 +142,10 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 
 			When("endpoint is excluded", func() {
 				BeforeEach(func() {
-					newRateLimiterEnv("20-M", func(set *pflag.FlagSet) {
-						Expect(set.Set("api.rate_limit_exclude_paths", web.ServiceBrokersURL)).ToNot(HaveOccurred())
-					})
-					changeClientIdentifier()
-					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 20)
+					bulkRequest(ctx.SMWithOAuth, web.OperationsURL, 20)
 				})
 				It("doesn't limit excluded paths", func() {
-					expectNonLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
+					expectNonLimitedRequest(ctx.SMWithOAuth, web.OperationsURL)
 				})
 			})
 
@@ -163,40 +166,25 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 			When("exclude client configured", func() {
 				BeforeEach(func() {
 					client := changeClientIdentifier()
-					newRateLimiterEnv("20-M,20-M", func(set *pflag.FlagSet) {
+					newRateLimiterEnv("2-M,2-M", func(set *pflag.FlagSet) {
 						Expect(set.Set("api.rate_limit_exclude_clients", client)).ToNot(HaveOccurred())
 					})
-					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 20)
+					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 2)
 				})
 				It("doesn't limit", func() {
 					expectNonLimitedRequest(ctx.SMWithOAuth, web.PlatformsURL)
 				})
 			})
 
-			When("single global configured", func() {
-				BeforeEach(func() {
-					newRateLimiterEnv("20-S", nil)
-					changeClientIdentifier()
-					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 20)
-				})
-				It("does request limit", func() {
-					expectLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
-				})
-				It("resets the limit after timeout", func() {
-					time.Sleep(1 * time.Second)
-					expectNonLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL)
-				})
-			})
-
 			When("two global limiters configured", func() {
 				BeforeEach(func() {
-					newRateLimiterEnv("20-S,30-M", nil)
+					newRateLimiterEnv("2-S,3-M", nil)
 					changeClientIdentifier()
-					// Exhaust seconds limiter, minute limiter drop from 30 to 10
-					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 20)
+					// Exhaust seconds limiter, minute limiter drop from 3 to 1
+					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 2)
 					time.Sleep(1 * time.Second)
 					// Exhaust minute limiter
-					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 10)
+					bulkRequest(ctx.SMWithOAuth, web.ServiceBrokersURL, 1)
 					// Expecting second limiter will reset, but minute should be still exhausted
 					time.Sleep(3 * time.Second)
 				})
@@ -239,6 +227,44 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 				})
 			})
 
+			When("limiter for /v1/service_instances path and POST method is configured", func() {
+				var servicePlanID string
+				BeforeEach(func() {
+					newRateLimiterEnv("6-M:"+web.ServiceInstancesURL+",5-M:"+web.ServiceInstancesURL+":POST", nil)
+					registerBroker()
+					servicePlanID = ctx.SMWithOAuth.List(web.ServicePlansURL).Element(0).Object().Value("id").String().Raw()
+					changeClientIdentifier()
+					for i := 1; i <= 5; i++ {
+						requestBody := common.Object{
+							"name":            "test-instance" + strconv.Itoa(i),
+							"service_plan_id": servicePlanID,
+						}
+						ctx.SMWithOAuth.
+							POST(web.ServiceInstancesURL).
+							WithQuery("async", "false").
+							WithJSON(requestBody).
+							Expect().
+							Status(http.StatusCreated)
+					}
+				})
+				It("apply request limit on /v1/service_instances path and POST method", func() {
+					requestBody := common.Object{
+						"name":            "test-instance",
+						"service_plan_id": servicePlanID,
+					}
+					ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
+						WithQuery("async", "false").
+						WithJSON(requestBody).
+						Expect().
+						Status(http.StatusTooManyRequests)
+				})
+				It("does not apply request limit on /v1/service_instances path GET method", func() {
+					ctx.SMWithOAuth.GET(web.ServiceInstancesURL).
+						Expect().
+						Status(http.StatusOK)
+				})
+			})
+
 			When("limiter for multiple paths configured", func() {
 				BeforeEach(func() {
 					newRateLimiterEnv("10-M,5-M:"+web.PlatformsURL+",2-M:"+web.ServicePlansURL, nil)
@@ -258,13 +284,13 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 
 			When("limiter configured with global rate and multiple for specific path", func() {
 				BeforeEach(func() {
-					newRateLimiterEnv("100-M,20-S:"+web.PlatformsURL+",30-M:"+web.PlatformsURL, nil)
+					newRateLimiterEnv("100-M,2-S:"+web.PlatformsURL+",4-M:"+web.PlatformsURL, nil)
 					changeClientIdentifier()
-					// Exhaust seconds limiter, minute limiter drop from 30 to 10
-					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 20)
+					// Exhaust seconds limiter, minute limiter drop from 4 to 2
+					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 2)
 					time.Sleep(1 * time.Second)
 					// Exhaust minute limiter
-					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 10)
+					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 2)
 					// Expecting second limiter will reset, but minute should be still exhausted
 					time.Sleep(3 * time.Second)
 				})
