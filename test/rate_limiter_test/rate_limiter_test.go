@@ -265,7 +265,7 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 							Status(http.StatusCreated)
 					}
 				})
-				FIt("apply request limit on /v1/service_instances path and POST method", func() {
+				It("apply request limit on /v1/service_instances path and POST method", func() {
 					requestBody := common.Object{
 						"name":            "test-instance",
 						"service_plan_id": servicePlanID,
