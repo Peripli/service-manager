@@ -29,14 +29,14 @@ var _ = Describe("context signature verification tests", func() {
 		})
 		When("provisioning a service instance", func() {
 			It("should have a valid context signature on the request body", func() {
-				common.ProvisionInstanceAndVerifySignature(ctx, brokerServer, provisionFunc, publicKeyStr)
+				common.ProvisionInstanceAndVerifySignature(ctx, brokerServer, provisionFunc, publicKeyStr, true)
 			})
 		})
 		When("updating a service instance", func() {
 			It("should have a valid context signature on the request body", func() {
-				common.ProvisionInstanceAndVerifySignature(ctx, brokerServer, provisionFunc, publicKeyStr)
+				common.ProvisionInstanceAndVerifySignature(ctx, brokerServer, provisionFunc, publicKeyStr, true)
 				ctx.SMWithBasic.PATCH(osbURL + "/v2/service_instances/" + instanceID).
-					WithJSON(common.JSONToMap(fmt.Sprintf(common.CFContext, catalogServiceID, catalogPlanID, "updated-instance-name"))).
+					WithJSON(common.JSONToMap(fmt.Sprintf(common.CFContext, catalogServiceID, catalogPlanID, common.StringWithSpecialChars, "updated-instance-name"))).
 					Expect().
 					Status(http.StatusOK)
 				common.VerifySignatureNotPersisted(ctx, types.ServiceInstanceType, instanceID)
@@ -44,9 +44,9 @@ var _ = Describe("context signature verification tests", func() {
 		})
 		When("binding a service instance", func() {
 			It("should have a context signature on the request body", func() {
-				common.ProvisionInstanceAndVerifySignature(ctx, brokerServer, provisionFunc, publicKeyStr)
+				common.ProvisionInstanceAndVerifySignature(ctx, brokerServer, provisionFunc, publicKeyStr, true)
 
-				brokerServer.BindingHandler = common.GetVerifyContextHandlerFunc(publicKeyStr)
+				brokerServer.BindingHandler = common.GetVerifyContextHandlerFunc(publicKeyStr, false)
 				bindingID := "signed-ctx-instance-binding-id"
 				common.OsbBind(ctx, instanceID, bindingID, osbURL, catalogServiceID, catalogPlanID)
 
@@ -70,12 +70,12 @@ var _ = Describe("context signature verification tests", func() {
 		})
 		When("provisioning a service instance", func() {
 			It("should have a valid context signature on the request body", func() {
-				common.ProvisionInstanceAndVerifySignature(ctx, brokerServer, provisionFunc, publicKeyStr)
+				common.ProvisionInstanceAndVerifySignature(ctx, brokerServer, provisionFunc, publicKeyStr, false)
 			})
 		})
 		When("updating a service instance", func() {
 			It("should have a valid context signature on the request body", func() {
-				instanceID := common.ProvisionInstanceAndVerifySignature(ctx, brokerServer, provisionFunc, publicKeyStr)
+				instanceID := common.ProvisionInstanceAndVerifySignature(ctx, brokerServer, provisionFunc, publicKeyStr, false)
 				patchRequestBody := common.Object{
 					"name": "updated-test-instance",
 				}
@@ -94,9 +94,9 @@ var _ = Describe("context signature verification tests", func() {
 		})
 		When("binding a service instance", func() {
 			It("should have a context signature on the request body", func() {
-				instanceID := common.ProvisionInstanceAndVerifySignature(ctx, brokerServer, provisionFunc, publicKeyStr)
+				instanceID := common.ProvisionInstanceAndVerifySignature(ctx, brokerServer, provisionFunc, publicKeyStr, false)
 
-				brokerServer.BindingHandler = common.GetVerifyContextHandlerFunc(publicKeyStr)
+				brokerServer.BindingHandler = common.GetVerifyContextHandlerFunc(publicKeyStr, false)
 
 				bindingID := common.SmaapBind(ctx, "false", instanceID)
 

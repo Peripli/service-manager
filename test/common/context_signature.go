@@ -22,6 +22,8 @@ import (
 	"net/http"
 )
 
+const StringWithSpecialChars = "Test & string < with > special chars &"
+
 var (
 	CFContext = `{
 			"service_id": "%s",
@@ -30,6 +32,7 @@ var (
 			"context":{
 				"platform":"cloudfoundry",
 				"organization_guid":"1113aa0-124e-4af2-1526-6bfacf61b111",
+				"string_with_special_chars": "%s",
 				"space_guid":"aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
 				"instance_name":"%s",
 				"extra_metadata":{
@@ -40,7 +43,7 @@ var (
 		}`
 )
 
-func GetVerifyContextHandlerFunc(publicKeyStr string) func(http.ResponseWriter, *http.Request) {
+func GetVerifyContextHandlerFunc(publicKeyStr string, isOSB bool) func(http.ResponseWriter, *http.Request) {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		defer GinkgoRecover()
 		bytes, err := util.BodyToBytes(r.Body)
@@ -57,6 +60,15 @@ func GetVerifyContextHandlerFunc(publicKeyStr string) func(http.ResponseWriter, 
 		//verify service_instance_id is in the context
 		instanceID := gjson.GetBytes(bytes, "context.service_instance_id")
 		Expect(instanceID.Exists()).To(Equal(true), "context should have a service_instance_id field")
+
+		if isOSB {
+			//verify string_with_special_chars was not html escaped
+			specialCharStr := gjson.GetBytes(bytes, "context.string_with_special_chars").Raw // not using String() as it automatically converts the escaped string to a normal one
+			Expect(specialCharStr).To(Equal(fmt.Sprintf(`"%s"`, StringWithSpecialChars)), "context should have a non escaped string_with_special_chars")
+			notExpectedOrgName, err := json.Marshal(StringWithSpecialChars)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(specialCharStr).ToNot(Equal(notExpectedOrgName))
+		}
 
 		//decode the public key
 		key, err := base64.StdEncoding.DecodeString(publicKeyStr)
@@ -132,7 +144,7 @@ func VerifySignatureNotPersisted(ctx *TestContext, objType types.ObjectType, id 
 func GetOsbProvisionFunc(ctx *TestContext, instanceID, osbURL, catalogServiceID, catalogPlanID string) func() string {
 	return func() string {
 		ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/" + instanceID).
-			WithBytes([]byte(fmt.Sprintf(CFContext, catalogServiceID, catalogPlanID, "instance-name"))).
+			WithBytes([]byte(fmt.Sprintf(CFContext, catalogServiceID, catalogPlanID, StringWithSpecialChars, "instance-name"))).
 			Expect().
 			Status(http.StatusCreated)
 		return instanceID
@@ -158,7 +170,7 @@ func GetSMAAPProvisionInstanceFunc(ctx *TestContext, async, planID string) func(
 
 func OsbBind(ctx *TestContext, instanceID, bindingID, osbURL, catalogServiceID, catalogPlanID string) *httpexpect.Response {
 	return ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/" + instanceID + "/service_bindings/" + bindingID).
-		WithJSON(JSONToMap(fmt.Sprintf(CFContext, catalogServiceID, catalogPlanID, "instance-name"))).
+		WithJSON(JSONToMap(fmt.Sprintf(CFContext, catalogServiceID, catalogPlanID, StringWithSpecialChars, "instance-name"))).
 		Expect().
 		Status(http.StatusCreated)
 }
@@ -178,8 +190,8 @@ func SmaapBind(ctx *TestContext, async, instanceID string) string {
 	return resp.JSON().Object().Value("id").String().Raw()
 }
 
-func ProvisionInstanceAndVerifySignature(ctx *TestContext, brokerServer *BrokerServer, provisionFunc func() string, publicKeyStr string) string {
-	brokerServer.ServiceInstanceHandler = GetVerifyContextHandlerFunc(publicKeyStr)
+func ProvisionInstanceAndVerifySignature(ctx *TestContext, brokerServer *BrokerServer, provisionFunc func() string, publicKeyStr string, isOSB bool) string {
+	brokerServer.ServiceInstanceHandler = GetVerifyContextHandlerFunc(publicKeyStr, isOSB)
 
 	instanceID := provisionFunc()
 
