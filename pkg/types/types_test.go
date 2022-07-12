@@ -1,6 +1,7 @@
 package types
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -114,6 +115,75 @@ var _ = Describe("Types test", func() {
 			})
 		}(entries[i])
 	}
+
+	Context("Broker Sanitize", func() {
+		generateBrokerWithCredentials := func(basic, tls, smTLS bool) *ServiceBroker {
+			b := &ServiceBroker{
+				Name:        "test_broker",
+				Description: "broker decription",
+				BrokerURL:   "broker_url",
+				Credentials: &Credentials{},
+			}
+			if basic {
+				b.Credentials.Basic = &Basic{
+					Username: "user",
+					Password: "password",
+				}
+			}
+			if tls {
+				b.Credentials.TLS = &TLS{
+					Certificate: "cert",
+					Key:         "key",
+				}
+			}
+			if smTLS {
+				if b.Credentials.TLS != nil {
+					b.Credentials.TLS.SMProvidedCredentials = smTLS
+				} else {
+					b.Credentials.TLS = &TLS{SMProvidedCredentials: smTLS}
+				}
+			}
+			return b
+		}
+
+		It("sanitizes basic and tls credentials", func() {
+			b := generateBrokerWithCredentials(true, true, true)
+			b.Sanitize(context.Background())
+			Expect(b.Credentials.Basic.Username).To(Equal(BrokerHiddenCredentialsDataFormat))
+			Expect(b.Credentials.Basic.Password).To(Equal(BrokerHiddenCredentialsDataFormat))
+			Expect(b.Credentials.TLS.Certificate).To(Equal(BrokerHiddenCredentialsDataFormat))
+			Expect(b.Credentials.TLS.Key).To(Equal(BrokerHiddenCredentialsDataFormat))
+			Expect(b.Credentials.TLS.SMProvidedCredentials).To(BeTrue())
+		})
+
+		It("omits basic if not set", func() {
+			b := generateBrokerWithCredentials(false, true, true)
+			b.Sanitize(context.Background())
+			Expect(b.Credentials.Basic).To(BeNil())
+			Expect(b.Credentials.TLS.Certificate).To(Equal(BrokerHiddenCredentialsDataFormat))
+			Expect(b.Credentials.TLS.Key).To(Equal(BrokerHiddenCredentialsDataFormat))
+			Expect(b.Credentials.TLS.SMProvidedCredentials).To(BeTrue())
+		})
+
+		It("keeps tls if not set and sets sm_provided_mtls", func() {
+			b := generateBrokerWithCredentials(false, false, true)
+			b.Sanitize(context.Background())
+			Expect(b.Credentials.Basic).To(BeNil())
+			Expect(b.Credentials.TLS.Certificate).To(BeEmpty())
+			Expect(b.Credentials.TLS.Key).To(BeEmpty())
+			Expect(b.Credentials.TLS.SMProvidedCredentials).To(BeTrue())
+		})
+
+		It("keeps tls if not set and sets sm_provided_mtls along with basic", func() {
+			b := generateBrokerWithCredentials(true, false, true)
+			b.Sanitize(context.Background())
+			Expect(b.Credentials.Basic.Username).To(Equal(BrokerHiddenCredentialsDataFormat))
+			Expect(b.Credentials.Basic.Password).To(Equal(BrokerHiddenCredentialsDataFormat))
+			Expect(b.Credentials.TLS.Certificate).To(BeEmpty())
+			Expect(b.Credentials.TLS.Key).To(BeEmpty())
+			Expect(b.Credentials.TLS.SMProvidedCredentials).To(BeTrue())
+		})
+	})
 })
 
 type testCase struct {

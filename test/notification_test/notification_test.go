@@ -129,6 +129,7 @@ var _ = Describe("Notifications Suite", func() {
 					Status(http.StatusOK).JSON().Object().Raw()
 
 				delete(patchedObj, "last_operation")
+				delete(patchedObj, "credentials")
 				return patchedObj
 			},
 			ResourceUpdates: []func() common.Object{

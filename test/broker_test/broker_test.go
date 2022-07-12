@@ -21,6 +21,10 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/test/tls_settings"
+	"github.com/gavv/httpexpect"
+	"github.com/spf13/cast"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -38,16 +42,10 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/test"
-	"github.com/gavv/httpexpect"
-
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
-
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/spf13/cast"
 )
 
 func TestBrokers(t *testing.T) {
@@ -55,7 +53,18 @@ func TestBrokers(t *testing.T) {
 	RunSpecs(t, "ServiceBroker API Tests Suite")
 }
 
-const TenantLabelKey = "tenant"
+const (
+	TenantLabelKey = "tenant"
+
+	credentialsTLSPath = "$.credentials.tls"
+	smProvidedTLSPath  = credentialsTLSPath + ".sm_provided_tls_credentials"
+	clientCertPath     = credentialsTLSPath + ".client_certificate"
+	clientKeyPath      = credentialsTLSPath + ".client_key"
+
+	credentialsBasicPath = "$.credentials.basic"
+	usernamePath         = credentialsBasicPath + ".username"
+	passwordPath         = credentialsBasicPath + ".password"
+)
 
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.ServiceBrokersURL,
@@ -76,7 +85,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	SupportsAsyncOperations:                true,
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
-	ResourcePropertiesToIgnore:             []string{"last_operation"},
+	ResourcePropertiesToIgnore:             []string{"last_operation", "credentials"},
 	PatchResource:                          test.APIResourcePatch,
 	AdditionalTests: func(ctx *TestContext, t *test.TestCase) {
 		Context("additional non-generic tests", func() {
@@ -513,6 +522,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						assertPOSTReturns201WhenFieldIsMissing("description")
 					})
 				})
+
 				Context("when no credentials provided", func() {
 					It("should fail", func() {
 						postRequest := Object{
@@ -534,6 +544,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					})
 				})
+
 				Context("when request body has invalid field", func() {
 					Context("when name field is too long", func() {
 						BeforeEach(func() {
@@ -630,6 +641,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							http.DefaultTransport.(*http.Transport).TLSClientConfig.ServerName = "localhost"
 
 						})
+
 						JustAfterEach(func() {
 							http.DefaultTransport.(*http.Transport).TLSClientConfig = nil
 							settings.TLSCertificates = []tls.Certificate{}
@@ -647,8 +659,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								settings.ServerCertificateKey = tls_settings.ServerManagerCertificateKey
 
 							})
+
 							When("sm provided credentials requested", func() {
-								It("ok", func() {
+								It("it creates the broker", func() {
 									res := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerBasicServerMtls).
 										Expect().
 										Status(http.StatusCreated).JSON().Object()
@@ -665,8 +678,18 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									res.ContainsMap(expectedResponse)
 									res.NotContainsKey("tls")
 									assertInvocationCount(brokerServerWithSMCertficate.CatalogEndpointRequests, 1)
+
+									By("getting the broker and validating the credentials object in response")
+									brokerID := res.Value("id").String().Raw()
+									getResponse := ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", web.ServiceBrokersURL, brokerID)).
+										Expect().Status(http.StatusOK).JSON().Object()
+									getResponse.Path(smProvidedTLSPath).Equal(true)
+									getResponse.NotContainsKey(credentialsBasicPath)
+									getResponse.NotContainsKey(clientCertPath)
+									getResponse.NotContainsKey(clientKeyPath)
 								})
 							})
+
 							When("mtls with basic", func() {
 								It("should  succeed", func() {
 									req := CopyObject(postBrokerBasicServerMtls)
@@ -678,6 +701,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 										Expect().Status(http.StatusCreated).JSON().Object()
 									res.ContainsMap(expectedBrokerServerWithServiceManagerMtlsAndBasicAuth)
 									assertInvocationCount(brokerServerWithSMCertficate.CatalogEndpointRequests, 1)
+
+									By("getting the broker and validating credentials object in response")
+									brokerID := res.Value("id").String().Raw()
+									getResponse := ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", web.ServiceBrokersURL, brokerID)).
+										Expect().Status(http.StatusOK).JSON().Object()
+									getResponse.Path(smProvidedTLSPath).Equal(true)
+									getResponse.Path(usernamePath).Equal(types.BrokerHiddenCredentialsDataFormat)
+									getResponse.Path(passwordPath).Equal(types.BrokerHiddenCredentialsDataFormat)
 								})
 							})
 
@@ -692,6 +723,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								})
 
 							})
+
 							Context("broker with its own tls configuration", func() {
 								It("sends request to a broker that supports only service manager certificate, should fail", func() {
 									//check if only one certificate is sent, otherwise the connection would'nt fail
@@ -700,6 +732,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 										Status(http.StatusBadGateway)
 								})
 							})
+
 							Context("broker client certificate and basic auth are configured", func() {
 								It("should succeed", func() {
 									reply := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithTLSandBasic).
@@ -708,6 +741,16 @@ var _ = test.DescribeTestsFor(test.TestCase{
 										JSON().Object()
 									reply.ContainsMap(expectedBrokerResponseTLS)
 									assertInvocationCount(brokerServerWithBrokerCertificate.CatalogEndpointRequests, 1)
+
+									By("getting the broker and validating credentials object in response")
+									brokerID := reply.Value("id").String().Raw()
+									getResponse := ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", web.ServiceBrokersURL, brokerID)).
+										Expect().Status(http.StatusOK).JSON().Object()
+									getResponse.Path(smProvidedTLSPath).Equal(false)
+									getResponse.Path(usernamePath).Equal(types.BrokerHiddenCredentialsDataFormat)
+									getResponse.Path(passwordPath).Equal(types.BrokerHiddenCredentialsDataFormat)
+									getResponse.Path(clientCertPath).Equal(types.BrokerHiddenCredentialsDataFormat)
+									getResponse.Path(clientKeyPath).Equal(types.BrokerHiddenCredentialsDataFormat)
 								})
 
 							})
@@ -1303,7 +1346,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							assertInvocationCount(brokerServerWithBrokerCertificate.CatalogEndpointRequests, 0)
 						})
 
-						It("when tls is used ", func() {
+						It("when provided tls is used ", func() {
 							updatedCredentials := Object{
 								"credentials": Object{
 									"tls": Object{
@@ -1317,6 +1360,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Status(http.StatusOK)
 							assertInvocationCount(brokerServerWithBrokerCertificate.CatalogEndpointRequests, 1)
 						})
+
 						Context("default mTLS", func() {
 							var settings *httpclient.Settings
 							var brokerIDWithMTLS string
@@ -1371,6 +1415,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 								})
 							})
+
 							Context("empty all credentials", func() {
 								It("should fail", func() {
 									updatedBrokerJSON := Object{
@@ -1394,6 +1439,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 								})
 							})
+
 							Context("use sm default credentials", func() {
 								It("should succeed", func() {
 									updatedBrokerJSON := Object{
@@ -1531,22 +1577,27 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("when all updatable fields are updated at once", func() {
 						It("returns 200", func() {
-							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
+							patchResponse := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
 								WithJSON(updatedBrokerJSON).
 								Expect().
 								Status(http.StatusOK).
 								JSON().Object().
-								ContainsMap(expectedUpdatedBrokerResponse).
-								Keys().NotContains("services", "credentials")
-
+								ContainsMap(expectedUpdatedBrokerResponse)
+							patchResponse.NotContainsKey("services")
+							patchResponse.Path(smProvidedTLSPath).Equal(false)
+							patchResponse.Path(usernamePath).Equal(types.BrokerHiddenCredentialsDataFormat)
+							patchResponse.Path(passwordPath).Equal(types.BrokerHiddenCredentialsDataFormat)
 							assertInvocationCount(updatedBrokerServer.CatalogEndpointRequests, 1)
 
-							ctx.SMWithOAuth.GET(web.ServiceBrokersURL+"/"+brokerID).
+							getResponse := ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
 								Expect().
 								Status(http.StatusOK).
 								JSON().Object().
-								ContainsMap(expectedUpdatedBrokerResponse).
-								Keys().NotContains("services", "credentials")
+								ContainsMap(expectedUpdatedBrokerResponse)
+							getResponse.NotContainsKey("services")
+							getResponse.Path(smProvidedTLSPath).Equal(false)
+							getResponse.Path(usernamePath).Equal(types.BrokerHiddenCredentialsDataFormat)
+							getResponse.Path(passwordPath).Equal(types.BrokerHiddenCredentialsDataFormat)
 						})
 					})
 
@@ -1564,23 +1615,29 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							updatedBrokerServer.Username = brokerServer.Username
 							updatedBrokerServer.Password = brokerServer.Password
 
-							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
+							patchResponse := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
 								WithJSON(updatedBrokerJSON).
 								Expect().
 								Status(http.StatusOK).
 								JSON().Object().
-								ContainsKey("broker_url").
-								Keys().NotContains("services", "credentials")
+								ContainsKey("broker_url")
+							patchResponse.NotContainsKey("services")
+							patchResponse.Path(smProvidedTLSPath).Equal(false)
+							patchResponse.Path(usernamePath).Equal(types.BrokerHiddenCredentialsDataFormat)
+							patchResponse.Path(passwordPath).Equal(types.BrokerHiddenCredentialsDataFormat)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
 							assertInvocationCount(updatedBrokerServer.CatalogEndpointRequests, 1)
 
-							ctx.SMWithOAuth.GET(web.ServiceBrokersURL+"/"+brokerID).
+							getResponse := ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
 								Expect().
 								Status(http.StatusOK).
 								JSON().Object().
-								ContainsKey("broker_url").
-								Keys().NotContains("services", "credentials")
+								ContainsKey("broker_url")
+							getResponse.NotContainsKey("services")
+							getResponse.Path(smProvidedTLSPath).Equal(false)
+							getResponse.Path(usernamePath).Equal(types.BrokerHiddenCredentialsDataFormat)
+							getResponse.Path(passwordPath).Equal(types.BrokerHiddenCredentialsDataFormat)
 						})
 
 						It("returns 200 with tls", func() {
@@ -1597,13 +1654,16 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							updatedBrokerServer.Username = brokerServerWithBrokerCertificate.Username
 							updatedBrokerServer.Password = brokerServerWithBrokerCertificate.Password
 
-							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerIDWithTLS).
+							patchResponse := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerIDWithTLS).
 								WithJSON(updatedBrokerJSON).
 								Expect().
 								Status(http.StatusOK).
 								JSON().Object().
-								ContainsKey("broker_url").
-								Keys().NotContains("services", "credentials")
+								ContainsKey("broker_url")
+							patchResponse.NotContainsKey("services")
+							patchResponse.Path(smProvidedTLSPath).Equal(false)
+							patchResponse.Path(usernamePath).Equal(types.BrokerHiddenCredentialsDataFormat)
+							patchResponse.Path(passwordPath).Equal(types.BrokerHiddenCredentialsDataFormat)
 
 							assertInvocationCount(updatedBrokerServer.CatalogEndpointRequests, 1)
 						})
@@ -1622,12 +1682,15 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
 
-							ctx.SMWithOAuth.GET(web.ServiceBrokersURL+"/"+brokerID).
+							getResponse := ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
 								Expect().
 								Status(http.StatusOK).
 								JSON().Object().
-								ContainsMap(expectedBrokerResponse).
-								Keys().NotContains("services", "credentials")
+								ContainsMap(expectedBrokerResponse)
+							getResponse.NotContainsKey("services")
+							getResponse.Path(smProvidedTLSPath).Equal(false)
+							getResponse.Path(usernamePath).Equal(types.BrokerHiddenCredentialsDataFormat)
+							getResponse.Path(passwordPath).Equal(types.BrokerHiddenCredentialsDataFormat)
 						})
 					})
 
@@ -1738,20 +1801,26 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						for _, prop := range []string{"name", "description"} {
 							updatedBrokerJSON := Object{}
 							updatedBrokerJSON[prop] = "updated"
-							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
+							resp := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
 								WithJSON(updatedBrokerJSON).
 								Expect().
 								Status(http.StatusOK).
 								JSON().Object().
-								ContainsMap(updatedBrokerJSON).
-								Keys().NotContains("services", "credentials")
+								ContainsMap(updatedBrokerJSON)
 
-							ctx.SMWithOAuth.GET(web.ServiceBrokersURL+"/"+brokerID).
+							resp.Path(smProvidedTLSPath).Equal(false)
+							resp.Path(usernamePath).Equal(types.BrokerHiddenCredentialsDataFormat)
+							resp.Path(passwordPath).Equal(types.BrokerHiddenCredentialsDataFormat)
+
+							getResponse := ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
 								Expect().
 								Status(http.StatusOK).
 								JSON().Object().
-								ContainsMap(updatedBrokerJSON).
-								Keys().NotContains("services", "credentials")
+								ContainsMap(updatedBrokerJSON)
+
+							getResponse.Path(smProvidedTLSPath).Equal(false)
+							getResponse.Path(usernamePath).Equal(types.BrokerHiddenCredentialsDataFormat)
+							getResponse.Path(passwordPath).Equal(types.BrokerHiddenCredentialsDataFormat)
 
 						}
 						assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
