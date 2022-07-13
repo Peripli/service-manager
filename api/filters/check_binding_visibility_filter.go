@@ -17,6 +17,9 @@
 package filters
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"net/http"
@@ -106,12 +109,64 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 
+	if count == 1 {
+		return next.Handle(req)
+	}
+
+	criteria = []query.Criterion{
+		query.ByField(query.EqualsOperator, "id", instanceID),
+		query.ByLabel(query.EqualsOperator, f.tenantIdentifier, tenantID),
+	}
+
+	count, err = f.repository.Count(ctx, types.ServiceInstanceType, criteria...)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+	}
+
 	if count != 1 {
 		return nil, &util.HTTPError{
 			ErrorType:   "NotFound",
 			Description: "service instance not found or not accessible",
 			StatusCode:  http.StatusNotFound,
 		}
+	}
+
+	serviceBindingParam := true // check if the service binding request have the special param
+	if !serviceBindingParam {
+		return next.Handle(req)
+	}
+
+	var deletionFailed bool
+	if count == 1 {
+		deletionFailed, err = isLastOperationIsDeletedFailed(f, instanceID, ctx)
+		if !deletionFailed || err != nil {
+			return nil, &util.HTTPError{
+				ErrorType:   "NotFound",
+				Description: "service instance not found, not accessible or not in deletion failed",
+				StatusCode:  http.StatusNotFound,
+			}
+		}
+		if err = addClusterIdAndNameSpaceToReqCtx(req); err != nil {
+			return nil, &util.HTTPError{
+				ErrorType:   "InvalidRequest",
+				Description: err.Error(),
+				StatusCode:  http.StatusNotFound,
+			}
+		}
+
+		criteria := []query.Criterion{query.ByField(query.EqualsOperator, "id", instanceID)}
+		serviceInstance, err := f.repository.Get(ctx, types.ServiceInstanceType, criteria...)
+		if err != nil {
+			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+		}
+		if !isOperatedBySmaaP(serviceInstance.(*types.ServiceInstance)) {
+			return nil, &util.HTTPError{
+				ErrorType:   "InvalidRequest",
+				Description: "Instnace is not originated by operator",
+				StatusCode:  http.StatusNotFound,
+			}
+		}
+		return next.Handle(req)
 	}
 
 	return next.Handle(req)
@@ -126,4 +181,56 @@ func (*serviceBindingVisibilityFilter) FilterMatchers() []web.FilterMatcher {
 			},
 		},
 	}
+}
+
+func addClusterIdAndNameSpaceToReqCtx(req *web.Request) error {
+	clusterIdFieldName := "_clusterid"
+	nameSpaceFieldName := "_namespace"
+	labels := types.Labels{}
+
+	labelsString := gjson.GetBytes(req.Body, "labels").Raw
+	if len(labelsString) > 0 {
+		err := json.Unmarshal([]byte(labelsString), &labels)
+		if err != nil {
+			return fmt.Errorf("could not get labels from request body: %s", err)
+		}
+	}
+
+	if labels[clusterIdFieldName] == nil || labels[nameSpaceFieldName] == nil {
+		return fmt.Errorf("clusterid or namespace field is missing in the body of the request")
+	}
+
+	clusterLabel := labels[clusterIdFieldName]
+	namespaceLabel := labels[nameSpaceFieldName]
+	clusterID := clusterLabel[0]
+	namespace := namespaceLabel[0]
+
+	var err error
+	req.Body, err = sjson.SetBytes(req.Body, "context.clusterid", clusterID)
+	if err != nil {
+		return fmt.Errorf("could not add clusterid to context: %s", err)
+	}
+
+	req.Body, err = sjson.SetBytes(req.Body, "context.namespace", namespace)
+	if err != nil {
+		return fmt.Errorf("could not add namespace to context: %s", err)
+	}
+
+	return nil
+}
+
+func isLastOperationIsDeletedFailed(f *serviceBindingVisibilityFilter, instanceID string, ctx context.Context) (bool, error) {
+	byID := query.ByField(query.EqualsOperator, "resource_id", instanceID)
+	orderDesc := query.OrderResultBy("paging_sequence", query.DescOrder)
+	lastOperationObject, err := f.repository.Get(ctx, types.OperationType, byID, orderDesc)
+	if err != nil {
+		return false, err
+	}
+
+	lastOperation := lastOperationObject.(*types.Operation)
+	return lastOperation.Type == types.DELETE && lastOperation.State == types.FAILED, nil
+}
+
+func isOperatedBySmaaP(instance *types.ServiceInstance) bool {
+	return instance.Labels != nil && len(instance.Labels["operated_by"]) > 0
 }
