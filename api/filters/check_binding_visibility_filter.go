@@ -131,6 +131,7 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 	if !deletionFailed || err != nil {
 		return returnHttpError("NotFound", "service instance not found, not accessible or not in deletion failed", http.StatusNotFound)
 	}
+
 	if err = addClusterIdAndNameSpaceToReqCtx(req); err != nil {
 		return returnHttpError("InvalidRequest", err.Error(), http.StatusBadRequest)
 	}
