@@ -147,7 +147,6 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 	}
 
 	return next.Handle(req)
-
 }
 
 func returnHttpError(errorType string, description string, statusCode int) (*web.Response, error) {
