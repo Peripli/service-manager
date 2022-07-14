@@ -131,8 +131,8 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 		}
 	}
 
-	serviceBindingParam := true // check if the service binding request have the special param
-	if !serviceBindingParam {
+	serviceBindingForceParam := isForceBindingFlagExist(req)
+	if !serviceBindingForceParam {
 		return next.Handle(req)
 	}
 
@@ -233,4 +233,10 @@ func isLastOperationIsDeletedFailed(f *serviceBindingVisibilityFilter, instanceI
 
 func isOperatedBySmaaP(instance *types.ServiceInstance) bool {
 	return instance.Labels != nil && len(instance.Labels["operated_by"]) > 0
+}
+
+func isForceBindingFlagExist(req *web.Request) bool {
+	parameters := gjson.GetBytes(req.Body, "parameters").Map()
+	forceBinding, exists := parameters["force_bind"]
+	return exists && forceBinding.String() == "true"
 }
