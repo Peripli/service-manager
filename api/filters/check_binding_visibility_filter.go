@@ -61,11 +61,7 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 	tenantID := query.RetrieveFromCriteria(f.tenantIdentifier, query.CriteriaForContext(ctx)...)
 	if tenantID == "" {
 		log.C(ctx).Errorf("Tenant identifier not found in request criteria.")
-		return nil, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: "no tenant identifier provided",
-			StatusCode:  http.StatusBadRequest,
-		}
+		return returnHttpError("BadRequest", "no tenant identifier provided", http.StatusBadRequest)
 	}
 
 	if req.Method == http.MethodDelete {
@@ -124,11 +120,7 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 	}
 
 	if count != 1 {
-		return nil, &util.HTTPError{
-			ErrorType:   "NotFound",
-			Description: "service instance not found or not accessible",
-			StatusCode:  http.StatusNotFound,
-		}
+		return returnHttpError("NotFound", "service instance not found or not accessible", http.StatusNotFound)
 	}
 
 	serviceBindingForceParam := isForceBindingFlagExist(req)
@@ -139,18 +131,10 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 	if count == 1 {
 		deletionFailed, err := isLastOperationIsDeletedFailed(f, instanceID, ctx)
 		if !deletionFailed || err != nil {
-			return nil, &util.HTTPError{
-				ErrorType:   "NotFound",
-				Description: "service instance not found, not accessible or not in deletion failed",
-				StatusCode:  http.StatusNotFound,
-			}
+			return returnHttpError("NotFound", "service instance not found, not accessible or not in deletion failed", http.StatusNotFound)
 		}
 		if err = addClusterIdAndNameSpaceToReqCtx(req); err != nil {
-			return nil, &util.HTTPError{
-				ErrorType:   "InvalidRequest",
-				Description: err.Error(),
-				StatusCode:  http.StatusNotFound,
-			}
+			return returnHttpError("InvalidRequest", err.Error(), http.StatusBadRequest)
 		}
 
 		criteria := []query.Criterion{query.ByField(query.EqualsOperator, "id", instanceID)}
@@ -159,19 +143,19 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 		}
 		if !isOperatedBySmaaP(serviceInstance.(*types.ServiceInstance)) {
-			return nil, &util.HTTPError{
-				ErrorType:   "InvalidRequest",
-				Description: "Instnace is not originated by operator",
-				StatusCode:  http.StatusNotFound,
-			}
+			return returnHttpError("NotFound", "Instnace is not originated by operator", http.StatusNotFound)
 		}
 		return next.Handle(req)
 	}
 
+	return returnHttpError("NotFound", "service instance not found or not accessible", http.StatusNotFound)
+}
+
+func returnHttpError(errorType string, description string, statusCode int) (*web.Response, error) {
 	return nil, &util.HTTPError{
-		ErrorType:   "NotFound",
-		Description: "service instance not found or not accessible",
-		StatusCode:  http.StatusNotFound,
+		ErrorType:   errorType,
+		Description: description,
+		StatusCode:  statusCode,
 	}
 }
 
