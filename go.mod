@@ -3,7 +3,6 @@ module github.com/Peripli/service-manager
 go 1.14
 
 require (
-	github.com/AlekSi/gocov-xml v1.0.0 // indirect
 	github.com/DATA-DOG/go-sqlmock v1.3.1-0.20180720083239-852fc940e4b9
 	github.com/InVisionApp/go-health v2.1.0+incompatible
 	github.com/InVisionApp/go-logger v1.0.1
@@ -11,7 +10,6 @@ require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/antlr/antlr4 v0.0.0-20210105192202-5c2b686f95e1
-	github.com/axw/gocov v1.1.0 // indirect
 	github.com/benjamintf1/unmarshalledmatchers v1.0.0
 	github.com/cloudfoundry-community/go-cfenv v1.17.1-0.20171115121958-e84b5c116637
 	github.com/containerd/containerd v1.4.3 // indirect
@@ -34,13 +32,12 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/imkira/go-interpol v1.1.0 // indirect
 	github.com/jmoiron/sqlx v1.2.1-0.20201120164427-00c6e74d816a
-	github.com/jstemmer/go-junit-report v1.0.0 // indirect
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
-	github.com/klauspost/compress v1.11.6 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
 	github.com/kubernetes-sigs/go-open-service-broker-client v0.0.0-20180330214919-dca737037ce6
 	github.com/lib/pq v1.9.0
 	github.com/magiconair/properties v1.8.4 // indirect
+	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/mitchellh/mapstructure v1.4.0
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
@@ -59,26 +56,25 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.3
 	github.com/spf13/viper v1.7.1
-	github.com/t-yuki/gocover-cobertura v0.0.0-20180217150009-aaee18c8195c // indirect
+	github.com/stretchr/testify v1.7.1 // indirect
 	github.com/tidwall/gjson v1.9.3
 	github.com/tidwall/sjson v1.1.4
 	github.com/ulule/limiter v2.2.2+incompatible
-	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.34.0
+	github.com/valyala/fasthttp v1.34.0 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	github.com/yalp/jsonpath v0.0.0-20180802001716-5cc68e5049a0 // indirect
 	github.com/yudai/gojsondiff v0.0.0-20170107030110-7b1b7adf999d // indirect
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
 	github.com/yudai/pp v2.0.1+incompatible // indirect
-	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
+	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
 	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1
+	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
-	gotest.tools/gotestsum v1.8.0 // indirect
 	gotest.tools/v3 v3.0.3 // indirect
 )
 
