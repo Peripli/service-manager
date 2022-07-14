@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS service_binding_labels_service_binding_id_index;

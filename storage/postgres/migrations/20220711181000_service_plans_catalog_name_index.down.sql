@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS service_plans_catalog_name_index;
