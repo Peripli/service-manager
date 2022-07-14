@@ -119,13 +119,9 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 
-	if count != 1 {
-		return returnHttpError("NotFound", "service instance not found or not accessible", http.StatusNotFound)
-	}
-
 	serviceBindingForceParam := isForceBindingFlagExist(req)
-	if !serviceBindingForceParam {
-		return next.Handle(req)
+	if count != 1 || !serviceBindingForceParam {
+		return returnHttpError("NotFound", "service instance not found or not accessible", http.StatusNotFound)
 	}
 
 	if count == 1 {
