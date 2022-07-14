@@ -136,9 +136,8 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 		return next.Handle(req)
 	}
 
-	var deletionFailed bool
 	if count == 1 {
-		deletionFailed, err = isLastOperationIsDeletedFailed(f, instanceID, ctx)
+		deletionFailed, err := isLastOperationIsDeletedFailed(f, instanceID, ctx)
 		if !deletionFailed || err != nil {
 			return nil, &util.HTTPError{
 				ErrorType:   "NotFound",
@@ -169,7 +168,11 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 		return next.Handle(req)
 	}
 
-	return next.Handle(req)
+	return nil, &util.HTTPError{
+		ErrorType:   "NotFound",
+		Description: "service instance not found or not accessible",
+		StatusCode:  http.StatusNotFound,
+	}
 }
 
 func (*serviceBindingVisibilityFilter) FilterMatchers() []web.FilterMatcher {
