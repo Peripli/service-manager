@@ -127,27 +127,26 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 		return returnHttpError("NotFound", "service instance not found or not accessible", http.StatusNotFound)
 	}
 
-	if count == 1 {
-		deletionFailed, err := isLastOperationIsDeletedFailed(f, instanceID, ctx)
-		if !deletionFailed || err != nil {
-			return returnHttpError("NotFound", "service instance not found, not accessible or not in deletion failed", http.StatusNotFound)
-		}
-		if err = addClusterIdAndNameSpaceToReqCtx(req); err != nil {
-			return returnHttpError("InvalidRequest", err.Error(), http.StatusBadRequest)
-		}
-
-		criteria := []query.Criterion{query.ByField(query.EqualsOperator, "id", instanceID)}
-		serviceInstance, err := f.repository.Get(ctx, types.ServiceInstanceType, criteria...)
-		if err != nil {
-			return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
-		}
-		if !isOperatedBySmaaP(serviceInstance.(*types.ServiceInstance)) {
-			return returnHttpError("NotFound", "Instnace is not originated by operator", http.StatusNotFound)
-		}
-		return next.Handle(req)
+	deletionFailed, err := isLastOperationIsDeletedFailed(f, instanceID, ctx)
+	if !deletionFailed || err != nil {
+		return returnHttpError("NotFound", "service instance not found, not accessible or not in deletion failed", http.StatusNotFound)
+	}
+	if err = addClusterIdAndNameSpaceToReqCtx(req); err != nil {
+		return returnHttpError("InvalidRequest", err.Error(), http.StatusBadRequest)
 	}
 
-	return returnHttpError("NotFound", "service instance not found or not accessible", http.StatusNotFound)
+	criteria = []query.Criterion{query.ByField(query.EqualsOperator, "id", instanceID)}
+	serviceInstance, err := f.repository.Get(ctx, types.ServiceInstanceType, criteria...)
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+	}
+
+	if !isOperatedBySmaaP(serviceInstance.(*types.ServiceInstance)) {
+		return returnHttpError("NotFound", "Instnace is not originated by operator", http.StatusNotFound)
+	}
+
+	return next.Handle(req)
+
 }
 
 func returnHttpError(errorType string, description string, statusCode int) (*web.Response, error) {
