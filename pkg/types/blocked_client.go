@@ -23,7 +23,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"reflect"
-	"time"
 )
 
 const BlockedClientsType ObjectType = web.BlockedClientsConfigURL
@@ -39,66 +38,6 @@ type BlockedClient struct {
 
 type BlockedClients struct {
 	BlockedClients []*BlockedClient `json:"blocked_clients"`
-}
-
-func (e *BlockedClients) Validate() error {
-	panic("implement me")
-}
-
-func (e *BlockedClients) Equals(object Object) bool {
-	panic("implement me")
-}
-
-func (e *BlockedClients) SetID(id string) {
-	panic("implement me")
-}
-
-func (e *BlockedClients) GetID() string {
-	panic("implement me")
-}
-
-func (e *BlockedClients) GetLabels() Labels {
-	panic("implement me")
-}
-
-func (e *BlockedClients) SetLabels(labels Labels) {
-	panic("implement me")
-}
-
-func (e *BlockedClients) SetCreatedAt(time time.Time) {
-	panic("implement me")
-}
-
-func (e *BlockedClients) GetCreatedAt() time.Time {
-	panic("implement me")
-}
-
-func (e *BlockedClients) SetUpdatedAt(time time.Time) {
-	panic("implement me")
-}
-
-func (e *BlockedClients) GetUpdatedAt() time.Time {
-	panic("implement me")
-}
-
-func (e *BlockedClients) GetPagingSequence() int64 {
-	panic("implement me")
-}
-
-func (e *BlockedClients) SetReady(b bool) {
-	panic("implement me")
-}
-
-func (e *BlockedClients) GetReady() bool {
-	panic("implement me")
-}
-
-func (e *BlockedClients) SetLastOperation(operation *Operation) {
-	panic("implement me")
-}
-
-func (e *BlockedClients) GetLastOperation() *Operation {
-	panic("implement me")
 }
 
 func (e *BlockedClient) GetType() ObjectType {
