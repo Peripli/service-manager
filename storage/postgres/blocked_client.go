@@ -16,10 +16,12 @@
 
 package postgres
 
-import "github.com/Peripli/service-manager/pkg/types"
+import (
+	"fmt"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
+)
 
-// ServiceBinding entity
-//go:generate smgen storage ServiceBinding github.com/Peripli/service-manager/pkg/types
 type BlockedClient struct {
 	BaseEntity
 	ClientID       string   `db:"client_id"`
@@ -41,4 +43,23 @@ func (bc *BlockedClient) ToObject() (types.Object, error) {
 		SubaccountID:   bc.SubaccountID,
 		BlockedMethods: bc.BlockedMethods,
 	}, nil
+}
+func (bc *BlockedClient) FromObject(object types.Object) (storage.Entity, error) {
+	blockedClient, ok := object.(*types.BlockedClient)
+	if !ok {
+		return nil, fmt.Errorf("object is not of type BlockedClient")
+	}
+	result := &BlockedClient{
+		BaseEntity: BaseEntity{
+			ID:             blockedClient.ID,
+			CreatedAt:      blockedClient.CreatedAt,
+			UpdatedAt:      blockedClient.UpdatedAt,
+			PagingSequence: blockedClient.PagingSequence,
+			Ready:          blockedClient.Ready,
+		},
+		ClientID:       blockedClient.ClientID,
+		SubaccountID:   blockedClient.SubaccountID,
+		BlockedMethods: blockedClient.BlockedMethods,
+	}
+	return result, nil
 }

@@ -18,10 +18,10 @@ CREATE TABLE blocked_clients_labels
     id              varchar(100) PRIMARY KEY,
     key             varchar(255) NOT NULL CHECK (key <> ''),
     val             varchar(255) NOT NULL CHECK (val <> ''),
-    blocked_clients_id    varchar(100) NOT NULL REFERENCES blocked_clients (id) ON DELETE CASCADE,
+    blocked_client_id    varchar(100) NOT NULL REFERENCES blocked_clients (id) ON DELETE CASCADE,
     created_at      timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (key, val, blocked_clients_id)
+    UNIQUE (key, val, blocked_client_id)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS blocked_clients_paging_sequence_uindex
