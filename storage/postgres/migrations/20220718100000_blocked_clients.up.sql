@@ -5,7 +5,7 @@ CREATE TABLE blocked_clients
   id            varchar(100) PRIMARY KEY,
   client_id     varchar(100) NOT NULL,
   subaccount_id varchar(100),
-  methods       TEXT [],
+  blocked_methods       TEXT [],
 
   created_at        timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at        timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
