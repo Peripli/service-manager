@@ -162,6 +162,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			&configuration.Controller{
 				Environment: e,
 			},
+			NewBlockedClientsController(ctx, options),
 			&profile.Controller{},
 		},
 		// Default filters - more filters can be registered using the relevant API methods
@@ -189,6 +190,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 	}
 
 	api.RegisterFiltersBefore(filters.ProtectedLabelsFilterName, &filters.DisabledQueryParametersFilter{DisabledQueryParameters: options.APISettings.DisabledQueryParameters})
+	api.RegisterFiltersAfter(filters.DisabledQueryParametersName, filters.NewBlockedClientsFilter(ctx, options.Repository))
 
 	if rateLimiters != nil {
 		api.RegisterFiltersAfter(

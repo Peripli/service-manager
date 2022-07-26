@@ -42,6 +42,9 @@ const (
 	// LoggingConfigURL is the Logging Configuration API URL path
 	LoggingConfigURL = ConfigURL + "/logging"
 
+	// BlockedClientsConfigURL is the Blocked Clients Configuration API URL path
+	BlockedClientsConfigURL = ConfigURL + "/blocked_clients"
+
 	// ResourceOperationsURL is the URL path fetch operations for a resource
 	ResourceOperationsURL = "/operations"
 
