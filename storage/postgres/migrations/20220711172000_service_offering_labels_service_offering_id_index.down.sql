@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS service_offering_labels_service_offering_id_index;
+

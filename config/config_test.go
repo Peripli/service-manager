@@ -351,6 +351,12 @@ var _ = Describe("config", func() {
 					assertErrorDuringValidate()
 				})
 			})
+			When("rate limiter method is not valid", func() {
+				It("returns error", func() {
+					config.API.RateLimit = "5-M:/v1/service_instances:post1"
+					assertErrorDuringValidate()
+				})
+			})
 		})
 
 	})

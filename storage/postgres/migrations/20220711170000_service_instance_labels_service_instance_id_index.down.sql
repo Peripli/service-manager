@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS service_instance_labels_service_instance_id_index;

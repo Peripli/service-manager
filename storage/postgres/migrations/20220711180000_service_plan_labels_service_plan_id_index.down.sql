@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS service_plan_labels_service_plan_id_index;
