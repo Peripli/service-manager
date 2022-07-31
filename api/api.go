@@ -132,7 +132,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			NewServiceInstanceController(ctx, options),
 			NewServiceBindingController(ctx, options),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
-
+			NewBlockedClientsController(ctx, options),
 			NewServiceOfferingController(ctx, options),
 			NewServicePlanController(ctx, options),
 			NewOperationsController(ctx, options),
@@ -162,7 +162,6 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			&configuration.Controller{
 				Environment: e,
 			},
-			NewBlockedClientsController(ctx, options),
 			&profile.Controller{},
 		},
 		// Default filters - more filters can be registered using the relevant API methods

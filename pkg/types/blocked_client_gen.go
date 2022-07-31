@@ -40,7 +40,7 @@ func (e *BlockedClients) Len() int {
 	return len(e.BlockedClients)
 }
 
-func (e *BlockedClients) GetType() ObjectType {
+func (e *BlockedClient) GetType() ObjectType {
 	return BlockedClientsType
 }
 

@@ -16,10 +16,6 @@ type BlockedClient struct {
 	BlockedMethods []string `json:"blocked_methods,omitempty"`
 }
 
-func (e *BlockedClient) GetType() ObjectType {
-	return BlockedClientsType
-}
-
 func (e *BlockedClient) Equals(obj Object) bool {
 	if !Equals(e, obj) {
 		return false
