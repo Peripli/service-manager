@@ -20,13 +20,14 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/lib/pq"
 )
 
 type BlockedClient struct {
 	BaseEntity
-	ClientID       string   `db:"client_id"`
-	SubaccountID   string   `db:"subaccount_id"`
-	BlockedMethods []string `db:"blocked_methods"`
+	ClientID       string         `db:"client_id"`
+	SubaccountID   string         `db:"subaccount_id"`
+	BlockedMethods pq.StringArray `db:"blocked_methods"`
 }
 
 func (bc *BlockedClient) ToObject() (types.Object, error) {

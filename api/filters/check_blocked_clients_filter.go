@@ -2,35 +2,53 @@ package filters
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
+	"log"
 	"net/http"
 )
 
+const CACHE_SIZE = 1024
+
 type BlockedClientsFilter struct {
 	repository               storage.Repository
+	ctx                      context.Context
+	localCache               storage.Cache
 	updateBlockedClientsList func(ctx context.Context) []*types.BlockedClient
-	cachedBlockedClientsList []*types.BlockedClient
 }
 
 // NewBlockedClientsFilter creates a new BlockedClientsFilter filter
 func NewBlockedClientsFilter(ctx context.Context, repository storage.Repository) *BlockedClientsFilter {
-	return &BlockedClientsFilter{
-		repository:               repository,
-		updateBlockedClientsList: getBlockedClientsList(repository),
-		cachedBlockedClientsList: initializeBlockedClientsList(ctx, repository),
+	blockedClientsFilter := &BlockedClientsFilter{
+		repository: repository,
+		ctx:        ctx,
 	}
+	blockedClientsFilter.initializeBlockedClients()
+	return blockedClientsFilter
+
 }
 
-func initializeBlockedClientsList(ctx context.Context, repo storage.Repository) []*types.BlockedClient {
-	clientsList, err := repo.List(ctx, types.BlockedClientsType)
+func (b *BlockedClientsFilter) initializeBlockedClients() (err error) {
+	cache, err := storage.NewCache(CACHE_SIZE)
+	criteria := query.CriteriaForContext(b.ctx)
+	criteria = append(criteria, query.LimitResultBy(CACHE_SIZE))
 	if err != nil {
-		return nil
+		log.Fatal("Failed to create the local cache of blocked clients", err)
 	}
-
-	blockedClients := clientsList.(*types.BlockedClients).BlockedClients
-	return blockedClients
+	blockedClientsList, err := b.repository.List(b.ctx, types.BlockedClientsType)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < blockedClientsList.Len(); i++ {
+		blockedClient := blockedClientsList.ItemAt(i).(*types.BlockedClient)
+		cache.Put(blockedClient.ClientID, blockedClient)
+	}
+	return nil
 }
 
 func getBlockedClientsList(repository storage.Repository) func(ctx context.Context) []*types.BlockedClient {
@@ -47,14 +65,31 @@ func getBlockedClientsList(repository storage.Repository) func(ctx context.Conte
 
 }
 
-func (bc *BlockedClientsFilter) Name() string {
+func (b *BlockedClientsFilter) Name() string {
 	return "BlockedClientsFilter"
 }
 
-func (bc *BlockedClientsFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
+func (b *BlockedClientsFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
 
-	// get clientID from request - web.UserFromContext(request.Context())
-	// call isClientBlocked function
+	reqCtx := request.Context()
+	method := request.Method
+	userContext, ok := web.UserFromContext(reqCtx)
+	if !ok {
+		return nil, errors.New("no client found")
+	}
+	blockedClient, isBlockedClient, err := b.isClientBlocked(userContext, method)
+	if err != nil {
+
+	}
+	if isBlockedClient {
+		errorResponse := &util.HTTPError{
+			ErrorType:   "RequestNotAllowed",
+			Description: fmt.Sprintf("You're blocked to execute this request. Client: %d ", blockedClient.ClientID),
+			StatusCode:  http.StatusMethodNotAllowed,
+		}
+		return nil, errorResponse
+
+	}
 	// if not - next.Handle(request)
 	// if it is - return an error (what is the error message?)
 	//if err != nil {
@@ -65,9 +100,26 @@ func (bc *BlockedClientsFilter) Run(request *web.Request, next web.Handler) (*we
 	return next.Handle(request)
 }
 
-func (bc *BlockedClientsFilter) isClientBlocked(client string) bool {
-	// check if this ID is in cachedBlockedClientsList and whether he can use the request method (methods column)
+func (bc *BlockedClientsFilter) isClientBlocked(userContext *web.UserContext, method string) (*types.BlockedClient, bool, error) {
+	//don't restrict global users
+	if userContext.AccessLevel == web.GlobalAccess || userContext.AccessLevel == web.AllTenantAccess {
+		return nil, false, nil
+	}
+	blockedClientCache, err := bc.localCache.Get(userContext.Name)
+	if err != nil {
+		return nil, true, err
+	}
+	blockedClient := blockedClientCache.(*types.BlockedClient)
+	// add to retrieved from db
+	return blockedClient, contains(blockedClient.BlockedMethods, method), nil
 
+}
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
 	return false
 }
 
