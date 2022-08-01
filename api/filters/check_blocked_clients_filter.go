@@ -2,8 +2,10 @@ package filters
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -13,6 +15,8 @@ import (
 	"sync"
 	"time"
 )
+
+const new_blocked_client = "new_blocked_client"
 
 type BlockedClientsFilter struct {
 	repository               storage.Repository
@@ -43,16 +47,42 @@ func (b *BlockedClientsFilter) connectDBForBlockedClientsEvent() error {
 		}
 	}
 	listener := pq.NewListener(b.storageURI, 30*time.Second, time.Minute, reportProblem)
-	err := listener.Listen("new-blocked-client")
+	err := listener.Listen(new_blocked_client)
 	if err != nil {
 		return err
 	}
+
+	go b.processNewBlockedClient(listener)
 	return nil
 
 }
+func (b *BlockedClientsFilter) processNewBlockedClient(l *pq.Listener) {
+	for {
+		n := <-l.Notify
+		switch n.Channel {
+		case new_blocked_client:
+			{
+				blockedClient, err := getPayload(n.Extra)
+				if err != nil {
+					log.C(b.ctx).WithError(err).Error("Could not unmarshal blocked client notification payload")
+					return
+				} else {
+					b.cache.Store(blockedClient.ClientID, blockedClient)
+				}
+			}
+		}
+	}
+}
+func getPayload(data string) (*types.BlockedClient, error) {
+	payload := &types.BlockedClient{}
+	if err := json.Unmarshal([]byte(data), payload); err != nil {
+		return nil, err
+	}
+	return payload, nil
+}
 
 func (b *BlockedClientsFilter) initializeBlockedClients() (err error) {
-
+	b.connectDBForBlockedClientsEvent()
 	blockedClientsList, err := b.repository.List(b.ctx, types.BlockedClientsType)
 	if err != nil {
 		return err
