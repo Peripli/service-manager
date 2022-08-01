@@ -81,8 +81,13 @@ func getPayload(data string) (*types.BlockedClient, error) {
 	return payload, nil
 }
 
-func (b *BlockedClientsFilter) initializeBlockedClients() (err error) {
+func (b *BlockedClientsFilter) initializeBlockedClients() error {
 	b.connectDBForBlockedClientsEvent()
+	err := b.getBlockedClientsList()
+	return err
+}
+
+func (b *BlockedClientsFilter) getBlockedClientsList() error {
 	blockedClientsList, err := b.repository.List(b.ctx, types.BlockedClientsType)
 	if err != nil {
 		return err
@@ -92,19 +97,6 @@ func (b *BlockedClientsFilter) initializeBlockedClients() (err error) {
 		b.cache.Store(blockedClient.ClientID, blockedClient)
 	}
 	return nil
-}
-
-func getBlockedClientsList(repository storage.Repository) func(ctx context.Context) []*types.BlockedClient {
-	return func(ctx context.Context) []*types.BlockedClient {
-		clientsList, err := repository.List(ctx, types.BlockedClientsType)
-		if err != nil {
-			return nil
-		}
-
-		blockedClients := clientsList.(*types.BlockedClients).BlockedClients
-		return blockedClients
-
-	}
 
 }
 
