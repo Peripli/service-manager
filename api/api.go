@@ -101,6 +101,7 @@ type Options struct {
 	RedisClient       *redis.Client
 	Repository        storage.TransactionalRepository
 	APISettings       *Settings
+	StorageSettings   *storage.Settings
 	OperationSettings *operations.Settings
 	WSSettings        *ws.Settings
 	Notificator       storage.Notificator
@@ -189,7 +190,8 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 	}
 
 	api.RegisterFiltersBefore(filters.ProtectedLabelsFilterName, &filters.DisabledQueryParametersFilter{DisabledQueryParameters: options.APISettings.DisabledQueryParameters})
-	api.RegisterFiltersAfter(filters.DisabledQueryParametersName, filters.NewBlockedClientsFilter(ctx, options.Repository))
+	api.RegisterFiltersAfter(filters.DisabledQueryParametersName,
+		filters.NewBlockedClientsFilter(ctx, options.Repository, options.StorageSettings.URI))
 
 	if rateLimiters != nil {
 		api.RegisterFiltersAfter(
