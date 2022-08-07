@@ -21,7 +21,7 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"github.com/go-redis/redis/v8"
+	"github.com/go-redis/redis"
 	"math/rand"
 	"net"
 	"net/http"
@@ -938,5 +938,5 @@ func (ctx *TestContext) CloseWebSocket(conn *websocket.Conn) {
 }
 
 func (ctx *TestContext) ResetRateLimiter(client *redis.Client) {
-	client.FlushDB(client.Context())
+	client.FlushDB()
 }

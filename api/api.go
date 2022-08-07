@@ -25,8 +25,8 @@ import (
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/agents"
 	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/go-redis/redis"
 
-	redis2 "github.com/go-redis/redis/v8"
 	"sync"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -98,7 +98,7 @@ func (s *Settings) Validate() error {
 }
 
 type Options struct {
-	RedisClient       *redis2.Client
+	RedisClient       *redis.Client
 	Repository        storage.TransactionalRepository
 	APISettings       *Settings
 	OperationSettings *operations.Settings
@@ -112,7 +112,7 @@ type Options struct {
 // New returns the minimum set of REST APIs needed for the Service Manager
 func New(ctx context.Context, e env.Environment, options *Options) (*web.API, error) {
 
-	rateLimiters, err := initRateLimiters(options)
+	rateLimiters, err := initRateLimiters(ctx, options)
 	if err != nil {
 		return nil, err
 	}

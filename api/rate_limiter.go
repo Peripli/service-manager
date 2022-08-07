@@ -1,13 +1,14 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"github.com/Peripli/service-manager/api/filters"
-	"github.com/prometheus/common/log"
-	"github.com/ulule/limiter/v3"
-	"github.com/ulule/limiter/v3/drivers/middleware/stdlib"
-	"github.com/ulule/limiter/v3/drivers/store/memory"
-	"github.com/ulule/limiter/v3/drivers/store/redis"
+	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/ulule/limiter"
+	"github.com/ulule/limiter/drivers/middleware/stdlib"
+	"github.com/ulule/limiter/drivers/store/memory"
+	"github.com/ulule/limiter/drivers/store/redis"
 	"net/http"
 	"path"
 	"strings"
@@ -95,23 +96,20 @@ func parseRateLimiterConfiguration(input string) ([]RateLimiterConfiguration, er
 	return configurations, nil
 }
 
-func initRateLimiters(options *Options) ([]filters.RateLimiterMiddleware, error) {
+func initRateLimiters(ctx context.Context, options *Options) ([]filters.RateLimiterMiddleware, error) {
 	var rateLimiters []filters.RateLimiterMiddleware
 	if !options.APISettings.RateLimitingEnabled {
 		return nil, nil
 	}
 
-	var store limiter.Store
+	var redisStore limiter.Store
 	var err error
 	if options.RedisClient != nil {
-		store, err = redis.NewStore(options.RedisClient)
+		redisStore, err = redis.NewStore(options.RedisClient)
 		if err != nil {
-			log.Errorf("failed to initialize redis store: %v", err)
+			log.C(ctx).Errorf("failed to initialize redis store: %v", err)
 			return nil, err
 		}
-	} else {
-		log.Error("redis client is not initialized. creating in memory store for rate limiting")
-		store = memory.NewStore()
 	}
 
 	configurations, err := parseRateLimiterConfiguration(options.APISettings.RateLimit)
@@ -119,6 +117,13 @@ func initRateLimiters(options *Options) ([]filters.RateLimiterMiddleware, error)
 		return nil, err
 	}
 	for _, configuration := range configurations {
+		var store limiter.Store
+		if options.RedisClient != nil {
+			store = redisStore
+		} else {
+			log.C(ctx).Error("redis client is not initialized. creating in memory store for rate limiting")
+			store = memory.NewStore()
+		}
 		rateLimiters = append(
 			rateLimiters,
 			filters.NewRateLimiterMiddleware(stdlib.NewMiddleware(limiter.New(store, configuration.rate)), configuration.pathPrefix, configuration.method, configuration.rate),

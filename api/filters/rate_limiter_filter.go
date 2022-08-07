@@ -7,8 +7,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/ulule/limiter/v3"
-	"github.com/ulule/limiter/v3/drivers/middleware/stdlib"
+	"github.com/ulule/limiter"
+	"github.com/ulule/limiter/drivers/middleware/stdlib"
 	"net/http"
 	"strings"
 )
@@ -123,8 +123,8 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 				method = rlm.method
 			}
 			key := method + ":" + rlm.pathPrefix + ":" + rlm.rate.Formatted + ":" + userContext.Name
-			log.C(request.Context()).Errorf("ratekey: %s", key)
 			limiterContext, err := rlm.middleware.Limiter.Get(request.Context(), key)
+			log.C(request.Context()).Errorf("ratekey: %s remaining: %d", key, limiterContext.Remaining)
 			if err != nil {
 				log.C(request.Context()).Errorf("failed to get limiter context: %v", err)
 				return nil, err

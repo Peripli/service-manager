@@ -61,7 +61,7 @@ import (
 	_ "github.com/Kount/pq-timeouts"
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/go-redis/redis/v8"
+	"github.com/go-redis/redis"
 )
 
 // ServiceManagerBuilder type is an extension point that allows adding additional filters, plugins and
