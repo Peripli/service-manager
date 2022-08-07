@@ -51,7 +51,33 @@ func setCFOverrides(env Environment) error {
 			return err
 		}
 
+		cacheEnabled := cast.ToBool(env.Get("cache.enabled"))
+		if cacheEnabled {
+			if err := useRedisBinding(env, cfEnv); err != nil {
+				return err
+			}
+		}
+
 	}
+	return nil
+}
+
+func useRedisBinding(env Environment, cfEnv *cfenv.App) error {
+	redisServiceName := cast.ToString(env.Get("cache.name"))
+	if redisServiceName == "" {
+		log.D().Warning("No Redis service name found")
+		return nil
+	}
+	service, err := cfEnv.Services.WithName(redisServiceName)
+	if err != nil {
+		errorMessage := fmt.Sprintf("could not find service with name %s: %v", redisServiceName, err)
+		log.D().Error(errorMessage)
+		return fmt.Errorf(errorMessage)
+	}
+
+	env.Set("cache.hostname", service.Credentials["hostname"])
+	env.Set("cache.password", service.Credentials["password"])
+	env.Set("cache.port", service.Credentials["port"])
 	return nil
 }
 

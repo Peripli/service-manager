@@ -3,9 +3,11 @@ package api
 import (
 	"fmt"
 	"github.com/Peripli/service-manager/api/filters"
-	"github.com/ulule/limiter"
-	"github.com/ulule/limiter/drivers/middleware/stdlib"
-	"github.com/ulule/limiter/drivers/store/memory"
+	"github.com/prometheus/common/log"
+	"github.com/ulule/limiter/v3"
+	"github.com/ulule/limiter/v3/drivers/middleware/stdlib"
+	"github.com/ulule/limiter/v3/drivers/store/memory"
+	"github.com/ulule/limiter/v3/drivers/store/redis"
 	"net/http"
 	"path"
 	"strings"
@@ -98,6 +100,20 @@ func initRateLimiters(options *Options) ([]filters.RateLimiterMiddleware, error)
 	if !options.APISettings.RateLimitingEnabled {
 		return nil, nil
 	}
+
+	var store limiter.Store
+	var err error
+	if options.RedisClient != nil {
+		store, err = redis.NewStore(options.RedisClient)
+		if err != nil {
+			log.Errorf("failed to initialize redis store: %v", err)
+			return nil, err
+		}
+	} else {
+		log.Error("redis client is not initialized. creating in memory store for rate limiting")
+		store = memory.NewStore()
+	}
+
 	configurations, err := parseRateLimiterConfiguration(options.APISettings.RateLimit)
 	if err != nil {
 		return nil, err
@@ -105,7 +121,7 @@ func initRateLimiters(options *Options) ([]filters.RateLimiterMiddleware, error)
 	for _, configuration := range configurations {
 		rateLimiters = append(
 			rateLimiters,
-			filters.NewRateLimiterMiddleware(stdlib.NewMiddleware(limiter.New(memory.NewStore(), configuration.rate)), configuration.pathPrefix, configuration.method),
+			filters.NewRateLimiterMiddleware(stdlib.NewMiddleware(limiter.New(store, configuration.rate)), configuration.pathPrefix, configuration.method, configuration.rate),
 		)
 	}
 	return rateLimiters, nil

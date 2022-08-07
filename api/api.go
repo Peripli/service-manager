@@ -25,6 +25,8 @@ import (
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/agents"
 	"github.com/Peripli/service-manager/pkg/env"
+
+	redis2 "github.com/go-redis/redis/v8"
 	"sync"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -96,6 +98,7 @@ func (s *Settings) Validate() error {
 }
 
 type Options struct {
+	RedisClient       *redis2.Client
 	Repository        storage.TransactionalRepository
 	APISettings       *Settings
 	OperationSettings *operations.Settings

@@ -272,6 +272,9 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 					// Counters: 10 (global), 5 (platforms), 2 (plans)
 					bulkRequest(ctx.SMWithOAuth, web.PlatformsURL, 5) // 5,0,2
 				})
+				AfterEach(func() {
+					changeClientIdentifier()
+				})
 				It("apply request limit", func() {
 					expectNonLimitedRequest(ctx.SMWithOAuth, web.ServiceBrokersURL) // 4,0,2
 					expectLimitedRequest(ctx.SMWithOAuth, web.PlatformsURL)         // 3,0,2

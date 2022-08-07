@@ -18,12 +18,15 @@ package sm
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"errors"
 	"fmt"
 	secFilters "github.com/Peripli/service-manager/pkg/security/filters"
+	osbc "github.com/kubernetes-sigs/go-open-service-broker-client/v2"
 	"math"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -58,14 +61,14 @@ import (
 	_ "github.com/Kount/pq-timeouts"
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/pkg/web"
-	osbc "github.com/kubernetes-sigs/go-open-service-broker-client/v2"
+	"github.com/go-redis/redis/v8"
 )
 
 // ServiceManagerBuilder type is an extension point that allows adding additional filters, plugins and
 // controllers before running ServiceManager.
 type ServiceManagerBuilder struct {
 	*web.API
-
+	RedisClient          *redis.Client
 	Storage              *storage.InterceptableTransactionalRepository
 	Notificator          storage.Notificator
 	NotificationCleaner  *storage.NotificationCleaner
@@ -106,6 +109,23 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 	util.HandleInterrupts(ctx, cancel)
 
+	// Setup cache
+	var redisClient *redis.Client
+	if cfg.Cache.Enabled {
+		var tlsConfig *tls.Config
+		if cfg.Cache.TLSEnabled {
+			tlsConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		}
+		redisClient = redis.NewClient(&redis.Options{
+			Addr:     cfg.Cache.Host + ":" + strconv.Itoa(cfg.Cache.Port),
+			Password: cfg.Cache.Password,
+			//MaxRetries:      maxRetries,
+			//MinRetryBackoff: minRetryBackoff,
+			//MaxRetryBackoff: maxRetryBackoff,
+			TLSConfig: tlsConfig,
+		})
+	}
+
 	// Setup storage
 	log.C(ctx).Info("Setting up Service Manager storage...")
 	smStorage := &postgres.Storage{
@@ -137,6 +157,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	apiOptions := &api.Options{
+		RedisClient:       redisClient,
 		Repository:        interceptableRepository,
 		APISettings:       cfg.API,
 		OperationSettings: cfg.Operations,
@@ -208,6 +229,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		OSBClientProvider:    osbClientProvider,
 		encryptingRepository: encryptingRepository,
 		APIOptions:           apiOptions,
+		RedisClient:          redisClient,
 	}
 
 	smb.RegisterPlugins(osb.NewCatalogFilterByVisibilityPlugin(interceptableRepository))

@@ -15,6 +15,12 @@ websocket:
 log:
   level: info
   format: text
+cache:
+  enabled: false
+  port: 6379
+  host: "localhost"
+  password: ""
+  tls_enabled: false
 storage:
   uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
   encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8

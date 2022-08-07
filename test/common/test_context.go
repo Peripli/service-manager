@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"github.com/go-redis/redis/v8"
 	"math/rand"
 	"net"
 	"net/http"
@@ -223,6 +224,7 @@ type TestContext struct {
 	// In the end requesting brokers with this
 	SMWithOAuthForTenant *SMExpect
 	SMWithBasic          *SMExpect
+	RedisClient          *redis.Client
 	SMRepository         storage.TransactionalRepository
 	SMScheduler          *operations.Scheduler
 	TestPlatform         *types.Platform
@@ -486,7 +488,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 	}
 	wg := &sync.WaitGroup{}
 
-	smServer, smRepository, smScheduler, maintainer, smConfig := newSMServer(environment, wg, tcb.smExtensions, listener)
+	smServer, smRepository, smRedis, smScheduler, maintainer, smConfig := newSMServer(environment, wg, tcb.smExtensions, listener)
 	tcb.Servers[SMServer] = smServer
 
 	SM := httpexpect.New(ginkgo.GinkgoT(), smServer.URL())
@@ -510,6 +512,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 		SMWithOAuth:          &SMExpect{Expect: SMWithOAuth},
 		SMWithOAuthForTenant: &SMExpect{Expect: SMWithOAuthForTenant},
 		Servers:              tcb.Servers,
+		RedisClient:          smRedis,
 		SMRepository:         smRepository,
 		SMScheduler:          smScheduler,
 		HttpClient:           tcb.HttpClient,
@@ -596,7 +599,7 @@ func NewSMListener() (net.Listener, error) {
 	return nil, fmt.Errorf("unable to create sm listener: %s", err)
 }
 
-func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.TransactionalRepository, *operations.Scheduler, *operations.Maintainer, *config.Settings) {
+func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.TransactionalRepository, *redis.Client, *operations.Scheduler, *operations.Maintainer, *config.Settings) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	cfg, err := config.New(smEnv)
@@ -635,7 +638,7 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	return &testSMServer{
 		cancel: cancel,
 		Server: testServer,
-	}, smb.Storage, scheduler, smb.OperationMaintainer, cfg
+	}, smb.Storage, smb.RedisClient, scheduler, smb.OperationMaintainer, cfg
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object, expectedStatus int) *BrokerUtils {
@@ -871,6 +874,9 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL).Expect()
 
 	ctx.CleanupPlatforms()
+	if ctx.RedisClient != nil {
+		ctx.ResetRateLimiter(ctx.RedisClient)
+	}
 	serversToDelete := make([]string, 0)
 	for serverName, server := range ctx.Servers {
 		if serverName != SMServer && serverName != OauthServer && serverName != TenantOauthServer {
@@ -929,4 +935,8 @@ func (ctx *TestContext) CloseWebSocket(conn *websocket.Conn) {
 			return
 		}
 	}
+}
+
+func (ctx *TestContext) ResetRateLimiter(client *redis.Client) {
+	client.FlushDB(client.Context())
 }
