@@ -98,16 +98,17 @@ func (s *Settings) Validate() error {
 }
 
 type Options struct {
-	RedisClient       *redis.Client
-	Repository        storage.TransactionalRepository
-	APISettings       *Settings
-	StorageSettings   *storage.Settings
-	OperationSettings *operations.Settings
-	WSSettings        *ws.Settings
-	Notificator       storage.Notificator
-	WaitGroup         *sync.WaitGroup
-	TenantLabelKey    string
-	Agents            *agents.Settings
+	RedisClient         *redis.Client
+	Repository          storage.TransactionalRepository
+	APISettings         *Settings
+	StorageSettings     *storage.Settings
+	OperationSettings   *operations.Settings
+	WSSettings          *ws.Settings
+	Notificator         storage.Notificator
+	WaitGroup           *sync.WaitGroup
+	TenantLabelKey      string
+	Agents              *agents.Settings
+	BlockedClientsCache *storage.Cache
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
@@ -191,7 +192,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 
 	api.RegisterFiltersBefore(filters.ProtectedLabelsFilterName, &filters.DisabledQueryParametersFilter{DisabledQueryParameters: options.APISettings.DisabledQueryParameters})
 	api.RegisterFiltersAfter(filters.DisabledQueryParametersName,
-		filters.NewBlockedClientsFilter(ctx, options.Repository, options.StorageSettings.URI))
+		filters.NewBlockedClientsFilter(options.BlockedClientsCache))
 
 	if rateLimiters != nil {
 		api.RegisterFiltersAfter(

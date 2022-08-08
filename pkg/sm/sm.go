@@ -20,9 +20,12 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/blocked_clients"
 	secFilters "github.com/Peripli/service-manager/pkg/security/filters"
+	"github.com/Peripli/service-manager/storage/events"
 	osbc "github.com/kubernetes-sigs/go-open-service-broker-client/v2"
 	"math"
 	"net/http"
@@ -152,22 +155,47 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 	// Setup core API
 	log.C(ctx).Info("Setting up Service Manager core API...")
-
 	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage)
 	if err != nil {
 		return nil, fmt.Errorf("could not create notificator: %v", err)
 	}
 
+	blockedClientsManager := blocked_clients.Init(ctx, interceptableRepository)
+	callbacks := map[string]func(*events.Message) error{
+		"blocked_clients-INSERT": func(envelope *events.Message) error {
+			var blockedClient types.BlockedClient
+
+			if err := json.Unmarshal(envelope.Data, &blockedClient); err != nil {
+				log.C(ctx).Info("error unmarshaling new blocked client")
+			}
+
+			blockedClientsManager.Cache.AddC(blockedClient.ClientID, blockedClient)
+			return nil
+		},
+		"blocked_clients-DELETE": func(envelope *events.Message) error {
+			var blockedClient types.BlockedClient
+			if err := json.Unmarshal(envelope.Data, &blockedClient); err != nil {
+				log.C(ctx).Info("error unmarshaling new blocked client")
+			}
+
+			blockedClientsManager.Cache.DeleteC(blockedClient.ClientID)
+			return nil
+		},
+	}
+
+	_ = events.NewPostgresEventListener(ctx, cfg.Storage.URI, callbacks)
+
 	apiOptions := &api.Options{
-		RedisClient:       redisClient,
-		Repository:        interceptableRepository,
-		APISettings:       cfg.API,
-		OperationSettings: cfg.Operations,
-		WSSettings:        cfg.WebSocket,
-		Notificator:       pgNotificator,
-		WaitGroup:         waitGroup,
-		TenantLabelKey:    cfg.Multitenancy.LabelKey,
-		Agents:            cfg.Agents,
+		RedisClient:         redisClient,
+		Repository:          interceptableRepository,
+		APISettings:         cfg.API,
+		OperationSettings:   cfg.Operations,
+		WSSettings:          cfg.WebSocket,
+		Notificator:         pgNotificator,
+		WaitGroup:           waitGroup,
+		TenantLabelKey:      cfg.Multitenancy.LabelKey,
+		Agents:              cfg.Agents,
+		BlockedClientsCache: blockedClientsManager.Cache,
 	}
 	API, err := api.New(ctx, e, apiOptions)
 	if err != nil {
