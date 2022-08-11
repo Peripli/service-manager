@@ -117,10 +117,8 @@ func initRateLimiters(ctx context.Context, options *Options) ([]filters.RateLimi
 		return nil, err
 	}
 	for _, configuration := range configurations {
-		var store limiter.Store
-		if options.RedisClient != nil {
-			store = redisStore
-		} else {
+		store := redisStore
+		if store == nil {
 			log.C(ctx).Error("redis client is not initialized. creating in memory store for rate limiting")
 			store = memory.NewStore()
 		}

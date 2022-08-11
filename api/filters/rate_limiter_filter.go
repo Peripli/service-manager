@@ -124,9 +124,8 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 			}
 			key := method + ":" + rlm.pathPrefix + ":" + rlm.rate.Formatted + ":" + userContext.Name
 			limiterContext, err := rlm.middleware.Limiter.Get(request.Context(), key)
-			log.C(request.Context()).Errorf("ratekey: %s remaining: %d", key, limiterContext.Remaining)
 			if err != nil {
-				log.C(request.Context()).Errorf("failed to get limiter context: %v", err)
+				log.C(request.Context()).Errorf("failed to get limiter context with key %s: %v", key, err)
 				return nil, err
 			}
 
