@@ -110,6 +110,8 @@ func initRateLimiters(ctx context.Context, options *Options) ([]filters.RateLimi
 			log.C(ctx).Errorf("failed to initialize redis store: %v", err)
 			return nil, err
 		}
+	} else {
+		log.C(ctx).Info("redis client is not initialized. creating in memory store for rate limiting")
 	}
 
 	configurations, err := parseRateLimiterConfiguration(options.APISettings.RateLimit)
@@ -119,7 +121,6 @@ func initRateLimiters(ctx context.Context, options *Options) ([]filters.RateLimi
 	for _, configuration := range configurations {
 		store := redisStore
 		if store == nil {
-			log.C(ctx).Error("redis client is not initialized. creating in memory store for rate limiting")
 			store = memory.NewStore()
 		}
 		rateLimiters = append(
