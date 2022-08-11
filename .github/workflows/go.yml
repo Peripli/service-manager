@@ -174,7 +174,20 @@ jobs:
         ports:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
-
+      redis:
+        image: redis
+        env:
+          # The hostname used to communicate with the Redis service container
+          REDIS_HOST: redis
+          # The default Redis port
+          REDIS_PORT: 6379
+          REDIS_PASSWORD: ""
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
