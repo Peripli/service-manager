@@ -112,7 +112,9 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	// Setup cache
 	var redisClient *redis.Client
 	if cfg.Cache.Enabled {
-		var tlsConfig *tls.Config
+		tlsConfig := &tls.Config{
+			InsecureSkipVerify: true,
+		}
 		if cfg.Cache.TLSEnabled {
 			tlsConfig = &tls.Config{MinVersion: tls.VersionTLS12}
 		}
