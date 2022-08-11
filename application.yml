@@ -23,7 +23,7 @@ storage:
   encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
   skip_ssl_validation: false
   max_idle_connections: 5
-  max_open_connections: 30 
+  max_open_connections: 10
 api:
   token_issuer_url: http://localhost:8080/uaa
   client_id: cf
