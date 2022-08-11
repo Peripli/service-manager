@@ -117,9 +117,9 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 			tlsConfig = &tls.Config{MinVersion: tls.VersionTLS12}
 		}
 		redisClient = redis.NewClient(&redis.Options{
-			Addr:     cfg.Cache.Host + ":" + strconv.Itoa(cfg.Cache.Port),
-			Password: cfg.Cache.Password,
-			//MaxRetries:      maxRetries,
+			Addr:       cfg.Cache.Host + ":" + strconv.Itoa(cfg.Cache.Port),
+			Password:   cfg.Cache.Password,
+			MaxRetries: cfg.Cache.MaxRetries,
 			//MinRetryBackoff: minRetryBackoff,
 			//MaxRetryBackoff: maxRetryBackoff,
 			TLSConfig: tlsConfig,
