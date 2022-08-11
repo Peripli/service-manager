@@ -12,7 +12,7 @@ type Settings struct {
 // DefaultSettings returns default values for cache settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		Enabled:    true,
+		Enabled:    false,
 		TLSEnabled: true,
 	}
 }

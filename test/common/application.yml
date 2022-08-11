@@ -16,9 +16,8 @@ log:
   level: info
   format: text
 cache:
-  enabled: true
   port: 6379
-  host: "redis"
+  host: localhost
   password: ""
   tls_enabled: false
 storage:
