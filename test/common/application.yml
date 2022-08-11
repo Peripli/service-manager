@@ -23,8 +23,6 @@ cache:
 storage:
   uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
   encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
-  max_idle_connections: 5
-  max_open_connections: 30
 api:
   token_issuer_url: http://localhost:8080/uaa
   client_id: sm
