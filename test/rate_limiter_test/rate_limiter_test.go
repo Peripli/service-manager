@@ -128,7 +128,7 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 			Context("request is authorized", func() {
 
 				When("basic auth (global Platform)", func() {
-					It("doesn't limit basic auth requests", func() {
+					FIt("doesn't limit basic auth requests", func() {
 						bulkRequest(ctx.SMWithBasic, osbURL+"/v2/catalog", 21)
 					})
 				})
