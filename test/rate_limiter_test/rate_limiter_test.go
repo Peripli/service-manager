@@ -113,7 +113,7 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 	}
 
 	redisEnabledValues := []bool{false, true}
-	for i, _ := range redisEnabledValues {
+	for i := range redisEnabledValues {
 		Describe("rate limiter", func() {
 			redisEnabled := redisEnabledValues[i]
 			BeforeEach(func() {
@@ -128,7 +128,7 @@ var _ = Describe("Service Manager Rate Limiter", func() {
 			Context("request is authorized", func() {
 
 				When("basic auth (global Platform)", func() {
-					FIt("doesn't limit basic auth requests", func() {
+					It("doesn't limit basic auth requests", func() {
 						bulkRequest(ctx.SMWithBasic, osbURL+"/v2/catalog", 21)
 					})
 				})
