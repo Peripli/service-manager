@@ -177,11 +177,8 @@ jobs:
       redis:
         image: redis
         env:
-          # The hostname used to communicate with the Redis service container
-          REDIS_HOST: redis
           # The default Redis port
           REDIS_PORT: 6379
-          REDIS_PASSWORD: ""
         # Set health checks to wait until redis has started
         options: >-
           --health-cmd "redis-cli ping"
