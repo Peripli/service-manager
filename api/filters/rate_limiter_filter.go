@@ -25,13 +25,15 @@ type RateLimiterMiddleware struct {
 	middleware *stdlib.Middleware
 	pathPrefix string
 	method     string
+	rate       limiter.Rate
 }
 
-func NewRateLimiterMiddleware(middleware *stdlib.Middleware, pathPrefix string, method string) RateLimiterMiddleware {
+func NewRateLimiterMiddleware(middleware *stdlib.Middleware, pathPrefix string, method string, rate limiter.Rate) RateLimiterMiddleware {
 	return RateLimiterMiddleware{
 		middleware,
 		pathPrefix,
 		method,
+		rate,
 	}
 }
 
@@ -116,8 +118,14 @@ func (rl *RateLimiterFilter) Run(request *web.Request, next web.Handler) (*web.R
 			if rlm.method != "" && strings.ToUpper(rlm.method) != strings.ToUpper(request.Method) {
 				continue
 			}
-			limiterContext, err := rlm.middleware.Limiter.Get(request.Context(), userContext.Name)
+			method := "all-methods"
+			if rlm.method != "" {
+				method = rlm.method
+			}
+			key := method + ":" + rlm.pathPrefix + ":" + rlm.rate.Formatted + ":" + userContext.Name
+			limiterContext, err := rlm.middleware.Limiter.Get(request.Context(), key)
 			if err != nil {
+				log.C(request.Context()).Errorf("failed to get limiter context with key %s: %v", key, err)
 				return nil, err
 			}
 

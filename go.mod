@@ -23,6 +23,7 @@ require (
 	github.com/gavv/httpexpect v0.0.0-20170820080527-c44a6d7bb636
 	github.com/gavv/monotime v0.0.0-20190418164738-30dba4353424 // indirect
 	github.com/gbrlsnchs/jwt v0.5.0
+	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/gobwas/glob v0.2.3
 	github.com/gofrs/uuid v3.1.0+incompatible
 	github.com/golang-migrate/migrate v3.5.4+incompatible
@@ -43,7 +44,7 @@ require (
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/moul/http2curl v1.0.0 // indirect
 	github.com/onrik/logrus v0.4.1
-	github.com/onsi/ginkgo v1.16.4
+	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect

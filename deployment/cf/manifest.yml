@@ -10,6 +10,7 @@ applications:
     GOPACKAGENAME: github.com/Peripli/service-manager
     API_TOKEN_ISSUER_URL: https://uaa.dev.cfdev.sh
     HTTPCLIENT_SKIP_SSL_VALIDATION: true
+    CACHE_NAME: <redis_instance_name>
     STORAGE_ENCRYPTION_KEY: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
     STORAGE_NAME: <postgre_instance_name>
     STORAGE_SKIP_SSL_VALIDATION: false

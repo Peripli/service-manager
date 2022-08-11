@@ -19,6 +19,7 @@ package config
 import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/agents"
+	"github.com/Peripli/service-manager/storage/cache"
 
 	"github.com/Peripli/service-manager/pkg/multitenancy"
 
@@ -39,6 +40,7 @@ import (
 // Settings is used to setup the Service Manager
 type Settings struct {
 	Server       *server.Settings
+	Cache        *cache.Settings
 	Storage      *storage.Settings
 	Log          *log.Settings
 	API          *api.Settings
@@ -59,6 +61,7 @@ func AddPFlags(set *pflag.FlagSet) {
 // DefaultSettings returns the default values for configuring the Service Manager
 func DefaultSettings() *Settings {
 	return &Settings{
+		Cache:        cache.DefaultSettings(),
 		Server:       server.DefaultSettings(),
 		Storage:      storage.DefaultSettings(),
 		Log:          log.DefaultSettings(),

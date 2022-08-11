@@ -1,11 +1,14 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"github.com/Peripli/service-manager/api/filters"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/middleware/stdlib"
 	"github.com/ulule/limiter/drivers/store/memory"
+	"github.com/ulule/limiter/drivers/store/redis"
 	"net/http"
 	"path"
 	"strings"
@@ -93,19 +96,36 @@ func parseRateLimiterConfiguration(input string) ([]RateLimiterConfiguration, er
 	return configurations, nil
 }
 
-func initRateLimiters(options *Options) ([]filters.RateLimiterMiddleware, error) {
+func initRateLimiters(ctx context.Context, options *Options) ([]filters.RateLimiterMiddleware, error) {
 	var rateLimiters []filters.RateLimiterMiddleware
 	if !options.APISettings.RateLimitingEnabled {
 		return nil, nil
 	}
+
+	var redisStore limiter.Store
+	var err error
+	if options.RedisClient != nil {
+		redisStore, err = redis.NewStore(options.RedisClient)
+		if err != nil {
+			log.C(ctx).Errorf("failed to initialize redis store: %v", err)
+			return nil, err
+		}
+	} else {
+		log.C(ctx).Info("redis client is not initialized. creating in memory store for rate limiting")
+	}
+
 	configurations, err := parseRateLimiterConfiguration(options.APISettings.RateLimit)
 	if err != nil {
 		return nil, err
 	}
 	for _, configuration := range configurations {
+		store := redisStore
+		if store == nil {
+			store = memory.NewStore()
+		}
 		rateLimiters = append(
 			rateLimiters,
-			filters.NewRateLimiterMiddleware(stdlib.NewMiddleware(limiter.New(memory.NewStore(), configuration.rate)), configuration.pathPrefix, configuration.method),
+			filters.NewRateLimiterMiddleware(stdlib.NewMiddleware(limiter.New(store, configuration.rate)), configuration.pathPrefix, configuration.method, configuration.rate),
 		)
 	}
 	return rateLimiters, nil

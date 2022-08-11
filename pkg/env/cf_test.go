@@ -49,6 +49,31 @@ const VCAP_SERVICES_VALUE = `{ "postgresql": [
     ],
     "volume_mounts": []
    }
+  ],
+  "redis-cache": [
+    {
+      "binding_guid": "8ed389ef-735c-4b6e-a85b-6fbe5fb5bbb1",
+      "binding_name": null,
+      "credentials": {
+        "cluster_mode": false,
+        "hostname": "localhost",
+        "password": "1234",
+        "port": 3283,
+        "tls": true,
+        "uri": "rediss://no-user-name-for-redis:1234@localhost:3283"
+      },
+      "instance_guid": "b78e9e08-b7fd-41db-beab-8cd510d53889",
+      "instance_name": "redis-test-standard-2",
+      "label": "redis-cache",
+      "name": "redis-test",
+      "plan": "standard",
+      "provider": null,
+      "syslog_drain_url": null,
+      "tags": [
+        "cache"
+      ],
+      "volume_mounts": []
+    }
   ]
  }`
 
@@ -64,6 +89,12 @@ var _ = Describe("CF Env", func() {
 		Expect(os.Setenv("STORAGE_NAME", "smdb")).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv("STORAGE_URI")).ShouldNot(HaveOccurred())
 
+		Expect(os.Setenv("CACHE_NAME", "redis-test")).ShouldNot(HaveOccurred())
+		Expect(os.Setenv("CACHE_ENABLED", "true")).ShouldNot(HaveOccurred())
+		Expect(os.Setenv("CACHE_PORT", "6666")).ShouldNot(HaveOccurred())
+		Expect(os.Setenv("CACHE_HOST", "localhost")).ShouldNot(HaveOccurred())
+		Expect(os.Setenv("CACHE_PASSWORD", "1234")).ShouldNot(HaveOccurred())
+
 		environment, err = New(context.TODO(), EmptyFlagSet())
 		Expect(err).ShouldNot(HaveOccurred())
 	})
@@ -72,6 +103,10 @@ var _ = Describe("CF Env", func() {
 		Expect(os.Unsetenv("VCAP_APPLICATION")).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv("VCAP_SERVICES")).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv("STORAGE_NAME")).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv("CACHE_ENABLED")).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv("CACHE_PORT")).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv("CACHE_HOST")).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv("CACHE_PASSWORD")).ShouldNot(HaveOccurred())
 	})
 
 	Describe("Set CF environment values", func() {
@@ -93,6 +128,20 @@ var _ = Describe("CF Env", func() {
 					Expect(environment.Get("storage.name")).Should(BeNil())
 					Expect(environment.Get("storage.uri")).Should(BeNil())
 
+				})
+			})
+			Context("when cache.enabled is missing from environment", func() {
+				It("returns no error", func() {
+					Expect(os.Unsetenv("CACHE_ENABLED")).ShouldNot(HaveOccurred())
+					Expect(setCFOverrides(environment)).ShouldNot(HaveOccurred())
+					Expect(environment.Get("cache.enabled")).Should(BeNil())
+				})
+			})
+			Context("when cache.enabled is true", func() {
+				It("shouldn't return error if cache name is missing", func() {
+					Expect(os.Unsetenv("CACHE_NAME")).ShouldNot(HaveOccurred())
+					Expect(setCFOverrides(environment)).ShouldNot(HaveOccurred())
+					Expect(environment.Get("cache.name")).Should(BeNil())
 				})
 			})
 
