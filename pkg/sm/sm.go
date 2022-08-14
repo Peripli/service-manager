@@ -114,7 +114,9 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	if cfg.Cache.Enabled {
 		var tlsConfig *tls.Config
 		if cfg.Cache.TLSEnabled {
-			tlsConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+			tlsConfig = &tls.Config{
+				InsecureSkipVerify: true,
+			}
 		}
 		redisClient = redis.NewClient(&redis.Options{
 			Addr:       cfg.Cache.Host + ":" + strconv.Itoa(cfg.Cache.Port),
