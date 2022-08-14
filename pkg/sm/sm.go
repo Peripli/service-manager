@@ -114,7 +114,11 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	if cfg.Cache.Enabled {
 		var tlsConfig *tls.Config
 		if cfg.Cache.TLSEnabled {
-			tlsConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+			//From redis docs: the client applications should disable SSL certificate verification, since the certificate management is handled transparently
+			//https://help.sap.com/docs/Redis/ad8f6ea81b714bbb9bf995dd2c2b424e/e8d023511bec41c5bc323d3d38210fba.html#encryption-in-transit
+			tlsConfig = &tls.Config{
+				InsecureSkipVerify: true,
+			}
 		}
 		redisClient = redis.NewClient(&redis.Options{
 			Addr:       cfg.Cache.Host + ":" + strconv.Itoa(cfg.Cache.Port),
