@@ -74,7 +74,7 @@ func useRedisBinding(env Environment, cfEnv *cfenv.App) error {
 		return fmt.Errorf(errorMessage)
 	}
 
-	env.Set("cache.hostname", service.Credentials["hostname"])
+	env.Set("cache.host", service.Credentials["hostname"])
 	env.Set("cache.password", service.Credentials["password"])
 	env.Set("cache.port", service.Credentials["port"])
 	return nil
