@@ -19,11 +19,11 @@ package env_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/fatih/structs"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -32,10 +32,10 @@ import (
 
 	"strings"
 
-	"github.com/Peripli/service-manager/config"
-	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/spf13/cast"
 	"github.com/spf13/pflag"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/config"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/env"
 	"gopkg.in/yaml.v2"
 )
 

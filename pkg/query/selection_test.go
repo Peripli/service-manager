@@ -25,7 +25,7 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 
-	. "github.com/Peripli/service-manager/pkg/query"
+	. "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
 )
 
 var _ = Describe("Selection", func() {

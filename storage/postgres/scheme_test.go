@@ -21,9 +21,9 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

@@ -19,13 +19,13 @@ package postgres
 import (
 	"fmt"
 
-	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 )
 
-//go:generate smgen storage ServiceOffering github.com/Peripli/service-manager/pkg/types
+//go:generate smgen storage ServiceOffering github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types
 type ServiceOffering struct {
 	BaseEntity
 	Name        string `db:"name"`

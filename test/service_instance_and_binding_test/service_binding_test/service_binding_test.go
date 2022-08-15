@@ -20,34 +20,34 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/instance_sharing"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/instance_sharing"
 	"net/http"
 	"strconv"
 	"sync/atomic"
 	"time"
 
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/operations"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
 
-	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/gofrs/uuid"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/env"
 
 	"github.com/spf13/pflag"
 
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
 
 	"github.com/gavv/httpexpect"
 
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 
-	"github.com/Peripli/service-manager/pkg/web"
-	. "github.com/Peripli/service-manager/test/common"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
+	. "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 
-	. "github.com/Peripli/service-manager/test"
+	. "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test"
 
 	. "github.com/onsi/ginkgo"
 

@@ -23,7 +23,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
 )
 
 // OperationCategory is the type of an operation

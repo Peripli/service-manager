@@ -4,7 +4,7 @@ package healthfakes
 import (
 	"sync"
 
-	"github.com/Peripli/service-manager/pkg/health"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/health"
 )
 
 type FakeIndicator struct {

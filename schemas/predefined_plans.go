@@ -3,9 +3,9 @@ package schemas
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/instance_sharing"
-	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gofrs/uuid"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/instance_sharing"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 	"time"
 )
 

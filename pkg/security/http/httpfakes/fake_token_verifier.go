@@ -5,7 +5,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/Peripli/service-manager/pkg/security/http"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http"
 )
 
 type FakeTokenVerifier struct {

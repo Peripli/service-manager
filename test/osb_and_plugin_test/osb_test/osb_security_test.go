@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/test/common"
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	"github.com/tidwall/gjson"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 )
 
 var _ = Describe("OSB Security", func() {

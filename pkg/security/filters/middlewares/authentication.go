@@ -17,10 +17,10 @@
 package middlewares
 
 import (
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/security"
-	"github.com/Peripli/service-manager/pkg/security/http"
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 // Authentication type represents an authentication middleware

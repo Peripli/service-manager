@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/health"
-	"github.com/Peripli/service-manager/pkg/types"
-	storagefakes "github.com/Peripli/service-manager/storage/storagefakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/health"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	storagefakes "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/storagefakes"
 	"time"
 )
 

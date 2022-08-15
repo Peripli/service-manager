@@ -25,16 +25,16 @@ import (
 
 	"github.com/gofrs/uuid"
 
-	"github.com/Peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
 
-	notificationConnection "github.com/Peripli/service-manager/storage/postgres/notification_connection"
-	notificationConnectionFakes "github.com/Peripli/service-manager/storage/postgres/notification_connection/notification_connectionfakes"
+	notificationConnection "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/postgres/notification_connection"
+	notificationConnectionFakes "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/postgres/notification_connection/notification_connectionfakes"
 
-	"github.com/Peripli/service-manager/storage/postgres/postgresfakes"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/postgres/postgresfakes"
 
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 
 	"github.com/lib/pq"
 

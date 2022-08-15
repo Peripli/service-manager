@@ -2,12 +2,12 @@ package cascade_test
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/types/cascade"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/operations"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types/cascade"
 )
 
 var _ = Describe("cascade operations", func() {

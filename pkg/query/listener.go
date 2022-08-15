@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
 
-	"github.com/Peripli/service-manager/pkg/query/parser"
 	"github.com/antlr/antlr4/runtime/Go/antlr"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query/parser"
 )
 
 type queryListener struct {

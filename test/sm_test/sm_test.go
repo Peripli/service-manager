@@ -22,12 +22,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 
-	"github.com/Peripli/service-manager/pkg/env/envfakes"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/env/envfakes"
 
-	"github.com/Peripli/service-manager/config"
-	"github.com/Peripli/service-manager/pkg/env"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/config"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/env"
 
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
@@ -35,10 +35,10 @@ import (
 
 	"net/http"
 
-	"github.com/Peripli/service-manager/api/healthcheck"
-	"github.com/Peripli/service-manager/pkg/sm"
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/test/common"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/healthcheck"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/sm"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 )
 
 func TestServiceManager(t *testing.T) {

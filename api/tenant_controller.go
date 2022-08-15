@@ -2,9 +2,9 @@ package api
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 	"net/http"
 )
 

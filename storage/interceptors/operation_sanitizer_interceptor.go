@@ -18,8 +18,8 @@ package interceptors
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 )
 
 const OperationSanitizerInterceptorName = "OperationSanitizerInterceptor"

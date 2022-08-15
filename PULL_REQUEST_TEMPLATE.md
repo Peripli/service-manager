@@ -33,4 +33,4 @@ For as long as development of your Pull Request is still ongoing you MUST label 
 
 For example: *[WIP] Service brokers API*
 
-[1]: https://github.com/Peripli/service-manager/blob/master/CONTRIBUTING.md
+[1]: https://github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/blob/master/CONTRIBUTING.md

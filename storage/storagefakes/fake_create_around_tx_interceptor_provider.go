@@ -4,7 +4,7 @@ package storagefakes
 import (
 	"sync"
 
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 )
 
 type FakeCreateAroundTxInterceptorProvider struct {

@@ -19,9 +19,9 @@ package security_test
 import (
 	"crypto/sha256"
 
-	"github.com/Peripli/service-manager/pkg/security"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security"
 )
 
 type obj struct {

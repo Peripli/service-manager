@@ -2,13 +2,13 @@ package filters
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/pkg/util/slice"
-	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/middleware/stdlib"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util/slice"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 	"net/http"
 	"strings"
 )

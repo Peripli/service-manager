@@ -19,19 +19,19 @@ package authenticators_test
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/Peripli/service-manager/api/osb"
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/osb"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/storage/storagefakes"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/storagefakes"
 
-	"github.com/Peripli/service-manager/pkg/security/authenticators"
-	httpsec "github.com/Peripli/service-manager/pkg/security/http"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/authenticators"
+	httpsec "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http"
 
-	"github.com/Peripli/service-manager/pkg/types"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 )
 
 var _ = Describe("Basic Authenticator", func() {

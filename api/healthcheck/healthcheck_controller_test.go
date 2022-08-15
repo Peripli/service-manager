@@ -23,8 +23,8 @@ import (
 	"testing"
 
 	h "github.com/InVisionApp/go-health"
-	"github.com/Peripli/service-manager/pkg/health"
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/health"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

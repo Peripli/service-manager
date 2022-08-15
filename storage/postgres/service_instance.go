@@ -20,13 +20,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 )
 
 // ServiceInstance entity
-//go:generate smgen storage ServiceInstance github.com/Peripli/service-manager/pkg/types
+//go:generate smgen storage ServiceInstance github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types
 type ServiceInstance struct {
 	BaseEntity
 	Name                 string             `db:"name"`

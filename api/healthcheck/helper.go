@@ -1,8 +1,8 @@
 package healthcheck
 
 import (
-	"github.com/Peripli/service-manager/pkg/health"
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/health"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 )
 
 func CheckPlatformsState(platforms []*types.Platform, fatal func(*types.Platform) bool) (map[string]*health.Health, int, int) {

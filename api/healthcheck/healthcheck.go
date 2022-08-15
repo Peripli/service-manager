@@ -20,7 +20,7 @@ package healthcheck
 import (
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 // URL is the path of the healthcheck endpoint

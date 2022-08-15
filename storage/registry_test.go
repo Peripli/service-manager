@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/storage/storagefakes"
 	"github.com/sirupsen/logrus"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/storagefakes"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

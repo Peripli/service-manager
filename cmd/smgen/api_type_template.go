@@ -25,8 +25,8 @@ import (
 {{if .TypesPackageImport}}
 	{{.TypesPackageImport}}
 {{end}}
-	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 const {{.Type}}Type {{.TypesPackage}}ObjectType = web.{{.TypePlural}}URL

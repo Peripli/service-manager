@@ -16,8 +16,8 @@
 package osb
 
 import (
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/test/tls_settings"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/tls_settings"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

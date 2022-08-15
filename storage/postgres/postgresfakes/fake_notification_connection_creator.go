@@ -4,7 +4,7 @@ package postgresfakes
 import (
 	"sync"
 
-	"github.com/Peripli/service-manager/storage/postgres/notification_connection"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/postgres/notification_connection"
 )
 
 type FakeNotificationConnectionCreator struct {

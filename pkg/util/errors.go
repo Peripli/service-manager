@@ -20,10 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/instance_sharing"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/instance_sharing"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
 )
 
 // HTTPError is an error type that provides error details that Service Manager error handlers would propagate to the client

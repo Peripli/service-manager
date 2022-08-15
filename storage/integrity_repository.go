@@ -20,10 +20,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Peripli/service-manager/pkg/security"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security"
 
-	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 )
 
 // DataIntegrityDecorator decorates a repository to process the integrity of integral objects

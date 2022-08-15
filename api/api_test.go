@@ -20,17 +20,17 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Peripli/service-manager/operations"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/operations"
 
-	"github.com/Peripli/service-manager/pkg/env/envfakes"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/env/envfakes"
 
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 
-	"github.com/Peripli/service-manager/api"
-	"github.com/Peripli/service-manager/storage/storagefakes"
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/storagefakes"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 )
 
 func TestAPI(t *testing.T) {

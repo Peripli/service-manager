@@ -17,9 +17,9 @@
 package osb_test
 
 import (
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/web"
 	. "github.com/onsi/ginkgo"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 	"net/http"
 )
 

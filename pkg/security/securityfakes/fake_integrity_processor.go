@@ -4,7 +4,7 @@ package securityfakes
 import (
 	"sync"
 
-	"github.com/Peripli/service-manager/pkg/security"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security"
 )
 
 type FakeIntegrityProcessor struct {

@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 
-	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 const ProtectedLabelsFilterName = "ProtectedLabelsFilter"

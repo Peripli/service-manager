@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
 )
 
 var ErrLockAcquisition = errors.New("failed to acquire lock")

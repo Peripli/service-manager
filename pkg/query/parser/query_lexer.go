@@ -1,4 +1,4 @@
-// Generated from /Users/i355594/go/src/github.com/Peripli/service-manager/pkg/query/Query.g4 by ANTLR 4.7.
+// Generated from /Users/i355594/go/src/github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query/Query.g4 by ANTLR 4.7.
 
 package parser
 

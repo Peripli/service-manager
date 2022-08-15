@@ -20,19 +20,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
 
-	"github.com/Peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
 
-	"github.com/Peripli/service-manager/test/testutil"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/testutil"
 
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/test/common"
 	"github.com/gofrs/uuid"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/pflag"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 )
 
 func TestNotificationCleaner(t *testing.T) {

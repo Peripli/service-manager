@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 
-	httpsec "github.com/Peripli/service-manager/pkg/security/http"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	httpsec "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http"
 )
 
 var _ = Describe("Oauth Scopes", func() {

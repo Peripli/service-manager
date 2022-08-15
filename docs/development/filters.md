@@ -14,7 +14,7 @@ There are several types one has to know about. They can be found [here](pkg/web/
 ```go
 package myfilter
 
-import "github.com/Peripli/service-manager/pkg/web"
+import "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 
 // Filter implements web.Filter (a Named Middleware that matches (runs on)
 // certain conditions called FilterMatchers)

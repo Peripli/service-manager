@@ -10,11 +10,11 @@ import (
 
 	"github.com/benjamintf1/unmarshalledmatchers"
 
-	"github.com/Peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 
-	"github.com/Peripli/service-manager/test/common"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 
 	. "github.com/onsi/ginkgo"
 

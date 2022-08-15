@@ -20,10 +20,10 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/storage"
 	"github.com/tidwall/gjson"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 )
 
 const (

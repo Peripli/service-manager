@@ -19,27 +19,27 @@ package interceptor_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/util/slice"
-	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/storage/service_plans"
 	"github.com/gavv/httpexpect"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util/slice"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/service_plans"
 	"math/rand"
 	"net/http"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 
-	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/storage/interceptors"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/env"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/interceptors"
 
-	"github.com/Peripli/service-manager/pkg/sm"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/sm"
 
 	"github.com/tidwall/gjson"
 
 	"github.com/tidwall/sjson"
 
-	"github.com/Peripli/service-manager/test/common"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 
 	. "github.com/onsi/ginkgo"
 

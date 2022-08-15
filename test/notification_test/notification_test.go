@@ -5,38 +5,38 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Peripli/service-manager/storage/service_plans"
-	"github.com/Peripli/service-manager/test"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/service_plans"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/gofrs/uuid"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util/slice"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 
 	"github.com/tidwall/sjson"
 
-	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/Peripli/service-manager/pkg/sm"
-	"github.com/Peripli/service-manager/storage/interceptors"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/env"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/sm"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/interceptors"
 
-	"github.com/Peripli/service-manager/storage/catalog"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/catalog"
 
 	. "github.com/benjamintf1/unmarshalledmatchers"
 
 	"github.com/tidwall/gjson"
 
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 
-	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 
-	"github.com/Peripli/service-manager/pkg/types"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 )
 
 const tenantLabelKey = "tenant"

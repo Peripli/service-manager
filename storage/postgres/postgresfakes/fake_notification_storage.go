@@ -5,7 +5,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 )
 
 type FakeNotificationStorage struct {

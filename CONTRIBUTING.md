@@ -48,8 +48,8 @@ By contributing to the Service Manager project, you agree that your contribution
 
 
 [1]: https://guides.github.com/introduction/flow/index.html
-[2]: https://github.com/Peripli/service-manager/blob/master/LICENSE
-[3]: https://github.com/Peripli/service-manager/issues
-[4]: https://github.com/Peripli/service-manager/issues/new
-[5]: https://github.com/Peripli/service-manager/blob/master/ISSUE_TEMPLATE.md
-[6]: https://github.com/Peripli/service-manager/blob/master/PULL_REQUEST_TEMPLATE.md
+[2]: https://github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/blob/master/LICENSE
+[3]: https://github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/issues
+[4]: https://github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/issues/new
+[5]: https://github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/blob/master/ISSUE_TEMPLATE.md
+[6]: https://github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/blob/master/PULL_REQUEST_TEMPLATE.md

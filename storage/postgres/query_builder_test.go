@@ -4,20 +4,20 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 
 	"regexp"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
 
 	. "github.com/onsi/gomega"
 
-	"github.com/Peripli/service-manager/storage/postgres"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/postgres"
 
-	"github.com/Peripli/service-manager/storage/postgres/postgresfakes"
 	"github.com/jmoiron/sqlx"
 	. "github.com/onsi/ginkgo"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/postgres/postgresfakes"
 )
 
 // The query builder tests contain the full queries that are expected to be build and can therefore be used as documentation

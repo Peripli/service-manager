@@ -18,22 +18,22 @@ package config
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/agents"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/agents"
 
-	"github.com/Peripli/service-manager/pkg/multitenancy"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/multitenancy"
 
-	"github.com/Peripli/service-manager/operations"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/operations"
 
-	"github.com/Peripli/service-manager/pkg/httpclient"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/httpclient"
 
-	"github.com/Peripli/service-manager/api"
-	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/Peripli/service-manager/pkg/health"
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/server"
-	"github.com/Peripli/service-manager/pkg/ws"
-	"github.com/Peripli/service-manager/storage"
 	"github.com/spf13/pflag"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/env"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/health"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/server"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/ws"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 )
 
 // Settings is used to setup the Service Manager

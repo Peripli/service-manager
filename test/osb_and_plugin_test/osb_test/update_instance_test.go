@@ -19,19 +19,19 @@ package osb_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/test"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test"
 
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/test/common"
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 )
 
 var _ = Describe("Update", func() {

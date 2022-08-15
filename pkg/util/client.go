@@ -20,14 +20,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gofrs/uuid"
 	"github.com/sirupsen/logrus"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 	"io"
 	"io/ioutil"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
 )
 
 // DoRequestFunc is an alias for any function that takes an http request and returns a response and error

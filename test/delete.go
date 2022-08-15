@@ -18,14 +18,14 @@ package test
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 	"net/http"
 	"strconv"
 
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 )
 
 func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode ResponseMode, supportedCascadeDelete bool) bool {

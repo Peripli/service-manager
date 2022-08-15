@@ -20,19 +20,19 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/Peripli/service-manager/test/tls_settings"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/tls_settings"
 	"net/http"
 
-	"github.com/Peripli/service-manager/api/osb"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/osb"
 
-	"github.com/Peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
 
 	. "github.com/onsi/gomega"
 
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 )
 
 var _ = Describe("Catalog CatalogFetcher", func() {

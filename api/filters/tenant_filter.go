@@ -3,8 +3,8 @@ package filters
 import (
 	"errors"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 // sm-dev adopt and add new config properties in the dev en

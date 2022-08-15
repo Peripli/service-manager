@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
 )
 
 func findTagType(tags []tagType, tagName string) reflect.Type {

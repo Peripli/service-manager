@@ -54,7 +54,7 @@ This repository provides a framework for writing Service Manager Service Broker 
         ├── pkg                     # Contains all reusable packages as part of the framework
         │   └── logging             # Logging extensions and hooks
         │   └── middleware          # Middleware to used as part of the proxy API
-        │   └── osb                 # Configurations for the OSB proxying API provided by `github.com/Peripli/service-manager/api/osb`
+        │   └── osb                 # Configurations for the OSB proxying API provided by `github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/osb`
         │   └── platform            # Interfaces to be implemented by consumers of this framework
         │   └── sbproxy             # entrypoint of the framework for instantiation of the application
         |       └── reconcile       # reconcilation job; reconciles the current state (platform) and the desired state (obtained from SM)

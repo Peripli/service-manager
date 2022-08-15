@@ -4,14 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 	"regexp"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/jmoiron/sqlx"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
 )
 
 const PrimaryKeyColumn = "id"

@@ -3,9 +3,9 @@ package healthcheck
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/health"
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/health"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 )
 
 func NewMonitoredPlatformsIndicator(ctx context.Context, repository storage.Repository, monitoredPlatformsThreshold int) health.Indicator {

@@ -21,17 +21,17 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util/slice"
 	"mime"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 
-	"github.com/Peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
 )
 
 const jsonContentType = "application/json"

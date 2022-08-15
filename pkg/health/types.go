@@ -22,7 +22,7 @@ import (
 	"github.com/InVisionApp/go-health"
 	h "github.com/InVisionApp/go-health"
 	l "github.com/InVisionApp/go-logger/shims/logrus"
-	"github.com/Peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
 	"time"
 )
 

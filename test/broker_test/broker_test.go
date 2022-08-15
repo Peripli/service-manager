@@ -19,8 +19,8 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/instance_sharing"
-	"github.com/Peripli/service-manager/test/tls_settings"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/instance_sharing"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/tls_settings"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -28,26 +28,26 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/httpclient"
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/httpclient"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
 
-	"github.com/Peripli/service-manager/test"
 	"github.com/gavv/httpexpect"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test"
 
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 
-	"github.com/Peripli/service-manager/test/common"
-	. "github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/cast"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
+	. "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 )
 
 func TestBrokers(t *testing.T) {

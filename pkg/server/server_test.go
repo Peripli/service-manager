@@ -21,11 +21,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Peripli/service-manager/api/filters"
-	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/filters"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 func TestServer(t *testing.T) {

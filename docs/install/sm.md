@@ -34,7 +34,7 @@ Alternatively, you can use external PostgreSQL as described in the [installation
 
 ### Update manifest.yml file
 
-Prepare the manifest for deployment using *[deployment/cf/manifest.yml](https://github.com/Peripli/service-manager/blob/master/deployment/cf/manifest.yml)* as template:
+Prepare the manifest for deployment using *[deployment/cf/manifest.yml](https://github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/blob/master/deployment/cf/manifest.yml)* as template:
 
 * Update environment variable `STORAGE_NAME` by replacing the value *<postgre_instance_name>* with the instance name of your PostgreSQL service. Alternatively, you can use the `STORAGE_URI` environment variable to set external PostgreSQL URI, but in this case `STORAGE_NAME` environment variable and its value must be removed from the manifest.yml.
 * Update environment variable `API_TOKEN_ISSUER_URL` by replacing the value *<api_token_issuer_url>* with the URL of your OAuth server. For example if you are running in CFDev you can use the CFDev UAA.

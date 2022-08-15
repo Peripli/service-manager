@@ -19,11 +19,11 @@ package filters
 import (
 	"context"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 
-	"github.com/Peripli/service-manager/pkg/security/filters"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/filters"
 
-	"github.com/Peripli/service-manager/pkg/security/authenticators"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/authenticators"
 )
 
 // BearerAuthnFilterName is the name of the bearer authentication filter

@@ -5,10 +5,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	httpsec "github.com/Peripli/service-manager/pkg/security/http"
-	"github.com/Peripli/service-manager/pkg/web"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	httpsec "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 func TestAuthorization(t *testing.T) {

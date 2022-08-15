@@ -18,13 +18,13 @@ package postgres
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 )
 
 // BrokerPlatformCredential entity
-//go:generate smgen storage BrokerPlatformCredential github.com/Peripli/service-manager/pkg/types
+//go:generate smgen storage BrokerPlatformCredential github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types
 type BrokerPlatformCredential struct {
 	BaseEntity
 

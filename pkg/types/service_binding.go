@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/Peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
 )
 
 //go:generate smgen api ServiceBinding

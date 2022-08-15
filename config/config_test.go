@@ -18,21 +18,21 @@ package config_test
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/agents"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/agents"
 	"testing"
 	"time"
 
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/health"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/operations"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/health"
 
-	"github.com/Peripli/service-manager/api"
-	cfg "github.com/Peripli/service-manager/config"
-	"github.com/Peripli/service-manager/pkg/env/envfakes"
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/server"
-	"github.com/Peripli/service-manager/storage"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api"
+	cfg "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/config"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/env/envfakes"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/server"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 )
 
 func TestConfig(t *testing.T) {

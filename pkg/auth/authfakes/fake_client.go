@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/Peripli/service-manager/pkg/auth"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/auth"
 )
 
 type FakeClient struct {

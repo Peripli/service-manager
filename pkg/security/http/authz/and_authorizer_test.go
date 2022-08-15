@@ -3,10 +3,10 @@ package authz
 import (
 	"errors"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 
-	httpsec "github.com/Peripli/service-manager/pkg/security/http"
 	. "github.com/onsi/ginkgo"
+	httpsec "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http"
 )
 
 var _ = Describe("AndAuthorizer", func() {

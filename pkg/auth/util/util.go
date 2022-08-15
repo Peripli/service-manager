@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/auth"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/auth"
 	"net"
 	"net/http"
 	"strings"

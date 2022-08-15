@@ -20,14 +20,14 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 )
 
 // Broker entity
-//go:generate smgen storage broker github.com/Peripli/service-manager/pkg/types:ServiceBroker
+//go:generate smgen storage broker github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types:ServiceBroker
 type Broker struct {
 	BaseEntity
 	Name                  string             `db:"name"`

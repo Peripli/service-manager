@@ -17,7 +17,7 @@
 package sm
 
 import (
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 )
 
 type interceptorRegistrationBuilder struct {

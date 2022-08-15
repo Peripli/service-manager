@@ -19,10 +19,10 @@ package storage_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/health"
-	"github.com/Peripli/service-manager/storage"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/health"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 )
 
 var _ = Describe("Healthcheck", func() {

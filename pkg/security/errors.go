@@ -20,7 +20,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
 )
 
 // ErrUserNotFound error when authentication passed but no user found

@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
 
-	"github.com/Peripli/service-manager/pkg/security"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security"
 
-	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 )
 
 // LockerCreatorFunc is a function building a storage.Locker with a specific advisory index

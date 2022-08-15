@@ -3,12 +3,12 @@ package sm
 import (
 	"fmt"
 
-	secFilters "github.com/Peripli/service-manager/pkg/security/filters"
+	secFilters "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/filters"
 
-	httpsec "github.com/Peripli/service-manager/pkg/security/http"
-	"github.com/Peripli/service-manager/pkg/security/http/authn"
-	"github.com/Peripli/service-manager/pkg/security/http/authz"
-	"github.com/Peripli/service-manager/pkg/web"
+	httpsec "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http/authn"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http/authz"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 // SecurityBuilder provides means by which authentication and authorization filters

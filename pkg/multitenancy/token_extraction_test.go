@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/multitenancy"
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/multitenancy"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

@@ -19,7 +19,7 @@ package postgres
 import (
 	"time"
 
-	notificationConnection "github.com/Peripli/service-manager/storage/postgres/notification_connection"
+	notificationConnection "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/postgres/notification_connection"
 
 	"github.com/lib/pq"
 )

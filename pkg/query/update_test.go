@@ -19,10 +19,10 @@ package query_test
 import (
 	"fmt"
 
-	. "github.com/Peripli/service-manager/pkg/query"
 	. "github.com/onsi/ginkgo/extensions/table"
+	. "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 
 	"github.com/tidwall/sjson"
 

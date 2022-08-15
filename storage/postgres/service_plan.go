@@ -20,12 +20,12 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 )
 
-//go:generate smgen storage ServicePlan github.com/Peripli/service-manager/pkg/types
+//go:generate smgen storage ServicePlan github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types
 type ServicePlan struct {
 	BaseEntity
 	Name        string `db:"name"`

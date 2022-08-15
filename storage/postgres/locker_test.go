@@ -22,11 +22,11 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 
-	"github.com/Peripli/service-manager/pkg/security"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security"
 
-	"github.com/Peripli/service-manager/pkg/security/securityfakes"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/securityfakes"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	. "github.com/onsi/ginkgo"

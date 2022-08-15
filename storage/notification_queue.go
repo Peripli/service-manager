@@ -22,7 +22,7 @@ import (
 
 	"github.com/gofrs/uuid"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 )
 
 var _ NotificationQueue = &notificationQueue{}

@@ -1,11 +1,11 @@
 package disabled_query_params_test
 
 import (
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/pflag"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 	"net/http"
 	"testing"
 )

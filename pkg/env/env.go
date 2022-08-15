@@ -27,9 +27,9 @@ import (
 
 	"github.com/spf13/cast"
 
-	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
 )
 
 // File describes the name, path and the format of the file to be used to load the configuration in the env

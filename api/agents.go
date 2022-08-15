@@ -2,9 +2,9 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/Peripli/service-manager/pkg/agents"
-	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/agents"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 	"net/http"
 )
 

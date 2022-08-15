@@ -21,7 +21,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"errors"
-	"github.com/Peripli/service-manager/pkg/httpclient"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/httpclient"
 )
 
 // Basic basic credentials

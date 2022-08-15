@@ -3,19 +3,19 @@ package provision_timeout
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/tidwall/sjson"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/test"
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/pflag"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 )
 
 // TestProvisionTimeout tests the context timeout filter for provision requests

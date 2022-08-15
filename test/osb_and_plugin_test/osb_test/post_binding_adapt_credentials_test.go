@@ -19,8 +19,8 @@ package osb_test
 import (
 	"net/http"
 
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 )
 
 var _ = Describe("Post Binding Adapt Credentials", func() {

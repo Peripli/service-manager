@@ -22,12 +22,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	httpsec "github.com/Peripli/service-manager/pkg/security/http"
+	httpsec "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http"
 
-	"github.com/Peripli/service-manager/pkg/security"
-	"github.com/Peripli/service-manager/pkg/security/http/httpfakes"
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/pkg/web/webfakes"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http/httpfakes"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web/webfakes"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

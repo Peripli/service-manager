@@ -19,7 +19,7 @@ package opcontext
 import (
 	"context"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 )
 
 // operationCtxKey allows putting the currently running operation is the context. This is required for

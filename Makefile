@@ -136,7 +136,7 @@ clean-vendor: ## Cleans up the vendor folder and clears out the go.mod
 	@echo > go.sum
 
 build-gen-binary:
-	@go install github.com/Peripli/service-manager/cmd/smgen
+	@go install github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/cmd/smgen
 
 #-----------------------------------------------------------------------------
 # Tests and coverage

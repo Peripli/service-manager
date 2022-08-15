@@ -20,11 +20,11 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 
-	"github.com/Peripli/service-manager/pkg/ws"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/ws"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 // Controller implements api.Controller by providing service plans API logic

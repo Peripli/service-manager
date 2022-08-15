@@ -20,16 +20,16 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
 
 	"net/http/httptest"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/pkg/web/webfakes"
-	"github.com/Peripli/service-manager/test/testutil"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web/webfakes"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/testutil"
 )
 
 var _ = Describe("Filters", func() {

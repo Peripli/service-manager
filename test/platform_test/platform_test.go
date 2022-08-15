@@ -20,28 +20,28 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/api/filters"
-	"github.com/Peripli/service-manager/pkg/instance_sharing"
-	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/storage"
 	"github.com/gavv/httpexpect"
 	"github.com/gofrs/uuid"
 	"github.com/tidwall/gjson"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/filters"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/instance_sharing"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"sort"
 	"testing"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 
 	. "github.com/onsi/gomega"
 
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/test"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test"
 
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 )
 
 // TestPlatforms tests for platform API

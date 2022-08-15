@@ -21,44 +21,44 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	secFilters "github.com/Peripli/service-manager/pkg/security/filters"
+	secFilters "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/filters"
 	"math"
 	"net/http"
 	"sync"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
 
-	"github.com/Peripli/service-manager/operations"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/operations"
 
-	"github.com/Peripli/service-manager/pkg/env"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/env"
 
-	"github.com/Peripli/service-manager/pkg/health"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/health"
 
-	"github.com/Peripli/service-manager/pkg/httpclient"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/httpclient"
 
-	"github.com/Peripli/service-manager/api/osb"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/osb"
 
-	"github.com/Peripli/service-manager/storage/catalog"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/catalog"
 
-	"github.com/Peripli/service-manager/pkg/security"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security"
 
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/storage/interceptors"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/interceptors"
 
-	"github.com/Peripli/service-manager/api"
-	"github.com/Peripli/service-manager/api/healthcheck"
-	"github.com/Peripli/service-manager/config"
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/server"
-	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/storage/postgres"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/healthcheck"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/config"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/server"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/postgres"
 
 	_ "github.com/Kount/pq-timeouts"
-	"github.com/Peripli/service-manager/api/filters"
-	"github.com/Peripli/service-manager/pkg/web"
 	osbc "github.com/kubernetes-sigs/go-open-service-broker-client/v2"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/filters"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 // ServiceManagerBuilder type is an extension point that allows adding additional filters, plugins and

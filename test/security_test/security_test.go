@@ -5,16 +5,16 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/env"
-	httpsec "github.com/Peripli/service-manager/pkg/security/http"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/env"
+	httpsec "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http"
 
-	"github.com/Peripli/service-manager/pkg/security/authenticators"
-	"github.com/Peripli/service-manager/pkg/sm"
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/authenticators"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/sm"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 )
 
 func TestSecurity(t *testing.T) {

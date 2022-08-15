@@ -4,8 +4,8 @@ package notification_connectionfakes
 import (
 	"sync"
 
-	"github.com/Peripli/service-manager/storage/postgres/notification_connection"
 	"github.com/lib/pq"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/postgres/notification_connection"
 )
 
 type FakeNotificationConnection struct {

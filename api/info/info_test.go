@@ -20,10 +20,10 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Peripli/service-manager/api/info"
-	"github.com/Peripli/service-manager/pkg/web"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/info"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 func Test(t *testing.T) {

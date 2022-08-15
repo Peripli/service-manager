@@ -4,13 +4,13 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/security/authenticators"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/authenticators"
 
-	"github.com/Peripli/service-manager/config"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/config"
 
-	"github.com/Peripli/service-manager/pkg/sm"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/sm"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 // Register adds security configuration to the service manager builder

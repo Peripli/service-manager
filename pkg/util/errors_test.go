@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/Peripli/service-manager/pkg/util/utilfakes"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util/utilfakes"
 
 	"net/http/httptest"
 
@@ -30,11 +30,11 @@ import (
 
 	"encoding/json"
 
-	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/test/common"
-	"github.com/Peripli/service-manager/test/testutil"
 	. "github.com/onsi/ginkgo"
 	"github.com/sirupsen/logrus"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/testutil"
 )
 
 //go:generate counterfeiter io.ReadCloser

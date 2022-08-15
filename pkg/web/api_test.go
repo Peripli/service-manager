@@ -17,9 +17,9 @@
 package web_test
 
 import (
-	"github.com/Peripli/service-manager/pkg/web"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 var _ = Describe("API", func() {

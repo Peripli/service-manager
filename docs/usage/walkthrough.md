@@ -1,6 +1,6 @@
 # Walkthrough
 
-To follow the walkthrough you need to have Service Manager running either on CloudFoundry or on Kubernetes. Also you need the Service Broker Proxies for Kubernetes and/or CloudFoundry as well as the `smctl` command line tool. Please follow the [installation instructions](https://github.com/Peripli/service-manager/blob/master/docs/install/README.md) if you don't already have the needed components.
+To follow the walkthrough you need to have Service Manager running either on CloudFoundry or on Kubernetes. Also you need the Service Broker Proxies for Kubernetes and/or CloudFoundry as well as the `smctl` command line tool. Please follow the [installation instructions](https://github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/blob/master/docs/install/README.md) if you don't already have the needed components.
 
 This walkthrough uses the following setup:
 - Service Manager running on [minikube](https://github.com/kubernetes/minikube)

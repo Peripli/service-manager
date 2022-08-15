@@ -2,10 +2,10 @@ package api
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/api/filters"
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/middleware/stdlib"
 	"github.com/ulule/limiter/drivers/store/memory"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/filters"
 	"net/http"
 	"path"
 	"strings"

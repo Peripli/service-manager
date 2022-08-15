@@ -18,7 +18,7 @@ package http
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 // Decision represents a decision to allow or deny further

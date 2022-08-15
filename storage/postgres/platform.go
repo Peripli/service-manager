@@ -21,12 +21,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 )
 
-//go:generate smgen storage platform github.com/Peripli/service-manager/pkg/types
+//go:generate smgen storage platform github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types
 // Platform entity
 type Platform struct {
 	BaseEntity

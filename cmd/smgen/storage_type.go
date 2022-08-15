@@ -24,7 +24,7 @@ import (
 	"unicode"
 )
 
-const StorageTypesDirectory = "github.com/Peripli/service-manager/storage/postgres"
+const StorageTypesDirectory = "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage/postgres"
 
 type StorageType struct {
 	Type                 string

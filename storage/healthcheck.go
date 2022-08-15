@@ -18,7 +18,7 @@ package storage
 
 import (
 	"github.com/InVisionApp/go-health/checkers"
-	"github.com/Peripli/service-manager/pkg/health"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/health"
 )
 
 // NewSQLHealthIndicator returns new health indicator for sql storage given a ping function

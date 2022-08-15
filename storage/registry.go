@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
 
-	"github.com/Peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
 )
 
 func InitializeWithSafeTermination(ctx context.Context, s Storage, settings *Settings, wg *sync.WaitGroup, decorators ...TransactionalRepositoryDecorator) (TransactionalRepository, error) {

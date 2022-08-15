@@ -2,20 +2,20 @@ package filter_test
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/Peripli/service-manager/pkg/sm"
-	"github.com/Peripli/service-manager/test"
 	"github.com/gofrs/uuid"
 	"github.com/spf13/pflag"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/env"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/sm"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test"
 	"net/http"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 )
 
 func TestFilters(t *testing.T) {

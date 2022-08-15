@@ -3,8 +3,8 @@ package authz
 import (
 	"context"
 
-	httpsec "github.com/Peripli/service-manager/pkg/security/http"
-	"github.com/Peripli/service-manager/pkg/web"
+	httpsec "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 type baseAuthorizer struct {

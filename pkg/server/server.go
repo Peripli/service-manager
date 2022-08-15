@@ -26,10 +26,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Peripli/service-manager/api"
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gorilla/mux"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 const (

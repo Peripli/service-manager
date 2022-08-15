@@ -9,15 +9,15 @@ import (
 
 	. "github.com/onsi/ginkgo/extensions/table"
 
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 
 	. "github.com/onsi/gomega"
 
-	"github.com/Peripli/service-manager/api/filters"
-	"github.com/Peripli/service-manager/pkg/web/webfakes"
 	. "github.com/onsi/ginkgo"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/filters"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web/webfakes"
 )
 
 var _ = Describe("TenantFilters", func() {

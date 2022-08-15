@@ -26,16 +26,16 @@ import (
 	"net/http"
 	"testing"
 
-	httpsec "github.com/Peripli/service-manager/pkg/security/http"
+	httpsec "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http"
 
-	"github.com/Peripli/service-manager/pkg/security/http/httpfakes"
-	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/test/testutil"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/sirupsen/logrus"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http/httpfakes"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/testutil"
 )
 
 func TestAuthenticators(t *testing.T) {

@@ -22,16 +22,16 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Peripli/service-manager/api/osb"
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
 	"github.com/tidwall/gjson"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/osb"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 // credentialsController implements api.Controller by providing logic for broker platform credential storage/update

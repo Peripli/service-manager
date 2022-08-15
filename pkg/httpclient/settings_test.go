@@ -17,7 +17,7 @@
 package httpclient
 
 import (
-	"github.com/Peripli/service-manager/test/tls_settings"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/tls_settings"
 	"testing"
 
 	. "github.com/onsi/ginkgo"

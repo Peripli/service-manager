@@ -24,7 +24,7 @@ import (
 	"unicode"
 )
 
-const APITypesDirectory = "github.com/Peripli/service-manager/pkg/types"
+const APITypesDirectory = "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 
 type ApiType struct {
 	PackageName         string

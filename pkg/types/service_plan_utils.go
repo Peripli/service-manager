@@ -17,9 +17,9 @@
 package types
 
 import (
-	"github.com/Peripli/service-manager/pkg/instance_sharing"
-	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/tidwall/gjson"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/instance_sharing"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util/slice"
 )
 
 // SupportsPlatform determines whether a specific platform type is among the ones that a plan supports

@@ -20,14 +20,14 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 )
 
 // ServiceBinding entity
-//go:generate smgen storage ServiceBinding github.com/Peripli/service-manager/pkg/types
+//go:generate smgen storage ServiceBinding github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types
 type ServiceBinding struct {
 	BaseEntity
 	Name              string                 `db:"name"`

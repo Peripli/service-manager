@@ -19,9 +19,9 @@ package postgres
 import (
 	"context"
 
-	"github.com/Peripli/service-manager/pkg/security/securityfakes"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/securityfakes"
 
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

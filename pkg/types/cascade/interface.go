@@ -3,8 +3,8 @@ package cascade
 import (
 	"context"
 	"encoding/json"
-	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 )
 
 // CriterionConjunction - represents AND logic gate: <criteria> AND <criteria> (...AND <criteria>)

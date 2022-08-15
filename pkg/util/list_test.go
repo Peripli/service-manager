@@ -21,10 +21,10 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/common"
 )
 
 var _ = Describe("List Utils", func() {

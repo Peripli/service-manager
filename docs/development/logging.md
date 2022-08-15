@@ -10,7 +10,7 @@ Usually you access the logger like this:
 import (
   "context"
 
-  "github.com/Peripli/service-manager/pkg/log"
+  "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
 )
 
 func doSomething(ctx context.Context) {

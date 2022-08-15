@@ -2,17 +2,17 @@ package oidc
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/test/tls_settings"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/test/tls_settings"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/auth"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/auth"
 )
 
 func TestAuthStrategy(t *testing.T) {

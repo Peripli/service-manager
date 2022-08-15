@@ -1,10 +1,10 @@
 package authz
 
 import (
-	httpsec "github.com/Peripli/service-manager/pkg/security/http"
-	"github.com/Peripli/service-manager/pkg/web"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
+	httpsec "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 var _ = Describe("CloneFilter", func() {

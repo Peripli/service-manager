@@ -24,15 +24,15 @@ import (
 	"net/url"
 	"strings"
 
-	httpsec "github.com/Peripli/service-manager/pkg/security/http"
+	httpsec "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http"
 
 	"fmt"
 
 	"github.com/coreos/go-oidc"
 
-	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/pkg/web"
 	goidc "github.com/coreos/go-oidc"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 type claims struct {

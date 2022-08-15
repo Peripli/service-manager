@@ -17,8 +17,8 @@ package client
 
 import (
 	"crypto/tls"
-	"github.com/Peripli/service-manager/pkg/httpclient"
 	"github.com/sirupsen/logrus"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/httpclient"
 	"net/http"
 )
 

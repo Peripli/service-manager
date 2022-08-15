@@ -1,9 +1,9 @@
 package filters
 
 import (
-	"github.com/Peripli/service-manager/pkg/security/filters/middlewares"
-	"github.com/Peripli/service-manager/pkg/security/http"
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/filters/middlewares"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/security/http"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 )
 
 const (

@@ -30,7 +30,7 @@ Follow [run on Kubernetes](./../install/sm.md#run-on-Kubernertes) installation s
  
 #### Configuration Adjustments
 
-Edit the following `env` vars in the `$GOPATH/src/github.com/Peripli/service-manager/deployment/cf/manifest.yml`:
+Edit the following `env` vars in the `$GOPATH/src/github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/deployment/cf/manifest.yml`:
 
 * set the token endpoint of the authorization server that was setup as part of the prerequisites
 
@@ -71,7 +71,7 @@ Follow [run on CF](./../install/sm.md#run-on-CF) installation steps.
 
 #### Configuration Adjustments
 
-Edit the following `properties` in the `$GOPATH/src/github.com/Peripli/service-manager/application.yml`:
+Edit the following `properties` in the `$GOPATH/src/github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/application.yml`:
 
 * set the token endpoint of the authorization server that was setup as part of the prerequisites
 

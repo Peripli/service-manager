@@ -21,10 +21,10 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/Peripli/service-manager/pkg/auth/util"
-	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/cloudfoundry-community/go-cfenv"
 	"github.com/spf13/cast"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/auth/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
 )
 
 // setCFOverrides overrides some SM environment with values from CF's VCAP environment variables

@@ -18,7 +18,7 @@ package osb_test
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
 	"net/http"
 
 	. "github.com/onsi/ginkgo"

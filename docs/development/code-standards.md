@@ -7,7 +7,7 @@ we aspire to adhere as closely as possible.
 
 ## Code Quality
 
-* Travis CI is configured to run `gometalinter` for static code checks with [the following configuration](https://github.com/Peripli/service-manager/blob/master/.gometalinter.json). Any errors or warnings would cause a build failure.
+* Travis CI is configured to run `gometalinter` for static code checks with [the following configuration](https://github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/blob/master/.gometalinter.json). Any errors or warnings would cause a build failure.
 
 * All code must be formated with [gofmt](https://golang.org/cmd/gofmt/).
 

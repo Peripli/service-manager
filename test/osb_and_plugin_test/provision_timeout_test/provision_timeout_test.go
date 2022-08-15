@@ -1,8 +1,8 @@
 package provision_timeout
 
 import (
-	"github.com/Peripli/service-manager/pkg/web"
 	. "github.com/onsi/ginkgo"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
 	"net/http"
 )
 

@@ -27,10 +27,10 @@ import (
 	"github.com/jmoiron/sqlx"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
 
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/fatih/structs"
 	"github.com/lib/pq"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
 )
 
 type prepareNamedContext interface {

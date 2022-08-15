@@ -20,28 +20,28 @@ package api
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/api/configuration"
-	"github.com/Peripli/service-manager/api/profile"
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/agents"
-	"github.com/Peripli/service-manager/pkg/env"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/configuration"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/profile"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/operations"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/agents"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/env"
 	"sync"
 
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/query"
 
-	"github.com/Peripli/service-manager/pkg/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/util"
 
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/ws"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/types"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/ws"
 
-	apiNotifications "github.com/Peripli/service-manager/api/notifications"
+	apiNotifications "github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/notifications"
 
-	"github.com/Peripli/service-manager/api/filters"
-	"github.com/Peripli/service-manager/api/info"
-	"github.com/Peripli/service-manager/api/osb"
-	"github.com/Peripli/service-manager/pkg/health"
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/storage"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/filters"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/info"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/api/osb"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/health"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/web"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/storage"
 )
 
 const osbVersion = "2.14"

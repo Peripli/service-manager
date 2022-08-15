@@ -20,11 +20,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/log"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/log"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/auth"
-	"github.com/Peripli/service-manager/pkg/auth/util"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/auth"
+	"github.wdf.sap.corp/SvcManager/sm-sap/peripli/service-manager/pkg/auth/util"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
