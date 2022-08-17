@@ -191,12 +191,12 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 	}
 
 	api.RegisterFiltersBefore(filters.ProtectedLabelsFilterName, &filters.DisabledQueryParametersFilter{DisabledQueryParameters: options.APISettings.DisabledQueryParameters})
-	api.RegisterFiltersAfter(filters.DisabledQueryParametersName,
-		filters.NewBlockedClientsFilter(options.BlockedClientsCache))
+	api.RegisterFiltersAfter(filters.LoggingFilterName,
+		filters.NewBlockedClientsFilter(options.BlockedClientsCache, options.TenantLabelKey))
 
 	if rateLimiters != nil {
 		api.RegisterFiltersAfter(
-			filters.LoggingFilterName,
+			filters.BlockedClientsFilterName,
 			filters.NewRateLimiterFilter(
 				rateLimiters,
 				options.APISettings.RateLimitExcludeClients,

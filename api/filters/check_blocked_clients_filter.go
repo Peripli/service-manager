@@ -9,16 +9,19 @@ import (
 	"net/http"
 )
 
+const BlockedClientsFilterName = "BlockedClientsFilter"
+
 type BlockedClientsFilter struct {
 	blockedClientsCache *storage.Cache
+	tenantLabelKey      string
 }
 
-func NewBlockedClientsFilter(cache *storage.Cache) *BlockedClientsFilter {
-	b := &BlockedClientsFilter{blockedClientsCache: cache}
+func NewBlockedClientsFilter(cache *storage.Cache, tenantLabelKey string) *BlockedClientsFilter {
+	b := &BlockedClientsFilter{blockedClientsCache: cache, tenantLabelKey: tenantLabelKey}
 	return b
 }
 func (b *BlockedClientsFilter) Name() string {
-	return "BlockedClientsFilter"
+	return BlockedClientsFilterName
 }
 
 func (b *BlockedClientsFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
@@ -32,8 +35,7 @@ func (b *BlockedClientsFilter) Run(request *web.Request, next web.Handler) (*web
 	blockedClient, isBlockedClient := b.isClientBlocked(userContext, method)
 	if isBlockedClient {
 		errorResponse := &util.HTTPError{
-			ErrorType: "RequestNotAllowed",
-
+			ErrorType:  "RequestNotAllowed",
 			StatusCode: http.StatusMethodNotAllowed,
 		}
 
@@ -51,7 +53,21 @@ func (bc *BlockedClientsFilter) isClientBlocked(userContext *web.UserContext, me
 	if userContext.AccessLevel == web.GlobalAccess || userContext.AccessLevel == web.AllTenantAccess {
 		return nil, false
 	}
-	blockedClientCache, ok := bc.blockedClientsCache.GetC(userContext.Name)
+
+	if userContext.AuthenticationType == web.Basic {
+		platform := types.Platform{}
+		err := userContext.Data(&platform)
+		if err != nil {
+			return nil, false
+		}
+
+		if _, isTenantScopedPlatform := platform.Labels[bc.tenantLabelKey]; !isTenantScopedPlatform {
+			return nil, false
+		}
+
+	}
+
+	blockedClientCache, ok := bc.blockedClientsCache.Get(userContext.Name)
 	if !ok {
 		return nil, false
 	}

@@ -25,20 +25,20 @@ var _ = Describe("local cache", func() {
 				wg.Add(1)
 				addStrings := func() {
 					for i := 1; i < 3; i++ {
-						localCache.AddC(fmt.Sprintf("key-%d", i), fmt.Sprintf("value-%d", i))
+						localCache.AddL(fmt.Sprintf("key-%d", i), fmt.Sprintf("value-%d", i))
 					}
 					wg.Done()
 				}
 				go addStrings()
 				for i := 3; i < 5; i++ {
-					localCache.AddC(fmt.Sprintf("key-%d", i), fmt.Sprintf("value-%d", i))
+					localCache.AddL(fmt.Sprintf("key-%d", i), fmt.Sprintf("value-%d", i))
 				}
 				wg.Wait()
 				for i := 1; i < 5; i++ {
 					val, _ := localCache.Get(fmt.Sprintf("key-%d", i))
 					Expect(val.(string)).To(Equal(fmt.Sprintf("value-%d", i)))
 				}
-				localCache.FlushC()
+				localCache.FlushL()
 				Expect(localCache.Length()).To(BeZero())
 			})
 
@@ -58,7 +58,7 @@ var _ = Describe("local cache", func() {
 		})
 		It("should have only new object", func() {
 			for i := 1; i < 3; i++ {
-				localCache.AddC(fmt.Sprintf("key-%d", i), fmt.Sprintf("value-%d", i))
+				localCache.AddL(fmt.Sprintf("key-%d", i), fmt.Sprintf("value-%d", i))
 			}
 			time.Sleep(time.Second * 6)
 			StopSynchronizer(localCache)

@@ -37,7 +37,8 @@ const (
 	InfoURL = "/" + apiVersion + "/info"
 
 	// ConfigURL is the Configuration API base URL path
-	ConfigURL = "/" + apiVersion + "/config"
+	ConfigURL            = "/" + apiVersion + "/config"
+	ResyncBlockedClients = ConfigURL + "/resync_blocked_clients"
 
 	// LoggingConfigURL is the Logging Configuration API URL path
 	LoggingConfigURL = ConfigURL + "/logging"
