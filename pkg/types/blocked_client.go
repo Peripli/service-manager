@@ -7,8 +7,9 @@ import (
 	"reflect"
 )
 
-//go:generate smgen api BlockedClient
 // BlockedClient struct
+//
+//go:generate smgen api BlockedClient
 type BlockedClient struct {
 	Base
 	ClientID       string   `json:"client_id"`
