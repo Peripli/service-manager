@@ -82,7 +82,7 @@ var _ = Describe("test blocked clients", func() {
 		When("blocked method is incorrect", func() {
 			It("should return an error", func() {
 				req := common.Object{
-					"client_id":       "test-user",
+					"client_id":       common.UserNameInToken,
 					"subaccount_id":   SubaccountId,
 					"blocked_methods": []string{"GET", "Not Allow Method", "wrong"},
 				}
