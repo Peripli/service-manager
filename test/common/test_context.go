@@ -217,6 +217,7 @@ type TestContext struct {
 	Config      *config.Settings
 	SM          *SMExpect
 	SMWithOAuth *SMExpect
+	SMCache     *storage.Cache
 	// Requests a token the the "multitenant" oauth client - then token issued by this client contains
 	// the "multitenant" client id behind the specified token claim in the api config
 	// the token also contains a "tenant identifier" behind the configured tenant_indentifier claim that
@@ -488,7 +489,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 	}
 	wg := &sync.WaitGroup{}
 
-	smServer, smRepository, smRedis, smScheduler, maintainer, smConfig := newSMServer(environment, wg, tcb.smExtensions, listener)
+	smServer, smRepository, smRedis, smScheduler, maintainer, smConfig, smCache := newSMServer(environment, wg, tcb.smExtensions, listener)
 	tcb.Servers[SMServer] = smServer
 
 	SM := httpexpect.New(ginkgo.GinkgoT(), smServer.URL())
@@ -513,6 +514,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup 
 		SMWithOAuthForTenant: &SMExpect{Expect: SMWithOAuthForTenant},
 		Servers:              tcb.Servers,
 		RedisClient:          smRedis,
+		SMCache:              smCache,
 		SMRepository:         smRepository,
 		SMScheduler:          smScheduler,
 		HttpClient:           tcb.HttpClient,
@@ -599,7 +601,7 @@ func NewSMListener() (net.Listener, error) {
 	return nil, fmt.Errorf("unable to create sm listener: %s", err)
 }
 
-func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.TransactionalRepository, *redis.Client, *operations.Scheduler, *operations.Maintainer, *config.Settings) {
+func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.TransactionalRepository, *redis.Client, *operations.Scheduler, *operations.Maintainer, *config.Settings, *storage.Cache) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	cfg, err := config.New(smEnv)
@@ -638,7 +640,7 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	return &testSMServer{
 		cancel: cancel,
 		Server: testServer,
-	}, smb.Storage, smb.RedisClient, scheduler, smb.OperationMaintainer, cfg
+	}, smb.Storage, smb.RedisClient, scheduler, smb.OperationMaintainer, cfg, smb.APIOptions.BlockedClientsCache
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object, expectedStatus int) *BrokerUtils {
@@ -870,7 +872,7 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	//nolint
 	RemoveAllInstances(ctx)
 	RemoveAllOperations(ctx.SMRepository)
-
+	RemoveAllBlockedClients(ctx.SMRepository)
 	ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL).Expect()
 
 	ctx.CleanupPlatforms()

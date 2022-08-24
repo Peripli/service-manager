@@ -19,8 +19,8 @@ type BlockedClientsManager struct {
 
 func Init(ctx context.Context, repository storage.Repository, storageURI string) *BlockedClientsManager {
 	b := &BlockedClientsManager{smCtx: ctx, repository: repository}
-	b.getBlockClients()
 	b.Cache = storage.NewCache(-1, nil, b.getBlockClients)
+	b.getBlockClients()
 	b.callbacks = map[string]func(*events.Message) error{
 		"blocked_clients-INSERT": func(envelope *events.Message) error {
 			var blockedClient types.BlockedClient
@@ -30,7 +30,7 @@ func Init(ctx context.Context, repository storage.Repository, storageURI string)
 				return err
 			}
 
-			if err := b.Cache.Add(blockedClient.ClientID, blockedClient); err != nil {
+			if err := b.Cache.AddL(blockedClient.ClientID, blockedClient); err != nil {
 				log.C(ctx).Debugf("error adding a blocked client in casche %s", blockedClient.ClientID)
 			}
 			return nil
@@ -42,7 +42,7 @@ func Init(ctx context.Context, repository storage.Repository, storageURI string)
 				return err
 			}
 
-			b.Cache.Delete(blockedClient.ClientID)
+			b.Cache.DeleteL(blockedClient.ClientID)
 			return nil
 		},
 	}

@@ -17,7 +17,7 @@ var _ = Describe("local cache", func() {
 	})
 	Context("cache with no resync", func() {
 		BeforeEach(func() {
-			localCache = NewCache(0, nil)
+			localCache = NewCache(0, nil, nil)
 		})
 
 		Context("cache add objects and flush", func() {
@@ -35,7 +35,7 @@ var _ = Describe("local cache", func() {
 				}
 				wg.Wait()
 				for i := 1; i < 5; i++ {
-					val, _ := localCache.Get(fmt.Sprintf("key-%d", i))
+					val, _ := localCache.GetL(fmt.Sprintf("key-%d", i))
 					Expect(val.(string)).To(Equal(fmt.Sprintf("value-%d", i)))
 				}
 				localCache.FlushL()
@@ -46,23 +46,29 @@ var _ = Describe("local cache", func() {
 
 	})
 
-	Context("cache with resync", func() {
+	Context("cache with onFlush and onTime expired function", func() {
+		var onFlush func() error
 		var resyncFunc func() error
 		BeforeEach(func() {
-			resyncFunc = func() error {
-				localCache.Flush()
+			onFlush = func() error {
 				localCache.Add("0", "new")
 				return nil
 			}
-			localCache = NewCache(time.Second*5, resyncFunc)
+
+			resyncFunc = func() error {
+				localCache.Flush()
+				localCache.Add("1", "new")
+				return nil
+			}
+			localCache = NewCache(time.Second*4, resyncFunc, onFlush)
 		})
 		It("should have only new object", func() {
 			for i := 1; i < 3; i++ {
 				localCache.AddL(fmt.Sprintf("key-%d", i), fmt.Sprintf("value-%d", i))
 			}
 			time.Sleep(time.Second * 6)
-			StopSynchronizer(localCache)
-			val, _ := localCache.Get("0")
+			localCache.FlushL()
+			val, _ := localCache.GetL("0")
 			Expect(val.(string)).To(Equal("new"))
 			Expect(localCache.Length()).To(Equal(1))
 

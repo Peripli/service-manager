@@ -302,6 +302,9 @@ func RemoveAllPlatforms(repository storage.TransactionalRepository) {
 func RemoveAllVisibilities(repository storage.TransactionalRepository) {
 	removeAll(repository, types.VisibilityType)
 }
+func RemoveAllBlockedClients(repository storage.TransactionalRepository) {
+	removeAll(repository, types.BlockedClientsType)
+}
 
 func removeAll(repository storage.TransactionalRepository, entity types.ObjectType, queries ...query.Criterion) {
 	By("removing all " + entity.String())

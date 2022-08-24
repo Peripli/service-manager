@@ -39,7 +39,7 @@ func (b *BlockedClientsFilter) Run(request *web.Request, next web.Handler) (*web
 			StatusCode: http.StatusMethodNotAllowed,
 		}
 
-		errorResponse.Description = fmt.Sprintf("You're blocked to execute this request. Client: %d ", blockedClient.ClientID)
+		errorResponse.Description = fmt.Sprintf("You're blocked to execute this request. Client: %s", blockedClient.ClientID)
 
 		return nil, errorResponse
 
@@ -67,7 +67,7 @@ func (bc *BlockedClientsFilter) isClientBlocked(userContext *web.UserContext, me
 
 	}
 
-	blockedClientCache, ok := bc.blockedClientsCache.Get(userContext.Name)
+	blockedClientCache, ok := bc.blockedClientsCache.GetL(userContext.Name)
 	if !ok {
 		return nil, false
 	}

@@ -96,39 +96,39 @@ func (c *cache) TimeExpired() {
 
 }
 
-func (c *cache) Get(k string) (interface{}, bool) {
+func (c *cache) GetL(k string) (interface{}, bool) {
 	c.lock.RLock()
-	defer c.lock.RUnlock()
 	item, found := c.items[k]
+	c.lock.RUnlock()
 	return item, found
 }
-func (c *cache) get(k string) (interface{}, bool) {
+func (c *cache) Get(k string) (interface{}, bool) {
 	item, found := c.items[k]
 	return item, found
-}
-
-func (c *cache) delete(k string) {
-	delete(c.items, k)
-}
-func (c *cache) add(k string, x interface{}) {
-	c.items[k] = x
 }
 
 func (c *cache) Delete(k string) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
 	delete(c.items, k)
+}
+func (c *cache) Add(k string, x interface{}) {
+	c.items[k] = x
+}
+
+func (c *cache) DeleteL(k string) {
+	c.lock.Lock()
+	delete(c.items, k)
+	c.lock.Unlock()
 
 }
 
-func (c *cache) Add(k string, x interface{}) error {
+func (c *cache) AddL(k string, x interface{}) error {
 	c.lock.Lock()
-	defer c.lock.Unlock()
 	_, found := c.Get(k)
 	if found {
+		c.lock.Unlock()
 		return fmt.Errorf("Item %s already exists", k)
 	}
 	c.items[k] = x
-
+	c.lock.Unlock()
 	return nil
 }

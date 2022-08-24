@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -25,6 +26,41 @@ func NewBlockedClientsController(ctx context.Context, options *Options) *Blocked
 	}
 
 }
+
+var AVAILABLE_METHODS map[string]byte = map[string]byte{
+	http.MethodDelete:  1,
+	http.MethodGet:     1,
+	http.MethodPut:     1,
+	http.MethodPost:    1,
+	http.MethodOptions: 1,
+	http.MethodPatch:   1,
+}
+
+func (c *BlockedClientsController) AddBlockedClient(r *web.Request) (*web.Response, error) {
+
+	var blockedClient types.BlockedClient
+	err := json.Unmarshal(r.Body, &blockedClient)
+	if err != nil {
+		return nil, &util.HTTPError{
+			ErrorType:  "BlockedClientError",
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
+	if len(blockedClient.BlockedMethods) > 0 {
+		for _, method := range blockedClient.BlockedMethods {
+			if _, ok := AVAILABLE_METHODS[method]; !ok {
+				return nil, &util.HTTPError{
+					ErrorType:   "BlockedClientError",
+					Description: fmt.Sprintf("Invalid value for a blocked method. Allowed methods to block are: GET, PUT, POST, PATCH, DELETE, OPTIONS."),
+					StatusCode:  http.StatusBadRequest,
+				}
+			}
+		}
+	}
+	return c.CreateObject(r)
+}
+
 func (c *BlockedClientsController) ResyncBlockedClientsCache(r *web.Request) (*web.Response, error) {
 	err := c.cache.FlushL()
 	if err != nil {
@@ -52,7 +88,7 @@ func (c *BlockedClientsController) Routes() []web.Route {
 				Method: http.MethodPost,
 				Path:   web.BlockedClientsConfigURL,
 			},
-			Handler: c.CreateObject,
+			Handler: c.AddBlockedClient,
 		},
 		{
 			Endpoint: web.Endpoint{
