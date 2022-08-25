@@ -170,37 +170,6 @@ var _ = Describe("test blocked clients", func() {
 
 		})
 
-		When("global user", func() {
-			It("should allow all requests", func() {
-				/*
-					userName := changeClientIdentifier()
-					filterContext.AccessLevel = web.GlobalAccess
-					blockedClientId = addBlockedClient(ctx, userName, SubaccountId, []string{"POST", "GET", "PATCH"})
-					Consistently(func() int {
-						return ctx.SMWithOAuth.GET(web.PlatformsURL).Expect().Raw().StatusCode
-					}).WithTimeout(time.Second * 3).Should(Equal(http.StatusOK))
-					filterContext.AccessLevel = web.TenantAccess
-					Eventually(func() int {
-						return ctx.SMWithOAuth.GET(web.PlatformsURL).Expect().Raw().StatusCode
-					}).Should(Equal(http.StatusMethodNotAllowed))*/
-			})
-
-		})
-
-		When("platform user", func() {
-			/*
-				userName := changeClientIdentifier()
-
-				blockedClientId = addBlockedClient(ctx, userName, SubaccountId, []string{"POST", "GET", "PATCH"})
-				Consistently(func() int {
-					return ctx.SMWithOAuth.GET(web.PlatformsURL).Expect().Raw().StatusCode
-				}).WithTimeout(time.Second * 3).Should(Equal(http.StatusOK))
-				filterContext.AccessLevel = web.TenantAccess
-				Eventually(func() int {
-					return ctx.SMWithOAuth.GET(web.PlatformsURL).Expect().Raw().StatusCode
-				}).Should(Equal(http.StatusMethodNotAllowed))*/
-		})
-
 	})
 
 })
