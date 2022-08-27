@@ -66,6 +66,7 @@ var _ = Describe("test blocked clients", func() {
 			ctx.SMWithOAuthForTenant.DELETE(fmt.Sprintf(web.BlockedClientsConfigURL+"/%s", blockedClientId)).
 				Expect().Status(http.StatusOK)
 		}
+		filterContext.UserName = ""
 	})
 
 	Context("no client is blocked", func() {
