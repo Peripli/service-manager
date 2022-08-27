@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/events"
+	"sync"
 )
 
 type BlockedClientsManager struct {
@@ -17,7 +19,7 @@ type BlockedClientsManager struct {
 	postgresEventsListener *events.PostgresEventListener
 }
 
-func Init(ctx context.Context, repository storage.Repository, storageURI string) *BlockedClientsManager {
+func New(ctx context.Context, repository storage.Repository, storageURI string) *BlockedClientsManager {
 	b := &BlockedClientsManager{smCtx: ctx, repository: repository}
 	b.Cache = storage.NewCache(-1, nil, b.getBlockClients)
 	b.getBlockClients()
@@ -49,6 +51,18 @@ func Init(ctx context.Context, repository storage.Repository, storageURI string)
 
 	b.postgresEventsListener = events.NewPostgresEventListener(ctx, storageURI, b.callbacks)
 	return b
+}
+func (b *BlockedClientsManager) Start(group *sync.WaitGroup) {
+	if b.postgresEventsListener != nil {
+		log.C(b.smCtx).Info("started blocked clients events listener")
+		b.postgresEventsListener.ConnectDB()
+		util.StartInWaitGroupWithContext(b.smCtx, func(c context.Context) {
+			<-c.Done()
+			log.C(c).Info("context cancelled, stopping blocked clients events listener...")
+			b.postgresEventsListener.StopConnection()
+		}, group)
+	}
+
 }
 
 func (b *BlockedClientsManager) getBlockClients() error {

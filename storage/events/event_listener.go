@@ -22,7 +22,7 @@ func NewPostgresEventListener(ctx context.Context,
 	storageURI string,
 	callBacks map[string]func(message *Message) error) *PostgresEventListener {
 	ps := &PostgresEventListener{ctx: ctx, storageURI: storageURI, callBacks: callBacks}
-	ps.connectDB()
+
 	return ps
 }
 
@@ -32,7 +32,7 @@ type Message struct {
 	Data   json.RawMessage
 }
 
-func (pe *PostgresEventListener) connectDB() error {
+func (pe *PostgresEventListener) ConnectDB() error {
 	eventCallback := func(et pq.ListenerEventType, err error) {
 		switch et {
 		case pq.ListenerEventConnected, pq.ListenerEventReconnected:
@@ -53,6 +53,12 @@ func (pe *PostgresEventListener) connectDB() error {
 	go pe.waitForNotification()
 	return nil
 }
+func (pe *PostgresEventListener) StopConnection() {
+	if err := pe.listener.Close(); err != nil {
+		log.C(pe.ctx).WithError(err).Error("Could not close event listener db connection")
+	}
+}
+
 func (pe *PostgresEventListener) processPayload(message string) error {
 	payload := &Message{}
 	if err := json.Unmarshal([]byte(message), payload); err != nil {

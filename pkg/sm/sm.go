@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/blocked_clients"
 	secFilters "github.com/Peripli/service-manager/pkg/security/filters"
-
 	osbc "github.com/kubernetes-sigs/go-open-service-broker-client/v2"
 	"math"
 	"net/http"
@@ -158,7 +157,8 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	if err != nil {
 		return nil, fmt.Errorf("could not create notificator: %v", err)
 	}
-	blockedClientsManager := blocked_clients.Init(ctx, interceptableRepository, cfg.Storage.URI)
+	blockedClientsManager := blocked_clients.New(ctx, interceptableRepository, cfg.Storage.URI)
+	blockedClientsManager.Start(waitGroup)
 	apiOptions := &api.Options{
 		RedisClient:         redisClient,
 		Repository:          interceptableRepository,
