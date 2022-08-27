@@ -690,6 +690,7 @@ func (ctx *TestContext) RegisterBrokerWithRandomCatalogAndTLS(expect *SMExpect) 
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatalog, brokerData Object, expect *SMExpect, expectedStatus int) *BrokerUtils {
 	brokerServer, brokerServerWithTLS, brokerJSON, broker := ctx.TryRegisterBrokerWithCatalogAndLabels(catalog, brokerData, expect, expectedStatus)
 	brokerID := broker["id"].(string)
+	fmt.Println("maya test")
 
 	brokerServer.ResetCallHistory()
 	brokerServerWithTLS.ResetCallHistory()
