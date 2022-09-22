@@ -59,7 +59,6 @@ var (
 // Settings type to be loaded from the environment
 type Settings struct {
 	URI                string                `mapstructure:"uri" description:"URI of the storage"`
-	MigrationsURL      string                `mapstructure:"migrations_url" description:"location of a directory containing sql migrations scripts"`
 	EncryptionKey      string                `mapstructure:"encryption_key" description:"key to use for encrypting database entries"`
 	SkipSSLValidation  bool                  `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when connecting to the storage"`
 	SSLMode            string                `mapstructure:"sslmode" description:"defines ssl mode type"`
@@ -76,7 +75,6 @@ type Settings struct {
 func DefaultSettings() *Settings {
 	return &Settings{
 		URI:                "",
-		MigrationsURL:      fmt.Sprintf("file://%s/postgres/migrations", basepath),
 		EncryptionKey:      "",
 		SkipSSLValidation:  false,
 		MaxIdleConnections: 5,
@@ -97,9 +95,6 @@ func DefaultSettings() *Settings {
 func (s *Settings) Validate() error {
 	if len(s.URI) == 0 {
 		return fmt.Errorf("validate Settings: StorageURI missing")
-	}
-	if len(s.MigrationsURL) == 0 {
-		return fmt.Errorf("validate Settings: StorageMigrationsURL missing")
 	}
 	if len(s.EncryptionKey) != 32 {
 		return fmt.Errorf("validate Settings: StorageEncryptionKey must be exactly 32 symbols long but was %d symbols long", len(s.EncryptionKey))
@@ -161,6 +156,7 @@ type OpenCloser interface {
 }
 
 // Pinger allows pinging the storage to check liveliness
+//
 //go:generate counterfeiter . Pinger
 type Pinger interface {
 	// PingContext verifies a connection to the database is still alive, establishing a connection if necessary.
@@ -228,6 +224,7 @@ type TransactionalRepository interface {
 type TransactionalRepositoryDecorator func(TransactionalRepository) (TransactionalRepository, error)
 
 // Storage interface provides entity-specific storages
+//
 //go:generate counterfeiter . Storage
 type Storage interface {
 	OpenCloser
@@ -244,6 +241,7 @@ var ErrQueueClosed = errors.New("queue closed")
 var ErrQueueFull = errors.New("queue is full")
 
 // NotificationQueue is used for receiving notifications
+//
 //go:generate counterfeiter . NotificationQueue
 type NotificationQueue interface {
 	// Enqueue adds a new notification for processing.
@@ -260,6 +258,7 @@ type NotificationQueue interface {
 }
 
 // Notificator is used for receiving notifications for SM events
+//
 //go:generate counterfeiter . Notificator
 type Notificator interface {
 	// Start starts the Notificator

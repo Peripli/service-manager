@@ -58,9 +58,9 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
 
-	_ "github.com/Kount/pq-timeouts"
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/pkg/web"
+	_ "github.com/cockroachlabs/pq-timeouts"
 	"github.com/go-redis/redis"
 )
 
