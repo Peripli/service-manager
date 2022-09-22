@@ -22,6 +22,7 @@ import (
 	"embed"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -85,9 +86,8 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 			return fmt.Errorf("could not parse PostgreSQL URL query: %s", err)
 		}
 
-		// error in pq-timeouts - https://github.com/Kount/pq-timeouts/issues/7
-		// parsedQuery.Set("read_timeout", strconv.Itoa(settings.ReadTimeout))
-		// parsedQuery.Set("write_timeout", strconv.Itoa(settings.WriteTimeout))
+		parsedQuery.Set("read_timeout", strconv.Itoa(settings.ReadTimeout))
+		parsedQuery.Set("write_timeout", strconv.Itoa(settings.WriteTimeout))
 
 		if settings.SkipSSLValidation {
 			log.D().Infof("skipping ssl validation SkipSSLValidation set to true")

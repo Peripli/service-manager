@@ -6,11 +6,11 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.3.1-0.20180720083239-852fc940e4b9
 	github.com/InVisionApp/go-health v2.1.0+incompatible
 	github.com/InVisionApp/go-logger v1.0.1
-	github.com/Kount/pq-timeouts v1.0.0
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/antlr/antlr4 v0.0.0-20210105192202-5c2b686f95e1
 	github.com/benjamintf1/unmarshalledmatchers v1.0.0
 	github.com/cloudfoundry-community/go-cfenv v1.17.1-0.20171115121958-e84b5c116637
+	github.com/cockroachlabs/pq-timeouts v1.0.1
 	github.com/coreos/go-oidc v2.1.0+incompatible
 	github.com/fatih/structs v1.0.0
 	github.com/fsnotify/fsnotify v1.5.4
