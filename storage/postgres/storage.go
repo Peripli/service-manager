@@ -19,9 +19,9 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"embed"
 	"fmt"
 	"net/url"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -33,9 +33,10 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/golang-migrate/migrate"
-	migratepg "github.com/golang-migrate/migrate/database/postgres"
-	_ "github.com/golang-migrate/migrate/source/file"
+	"github.com/golang-migrate/migrate/v4"
+	migratepg "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
@@ -84,8 +85,10 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 			return fmt.Errorf("could not parse PostgreSQL URL query: %s", err)
 		}
 
-		parsedQuery.Set("read_timeout", strconv.Itoa(settings.ReadTimeout))
-		parsedQuery.Set("write_timeout", strconv.Itoa(settings.WriteTimeout))
+		// error in pq-timeouts - https://github.com/Kount/pq-timeouts/issues/7
+		// parsedQuery.Set("read_timeout", strconv.Itoa(settings.ReadTimeout))
+		// parsedQuery.Set("write_timeout", strconv.Itoa(settings.WriteTimeout))
+
 		if settings.SkipSSLValidation {
 			log.D().Infof("skipping ssl validation SkipSSLValidation set to true")
 			parsedQuery.Set("sslmode", "disable")
@@ -103,6 +106,10 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 			return fmt.Errorf("could not connect to PostgreSQL: %s", err)
 		}
 		ps.db = sqlx.NewDb(db, postgresDriverName)
+		err = ps.db.Ping()
+		if err != nil {
+			return err
+		}
 
 		ps.state = &storageState{
 			lastCheckTime:        time.Now(),
@@ -116,8 +123,8 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 		ps.pgDB = ps.db
 		ps.queryBuilder = NewQueryBuilder(ps.pgDB)
 
-		log.D().Debugf("Updating database schema using migrations from %s", settings.MigrationsURL)
-		if err := ps.updateSchema(settings.MigrationsURL, postgresDriverName); err != nil {
+		log.D().Debugf("Updating database schema using migrations")
+		if err := ps.updateSchema(postgresDriverName); err != nil {
 			return fmt.Errorf("could not update database schema: %s", err)
 		}
 		ps.scheme = newScheme()
@@ -152,12 +159,19 @@ func (ps *Storage) checkOpen() {
 	}
 }
 
-func (ps *Storage) updateSchema(migrationsURL, pgDriverName string) error {
+//go:embed migrations/*.sql
+var migrationFiles embed.FS
+
+func (ps *Storage) updateSchema(pgDriverName string) error {
 	driver, err := migratepg.WithInstance(ps.db.DB, &migratepg.Config{})
 	if err != nil {
 		return err
 	}
-	m, err := migrate.NewWithDatabaseInstance(migrationsURL, pgDriverName, driver)
+	d, err := iofs.New(migrationFiles, "migrations")
+	if err != nil {
+		return err
+	}
+	m, err := migrate.NewWithInstance("iofs", d, pgDriverName, driver)
 	if err != nil {
 		return err
 	}
