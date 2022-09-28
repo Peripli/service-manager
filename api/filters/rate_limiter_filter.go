@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+const RateLimiterFilterName = "RateLimiterFilter"
+
 type RateLimiterFilter struct {
 	rateLimiters      []RateLimiterMiddleware
 	excludeClients    []string
@@ -84,7 +86,7 @@ func (rl *RateLimiterFilter) isRateLimitedClient(userContext *web.UserContext) (
 }
 
 func (rl *RateLimiterFilter) Name() string {
-	return "RateLimiterFilter"
+	return RateLimiterFilterName
 }
 
 func (rl *RateLimiterFilter) isExcludedPath(path string) bool {

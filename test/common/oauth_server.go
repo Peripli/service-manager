@@ -29,6 +29,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const (
+	UserNameInToken = "test-user"
+)
+
 type OAuthServer struct {
 	BaseURL string
 
@@ -120,7 +124,7 @@ func (os *OAuthServer) CreateToken(payload map[string]interface{}) string {
 		Issuer:         issuerURL,
 		KeyID:          os.keyID,
 		Audience:       "sm",
-		Subject:        "test-user",
+		Subject:        UserNameInToken,
 		ExpirationTime: nextYear,
 		Public:         payload,
 	})
