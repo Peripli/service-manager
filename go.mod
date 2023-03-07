@@ -14,7 +14,7 @@ require (
 	github.com/cloudfoundry-community/go-cfenv v1.17.1-0.20171115121958-e84b5c116637
 	github.com/containerd/containerd v1.4.3 // indirect
 	github.com/coreos/go-oidc v2.0.0+incompatible
-	github.com/docker/distribution v2.7.1+incompatible // indirect
+	github.com/docker/distribution v2.8.0+incompatible // indirect
 	github.com/docker/docker v20.10.2+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
