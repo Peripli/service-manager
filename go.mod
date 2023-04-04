@@ -12,10 +12,9 @@ require (
 	github.com/antlr/antlr4 v0.0.0-20210105192202-5c2b686f95e1
 	github.com/benjamintf1/unmarshalledmatchers v1.0.0
 	github.com/cloudfoundry-community/go-cfenv v1.17.1-0.20171115121958-e84b5c116637
-	github.com/containerd/containerd v1.4.3 // indirect
 	github.com/coreos/go-oidc v2.0.0+incompatible
 	github.com/docker/distribution v2.7.1+incompatible // indirect
-	github.com/docker/docker v20.10.2+incompatible // indirect
+	github.com/docker/docker v20.10.24+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/fatih/structs v1.0.0
