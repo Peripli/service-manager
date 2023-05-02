@@ -12,7 +12,7 @@ require (
 	github.com/cloudfoundry-community/go-cfenv v1.17.1-0.20171115121958-e84b5c116637
 	github.com/coreos/go-oidc v2.0.0+incompatible
 	github.com/fatih/structs v1.0.0
-	github.com/fsnotify/fsnotify v1.4.9
+	github.com/fsnotify/fsnotify v1.5.4
 	github.com/gavv/httpexpect v0.0.0-20170820080527-c44a6d7bb636
 	github.com/gbrlsnchs/jwt v0.5.0
 	github.com/go-redis/redis v6.15.9+incompatible
