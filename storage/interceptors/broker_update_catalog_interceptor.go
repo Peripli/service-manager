@@ -280,11 +280,13 @@ func reuseReferenceInstancePlans(oldBroker *types.ServiceBroker, newBroker *type
 }
 
 func createPlan(ctx context.Context, txStorage storage.Repository, servicePlan *types.ServicePlan, brokerID string) error {
-	UUID, err := uuid.NewV4()
-	if err != nil {
-		return err
+	if servicePlan.Name == instance_sharing.ReferencePlanName && servicePlan.ID != "" {
+		UUID, err := uuid.NewV4()
+		if err != nil {
+			return err
+		}
+		servicePlan.ID = UUID.String()
 	}
-	servicePlan.ID = UUID.String()
 	if err := servicePlan.Validate(); err != nil {
 		return &util.HTTPError{
 			ErrorType:   "BadRequest",

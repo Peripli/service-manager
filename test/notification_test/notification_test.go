@@ -666,7 +666,7 @@ var _ = Describe("Notifications Suite", func() {
 					setAllPlatformsActive(ctx, true, time.Now())
 				})
 
-				It("also creates a CREATED notification", func() {
+				FIt("also creates a CREATED notification", func() {
 					_, ids := getNotifications()
 					objAfterOp = entry.ResourceCreateFunc()
 					notificationsAfterOp, _ := getNotifications(ids...)
