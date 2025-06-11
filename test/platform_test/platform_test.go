@@ -24,7 +24,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/gavv/httpexpect"
+	"github.com/gavv/httpexpect/v2"
 	"github.com/gofrs/uuid"
 	"github.com/tidwall/gjson"
 	"golang.org/x/crypto/bcrypt"

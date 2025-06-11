@@ -19,8 +19,7 @@ package health
 import (
 	"context"
 	"fmt"
-	"github.com/InVisionApp/go-health"
-	h "github.com/InVisionApp/go-health"
+	health "github.com/InVisionApp/go-health/v2"
 	l "github.com/InVisionApp/go-logger/shims/logrus"
 	"github.com/Peripli/service-manager/pkg/log"
 	"time"
@@ -180,6 +179,7 @@ func (h *Health) WithDetails(details map[string]interface{}) *Health {
 }
 
 // Indicator is an interface to provide the health of a component
+//
 //go:generate counterfeiter . Indicator
 type Indicator interface {
 	// Name returns the name of the component
@@ -214,8 +214,8 @@ func (r *Registry) SetIndicator(healthIndicator Indicator) {
 }
 
 // Configure creates new health using provided settings.
-func Configure(ctx context.Context, indicators []Indicator, settings *Settings) (*h.Health, map[string]int64, error) {
-	healthz := h.New()
+func Configure(ctx context.Context, indicators []Indicator, settings *Settings) (*health.Health, map[string]int64, error) {
+	healthz := health.New()
 	logger := log.C(ctx).Logger
 
 	healthz.Logger = l.New(logger)
@@ -228,7 +228,7 @@ func Configure(ctx context.Context, indicators []Indicator, settings *Settings) 
 		if !ok {
 			s = DefaultIndicatorSettings()
 		}
-		if err := healthz.AddCheck(&h.Config{
+		if err := healthz.AddCheck(&health.Config{
 			Name:     indicator.Name(),
 			Checker:  indicator,
 			Interval: s.Interval,

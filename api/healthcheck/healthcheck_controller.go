@@ -18,7 +18,7 @@ package healthcheck
 
 import (
 	"context"
-	gohealth "github.com/InVisionApp/go-health"
+	gohealth "github.com/InVisionApp/go-health/v2"
 	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"

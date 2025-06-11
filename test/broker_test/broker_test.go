@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/instance_sharing"
 	"github.com/Peripli/service-manager/test/tls_settings"
+	"github.com/gavv/httpexpect/v2"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -38,7 +39,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/test"
-	"github.com/gavv/httpexpect"
 
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"

@@ -38,7 +38,7 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 
-	"github.com/gavv/httpexpect"
+	"github.com/gavv/httpexpect/v2"
 
 	"testing"
 

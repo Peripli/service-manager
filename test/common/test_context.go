@@ -43,7 +43,7 @@ import (
 
 	"github.com/Peripli/service-manager/api/extensions/security"
 
-	"github.com/gavv/httpexpect"
+	"github.com/gavv/httpexpect/v2"
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/onsi/ginkgo"

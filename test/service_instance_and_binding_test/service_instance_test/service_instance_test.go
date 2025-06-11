@@ -37,7 +37,7 @@ import (
 
 	"github.com/gofrs/uuid"
 
-	"github.com/gavv/httpexpect"
+	"github.com/gavv/httpexpect/v2"
 
 	"strconv"
 

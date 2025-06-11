@@ -29,7 +29,7 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/types"
 
-	"github.com/gavv/httpexpect"
+	"github.com/gavv/httpexpect/v2"
 
 	. "github.com/onsi/ginkgo/extensions/table"
 

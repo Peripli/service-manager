@@ -28,11 +28,10 @@ import (
 
 	"fmt"
 
-	"github.com/coreos/go-oidc"
+	goidc "github.com/coreos/go-oidc/v3/oidc"
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-	goidc "github.com/coreos/go-oidc"
 )
 
 type claims struct {
@@ -61,7 +60,7 @@ type OIDCOptions struct {
 }
 
 type oidcVerifier struct {
-	*oidc.IDTokenVerifier
+	*goidc.IDTokenVerifier
 }
 
 // Verify implements security.TokenVerifier and delegates to oidc.IDTokenVerifier

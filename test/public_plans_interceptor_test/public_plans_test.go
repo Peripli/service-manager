@@ -22,7 +22,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/service_plans"
-	"github.com/gavv/httpexpect"
+	"github.com/gavv/httpexpect/v2"
 	"math/rand"
 	"net/http"
 	"testing"

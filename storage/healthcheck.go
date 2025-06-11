@@ -17,7 +17,7 @@
 package storage
 
 import (
-	"github.com/InVisionApp/go-health/checkers"
+	"github.com/InVisionApp/go-health/v2/checkers"
 	"github.com/Peripli/service-manager/pkg/health"
 )
 

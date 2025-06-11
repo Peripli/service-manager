@@ -27,7 +27,7 @@ import (
 	"sync"
 
 	"github.com/Peripli/service-manager/test"
-	"github.com/gavv/httpexpect"
+	"github.com/gavv/httpexpect/v2"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"

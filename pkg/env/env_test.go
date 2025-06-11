@@ -36,7 +36,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/spf13/cast"
 	"github.com/spf13/pflag"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 func TestEnv(t *testing.T) {

@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"testing"
 
-	h "github.com/InVisionApp/go-health"
+	h "github.com/InVisionApp/go-health/v2"
 	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/web"
 
