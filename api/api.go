@@ -98,15 +98,17 @@ func (s *Settings) Validate() error {
 }
 
 type Options struct {
-	RedisClient       *redis.Client
-	Repository        storage.TransactionalRepository
-	APISettings       *Settings
-	OperationSettings *operations.Settings
-	WSSettings        *ws.Settings
-	Notificator       storage.Notificator
-	WaitGroup         *sync.WaitGroup
-	TenantLabelKey    string
-	Agents            *agents.Settings
+	RedisClient         *redis.Client
+	Repository          storage.TransactionalRepository
+	APISettings         *Settings
+	StorageSettings     *storage.Settings
+	OperationSettings   *operations.Settings
+	WSSettings          *ws.Settings
+	Notificator         storage.Notificator
+	WaitGroup           *sync.WaitGroup
+	TenantLabelKey      string
+	Agents              *agents.Settings
+	BlockedClientsCache *storage.Cache
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
@@ -132,7 +134,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			NewServiceInstanceController(ctx, options),
 			NewServiceBindingController(ctx, options),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
-
+			NewBlockedClientsController(ctx, options),
 			NewServiceOfferingController(ctx, options),
 			NewServicePlanController(ctx, options),
 			NewOperationsController(ctx, options),
@@ -189,10 +191,12 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 	}
 
 	api.RegisterFiltersBefore(filters.ProtectedLabelsFilterName, &filters.DisabledQueryParametersFilter{DisabledQueryParameters: options.APISettings.DisabledQueryParameters})
+	api.RegisterFiltersAfter(filters.LoggingFilterName,
+		filters.NewBlockedClientsFilter(options.BlockedClientsCache, options.TenantLabelKey))
 
 	if rateLimiters != nil {
 		api.RegisterFiltersAfter(
-			filters.LoggingFilterName,
+			filters.BlockedClientsFilterName,
 			filters.NewRateLimiterFilter(
 				rateLimiters,
 				options.APISettings.RateLimitExcludeClients,

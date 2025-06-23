@@ -22,6 +22,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/blocked_clients"
 	secFilters "github.com/Peripli/service-manager/pkg/security/filters"
 	osbc "github.com/kubernetes-sigs/go-open-service-broker-client/v2"
 	"math"
@@ -152,22 +153,23 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 	// Setup core API
 	log.C(ctx).Info("Setting up Service Manager core API...")
-
 	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage)
 	if err != nil {
 		return nil, fmt.Errorf("could not create notificator: %v", err)
 	}
-
+	blockedClientsManager := blocked_clients.New(ctx, interceptableRepository, cfg.Storage.URI)
+	blockedClientsManager.Start(waitGroup)
 	apiOptions := &api.Options{
-		RedisClient:       redisClient,
-		Repository:        interceptableRepository,
-		APISettings:       cfg.API,
-		OperationSettings: cfg.Operations,
-		WSSettings:        cfg.WebSocket,
-		Notificator:       pgNotificator,
-		WaitGroup:         waitGroup,
-		TenantLabelKey:    cfg.Multitenancy.LabelKey,
-		Agents:            cfg.Agents,
+		RedisClient:         redisClient,
+		Repository:          interceptableRepository,
+		APISettings:         cfg.API,
+		OperationSettings:   cfg.Operations,
+		WSSettings:          cfg.WebSocket,
+		Notificator:         pgNotificator,
+		WaitGroup:           waitGroup,
+		TenantLabelKey:      cfg.Multitenancy.LabelKey,
+		Agents:              cfg.Agents,
+		BlockedClientsCache: blockedClientsManager.Cache,
 	}
 	API, err := api.New(ctx, e, apiOptions)
 	if err != nil {

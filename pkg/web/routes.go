@@ -37,10 +37,14 @@ const (
 	InfoURL = "/" + apiVersion + "/info"
 
 	// ConfigURL is the Configuration API base URL path
-	ConfigURL = "/" + apiVersion + "/config"
+	ConfigURL            = "/" + apiVersion + "/config"
+	ResyncBlockedClients = ConfigURL + "/resync_blocked_clients"
 
 	// LoggingConfigURL is the Logging Configuration API URL path
 	LoggingConfigURL = ConfigURL + "/logging"
+
+	// BlockedClientsConfigURL is the Blocked Clients Configuration API URL path
+	BlockedClientsConfigURL = ConfigURL + "/blocked_clients"
 
 	// ResourceOperationsURL is the URL path fetch operations for a resource
 	ResourceOperationsURL = "/operations"
