@@ -3,6 +3,7 @@
 <h1 align="center">⚠️ DEPRECATION NOTICE ⚠️</h1>
 
 <p align="center">
+  <strong>The Service Manager Control (SMCTL) command-line tool is no longer in active maintenance. Only critical security issues will be addressed going forward.</span>.</strong><br>
   The Service Manager Control (SMCTL) command-line tool is no longer in active maintenance. Only critical security issues will be addressed going forward.
   The tool will be archived on September 30, 2025. After this date, it will no longer be maintained or supported.
  
