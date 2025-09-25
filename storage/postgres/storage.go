@@ -131,6 +131,7 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 		ps.scheme.introduce(&ServiceInstance{})
 		ps.scheme.introduce(&ServiceBinding{})
 		ps.scheme.introduce(&BrokerPlatformCredential{})
+		ps.scheme.introduce(&BlockedClient{})
 	}
 
 	return nil

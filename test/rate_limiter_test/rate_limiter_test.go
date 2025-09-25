@@ -23,43 +23,13 @@ func TestFilters(t *testing.T) {
 	RunSpecs(t, "Rate Limiter Tests Suite")
 }
 
-type overrideFilter struct {
-	ClientIP string
-	UserName string
-}
-
-func (f overrideFilter) Name() string {
-	return "RateLimiterOverrideFilter"
-}
-
-func (f overrideFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
-	if f.ClientIP != "" {
-		request.Header.Set("X-Forwarded-For", f.ClientIP)
-	}
-	user, _ := web.UserFromContext(request.Context())
-	if user != nil && f.UserName != "" {
-		user.Name = f.UserName
-	}
-	return next.Handle(request)
-}
-
-func (f overrideFilter) FilterMatchers() []web.FilterMatcher {
-	return []web.FilterMatcher{
-		{
-			Matchers: []web.Matcher{
-				web.Path("**/*"),
-			},
-		},
-	}
-}
-
 var _ = Describe("Service Manager Rate Limiter", func() {
 	var ctx *common.TestContext
 	var osbURL string
 	var serviceID string
 	var planID string
 
-	var filterContext = &overrideFilter{}
+	var filterContext = &common.OverrideFilter{}
 	var changeClientIdentifier = func() string {
 		UUID, err := uuid.NewV4()
 		Expect(err).ToNot(HaveOccurred())
